@@ -30,8 +30,8 @@ extern struct retro_hw_render_callback hw_render;
 #define M_PI 3.14159265358979323846
 #endif
 
-WindowSE *globalWindow = nullptr;
-SpeechManagerGLCore *speechManager = nullptr;
+// WindowSE *globalWindow = nullptr;
+// SpeechManagerGLCore *speechManager = nullptr;
 
 GLuint spriteProgram = 0;
 static GLuint solidProgram = 0;
@@ -458,15 +458,15 @@ static GLuint getMainFBO() {
 #endif
 }
 
-static bool createPenFBO() {
+static bool createPenFBO(WindowSE *window) {
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(globalWindow->getWidth()) <
-            Scratch::projectHeight / static_cast<double>(globalWindow->getHeight())) {
-            penWidth = Scratch::projectWidth * (globalWindow->getHeight() / static_cast<double>(Scratch::projectHeight));
-            penHeight = globalWindow->getHeight();
+        if (Scratch::projectWidth / static_cast<double>(window->getWidth()) <
+            Scratch::projectHeight / static_cast<double>(window->getHeight())) {
+            penWidth = Scratch::projectWidth * (window->getHeight() / static_cast<double>(Scratch::projectHeight));
+            penHeight = window->getHeight();
         } else {
-            penWidth = globalWindow->getWidth();
-            penHeight = Scratch::projectHeight * (globalWindow->getWidth() / static_cast<double>(Scratch::projectWidth));
+            penWidth = window->getWidth();
+            penHeight = Scratch::projectHeight * (window->getWidth() / static_cast<double>(Scratch::projectWidth));
         }
     } else {
         penWidth = Scratch::projectWidth;
@@ -609,17 +609,17 @@ static void drawBlackBars(int screenWidth, int screenHeight, const float proj[16
 
 Renderer_GLCore::Renderer_GLCore() {
 #if defined(WINDOWING_GLFW)
-    globalWindow = new WindowGLFW();
+    window = new WindowGLFW();
 #elif defined(WINDOWING_SDL1)
-    globalWindow = new WindowSDL1();
+    window = new WindowSDL1();
 #elif defined(WINDOWING_SDL2)
-    globalWindow = new WindowSDL2();
+    window = new WindowSDL2();
 #elif defined(WINDOWING_SDL3)
-    globalWindow = new WindowSDL3();
+    window = new WindowSDL3();
 #elif defined(WINDOWING_LIBRETRO)
-    globalWindow = new WindowLibretro();
+    window = new WindowLibretro();
 #elif defined(WINDOWING_WIN32)
-    globalWindow = new WindowWin32();
+    window = new WindowWin32();
 #else
 #error "No windowing backend defined"
 #endif
@@ -632,9 +632,9 @@ Renderer_GLCore::Renderer_GLCore() {
     constexpr int initialHeight = 405;
 #endif
 
-    if (!globalWindow->init(initialWidth, initialHeight, "Scratch Everywhere!")) {
-        delete globalWindow;
-        globalWindow = nullptr;
+    if (!window->init(initialWidth, initialHeight, "Scratch Everywhere!")) {
+        delete window;
+        window = nullptr;
         error = "Failed to init window.";
         return;
     }
@@ -642,18 +642,18 @@ Renderer_GLCore::Renderer_GLCore() {
 #if defined(WINDOWING_LIBRETRO)
     if (!gladLoadGL((GLADloadfunc)hw_render.get_proc_address)) {
         Log::logError("[GL Core] Failed to initialize GLAD via Libretro proc address");
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+        window->cleanup();
+        delete window;
+        window = nullptr;
         error = "Failed to initialize GLAD via Libretro proc address";
         return;
     }
 #elif !defined(WINDOWING_SDL3) && !defined(WINDOWING_SDL2)
     if (!gladLoaderLoadGL()) {
         Log::logError("[GL Core] Failed to initialize GLAD");
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+        window->cleanup();
+        delete window;
+        window = nullptr;
         error = "Failed to initialize GLAD";
         return;
     }
@@ -674,9 +674,9 @@ Renderer_GLCore::Renderer_GLCore() {
 
     if (!spriteProgram || !solidProgram) {
         Log::logError("[GL Core] Failed to compile/link shaders");
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+        window->cleanup();
+        delete window;
+        window = nullptr;
         error = "Failed to compile/link shaders.";
         return;
     }
@@ -715,10 +715,10 @@ Renderer_GLCore::~Renderer_GLCore() {
         speechManager = nullptr;
     }
 
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
     }
 }
 
@@ -745,16 +745,16 @@ void Renderer_GLCore::destroySpeechManager() {
 
 SpeechManager *Renderer_GLCore::getSpeechManager() { return speechManager; }
 
-int Renderer_GLCore::getWidth() { return globalWindow ? globalWindow->getWidth() : 540; }
-int Renderer_GLCore::getHeight() { return globalWindow ? globalWindow->getHeight() : 405; }
+int Renderer_GLCore::getWidth() { return window ? window->getWidth() : 540; }
+int Renderer_GLCore::getHeight() { return window ? window->getHeight() : 405; }
 
 float Renderer_GLCore::getPixelDensity() {
-    return globalWindow ? globalWindow->getPixelDensity() : 1.0f;
+    return window ? window->getPixelDensity() : 1.0f;
 }
 
 bool Renderer_GLCore::initPen() {
     if (penFBO != 0) return true;
-    return createPenFBO();
+    return createPenFBO(window);
 }
 
 void Renderer_GLCore::penClear() {
@@ -876,7 +876,7 @@ void Renderer_GLCore::beginFrame(int /*screen*/, int colorR, int colorG, int col
 }
 
 void Renderer_GLCore::endFrame(bool shouldFlush) {
-    if (globalWindow) globalWindow->swapBuffers();
+    if (window) window->swapBuffers();
     hasFrameBegan = false;
 }
 
@@ -1032,12 +1032,12 @@ void Renderer_GLCore::renderSprites() {
 
 bool Renderer_GLCore::appShouldRun() {
     if (OS::toExit) return false;
-    if (globalWindow) {
-        globalWindow->pollEvents();
+    if (window) {
+        window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = globalWindow->getWidth();
-        int currentH = globalWindow->getHeight();
+        int currentW = window->getWidth();
+        int currentH = window->getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;
@@ -1045,11 +1045,11 @@ bool Renderer_GLCore::appShouldRun() {
 
             if (Scratch::hqpen) {
                 destroyPenFBO();
-                createPenFBO();
+                createPenFBO(window);
             }
         }
 
-        return !globalWindow->shouldClose();
+        return !window->shouldClose();
     }
     return false;
 }

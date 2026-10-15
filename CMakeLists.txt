@@ -157,12 +157,17 @@ if(NOT DEFINED SE_RENDERER_PRIORITY)
 	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
-# include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
+
+add_library(renderer_interface INTERFACE)
 foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${RENDERER_OPT}.cmake")
         include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${RENDERER_OPT}.cmake")
     endif()
 endforeach()
+
+if(SE_WINDOWING_VALID_OPTIONS)
+    list(REMOVE_DUPLICATES SE_WINDOWING_VALID_OPTIONS)
+endif()
 
 set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")

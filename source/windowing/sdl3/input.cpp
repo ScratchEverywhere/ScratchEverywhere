@@ -233,7 +233,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     enterText->setCenterAligned(true);
     enterText->setColor(Math::color(0, 0, 0, 255));
 
-    SDL_Window *window = (SDL_Window *)globalWindow->getHandle();
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
     SDL_StartTextInput(window);
 
     std::string inputText = "";

@@ -7,6 +7,7 @@
 #include <speech_manager.hpp>
 #include <text.hpp>
 #include <types.hpp>
+#include <window.hpp>
 
 // note: this is in priority order, so keep that in mind.
 // also make sure the order is the same between Renderers and RendererNames
@@ -42,6 +43,9 @@ struct RendererInfo {
 class SE_EXPORT Renderer {
   private:
   public:
+    WindowSE *window = nullptr;
+    SpeechManager *speechManager = nullptr;
+
     /**
      * Set if an error occurs in the constructor.
      */

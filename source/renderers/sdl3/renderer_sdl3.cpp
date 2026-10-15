@@ -34,10 +34,10 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
-WindowSE *globalWindow = nullptr;
+// WindowSE *globalWindow = nullptr;
 static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
-SpeechManagerSDL3 *speechManager = nullptr;
+// SpeechManagerSDL3 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
@@ -84,15 +84,15 @@ Renderer_SDL3::Renderer_SDL3() {
     int windowHeight = 360;
 #endif
 
-    globalWindow = new WindowSDL3();
-    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
-        delete globalWindow;
-        globalWindow = nullptr;
+    window = new WindowSDL3();
+    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete window;
+        window = nullptr;
         error = "Failed to init window.";
         return;
     }
 
-    Sdlrenderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), "");
+    Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), "");
     if (Sdlrenderer == nullptr) {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
@@ -111,10 +111,10 @@ Renderer_SDL3::~Renderer_SDL3() {
     TextObject::cleanupText();
     SDL_DestroyRenderer(Sdlrenderer);
 
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
     }
 
     SDL_Quit();
@@ -146,17 +146,17 @@ SpeechManager *Renderer_SDL3::getSpeechManager() {
 }
 
 int Renderer_SDL3::getWidth() {
-    if (globalWindow) return globalWindow->getWidth();
+    if (window) return window->getWidth();
     return 540;
 }
 
 int Renderer_SDL3::getHeight() {
-    if (globalWindow) return globalWindow->getHeight();
+    if (window) return window->getHeight();
     return 405;
 }
 
 float Renderer_SDL3::getPixelDensity() {
-    if (globalWindow) return globalWindow->getPixelDensity();
+    if (window) return window->getPixelDensity();
     return 1.0f;
 }
 
@@ -595,12 +595,12 @@ void Renderer_SDL3::renderPenLayer() {
 
 bool Renderer_SDL3::appShouldRun() {
     if (OS::toExit) return false;
-    if (globalWindow) {
-        globalWindow->pollEvents();
+    if (window) {
+        window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = globalWindow->getWidth();
-        int currentH = globalWindow->getHeight();
+        int currentW = window->getWidth();
+        int currentH = window->getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;
@@ -614,7 +614,7 @@ bool Renderer_SDL3::appShouldRun() {
             }
         }
 
-        return !globalWindow->shouldClose();
+        return !window->shouldClose();
     }
     return false;
 }

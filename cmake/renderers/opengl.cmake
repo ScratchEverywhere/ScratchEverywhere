@@ -1,7 +1,3 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(renderer_interface INTERFACE OpenGL::GL)

@@ -22,4 +22,4 @@ class SE_EXPORT WindowSE {
     virtual void *getHandle() = 0;
 };
 
-extern WindowSE *globalWindow;
+// extern WindowSE *globalWindow;

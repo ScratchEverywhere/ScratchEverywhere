@@ -1,7 +1,3 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 
 target_link_libraries(renderer_interface INTERFACE gdi32)
 

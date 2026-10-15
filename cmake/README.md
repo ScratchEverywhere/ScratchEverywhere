@@ -53,10 +53,6 @@ same format in our CMake setup.
 All backends should have an include guard like this:
 
 ```cmake
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 ```
 
 Then simply link dependencies to that interface.
