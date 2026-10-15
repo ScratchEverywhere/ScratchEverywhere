@@ -34,6 +34,9 @@
 #ifdef RENDERER_GDI
 #include <renderers/gdi/text_gdi.hpp>
 #endif
+#if defined(RENDERER_D3D9)
+#include <renderers/d3d9/text_d3d9.hpp>
+#endif
 #ifdef RENDERER_HEADLESS
 #include <renderers/headless/text_headless.hpp>
 #endif

@@ -27,6 +27,9 @@
 #ifdef RENDERER_GL2D
 #include "renderer_gl2d.hpp"
 #endif
+#ifdef RENDERER_D3D9
+#include "renderer_d3d9.hpp"
+#endif
 #ifdef RENDERER_HEADLESS
 #include "renderer_headless.hpp"
 #endif
@@ -63,6 +66,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #endif
 #ifdef RENDERER_OPENGL
     add(Renderers::OpenGL);
+#endif
+#ifdef RENDERER_D3D9
+    add(Renderers::D3D9);
 #endif
 #ifdef RENDERER_SDL3
     add(Renderers::SDL3);
@@ -132,6 +138,16 @@ bool Render::init() {
             break;
 #else
             Log::logWarning("OpenGL Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::D3D9: {
+#ifdef RENDERER_D3D9
+            Render::currentRenderer = Renderers::D3D9;
+            globalRenderer = new Renderer_D3D9;
+            break;
+#else
+            Log::logWarning("D3D9 Renderer unavailable.");
             continue;
 #endif
         }

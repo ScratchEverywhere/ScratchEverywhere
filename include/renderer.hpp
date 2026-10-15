@@ -14,6 +14,7 @@
 enum class SE_EXPORT Renderers : uint8_t {
     OpenGLCore,
     OpenGL,
+    D3D9,
     SDL3,
     SDL2,
     Citro2D,
@@ -27,6 +28,7 @@ enum class SE_EXPORT Renderers : uint8_t {
 constexpr std::array RendererNames = {
     "OpenGL Core",
     "OpenGL",
+    "DirectX 9",
     "SDL3",
     "SDL2",
     "Citro2D",

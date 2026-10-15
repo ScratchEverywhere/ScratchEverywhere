@@ -3,6 +3,9 @@
 #include <se_export.hpp>
 #include <window.hpp>
 #include <windows.h>
+#ifdef RENDERER_D3D9
+#include <d3d9.h>
+#endif
 
 class SE_EXPORT WindowWin32 : public WindowSE {
   public:
@@ -19,12 +22,18 @@ class SE_EXPORT WindowWin32 : public WindowSE {
     float getPixelDensity() const override;
     void *getHandle() override;
 
-    void resized(int width, int height);
+    bool resized;
 
     /* these are here because, well, win32 api. */
     int shouldCloseFlag;
     HDC hDC;
     HDC winDC;
+
+#if defined(RENDERER_D3D9)
+    D3DPRESENT_PARAMETERS dpp;
+    IDirect3D9 *pD3D;
+    IDirect3DDevice9 *pDev;
+#endif
 
   private:
     HWND hWnd;

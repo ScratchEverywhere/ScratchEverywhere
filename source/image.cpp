@@ -46,6 +46,9 @@
 #if defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
 #endif
+#if defined(RENDERER_D3D9)
+#include <image_d3d9.hpp>
+#endif
 
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>

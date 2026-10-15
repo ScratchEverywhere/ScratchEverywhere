@@ -52,6 +52,7 @@ int Math::color(int r, int g, int b, int a) {
     case Renderers::OpenGL:
     case Renderers::OpenGLCore:
     case Renderers::GDI:
+    case Renderers::D3D9:
         return (r << 24) |
                (g << 16) |
                (b << 8) |
