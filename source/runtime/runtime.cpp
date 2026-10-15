@@ -394,6 +394,8 @@ void Scratch::cleanupScratchProject() {
     warpTimer = true;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::UnpackedInSD = false;
+    Unzip::filePath.clear();
 
     Log::log("Cleaned up Scratch project.");
 }

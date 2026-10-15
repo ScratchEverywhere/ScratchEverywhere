@@ -178,11 +178,13 @@ void MainMenu::render() {
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        static bool menuMusicFailed = false;
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
+                menuMusicFailed = true;
             } else {
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
             }
