@@ -1,3 +1,4 @@
+# TODO: maybe move this somewhere else
 add_library(nxdk_interface INTERFACE)
 cl_add_dep(nxdk_interface nxdk)
 unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
@@ -16,6 +17,7 @@ set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
 set(SE_DECTALK_DEFAULT OFF)
 
 set(SE_CACHING_DEFAULT ON)
+set(SE_BUNDLE_DEFAULT ON)
 set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)

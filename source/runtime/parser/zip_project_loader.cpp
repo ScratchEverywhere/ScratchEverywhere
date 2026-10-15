@@ -175,12 +175,7 @@ void *ZipProjectLoader::getAsset(const std::string &name, size_t *outSize) {
     std::vector<std::byte> projectBuffer;
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         auto projectBundle = Bundle::project();
-#if defined(__XBOX__)
-        std::string bundlePath = OS::normalizePath(Unzip::filePath);
-        auto entry = projectBundle.find(bundlePath);
-#else
         auto entry = projectBundle.find(Unzip::filePath);
-#endif
         if (entry) {
             projectBuffer = projectBundle.load(*entry);
             initSuccess = archive->openMemory(projectBuffer.data(), projectBuffer.size());

@@ -162,11 +162,7 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-<<<<<<< HEAD
-    set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
-=======
-	set(SE_RENDERER_PRIORITY "d3d9" "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
->>>>>>> upstream/main
+    set(SE_RENDERER_PRIORITY "d3d9" "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
@@ -424,6 +420,18 @@ if(SE_BUNDLE)
         DIRECTORIES ${SE_PROJECT_DIRS}
         COMPRESSION STORE
     )
+
+    # Translate bundle symbols to a format compatible with xbox
+    if(XBOX)
+        foreach(_b se_assets se_project)
+            set(_s "${CMAKE_CURRENT_BINARY_DIR}/bundle/${_b}/${_b}_data.S")
+            file(READ "${_s}" _src)
+            if(NOT _src MATCHES "_bundle_${_b}_data")
+                string(REPLACE "bundle_${_b}_data" "_bundle_${_b}_data" _src "${_src}")
+                file(WRITE "${_s}" "${_src}")
+            endif()
+        endforeach()
+    endif()
 
     target_link_libraries(se-interface INTERFACE se_assets se_project)
     target_compile_definitions(se-interface INTERFACE USE_BUNDLE)

@@ -95,16 +95,9 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
 
     // Unzipped Project in romfs:/
 #ifdef USE_BUNDLE
-#if defined(__XBOX__)
-    std::string bundleUnzipped = OS::normalizePath(unzippedPath);
-    if (auto entry = project.find(bundleUnzipped)) {
-        file = new std::istringstream(project.load_text(*entry));
-    }
-#else
     if (auto entry = project.find(unzippedPath)) {
         file = new std::istringstream(project.load_text(*entry));
     }
-#endif
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
@@ -120,18 +113,10 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
 #ifdef USE_BUNDLE
-#if defined(__XBOX__)
-    std::string bundleEmbedded = OS::normalizePath(embeddedFilename);
-    if (auto entry = project.find(bundleEmbedded)) {
-        file = new std::istringstream(project.load_text(*entry));
-        file->seekg(0, std::ios::end);
-    }
-#else
     if (auto entry = project.find(embeddedFilename)) {
         file = new std::istringstream(project.load_text(*entry));
         file->seekg(0, std::ios::end);
     }
-#endif
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
 #endif
@@ -384,12 +369,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     if (Scratch::projectType != ProjectType::UNEMBEDDED) {
 #ifdef USE_BUNDLE
         auto project = Bundle::project();
-#if defined(__XBOX__)
-        std::string bundlePath = OS::normalizePath(folderPath);
-        auto entry = project.find(bundlePath);
-#else
         auto entry = project.find(folderPath);
-#endif
         if (!entry) {
             Log::logWarning("Project settings file not found: romfs:/" + folderPath);
             return nlohmann::json();

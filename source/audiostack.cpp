@@ -167,12 +167,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 #ifdef USE_BUNDLE
     } else {
         auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
-#if defined(__XBOX__)
-        std::string bundleAudioPath = OS::normalizePath(prefix + path);
-        auto entry = archive.find(bundleAudioPath);
-#else
         auto entry = archive.find(prefix + path);
-#endif
         if (!entry) return nonstd::make_unexpected("Audio file not found.");
 
         this->buffer_size = entry->size();
@@ -321,12 +316,7 @@ void Mixer::initMusic() {
     size_t size;
 
 #ifdef USE_BUNDLE
-#if defined(__XBOX__)
-    std::string bundleSF2Path = OS::normalizePath(path);
-    if (auto entry = Bundle::assets().find(bundleSF2Path)) {
-#else
     if (auto entry = Bundle::assets().find(path)) {
-#endif
         size = entry->size();
         Mixer::sf2_buffer = malloc(size);
         bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);

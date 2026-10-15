@@ -206,12 +206,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
 
         std::unique_ptr<bundle::istream> bundleStream = nullptr;
         auto assets = Bundle::assets();
-#if defined(__XBOX__)
-        std::string bundleRomFSPath = OS::normalizePath(romFSPath);
-        if (auto entry = assets.find(bundleRomFSPath)) {
-#else
         if (auto entry = assets.find(romFSPath)) {
-#endif
             bundleStream = std::make_unique<bundle::istream>(assets.open(*entry));
             auto result = extensions::parseMetadata(*bundleStream);
             if (result.has_value() && result.value()->id == targetID) {
