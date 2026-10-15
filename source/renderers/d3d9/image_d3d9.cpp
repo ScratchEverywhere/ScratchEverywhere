@@ -1,6 +1,6 @@
 #include "image_d3d9.hpp"
 #include "nonstd/expected.hpp"
-#include "render_d3d9.hpp"
+#include "renderer_d3d9.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <string>

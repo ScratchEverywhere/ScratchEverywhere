@@ -1,6 +1,6 @@
 #include "text_gdi.hpp"
 #include "image_gdi.hpp"
-#include "render_gdi.hpp"
+#include "renderer_gdi.hpp"
 #include <vector>
 
 TextObjectGDI::TextObjectGDI(std::string txt, double posX, double posY, std::string fontPath)

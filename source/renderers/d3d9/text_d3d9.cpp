@@ -1,6 +1,6 @@
 #include "text_d3d9.hpp"
 #include "image_d3d9.hpp"
-#include "render_d3d9.hpp"
+#include "renderer_d3d9.hpp"
 #include <vector>
 
 TextObjectD3D9::TextObjectD3D9(std::string txt, double posX, double posY, std::string fontPath)

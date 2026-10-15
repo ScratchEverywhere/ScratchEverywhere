@@ -16,7 +16,7 @@
 #define NO_SOFT_SWAPBUFFERS
 #define SWAPBUFFERS
 #elif defined(RENDERER_D3D9)
-#include <renderers/d3d9/render_d3d9.hpp>
+#include <renderers/d3d9/renderer_d3d9.hpp>
 
 #define NO_SOFT_SWAPBUFFERS
 #endif
