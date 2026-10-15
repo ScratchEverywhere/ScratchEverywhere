@@ -184,7 +184,7 @@ if(SE_WINDOWING_VALID_OPTIONS)
     list(REMOVE_DUPLICATES SE_WINDOWING_VALID_OPTIONS)
 endif()
 
-set(SE_WINDOWING_PRIORITY "all" "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headless" "libretro")
+set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
