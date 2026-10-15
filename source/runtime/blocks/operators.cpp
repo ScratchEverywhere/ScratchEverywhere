@@ -109,6 +109,15 @@ SCRATCH_BLOCK_POSITIONAL_SS_S(operator, join) {
     return str1 + str2;
 }
 
+static bool stringVariableSlot(BytecodeCompiler &compiler, Block *block, BytecodeIndex &slot) {
+    const ParsedInput *input = Scratch::getInput(block, "STRING");
+    if (input == nullptr || input->inputType != ParsedInput::VARIABLE || input->list) return false;
+    Variable *var = BlockExecutor::getVariable(input->variableId, compiler.sprite());
+    if (var == nullptr || !std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) return false;
+    slot = compiler.variableSlot(input->variableId);
+    return true;
+}
+
 SCRATCH_BLOCK_STRING(operator, letter_of) {
     double letter;
     Value strValue;
@@ -119,17 +128,7 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
     if (indexD < 0) return BlockResult::CONTINUE;
     const size_t index = static_cast<size_t>(indexD);
 
-    if (strValue.isString()) {
-        auto strPtr = strValue.getStringPtr();
-        if (indexD < static_cast<double>(Math::utf16Length(strPtr))) {
-            *outValue = Math::utf16CharAt(strPtr, index);
-        }
-    } else {
-        const std::string str = strValue.asString();
-        if (indexD < static_cast<double>(Math::utf16Length(str))) {
-            *outValue = Math::utf16CharAt(str, index);
-        }
-    }
+    if (indexD < static_cast<double>(strValue.utf16Length())) *outValue = strValue.utf16CharAt(index);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(operator, letter_of, {"LETTER", BytecodeStackKind::Number}, {"STRING", BytecodeStackKind::String});
@@ -141,6 +140,11 @@ SCRATCH_BLOCK_POSITIONAL_NS_S(operator, letter_of) {
 SCRATCH_BYTECODE_BLOCK(operator, letter_of) {
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "LETTER", BytecodeStackKind::Number);
+    BytecodeIndex slot;
+    if (stringVariableSlot(compiler, block, slot)) {
+        compiler.emit(BytecodeOp::LetterOfVar, slot);
+        return true;
+    }
     compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
     compiler.emit(BytecodeOp::LetterOf);
     return true;
@@ -150,11 +154,7 @@ SCRATCH_BLOCK_DOUBLE(operator, length) {
     Value strValue;
     if (!Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
 
-    const size_t units = strValue.isString()
-                             ? Math::utf16Length(strValue.getStringPtr())
-                             : Math::utf16Length(strValue.asString());
-
-    *outValue = static_cast<double>(units);
+    *outValue = static_cast<double>(strValue.utf16Length());
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(operator, length, {"STRING", BytecodeStackKind::String});
@@ -163,6 +163,11 @@ SCRATCH_BLOCK_POSITIONAL_S_N(operator, length) {
 }
 SCRATCH_BYTECODE_BLOCK(operator, length) {
     outFirstInstr = compiler.here();
+    BytecodeIndex slot;
+    if (stringVariableSlot(compiler, block, slot)) {
+        compiler.emit(BytecodeOp::LengthOfVar, slot);
+        return true;
+    }
     compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
     compiler.emit(BytecodeOp::LengthOf);
     return true;

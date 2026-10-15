@@ -56,6 +56,7 @@ SCRATCH_BLOCK(looks, sayforsecs) {
     }
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(looks, sayforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, think) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
@@ -100,6 +101,7 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
 
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(looks, thinkforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, show) {
     if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
@@ -123,13 +125,12 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, hide) {
     if (!sprite->isStage) sprite->visible = false;
 }
 
-SCRATCH_BLOCK(looks, switchcostumeto) {
-    Value costume;
-    if (!Scratch::getInputValue(block, "COSTUME", thread, sprite, costume)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, switchcostumeto) {
+    const Value &costume = value;
 
     if (costume.isDouble()) {
         Scratch::switchCostume(sprite, costume.isNaN() ? 0 : costume.get<double>() - 1);
-        return BlockResult::CONTINUE;
+        return;
     }
 
     const std::string &costumeString = costume.get<std::string>();
@@ -137,23 +138,29 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
         const auto it = sprite->costumeNameIndex.find(costumeString);
         if (it != sprite->costumeNameIndex.end()) {
             Scratch::switchCostume(sprite, it->second);
-            return BlockResult::CONTINUE;
+            return;
         }
     }
 
     if (costumeString == "next costume") {
         Scratch::switchCostume(sprite, ++sprite->currentCostume);
-        return BlockResult::CONTINUE;
+        return;
     } else if (costumeString == "previous costume") {
         Scratch::switchCostume(sprite, --sprite->currentCostume);
-        return BlockResult::CONTINUE;
+        return;
     }
 
     if (costume.isNumeric()) {
         Scratch::switchCostume(sprite, costume.get<double>() - 1);
-        return BlockResult::CONTINUE;
+        return;
     }
 
+    return;
+}
+SCRATCH_BLOCK(looks, switchcostumeto) {
+    Value costume;
+    if (!Scratch::getInputValue(block, "COSTUME", thread, sprite, costume)) return BlockResult::REPEAT;
+    block_looks_switchcostumeto_pos_(sprite, costume);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, switchcostumeto, {"COSTUME", BytecodeStackKind::Value});
@@ -167,21 +174,22 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, nextcostume) {
     Scratch::switchCostume(sprite, ++sprite->currentCostume);
 }
 
-static void triggerBackdropSwitchHats() {
+static std::vector<uint64_t> triggerBackdropSwitchHats() {
+    std::vector<uint64_t> startedThreads;
     const std::string &currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
     for (auto &spr : Scratch::sprites) {
         if (spr->hats["event_whenbackdropswitchesto"].empty()) continue;
         for (Block *hat : spr->hats["event_whenbackdropswitchesto"]) {
             if (Math::caseInsensitiveEqual(Scratch::getFieldValue(*hat, "BACKDROP"), currentBackdrop)) {
-                BlockExecutor::startHat(spr, hat);
+                startedThreads.push_back(BlockExecutor::startHat(spr, hat));
             }
         }
     }
+    return startedThreads;
 }
 
-SCRATCH_BLOCK(looks, switchbackdropto) {
-    Value backdrop;
-    if (!Scratch::getInputValue(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, switchbackdropto) {
+    const Value &backdrop = value;
 
     const std::string &backdropString = backdrop.asString();
 
@@ -219,6 +227,12 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
 
 end:
     triggerBackdropSwitchHats();
+    return;
+}
+SCRATCH_BLOCK(looks, switchbackdropto) {
+    Value backdrop;
+    if (!Scratch::getInputValue(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
+    block_looks_switchbackdropto_pos_(sprite, backdrop);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, switchbackdropto, {"BACKDROP", BytecodeStackKind::Value});
@@ -231,7 +245,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
 
         if (backdrop.isDouble()) {
             const double bk = backdrop.isNaN() ? 0 : backdrop.get<double>() - 1;
-            if (bk < 0 || bk >= sprite->costumes.size()) return BlockResult::CONTINUE;
+            if (bk < 0 || bk >= Scratch::stageSprite->costumes.size()) return BlockResult::CONTINUE;
             Scratch::switchCostume(Scratch::stageSprite, bk);
         } else {
             const std::string &backdropString = backdrop.asString();
@@ -266,24 +280,21 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
             }
             if (!found) return BlockResult::CONTINUE;
         }
-        std::vector<ScriptThread *> newthreads;
-
-        triggerBackdropSwitchHats();
-
-        for (ScriptThread *t : newthreads) {
-            state->threads.push_back(t->id);
+        state->threads = triggerBackdropSwitchHats();
+        if (state->threads.empty()) {
+            thread->eraseState(block);
+            return BlockResult::CONTINUE;
         }
         state->completedSteps = 1;
         return BlockResult::REPEAT;
     }
     for (auto &stateID : state->threads) {
-        for (auto &spriteThread : BlockExecutor::threads) {
-            if (spriteThread->id != stateID) continue;
-            if (!spriteThread->finished) return BlockResult::REPEAT;
-        }
+        if (BlockExecutor::isThreadRunning(stateID)) return BlockResult::REPEAT;
     }
+    thread->eraseState(block);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(looks, switchbackdroptoandwait, {"BACKDROP", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
@@ -375,15 +386,14 @@ SCRATCH_BYTECODE_BLOCK(looks, gotofrontback) {
     return true;
 }
 
-SCRATCH_BLOCK(looks, setsizeto) {
-    Value size;
-    if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, setsizeto) {
+    const Value &size = value;
 
     if (!Scratch::fencing) {
         sprite->size = size.get<double>();
 
         Render::resizeSVGs(sprite);
-        return BlockResult::CONTINUE;
+        return;
     }
 
     if (size.isNumeric()) {
@@ -406,19 +416,24 @@ SCRATCH_BLOCK(looks, setsizeto) {
         Render::resizeSVGs(sprite);
     }
     if (sprite->visible) Scratch::forceRedraw = true;
+    return;
+}
+SCRATCH_BLOCK(looks, setsizeto) {
+    Value size;
+    if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
+    block_looks_setsizeto_pos_(sprite, size);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, setsizeto, {"SIZE", BytecodeStackKind::Value});
 
-SCRATCH_BLOCK(looks, changesizeby) {
-    Value size;
-    if (!Scratch::getInputValue(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, changesizeby) {
+    const Value &size = value;
 
     if (!Scratch::fencing) {
         sprite->size += size.get<double>();
 
         Render::resizeSVGs(sprite);
-        return BlockResult::CONTINUE;
+        return;
     }
 
     if (size.isNumeric()) {
@@ -443,6 +458,12 @@ SCRATCH_BLOCK(looks, changesizeby) {
         Render::resizeSVGs(sprite);
     }
     if (sprite->visible) Scratch::forceRedraw = true;
+    return;
+}
+SCRATCH_BLOCK(looks, changesizeby) {
+    Value size;
+    if (!Scratch::getInputValue(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
+    block_looks_changesizeby_pos_(sprite, size);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, changesizeby, {"CHANGE", BytecodeStackKind::Value});
@@ -560,8 +581,11 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, cleargraphiceffects) {
     if (sprite->visible) Scratch::forceRedraw = true;
 }
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(looks, size) {
+    return std::round(sprite->size);
+}
 SCRATCH_BLOCK_DOUBLE(looks, size) {
-    *outValue = std::round(sprite->size);
+    *outValue = block_looks_size_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, size);

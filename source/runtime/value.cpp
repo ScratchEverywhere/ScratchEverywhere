@@ -83,8 +83,39 @@ void StringPool::release(uint32_t id) {
     if (--e.refCount == 0) {
         lookup.erase(std::string_view(e.data));
         e.data.clear();
+        e.utf16State = Entry::Utf16State::NOT_BUILT;
+        std::vector<uint32_t>().swap(e.utf16Offsets);
         freeSlots.push_back(id);
     }
+}
+
+void StringPool::ensureUtf16(Entry &entry) {
+    if (entry.utf16State != Entry::Utf16State::NOT_BUILT) return;
+
+    const bool ascii = std::all_of(entry.data.begin(), entry.data.end(), [](unsigned char c) { return c < 0x80; });
+    if (ascii) {
+        entry.utf16State = Entry::Utf16State::ASCII;
+        return;
+    }
+    entry.utf16Offsets = Math::utf16Index(entry.data);
+    entry.utf16State = Entry::Utf16State::INDEXED;
+}
+
+size_t StringPool::utf16Length(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) return e.data.size();
+    return e.utf16Offsets.empty() ? 0 : e.utf16Offsets.size() - 1;
+}
+
+std::string StringPool::utf16CharAt(uint32_t id, size_t index) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) return index < e.data.size() ? std::string(1, e.data[index]) : std::string();
+    if (index + 1 >= e.utf16Offsets.size()) return "";
+    return e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]);
 }
 
 const std::string &StringPool::get(uint32_t id) {
@@ -285,7 +316,7 @@ inline bool parseHexByte(char c1, char c2, float &out) {
     out = static_cast<float>((d1 << 4) | d2);
     return true;
 }
-}
+} // namespace
 
 Color Value::asColor() const {
     if (isString()) {
@@ -444,4 +475,14 @@ Value Value::fromJson(const nlohmann::json &jsonVal) {
         return Value(0);
     }
     return Value(0);
+}
+
+size_t Value::utf16Length() const {
+    if (isString()) return StringPool::utf16Length(storage.stringId);
+    return Math::utf16Length(asString());
+}
+
+std::string Value::utf16CharAt(size_t index) const {
+    if (isString()) return StringPool::utf16CharAt(storage.stringId, index);
+    return Math::utf16CharAt(asString(), index);
 }

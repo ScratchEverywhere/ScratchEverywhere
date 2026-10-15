@@ -92,10 +92,9 @@ SCRATCH_BYTECODE_BLOCK(control, if_else) {
     return true;
 }
 
-SCRATCH_BLOCK(control, create_clone_of) {
-    if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
-    std::string input;
-    if (!Scratch::getInputValueAs(block, "CLONE_OPTION", thread, sprite, input)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
+    if (Scratch::cloneCount >= Scratch::maxClones) return;
+    const std::string &input = str;
 
     Sprite *original = nullptr;
     if (input == "_myself_") {
@@ -109,7 +108,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
         }
     }
 
-    if (!original) return BlockResult::CONTINUE;
+    if (!original) return;
     Sprite *spriteToClone = new Sprite();
     spriteToClone->name = original->name;
     spriteToClone->isStage = false;
@@ -161,6 +160,13 @@ SCRATCH_BLOCK(control, create_clone_of) {
 
     BlockExecutor::runAllBlocksByOpcodeInSprite("control_start_as_clone", spriteToClone);
     Scratch::cloneCount++;
+    return;
+}
+SCRATCH_BLOCK(control, create_clone_of) {
+    if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
+    std::string input;
+    if (!Scratch::getInputValueAs(block, "CLONE_OPTION", thread, sprite, input)) return BlockResult::REPEAT;
+    block_control_create_clone_of_pos_(sprite, input);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, create_clone_of, {"CLONE_OPTION", BytecodeStackKind::String});
@@ -395,20 +401,29 @@ SCRATCH_BYTECODE_BLOCK(control, repeat_until) {
     return true;
 }
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(control, get_counter) {
+    return Scratch::counter;
+}
 SCRATCH_BLOCK_DOUBLE(control, get_counter) {
-    *outValue = Scratch::counter;
+    *outValue = block_control_get_counter_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, get_counter);
 
-SCRATCH_BLOCK(control, incr_counter) {
+SCRATCH_BLOCK_POSITIONAL_VOID(control, incr_counter) {
     Scratch::counter++;
+}
+SCRATCH_BLOCK(control, incr_counter) {
+    block_control_incr_counter_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, incr_counter);
 
-SCRATCH_BLOCK(control, clear_counter) {
+SCRATCH_BLOCK_POSITIONAL_VOID(control, clear_counter) {
     Scratch::counter = 0;
+}
+SCRATCH_BLOCK(control, clear_counter) {
+    block_control_clear_counter_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, clear_counter);

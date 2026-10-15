@@ -21,7 +21,15 @@ class SE_EXPORT StringPool {
     struct Entry {
         std::string data;
         uint32_t refCount = 0;
+
+        enum class Utf16State : uint8_t { NOT_BUILT,
+                                          ASCII,
+                                          INDEXED };
+        Utf16State utf16State = Utf16State::NOT_BUILT;
+        std::vector<uint32_t> utf16Offsets;
     };
+
+    static void ensureUtf16(Entry &entry);
 
     static std::deque<Entry> &storageRef();
     static std::unordered_map<std::string_view, uint32_t> &lookupRef();
@@ -32,6 +40,9 @@ class SE_EXPORT StringPool {
     static void addRef(uint32_t id);
     static void release(uint32_t id);
     static const std::string &get(uint32_t id);
+
+    static size_t utf16Length(uint32_t id);
+    static std::string utf16CharAt(uint32_t id, size_t index);
     static void resetAll();
 };
 
@@ -228,6 +239,9 @@ class SE_EXPORT Value {
             static_assert(!sizeof(T), "Value::get<T>() has no implementation for this T");
         }
     }
+
+    size_t utf16Length() const;
+    std::string utf16CharAt(size_t index) const;
 
     SE_FORCEINLINE const std::string *tryGetStringRef() const {
         if (isString()) return &StringPool::get(storage.stringId);

@@ -123,44 +123,60 @@ void releaseScriptThread(ScriptThread *t) {
     Pools::threads.push_back(t);
 }
 
-BlockResult callGenericNative(BytecodeThread &thread, BytecodeIndex opSlot, Value *outValue) {
-    const BlockFunc *handler = (thread.link && opSlot < thread.link->opcodes.size()) ? thread.link->opcodes[opSlot] : nullptr;
-    BytecodeIndex start = thread.chunk->paramKindsStart[opSlot];
-    BytecodeIndex count = thread.chunk->paramKindsCount[opSlot];
+void fillBridgeBlock(Block &block, BytecodeThread &thread, BytecodeIndex opSlot) {
+    const BytecodeIndex start = thread.chunk->paramKindsStart[opSlot];
+    const BytecodeIndex count = thread.chunk->paramKindsCount[opSlot];
 
     std::vector<Value> args(count);
     for (BytecodeIndex i = count; i-- > 0;) {
         args[i] = popValue(thread, thread.chunk->paramKinds[start + i]);
     }
 
-    if (handler == nullptr) {
-        if (outValue) *outValue = Value();
-        return BlockResult::CONTINUE;
-    }
-
-    Block tempBlock;
-    tempBlock.inputs.reserve(count);
-    tempBlock.inputMap.reserve(count);
+    block.inputs.reserve(count);
+    block.inputMap.reserve(count);
     for (BytecodeIndex i = 0; i < count; i++) {
         const std::string &name = stringAt(thread, thread.chunk->paramNames[start + i]);
-        tempBlock.inputs.push_back({name, ParsedInput(args[i])});
-        tempBlock.inputMap[name] = &tempBlock.inputs.back().second;
+        block.inputs.push_back({name, ParsedInput(args[i])});
+        block.inputMap[name] = &block.inputs.back().second;
     }
+}
 
+BlockResult invokeHandler(BytecodeThread &thread, const BlockFunc *handler, Block *block, Value *outValue) {
     if (thread.bridgeThread == nullptr) {
         thread.bridgeThread = acquireScriptThread();
         thread.bridgeThread->sprite = thread.sprite;
     }
 
     thread.bridgeThread->finished = false;
+    thread.bridgeThread->blockHat = thread.hatBlock;
 
-    BlockResult result = (*handler)(&tempBlock, thread.bridgeThread, thread.sprite, outValue);
-    Scratch::resetInput(&tempBlock);
+    return (*handler)(block, thread.bridgeThread, thread.sprite, outValue);
+}
+
+BlockResult callGenericNative(BytecodeThread &thread, BytecodeIndex opSlot, Value *outValue) {
+    const BlockFunc *handler = (thread.link && opSlot < thread.link->opcodes.size()) ? thread.link->opcodes[opSlot] : nullptr;
+
+    Block bridgeBlock;
+    fillBridgeBlock(bridgeBlock, thread, opSlot);
+
+    if (handler == nullptr) {
+        if (outValue) *outValue = Value();
+        return BlockResult::CONTINUE;
+    }
+
+    const BlockResult result = invokeHandler(thread, handler, &bridgeBlock, outValue);
+    Scratch::resetInput(&bridgeBlock);
     return result;
 }
 
 bool tryPositionalVoid(BytecodeThread &thread, const BytecodePositionalFn &fn, BytecodeIndex start, BytecodeIndex count) {
     const auto &kinds = thread.chunk->paramKinds;
+    if (fn.v_void && count == 1 && kinds[start] == BytecodeStackKind::Value) {
+        Value a = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+        fn.v_void(thread.sprite, a);
+        return true;
+    }
     if (fn.voidFn && count == 0) {
         fn.voidFn(thread.sprite);
         return true;
@@ -204,6 +220,35 @@ bool tryPositionalVoid(BytecodeThread &thread, const BytecodePositionalFn &fn, B
 
 bool tryPositionalReturning(BytecodeThread &thread, const BytecodePositionalFn &fn, BytecodeIndex start, BytecodeIndex count, BytecodeStackKind returnKind) {
     const auto &kinds = thread.chunk->paramKinds;
+    if (count == 0) {
+        if (fn.sprite_n && returnKind == BytecodeStackKind::Number) {
+            thread.numberStack.push_back(fn.sprite_n(thread.sprite));
+            return true;
+        }
+        if (fn.sprite_b && returnKind == BytecodeStackKind::Boolean) {
+            thread.boolStack.push_back(fn.sprite_b(thread.sprite));
+            return true;
+        }
+        if (fn.sprite_s && returnKind == BytecodeStackKind::String) {
+            thread.stringStack.push_back(fn.sprite_s(thread.sprite));
+            return true;
+        }
+        return false;
+    }
+    if (fn.v_b && count == 1 && returnKind == BytecodeStackKind::Boolean && kinds[start] == BytecodeStackKind::Value) {
+        Value a = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+        thread.boolStack.push_back(fn.v_b(a));
+        return true;
+    }
+    if (fn.spriteSS_v && count == 2 && returnKind == BytecodeStackKind::Value && kinds[start] == BytecodeStackKind::String && kinds[start + 1] == BytecodeStackKind::String) {
+        std::string b = std::move(thread.stringStack.back());
+        thread.stringStack.pop_back();
+        std::string a = std::move(thread.stringStack.back());
+        thread.stringStack.pop_back();
+        thread.valueStack.push_back(fn.spriteSS_v(thread.sprite, a, b));
+        return true;
+    }
     if (fn.nn_n && count == 2 && returnKind == BytecodeStackKind::Number && kinds[start] == BytecodeStackKind::Number && kinds[start + 1] == BytecodeStackKind::Number) {
         double b = thread.numberStack.back();
         thread.numberStack.pop_back();
@@ -631,8 +676,8 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
 
         if (instr.op == BytecodeOp::CallNative) {
             if (!tryPositionalVoid(thread, fn, start, count)) {
-                callGenericNative(thread, opSlot, nullptr);
-                if (thread.bridgeThread && thread.bridgeThread->finished) {
+                const BlockResult result = callGenericNative(thread, opSlot, nullptr);
+                if (result == BlockResult::RETURN || (thread.bridgeThread && thread.bridgeThread->finished)) {
                     thread.finished = true;
                     return false;
                 }
@@ -651,6 +696,41 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
             Value result;
             callGenericNative(thread, opSlot, &result);
             pushValue(thread, returnKind, result);
+        }
+        thread.pc++;
+        return true;
+    }
+
+    case BytecodeOp::CallNativeBlocking:
+    case BytecodeOp::CallNativeBlockingValue: {
+        BytecodeFrame &frame = thread.frames[thread.pc];
+        const BytecodeIndex opSlot = instr.a;
+        const BlockFunc *handler = (thread.link && opSlot < thread.link->opcodes.size()) ? thread.link->opcodes[opSlot] : nullptr;
+
+        if (frame.bridgeBlock == nullptr) {
+            frame.bridgeBlock = std::make_shared<Block>();
+            fillBridgeBlock(*frame.bridgeBlock, thread, opSlot);
+            frame.bridgeBlock->opcode = stringAt(thread, thread.chunk->opcodeSlots[opSlot]);
+        }
+
+        Value result;
+        BlockResult handlerResult = BlockResult::CONTINUE;
+        if (handler != nullptr) handlerResult = invokeHandler(thread, handler, frame.bridgeBlock.get(), &result);
+
+        if (handlerResult == BlockResult::REPEAT) return false;
+
+        if (thread.bridgeThread) thread.bridgeThread->eraseState(frame.bridgeBlock.get());
+        Scratch::resetInput(frame.bridgeBlock.get());
+        const bool shouldStop = handlerResult == BlockResult::RETURN || (thread.bridgeThread && thread.bridgeThread->finished);
+
+        frame.clear();
+        thread.frames.erase(thread.pc);
+
+        if (instr.op == BytecodeOp::CallNativeBlockingValue) thread.valueStack.push_back(std::move(result));
+
+        if (shouldStop) {
+            thread.finished = true;
+            return false;
         }
         thread.pc++;
         return true;
@@ -952,32 +1032,43 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
     }
 
     case BytecodeOp::LetterOf: {
-        Value strValue = std::move(thread.valueStack.back());
+        const Value strValue = std::move(thread.valueStack.back());
         thread.valueStack.pop_back();
         const double indexD = std::floor(thread.numberStack.back()) - 1;
         thread.numberStack.pop_back();
 
         std::string result;
-        if (indexD >= 0) {
-            const size_t index = static_cast<size_t>(indexD);
-            if (strValue.isString()) {
-                const auto strPtr = strValue.getStringPtr();
-                if (indexD < static_cast<double>(Math::utf16Length(strPtr))) result = Math::utf16CharAt(strPtr, index);
-            } else {
-                const std::string str = strValue.asString();
-                if (indexD < static_cast<double>(Math::utf16Length(str))) result = Math::utf16CharAt(str, index);
-            }
-        }
+        if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) result = strValue.utf16CharAt(static_cast<size_t>(indexD));
         thread.stringStack.push_back(std::move(result));
         thread.pc++;
         return true;
     }
 
     case BytecodeOp::LengthOf: {
-        Value strValue = std::move(thread.valueStack.back());
+        const Value strValue = std::move(thread.valueStack.back());
         thread.valueStack.pop_back();
 
-        const size_t units = strValue.isString() ? Math::utf16Length(strValue.getStringPtr()) : Math::utf16Length(strValue.asString());
+        thread.numberStack.push_back(static_cast<double>(strValue.utf16Length()));
+        thread.pc++;
+        return true;
+    }
+
+    case BytecodeOp::LetterOfVar: {
+        const double indexD = std::floor(thread.numberStack.back()) - 1;
+        thread.numberStack.pop_back();
+
+        std::string result;
+        if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) {
+            if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) result = Math::utf16CharAt(*str, static_cast<size_t>(indexD));
+        }
+        thread.stringStack.push_back(std::move(result));
+        thread.pc++;
+        return true;
+    }
+
+    case BytecodeOp::LengthOfVar: {
+        size_t units = 0;
+        if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) units = Math::utf16Length(*str);
         thread.numberStack.push_back(static_cast<double>(units));
         thread.pc++;
         return true;

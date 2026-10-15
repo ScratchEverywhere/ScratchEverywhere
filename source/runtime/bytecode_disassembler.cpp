@@ -151,6 +151,10 @@ const char *mnemonic(BytecodeOp op) {
         return "CallNativeColor";
     case BytecodeOp::CallNativeValue:
         return "CallNativeValue";
+    case BytecodeOp::CallNativeBlocking:
+        return "CallNativeBlocking";
+    case BytecodeOp::CallNativeBlockingValue:
+        return "CallNativeBlockingValue";
     case BytecodeOp::CallProcedure:
         return "CallProcedure";
     case BytecodeOp::CallProcedureValue:
@@ -199,6 +203,10 @@ const char *mnemonic(BytecodeOp op) {
         return "LetterOf";
     case BytecodeOp::LengthOf:
         return "LengthOf";
+    case BytecodeOp::LetterOfVar:
+        return "LetterOfVar";
+    case BytecodeOp::LengthOfVar:
+        return "LengthOfVar";
     case BytecodeOp::MathOp:
         return "MathOp";
     case BytecodeOp::NumEquals:
@@ -257,6 +265,8 @@ bool isCallNative(BytecodeOp op) {
     case BytecodeOp::CallNativeBoolean:
     case BytecodeOp::CallNativeColor:
     case BytecodeOp::CallNativeValue:
+    case BytecodeOp::CallNativeBlocking:
+    case BytecodeOp::CallNativeBlockingValue:
         return true;
     default:
         return false;
@@ -388,7 +398,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
                 const BytecodePositionalFn &fn = link->positional[instr.a];
                 if (fn.nn_n || fn.n_n || fn.b_b || fn.bb_b || fn.ss_s || fn.ss_b || fn.s_n || fn.ns_s ||
                     fn.voidFn || fn.n_void || fn.nn_void || fn.s_void || fn.sn_void || fn.c_void ||
-                    fn.spriteS_n || fn.spriteS_b) out << " [positional fast path]";
+                    fn.spriteS_n || fn.spriteS_b || fn.sprite_n || fn.sprite_b || fn.sprite_s || fn.v_void || fn.v_b || fn.spriteSS_v) out << " [positional fast path]";
             }
         }
         return;

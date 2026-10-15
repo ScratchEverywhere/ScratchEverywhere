@@ -203,6 +203,18 @@
          0)
 
 /**
+ * @brief Like SCRATCH_BLOCK_SIGNATURE, for blocks whose handler needs several frames to finish
+ * (it returns REPEAT until done, e.g. "glide", "say for secs", "speak and wait").
+ *
+ * The bytecode VM evaluates the inputs once, then keeps calling the normal handler every frame on a
+ * persistent stand-in Block that holds those values, until it stops returning REPEAT.
+ */
+#define SCRATCH_BLOCK_BLOCKING_SIGNATURE(category, id, ...)  \
+    SCRATCH_BLOCK_SIGNATURE(category, id, __VA_ARGS__);      \
+    static uint8_t block_##category##_##id##_blocking_reg_ = \
+        (BlockExecutor::getBlockingBlocks().insert(#category "_" #id), 0)
+
+/**
  * @brief Defines and registers a positional fast-path (bytecode) entry point for a block, IN ADDITION to its normal handler.
  *
  * The block keeps its existing SCRATCH_BLOCK_DOUBLE handler untouched for the
@@ -228,44 +240,44 @@
     static double block_##category##_##id##_pos_(double num1, double num2)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Number) -> Number. @param num The block's numeric input. */
-#define SCRATCH_BLOCK_POSITIONAL_N_N(category, id)                                                                                                         \
-    static double block_##category##_##id##_pos_(double num);                                                                                             \
+#define SCRATCH_BLOCK_POSITIONAL_N_N(category, id)                                                                                                           \
+    static double block_##category##_##id##_pos_(double num);                                                                                                \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].n_n = block_##category##_##id##_pos_, 0); \
     static double block_##category##_##id##_pos_(double num)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Boolean) -> Boolean. @param op1 The block's boolean input. */
-#define SCRATCH_BLOCK_POSITIONAL_B_B(category, id)                                                                                                         \
-    static bool block_##category##_##id##_pos_(bool op1);                                                                                                 \
+#define SCRATCH_BLOCK_POSITIONAL_B_B(category, id)                                                                                                           \
+    static bool block_##category##_##id##_pos_(bool op1);                                                                                                    \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].b_b = block_##category##_##id##_pos_, 0); \
     static bool block_##category##_##id##_pos_(bool op1)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Boolean, Boolean) -> Boolean. @param op1 First boolean input. @param op2 Second boolean input. */
-#define SCRATCH_BLOCK_POSITIONAL_BB_B(category, id)                                                                                                          \
-    static bool block_##category##_##id##_pos_(bool op1, bool op2);                                                                                          \
+#define SCRATCH_BLOCK_POSITIONAL_BB_B(category, id)                                                                                                           \
+    static bool block_##category##_##id##_pos_(bool op1, bool op2);                                                                                           \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].bb_b = block_##category##_##id##_pos_, 0); \
     static bool block_##category##_##id##_pos_(bool op1, bool op2)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String, String) -> String. @param str1 First string input. @param str2 Second string input. */
-#define SCRATCH_BLOCK_POSITIONAL_SS_S(category, id)                                                                                                                      \
-    static std::string block_##category##_##id##_pos_(const std::string &str1, const std::string &str2);                                                               \
-    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ss_s = block_##category##_##id##_pos_, 0);           \
+#define SCRATCH_BLOCK_POSITIONAL_SS_S(category, id)                                                                                                           \
+    static std::string block_##category##_##id##_pos_(const std::string &str1, const std::string &str2);                                                      \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ss_s = block_##category##_##id##_pos_, 0); \
     static std::string block_##category##_##id##_pos_(const std::string &str1, const std::string &str2)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String, String) -> Boolean. @param str1 First string input. @param str2 Second string input. */
-#define SCRATCH_BLOCK_POSITIONAL_SS_B(category, id)                                                                                                            \
+#define SCRATCH_BLOCK_POSITIONAL_SS_B(category, id)                                                                                                           \
     static bool block_##category##_##id##_pos_(const std::string &str1, const std::string &str2);                                                             \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ss_b = block_##category##_##id##_pos_, 0); \
     static bool block_##category##_##id##_pos_(const std::string &str1, const std::string &str2)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String) -> Number. @param str The block's string input. */
-#define SCRATCH_BLOCK_POSITIONAL_S_N(category, id)                                                                                                         \
-    static double block_##category##_##id##_pos_(const std::string &str);                                                                                 \
+#define SCRATCH_BLOCK_POSITIONAL_S_N(category, id)                                                                                                           \
+    static double block_##category##_##id##_pos_(const std::string &str);                                                                                    \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].s_n = block_##category##_##id##_pos_, 0); \
     static double block_##category##_##id##_pos_(const std::string &str)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Number, String) -> String. @param num Numeric input. @param str String input. */
-#define SCRATCH_BLOCK_POSITIONAL_NS_S(category, id)                                                                                                            \
-    static std::string block_##category##_##id##_pos_(double num, const std::string &str);                                                                   \
+#define SCRATCH_BLOCK_POSITIONAL_NS_S(category, id)                                                                                                           \
+    static std::string block_##category##_##id##_pos_(double num, const std::string &str);                                                                    \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ns_s = block_##category##_##id##_pos_, 0); \
     static std::string block_##category##_##id##_pos_(double num, const std::string &str)
 
@@ -276,25 +288,25 @@
  * @param sprite The sprite this statement runs on.
  */
 #define SCRATCH_BLOCK_POSITIONAL_VOID(category, id)                                                                                                             \
-    static void block_##category##_##id##_pos_(Sprite *sprite);                                                                                                \
+    static void block_##category##_##id##_pos_(Sprite *sprite);                                                                                                 \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].voidFn = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_VOID, but (Sprite*, Number) -> void. @param num The block's numeric input. */
-#define SCRATCH_BLOCK_POSITIONAL_N_VOID(category, id)                                                                                                          \
-    static void block_##category##_##id##_pos_(Sprite *sprite, double num);                                                                                   \
+#define SCRATCH_BLOCK_POSITIONAL_N_VOID(category, id)                                                                                                           \
+    static void block_##category##_##id##_pos_(Sprite *sprite, double num);                                                                                     \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].n_void = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite, double num)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_VOID, but (Sprite*, Number, Number) -> void. @param num1 First numeric input. @param num2 Second numeric input. */
 #define SCRATCH_BLOCK_POSITIONAL_NN_VOID(category, id)                                                                                                           \
-    static void block_##category##_##id##_pos_(Sprite *sprite, double num1, double num2);                                                                       \
+    static void block_##category##_##id##_pos_(Sprite *sprite, double num1, double num2);                                                                        \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].nn_void = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite, double num1, double num2)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_VOID, but (Sprite*, String) -> void. @param str The block's string input. */
 #define SCRATCH_BLOCK_POSITIONAL_S_VOID(category, id)                                                                                                           \
-    static void block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                        \
+    static void block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                         \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].s_void = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite, const std::string &str)
 
@@ -304,28 +316,66 @@
  * @param sprite The sprite this reporter runs on.
  * @param str The block's string input.
  */
-#define SCRATCH_BLOCK_POSITIONAL_SPRITE_S_N(category, id)                                                                                                             \
-    static double block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                            \
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_S_N(category, id)                                                                                                          \
+    static double block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                          \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].spriteS_n = block_##category##_##id##_pos_, 0); \
     static double block_##category##_##id##_pos_(Sprite *sprite, const std::string &str)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_SPRITE_S_N, but (Sprite*, String) -> Boolean. */
-#define SCRATCH_BLOCK_POSITIONAL_SPRITE_S_B(category, id)                                                                                                             \
-    static bool block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                              \
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_S_B(category, id)                                                                                                          \
+    static bool block_##category##_##id##_pos_(Sprite *sprite, const std::string &str);                                                                            \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].spriteS_b = block_##category##_##id##_pos_, 0); \
     static bool block_##category##_##id##_pos_(Sprite *sprite, const std::string &str)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_S_VOID, but (Sprite*, String, Number) -> void. @param str The block's string input. @param num The block's numeric input. */
-#define SCRATCH_BLOCK_POSITIONAL_SN_VOID(category, id)                                                                                                            \
+#define SCRATCH_BLOCK_POSITIONAL_SN_VOID(category, id)                                                                                                           \
     static void block_##category##_##id##_pos_(Sprite *sprite, const std::string &str, double num);                                                              \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].sn_void = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite, const std::string &str, double num)
 
 /** @brief Same as SCRATCH_BLOCK_POSITIONAL_S_VOID, but (Sprite*, Color) -> void. @param color The block's color input. */
-#define SCRATCH_BLOCK_POSITIONAL_C_VOID(category, id)                                                                                                             \
-    static void block_##category##_##id##_pos_(Sprite *sprite, Color color);                                                                                     \
-    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].c_void = block_##category##_##id##_pos_, 0);  \
+#define SCRATCH_BLOCK_POSITIONAL_C_VOID(category, id)                                                                                                           \
+    static void block_##category##_##id##_pos_(Sprite *sprite, Color color);                                                                                    \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].c_void = block_##category##_##id##_pos_, 0); \
     static void block_##category##_##id##_pos_(Sprite *sprite, Color color)
+
+/**
+ * @brief Same as SCRATCH_BLOCK_POSITIONAL_VOID, but for a reporter with no inputs: (Sprite*) -> Number / Boolean / String.
+ * Only valid for a block whose legacy handler always completes in one tick.
+ * @param sprite The sprite this reporter runs on.
+ */
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_N(category, id)                                                                                                           \
+    static double block_##category##_##id##_pos_(Sprite *sprite);                                                                                                 \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].sprite_n = block_##category##_##id##_pos_, 0); \
+    static double block_##category##_##id##_pos_(Sprite *sprite)
+
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_B(category, id)                                                                                                           \
+    static bool block_##category##_##id##_pos_(Sprite *sprite);                                                                                                   \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].sprite_b = block_##category##_##id##_pos_, 0); \
+    static bool block_##category##_##id##_pos_(Sprite *sprite)
+
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_S(category, id)                                                                                                           \
+    static std::string block_##category##_##id##_pos_(Sprite *sprite);                                                                                            \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].sprite_s = block_##category##_##id##_pos_, 0); \
+    static std::string block_##category##_##id##_pos_(Sprite *sprite)
+
+/** @brief (Sprite*, Value) -> void, for a statement whose input must stay a Value. @param value The block's input. */
+#define SCRATCH_BLOCK_POSITIONAL_V_VOID(category, id)                                                                                                           \
+    static void block_##category##_##id##_pos_(Sprite *sprite, const Value &value);                                                                             \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].v_void = block_##category##_##id##_pos_, 0); \
+    static void block_##category##_##id##_pos_(Sprite *sprite, const Value &value)
+
+/** @brief (Value) -> Boolean, for a predicate whose input must stay a Value. @param value The block's input. */
+#define SCRATCH_BLOCK_POSITIONAL_V_B(category, id)                                                                                                           \
+    static bool block_##category##_##id##_pos_(const Value &value);                                                                                          \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].v_b = block_##category##_##id##_pos_, 0); \
+    static bool block_##category##_##id##_pos_(const Value &value)
+
+/** @brief (Sprite*, String, String) -> Value, e.g. "[property] of [object]". */
+#define SCRATCH_BLOCK_POSITIONAL_SPRITE_SS_V(category, id)                                                                                                          \
+    static Value block_##category##_##id##_pos_(Sprite *sprite, const std::string &str1, const std::string &str2);                                                  \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].spriteSS_v = block_##category##_##id##_pos_, 0); \
+    static Value block_##category##_##id##_pos_(Sprite *sprite, const std::string &str1, const std::string &str2)
 
 /**
  * @brief Defines and registers custom bytecode-compilation logic for a block, taking over from the generic signature-driven path entirely.

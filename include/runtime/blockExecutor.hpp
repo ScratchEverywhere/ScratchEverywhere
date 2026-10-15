@@ -5,6 +5,7 @@
 #include <os.hpp>
 #include <se_export.hpp>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace MonitorDisplayNames {
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4> SIMPLE_MONITORS{
@@ -57,10 +58,9 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 class SE_EXPORT BlockExecutor {
   public:
     static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
-
     static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &getInputSignatures();
-
     static std::unordered_map<std::string, BytecodePositionalFn> &getPositionalHandlers();
+    static std::unordered_set<std::string> &getBlockingBlocks();
 
     static void linkPointers(Sprite *sprite);
 

@@ -22,11 +22,14 @@ SCRATCH_BLOCK(event, whenstageclicked) {
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenstageclicked);
 
+SCRATCH_BLOCK_POSITIONAL_S_VOID(event, broadcast) {
+    BlockExecutor::startBroadcastHats(str);
+}
 SCRATCH_BLOCK(event, broadcast) {
     std::string broadcast;
 
     if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
-    BlockExecutor::startBroadcastHats(broadcast);
+    block_event_broadcast_pos_(sprite, broadcast);
 
     return BlockResult::CONTINUE;
 }

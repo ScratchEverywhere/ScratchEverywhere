@@ -372,6 +372,13 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     }
 
     BytecodeIndex opSlot = compiler.opcodeSlot(opcode, sigIt->second);
+
+    if (BlockExecutor::getBlockingBlocks().count(opcode) != 0) {
+        compiler.emit(BytecodeOp::CallNativeBlockingValue, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
+        compiler.convertIfNeeded(BytecodeStackKind::Value, wanted);
+        return;
+    }
+
     BytecodeStackKind nativeKind = stackKindForType(block->blockFunction.type);
     emitCallNative(compiler, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()), nativeKind);
 
@@ -478,7 +485,7 @@ bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, Bytecod
         }
 
         BytecodeIndex opSlot = opcodeSlot(block->opcode, sigIt->second);
-        emit(BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
+        emit(BlockExecutor::getBlockingBlocks().count(block->opcode) != 0 ? BytecodeOp::CallNativeBlocking : BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
 
         if (firstInstruction == invalidBytecodeIndex) firstInstruction = blockStart;
         block = block->nextBlock;

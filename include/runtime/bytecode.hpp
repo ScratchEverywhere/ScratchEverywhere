@@ -3,6 +3,7 @@
 #include "value.hpp"
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <se_export.hpp>
 #include <string>
 #include <timer.hpp>
@@ -72,6 +73,13 @@ enum class BytecodeOp : uint8_t {
     CallNativeBoolean,
     CallNativeColor,
     CallNativeValue,
+    /**
+     * Calls a native block handler that takes more than one frame to finish (it returns REPEAT until done).
+     * The arguments are popped once into a persistent bridge Block kept in the frame, and the handler is
+     * re-invoked on it every frame. CallNativeBlockingValue also pushes the handler's result as a Value.
+     */
+    CallNativeBlocking,
+    CallNativeBlockingValue,
 
     CallProcedure,
     CallProcedureValue,
@@ -104,6 +112,8 @@ enum class BytecodeOp : uint8_t {
     RandomInt,
     LetterOf,
     LengthOf,
+    LetterOfVar,
+    LengthOfVar,
     MathOp,
 
     NumEquals,
@@ -210,6 +220,14 @@ using BytecodePositionalFnC_Void = void (*)(Sprite *, Color);
 using BytecodePositionalFnSpriteS_N = double (*)(Sprite *, const std::string &);
 using BytecodePositionalFnSpriteS_B = bool (*)(Sprite *, const std::string &);
 
+using BytecodePositionalFnSprite_N = double (*)(Sprite *);
+using BytecodePositionalFnSprite_B = bool (*)(Sprite *);
+using BytecodePositionalFnSprite_S = std::string (*)(Sprite *);
+
+using BytecodePositionalFnV_Void = void (*)(Sprite *, const Value &);
+using BytecodePositionalFnV_B = bool (*)(const Value &);
+using BytecodePositionalFnSpriteSS_V = Value (*)(Sprite *, const std::string &, const std::string &);
+
 struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnNN_N nn_n = nullptr;
     BytecodePositionalFnN_N n_n = nullptr;
@@ -229,6 +247,13 @@ struct SE_EXPORT BytecodePositionalFn {
 
     BytecodePositionalFnSpriteS_N spriteS_n = nullptr;
     BytecodePositionalFnSpriteS_B spriteS_b = nullptr;
+
+    BytecodePositionalFnSprite_N sprite_n = nullptr;
+    BytecodePositionalFnSprite_B sprite_b = nullptr;
+    BytecodePositionalFnSprite_S sprite_s = nullptr;
+    BytecodePositionalFnV_Void v_void = nullptr;
+    BytecodePositionalFnV_B v_b = nullptr;
+    BytecodePositionalFnSpriteSS_V spriteSS_v = nullptr;
 };
 
 enum class BytecodeMathOp : uint8_t {
@@ -293,6 +318,8 @@ struct SE_EXPORT BytecodeFrame {
 
     BytecodeThread *pendingCall = nullptr;
 
+    std::shared_ptr<Block> bridgeBlock;
+
     void clear() {
         completedSteps = 0;
         repeatTimes = -1;
@@ -302,6 +329,7 @@ struct SE_EXPORT BytecodeFrame {
         name = "";
         threads.clear();
         pendingCall = nullptr;
+        bridgeBlock.reset();
     }
 };
 

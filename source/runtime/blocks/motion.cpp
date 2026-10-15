@@ -206,6 +206,7 @@ SCRATCH_BLOCK(motion, glideto) {
     goto glide;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(motion, glideto, {"SECS", BytecodeStackKind::Number}, {"TO", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(motion, glidesecstoxy) {
     BlockState *state = thread->getState(block);
@@ -239,6 +240,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     goto glide;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(motion, glidesecstoxy, {"SECS", BytecodeStackKind::Number}, {"X", BytecodeStackKind::Number}, {"Y", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(motion, pointtowards) {
     std::string objectName;
@@ -472,24 +474,33 @@ SCRATCH_BLOCK_POSITIONAL_VOID(motion, ifonedgebounce) {
     Scratch::gotoXY(sprite, sprite->xPosition + dxCorrection, sprite->yPosition + dyCorrection);
 }
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, xposition) {
+    const double rounded = std::round(sprite->xPosition);
+    const double delta = std::fabs(sprite->xPosition - rounded);
+    return (delta < 1e-9) ? rounded : sprite->xPosition;
+}
 SCRATCH_BLOCK_DOUBLE(motion, xposition) {
-    double rounded = std::round(sprite->xPosition);
-    double delta = std::fabs(sprite->xPosition - rounded);
-    *outValue = (delta < 1e-9) ? rounded : sprite->xPosition;
+    *outValue = block_motion_xposition_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, xposition);
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, yposition) {
+    const double rounded = std::round(sprite->yPosition);
+    const double delta = std::fabs(sprite->yPosition - rounded);
+    return (delta < 1e-9) ? rounded : sprite->yPosition;
+}
 SCRATCH_BLOCK_DOUBLE(motion, yposition) {
-    double rounded = std::round(sprite->yPosition);
-    double delta = std::fabs(sprite->yPosition - rounded);
-    *outValue = (delta < 1e-9) ? rounded : sprite->yPosition;
+    *outValue = block_motion_yposition_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, yposition);
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, direction) {
+    return sprite->rotation;
+}
 SCRATCH_BLOCK_DOUBLE(motion, direction) {
-    *outValue = sprite->rotation;
+    *outValue = block_motion_direction_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, direction);

@@ -14,3 +14,8 @@ std::unordered_map<std::string, BytecodePositionalFn> &BlockExecutor::getPositio
     static std::unordered_map<std::string, BytecodePositionalFn> handlers;
     return handlers;
 }
+
+std::unordered_set<std::string> &BlockExecutor::getBlockingBlocks() {
+    static std::unordered_set<std::string> blocks;
+    return blocks;
+}
