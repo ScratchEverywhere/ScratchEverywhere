@@ -57,11 +57,6 @@ class SE_EXPORT Renderer {
     virtual void setRenderTarget(void *renderTarget) = 0;
     virtual void clearRenderTarget() = 0;
 
-    /**
-     * [SDL] returns the current renderer.
-     */
-    // void *getRenderer() = 0;
-
     virtual bool createSpeechManager() = 0;
     virtual SpeechManager *getSpeechManager() = 0;
     virtual void destroySpeechManager() = 0;
@@ -133,9 +128,10 @@ extern std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 extern std::unordered_map<std::string, Monitor> monitors;
 
 const std::vector<RendererInfo> getAvailableRenderers();
+Renderer *getGlobalRenderer();
 
 // --- global renderer functions
-// TODO: remove these functions, and perhaps add a Render::getRenderer() function to use instead?
+// TODO: remove these functions and use Render::getGlobalRenderer() instead
 
 /**
  * Returns whether or not enough time has passed to advance a frame.

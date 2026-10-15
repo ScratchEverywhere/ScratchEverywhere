@@ -12,7 +12,6 @@ void SpeechManager::createSpeechObject(Sprite *sprite, const std::string &messag
     SpeechTextConfig config = getSpeechTextConfig();
 
     auto obj = createTextObject(message, 0, 0, config.fontPath);
-    // obj->setRenderer(Render::getRenderer());
     obj->setColor(Math::color(0, 0, 0, 255));
     obj->setCenterAligned(false);
     obj->setScale(config.initialScale);

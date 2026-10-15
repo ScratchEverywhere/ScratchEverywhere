@@ -41,6 +41,7 @@
 #endif
 
 static void exitApp() {
+    SoundPlayer::deinit();
     Render::deInit();
     OS::deinit();
 }

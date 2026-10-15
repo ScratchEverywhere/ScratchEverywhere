@@ -2,8 +2,30 @@
 #include "settings.hpp"
 #include <log.hpp>
 #include <memory>
+
 #ifdef RENDERER_OPENGL_CORE
 #include "renderer_gl_core.hpp"
+#endif
+#ifdef RENDERER_OPENGL
+#include "renderer_gl.hpp"
+#endif
+#ifdef RENDERER_SDL3
+#include "renderer_sdl3.hpp"
+#endif
+#ifdef RENDERER_SDL2
+#include "renderer_sdl2.hpp"
+#endif
+#ifdef RENDERER_SDL1
+#include "renderer_sdl1.hpp"
+#endif
+#ifdef RENDERER_GDI
+#include "renderer_gdi.hpp"
+#endif
+#ifdef RENDERER_CITRO2D
+#include "renderer_citro2d.hpp"
+#endif
+#ifdef RENDERER_GL2D
+#include "renderer_gl2d.hpp"
 #endif
 #ifdef RENDERER_HEADLESS
 #include "renderer_headless.hpp"
@@ -23,6 +45,10 @@ std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::uniq
 std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 std::unordered_map<std::string, Monitor> monitors;
 } // namespace Render
+
+Renderer *Render::getGlobalRenderer() {
+    return globalRenderer;
+}
 
 const std::vector<RendererInfo> Render::getAvailableRenderers() {
     std::vector<RendererInfo> renderers;
@@ -102,6 +128,7 @@ bool Render::init() {
         case Renderers::OpenGL: {
 #ifdef RENDERER_OPENGL
             Render::currentRenderer = Renderers::OpenGL;
+            globalRenderer = new Renderer_OpenGL;
             break;
 #else
             Log::logWarning("OpenGL Renderer unavailable.");
@@ -111,6 +138,7 @@ bool Render::init() {
         case Renderers::SDL3: {
 #ifdef RENDERER_SDL3
             Render::currentRenderer = Renderers::SDL3;
+            globalRenderer = new Renderer_SDL3;
             break;
 #else
             Log::logWarning("SDL3 Renderer unavailable.");
@@ -120,6 +148,7 @@ bool Render::init() {
         case Renderers::SDL2: {
 #ifdef RENDERER_SDL2
             Render::currentRenderer = Renderers::SDL2;
+            globalRenderer = new Renderer_SDL2;
             break;
 #else
             Log::logWarning("SDL2 Renderer unavailable.");
@@ -129,6 +158,7 @@ bool Render::init() {
         case Renderers::SDL1: {
 #ifdef RENDERER_SDL1
             Render::currentRenderer = Renderers::SDL1;
+            globalRenderer = new Renderer_SDL1;
             break;
 #else
             Log::logWarning("SDL1 Renderer unavailable.");
@@ -138,6 +168,7 @@ bool Render::init() {
         case Renderers::Citro2D: {
 #ifdef RENDERER_CITRO2D
             Render::currentRenderer = Renderers::Citro2D;
+            globalRenderer = new Renderer_C2D;
             break;
 #else
             Log::logWarning("Citro2D Renderer unavailable.");
@@ -147,6 +178,7 @@ bool Render::init() {
         case Renderers::GL2D: {
 #ifdef RENDERER_GL2D
             Render::currentRenderer = Renderers::GL2D;
+            globalRenderer = new Renderer_GL2D;
             break;
 #else
             Log::logWarning("GL2D Renderer unavailable.");
@@ -156,6 +188,7 @@ bool Render::init() {
         case Renderers::GDI: {
 #ifdef RENDERER_GDI
             Render::currentRenderer = Renderers::GDI;
+            globalRenderer = new Renderer_GDI;
             break;
 #else
             Log::logWarning("GDI Renderer unavailable.");
