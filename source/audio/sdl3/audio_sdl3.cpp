@@ -12,7 +12,7 @@ static SDL_AudioStream *sdl_stream;
 static std::vector<short> audioBuffer;
 #endif
 
-extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int additional_amount, int total_amount) {
+extern "C" void SDLCALL sdl3Callback(void *userdata, SDL_AudioStream *astream, int additional_amount, int total_amount) {
 #if defined(__XBOX__)
     while (additional_amount > 0) {
         int bytes = SDL_min(additional_amount, 4096);
@@ -65,7 +65,7 @@ SoundDevice_SDL3::SoundDevice_SDL3() {
     spac.format = SDL_AUDIO_S16;
     spac.channels = 2;
 
-    if ((sdl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac, callback, NULL)) == NULL) {
+    if ((sdl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac, sdl3Callback, NULL)) == NULL) {
         error = "Failed open SDL3 audio device: " + std::string(SDL_GetError());
         return;
     }

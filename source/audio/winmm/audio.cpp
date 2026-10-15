@@ -18,7 +18,7 @@ static WAVEHDR headers[NUM_BUFFERS];
 static BYTE buffers[NUM_BUFFERS][BUFFER_SIZE];
 static int stop;
 
-extern "C" void CALLBACK callback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instance, DWORD_PTR param1, DWORD_PTR param2) {
+extern "C" void CALLBACK winmmCallback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instance, DWORD_PTR param1, DWORD_PTR param2) {
     WAVEHDR *header;
 
     if (msg != WOM_DONE) return;
@@ -46,7 +46,7 @@ SoundDevice_Winmm::SoundDevice_Winmm() {
     fmt.nBlockAlign = fmt.nChannels * fmt.wBitsPerSample / 8;
     fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
 
-    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &fmt, (DWORD_PTR)callback, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
+    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &fmt, (DWORD_PTR)winmmCallback, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
         error = "Failed to initialize WinMM: Code " + std::to_string(GetLastError());
         return;
     }

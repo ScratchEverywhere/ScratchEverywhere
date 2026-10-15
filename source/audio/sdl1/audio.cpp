@@ -5,7 +5,7 @@
 #include <log.hpp>
 #include <vector>
 
-extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {
+extern "C" void SDLCALL sdl1Callback(void *ptr, Uint8 *stream, int len) {
     Mixer::requestSound((short *)stream, len / 2 / 2);
 }
 
@@ -22,7 +22,7 @@ SoundDevice_SDL1::SoundDevice_SDL1() {
     spec.format = AUDIO_S16SYS;
     spec.channels = 2;
     spec.samples = 2048;
-    spec.callback = callback;
+    spec.callback = sdl1Callback;
 
     if (SDL_OpenAudio(&spec, NULL) < 0) {
         error = "Failed to open SDL audio device: " + std::string(SDL_GetError());

@@ -12,7 +12,7 @@ static pa_simple *pa_stream = nullptr;
 static std::thread audio_thread;
 static std::atomic<bool> audio_running{false};
 
-static void audioCallback() {
+static void pulseCallback() {
     short samples[2048];
     int error = 0;
 
@@ -53,7 +53,7 @@ SoundDevice_Libpulse::SoundDevice_Libpulse() {
     }
 
     audio_running.store(true, std::memory_order_relaxed);
-    audio_thread = std::thread(audioCallback);
+    audio_thread = std::thread(pulseCallback);
 
     return;
 #endif

@@ -15,7 +15,7 @@ static int16_t *audioBuffer = nullptr;
 static ndspWaveBuf waveBuf[2];
 static bool fillBlock = false;
 
-static void audioUpdateThread(void *arg) {
+static void n3dsCallback(void *arg) {
     while (audioRunning) {
         if (waveBuf[fillBlock].status == NDSP_WBUF_DONE) {
             Mixer::requestSound(waveBuf[fillBlock].data_pcm16, SAMPLESPERBUF);
@@ -73,7 +73,7 @@ SoundDevice_3DS::SoundDevice_3DS() {
         targetPriority--;
     }
     targetPriority = std::clamp(static_cast<int>(targetPriority), 0x19, 0x2f);
-    audioThread = threadCreate(audioUpdateThread, nullptr, 32768, targetPriority, -1, false);
+    audioThread = threadCreate(n3dsCallback, nullptr, 32768, targetPriority, -1, false);
 
     if (!audioThread) {
         error = "Failed to create high-priority audio thread.";

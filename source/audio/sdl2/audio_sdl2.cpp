@@ -8,7 +8,7 @@
 
 static SDL_AudioDeviceID device;
 
-extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {
+extern "C" void SDLCALL sdl2Callback(void *ptr, Uint8 *stream, int len) {
     Mixer::requestSound((short *)stream, len / 2 / 2);
 }
 
@@ -25,7 +25,7 @@ SoundDevice_SDL2::SoundDevice_SDL2() {
     spac.format = AUDIO_S16SYS;
     spac.channels = 2;
     spac.samples = 2048;
-    spac.callback = callback;
+    spac.callback = sdl2Callback;
 
     if ((device = SDL_OpenAudioDevice(NULL, 0, &spac, NULL, 0)) == 0) {
         error = "Failed to open SDL2 audio device: " + std::string(SDL_GetError());
