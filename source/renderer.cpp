@@ -22,7 +22,7 @@
 #include "renderer_gdi.hpp"
 #endif
 #ifdef RENDERER_CITRO2D
-#include "renderer_citro2d.hpp"
+#include "renderer_c2d.hpp"
 #endif
 #ifdef RENDERER_GL2D
 #include "renderer_gl2d.hpp"

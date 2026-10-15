@@ -6,7 +6,7 @@
 
 TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
-    renderer = static_cast<SDL_Surface *>(static_cast<Renderer_SDL1 *>(Render::getGlobalRenderer())->window->getHandle);
+    renderer = static_cast<SDL_Surface *>(static_cast<Renderer_SDL1 *>(Render::getGlobalRenderer())->window->getHandle());
 }
 
 TextObjectSDL1::~TextObjectSDL1() = default;
