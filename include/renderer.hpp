@@ -8,17 +8,35 @@
 #include <text.hpp>
 #include <types.hpp>
 
+// note: this is in priority order, so keep that in mind.
+// also make sure the order is the same between Renderers and RendererNames
 enum class SE_EXPORT Renderers : uint8_t {
     OpenGLCore,
     OpenGL,
     SDL3,
     SDL2,
-    SDL1,
-    GDI,
     Citro2D,
     GL2D,
+    SDL1,
+    GDI,
     Headless,
     _count,
+};
+
+constexpr std::array RendererNames = {
+    "OpenGL Core",
+    "OpenGL",
+    "SDL3",
+    "SDL2",
+    "Citro2D",
+    "GL2D",
+    "SDL1",
+    "GDI",
+    "Headless"};
+
+struct RendererInfo {
+    uint8_t id;
+    std::string name;
 };
 
 class SE_EXPORT Renderer {
@@ -114,7 +132,10 @@ extern std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 
 extern std::unordered_map<std::string, Monitor> monitors;
 
-// --- global render functions
+const std::vector<RendererInfo> getAvailableRenderers();
+
+// --- global renderer functions
+// TODO: remove these functions, and perhaps add a Render::getRenderer() function to use instead?
 
 /**
  * Returns whether or not enough time has passed to advance a frame.

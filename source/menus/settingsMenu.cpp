@@ -2,6 +2,7 @@
 #include "hasdeps.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
@@ -57,6 +58,16 @@ void SettingsMenu::init() {
     Language->text->setColor(Math::color(0, 0, 0, 255));
     Language->textScale = 1.0;
 
+#ifdef ENABLE_DECTALK
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
+
+    RendererButton = new ButtonObject("Renderer: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
+    RendererButton->text->setColor(Math::color(0, 0, 0, 255));
+    RendererButton->textScale = 1.0;
+    validRenderers = Render::getAvailableRenderers();
+
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
     EnableUsername->isSelected = true;
@@ -69,11 +80,6 @@ void SettingsMenu::init() {
     if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
         UseDectalk = json["UseDectalk"].get<bool>();
     }
-
-#ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
-#endif
 
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
         UseCostumeUsername = json["EnableUsername"].get<bool>();
@@ -102,6 +108,21 @@ void SettingsMenu::init() {
         menuMusic = json["MenuMusic"].get<bool>();
     }
 
+    rendererOption = std::string(RendererNames[static_cast<uint8_t>(Render::currentRenderer)]);
+    if (json.contains("Renderer") && json["Renderer"].is_string()) {
+        rendererOption = json["Renderer"].get<std::string>();
+    }
+
+    auto it = std::find_if(validRenderers.begin(), validRenderers.end(),
+                           [&](const RendererInfo &info) { return info.name == rendererOption; });
+
+    if (it != validRenderers.end()) {
+        rendererIdx = std::distance(validRenderers.begin(), it);
+    } else {
+        rendererIdx = 0;
+        rendererOption = std::string(validRenderers[0].name);
+    }
+
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -112,6 +133,7 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableUsername);
     settingsControl->buttonObjects.push_back(ClearCache);
     settingsControl->buttonObjects.push_back(Language);
+    settingsControl->buttonObjects.push_back(RendererButton);
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
@@ -127,16 +149,21 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = Language;
+    EnableUsername->buttonUp = RendererButton;
     EnableMenuMusic->buttonDown = ClearCache;
     ClearCache->buttonUp = EnableMenuMusic;
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
-    Language->buttonDown = EnableUsername;
+    Language->buttonDown = RendererButton;
+    RendererButton->buttonUp = Language;
+
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
     dectalkButton->buttonUp = Language;
+    dectalkButton->buttonDown = RendererButton;
+    RendererButton->buttonUp = dectalkButton;
 #endif
+    RendererButton->buttonDown = EnableUsername;
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -180,6 +207,8 @@ void SettingsMenu::updateButtonStates() {
 #ifdef ENABLE_DECTALK
     dectalkButton->text->setText(getDectalkString());
 #endif
+
+    RendererButton->text->setText("Renderer: " /* TODO: translation*/ + std::string(RendererNames[validRenderers[rendererIdx].id]));
 }
 
 void SettingsMenu::render() {
@@ -285,6 +314,12 @@ void SettingsMenu::render() {
     }
 #endif
 
+    if (RendererButton->isPressed({"a"})) {
+        rendererIdx = (rendererIdx + 1) % validRenderers.size();
+        rendererOption = validRenderers[rendererIdx].name;
+        updateButtonStates();
+    }
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -335,6 +370,10 @@ void SettingsMenu::cleanup() {
         delete dectalkButton;
         dectalkButton = nullptr;
     }
+    if (RendererButton != nullptr) {
+        delete RendererButton;
+        RendererButton = nullptr;
+    }
 
     // save settings
     nlohmann::json json;
@@ -345,6 +384,7 @@ void SettingsMenu::cleanup() {
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;
+    json["Renderer"] = rendererOption;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

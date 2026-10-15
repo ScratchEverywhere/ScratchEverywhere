@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "settings.hpp"
 #include <log.hpp>
 #include <memory>
 #ifdef RENDERER_OPENGL_CORE
@@ -23,8 +24,68 @@ std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 std::unordered_map<std::string, Monitor> monitors;
 } // namespace Render
 
+const std::vector<RendererInfo> Render::getAvailableRenderers() {
+    std::vector<RendererInfo> renderers;
+
+    auto add = [&](Renderers r) {
+        uint8_t id = static_cast<uint8_t>(r);
+        renderers.push_back({id, RendererNames[id]});
+    };
+
+#ifdef RENDERER_OPENGL_CORE
+    add(Renderers::OpenGLCore);
+#endif
+#ifdef RENDERER_OPENGL
+    add(Renderers::OpenGL);
+#endif
+#ifdef RENDERER_SDL3
+    add(Renderers::SDL3);
+#endif
+#ifdef RENDERER_SDL2
+    add(Renderers::SDL2);
+#endif
+#ifdef RENDERER_SDL1
+    add(Renderers::SDL1);
+#endif
+#ifdef RENDERER_GDI
+    add(Renderers::GDI);
+#endif
+#ifdef RENDERER_CITRO2D
+    add(Renderers::Citro2D);
+#endif
+#ifdef RENDERER_GL2D
+    add(Renderers::GL2D);
+#endif
+#ifdef RENDERER_HEADLESS
+    add(Renderers::Headless);
+#endif
+
+    return renderers;
+}
+
 bool Render::init() {
-    for (uint8_t i = 0; i < static_cast<uint8_t>(Renderers::_count); ++i) {
+
+    const auto j = SettingsManager::getConfigSettings();
+    uint8_t startIndex = 0;
+    bool found = false;
+
+    if (j.contains("Renderer") && j["Renderer"].is_string()) {
+        const std::string rendererString = j["Renderer"].get<std::string>();
+        for (auto &r : RendererNames) {
+            if (r == rendererString) {
+                Log::log("Initializing " + rendererString + " renderer from settings...");
+                found = true;
+                break;
+            }
+            startIndex++;
+        }
+    }
+    if (!found) {
+        Log::logWarning("No renderer found in settings, initializing default...");
+        startIndex = 0;
+    }
+
+    for (uint8_t i = startIndex; i < static_cast<uint8_t>(Renderers::_count); ++i) {
         auto rendererName = static_cast<Renderers>(i);
 
         switch (rendererName) {
@@ -117,11 +178,15 @@ bool Render::init() {
         }
 
         if (globalRenderer == nullptr) {
-            Log::logError("Renderer failed to init.");
-            return false;
-        } else if (globalRenderer->error.has_value()) {
-            Log::logError("Renderer failed to init: " + globalRenderer->error.value());
+            Log::logError(std::string(RendererNames[i]) + " failed to init.");
             delete globalRenderer;
+            globalRenderer = nullptr;
+            continue;
+        } else if (globalRenderer->error.has_value()) {
+            Log::logError(std::string(RendererNames[i]) + " failed to init: " + globalRenderer->error.value());
+            delete globalRenderer;
+            globalRenderer = nullptr;
+            continue;
         } else break;
     }
 

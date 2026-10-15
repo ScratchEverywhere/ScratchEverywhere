@@ -17,6 +17,7 @@ class SE_EXPORT SettingsMenu : public Menu {
     ButtonObject *EnableCustomFolderPath = nullptr;
     ButtonObject *ChangeFolderPath = nullptr;
     ButtonObject *EnableMenuMusic = nullptr;
+    ButtonObject *RendererButton = nullptr;
     ButtonObject *ClearCache = nullptr;
     ButtonObject *Language = nullptr;
     ButtonObject *dectalkButton = nullptr;
@@ -28,6 +29,10 @@ class SE_EXPORT SettingsMenu : public Menu {
     std::string projectsPath;
 
     bool menuMusic = true;
+
+    std::vector<RendererInfo> validRenderers;
+    unsigned int rendererIdx = 0;
+    std::string rendererOption = "";
 
 #ifdef DECTALK_DEFAULT
     bool UseDectalk = true;
