@@ -165,9 +165,9 @@ void InputDevice_SDL1::getInput() {
     }
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
-        Input::mousePointer.mouseButton = Mouse::RIGHT;
+        Input::mousePointer.mouseButton = Input::Mouse::RIGHT;
     } else {
-        Input::mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
     }
 #endif
 
