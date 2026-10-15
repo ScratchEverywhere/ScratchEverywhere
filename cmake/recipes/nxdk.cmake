@@ -39,10 +39,11 @@ function(_recipe_nxdk_source)
     endif()
 
     find_program(_cxbe_bin cxbe PATHS "${_nxdk}/bin" "${_nxdk}/tools/cxbe" NO_DEFAULT_PATH)
-    if(NOT _cxbe_bin)
+    find_program(_extract_xiso_bin extract-xiso PATHS "${_nxdk}/bin" "${_nxdk}/tools/extract-xiso/build" NO_DEFAULT_PATH)
+    if(NOT _cxbe_bin OR NOT _extract_xiso_bin)
         message(STATUS "Building nxdk tools (cxbe, extract-xiso)...")
         execute_process(
-            COMMAND make tools -j
+            COMMAND ${CMAKE_COMMAND} -E env --unset=CC --unset=CXX --unset=CFLAGS --unset=CXXFLAGS --unset=LDFLAGS make tools -j
             WORKING_DIRECTORY "${_nxdk}"
             RESULT_VARIABLE _make_tools
         )
@@ -51,12 +52,12 @@ function(_recipe_nxdk_source)
         endif()
     endif()
 
-    if(EXISTS "${_nxdk}/tools/cxbe/cxbe" AND NOT EXISTS "${_nxdk}/bin/cxbe")
-        execute_process(COMMAND ${CMAKE_COMMAND} -E copy "${_nxdk}/tools/cxbe/cxbe" "${_nxdk}/bin/cxbe")
+    if(EXISTS "${_nxdk}/tools/cxbe/cxbe")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_nxdk}/tools/cxbe/cxbe" "${_nxdk}/bin/cxbe")
     endif()
 
-    if(EXISTS "${_nxdk}/tools/extract-xiso/build/extract-xiso" AND NOT EXISTS "${_nxdk}/bin/extract-xiso")
-        execute_process(COMMAND ${CMAKE_COMMAND} -E copy "${_nxdk}/tools/extract-xiso/build/extract-xiso" "${_nxdk}/bin/extract-xiso")
+    if(EXISTS "${_nxdk}/tools/extract-xiso/build/extract-xiso")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_nxdk}/tools/extract-xiso/build/extract-xiso" "${_nxdk}/bin/extract-xiso")
     endif()
 
     add_library(nxdk INTERFACE)

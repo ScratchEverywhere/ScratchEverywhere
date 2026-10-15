@@ -4,7 +4,6 @@ set(SE_RENDERER_VALID_OPTIONS "sdl3")
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
-set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
 set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
 
 # CPU expensive and nxdk implementation has type conflicts; keep off for now

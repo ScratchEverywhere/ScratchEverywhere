@@ -22,10 +22,7 @@ ENV NXDK_SDL3_DIR=/nxdk-sdl3
 ENV PATH="/nxdk/bin:/root/.cargo/bin:$PATH"
 
 # Clone the github.com/xboxDev/nxdk repository
-RUN git clone --recursive --depth 1 https://github.com/xboxDev/nxdk.git /nxdk && \
-    cd /nxdk && make tools -j$(nproc) && make NXDK_ONLY=y -j$(nproc) && \
-    cp /nxdk/tools/cxbe/cxbe /nxdk/bin/cxbe && \
-    cp /nxdk/tools/extract-xiso/build/extract-xiso /nxdk/bin/extract-xiso
+RUN git clone --recursive --depth 1 https://github.com/xboxDev/nxdk.git /nxdk
 
 # Clone the github.com/Ryzee119/nxdk-sdl3 repository
 RUN git clone --recursive --depth 1 -b nxaudio https://github.com/Ryzee119/nxdk-sdl3.git /nxdk-sdl3
