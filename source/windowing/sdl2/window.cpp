@@ -240,8 +240,10 @@ void WindowSDL2::swapBuffers() {
 void WindowSDL2::resize(int width, int height) {
     this->width = width;
     this->height = height;
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore)
         glViewport(0, 0, width, height);
+#endif
 
     calculatePixelDensity();
 
