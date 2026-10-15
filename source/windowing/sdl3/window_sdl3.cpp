@@ -67,8 +67,8 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 
 #if defined(__XBOX__)
     if (!SDL_CreateWindowAndRenderer(title.c_str(), width, height, flags, &window, &sdlRenderer)) {
-        Log::logCritical("Failed to create SDL3 window/renderer: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to create SDL3 window/renderer: " + std::string(SDL_GetError());
+        return;
     }
 #else
     window = SDL_CreateWindow(title.c_str(), width, height, flags);

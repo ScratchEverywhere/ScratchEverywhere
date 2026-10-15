@@ -70,6 +70,12 @@ jobs:
               WINDOWING=headless
               AUDIO_ENGINE=headless
               LIBRARY_MODE=TRUE
+          - name: All
+            artifact: Scratch Everywhere! Linux Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
           - name: SDL2
             artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |
@@ -135,6 +141,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: All
+            artifact: Scratch Everywhere! Windows Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
           - name: OpenGL Core
             artifact: Scratch Everywhere! Windows OpenGL Core Nightly
             build-args: |
