@@ -12,6 +12,8 @@ build_args:
     - -DCMAKE_CXX_LINKER=clang++-8
     - -DCMAKE_C_FLAGS="--target=${ARCH_TRIPLET}"
     - -DCMAKE_CXX_FLAGS="--target=${ARCH_TRIPLET} -stdlib=libc++"
+    - -DCMAKE_BUILD_RPATH='$ORIGIN/lib'
+    - -DCMAKE_INSTALL_RPATH='$ORIGIN/lib'
     - -DCMAKE_BUILD_TYPE=Debug
     - -DSE_CLOUDVARS=OFF
     - -DSE_DOWNLOAD=OFF
@@ -19,7 +21,8 @@ build_args:
     - -DSE_CUSTOM_EXTENSIONS=OFF
     - -DSE_CMAKERC=OFF
     - -DSE_DECTALK=OFF
-    - -DSE_RENDERER=sdl2
+    - -DSE_RENDERER=headless
+    - -DSE_WINDOWING=headless
 make_args:
     - -Wno-deprecated-declarations
     #- VERBOSE=1
@@ -27,13 +30,9 @@ make_args:
 image_setup:
     run:
         - apt remove cmake -y
-        - wget https://cmake.org/files/v3.31/cmake-3.31.12-linux-x86_64.sh
-        - chmod +x cmake-3.31.12-linux-x86_64.sh
-        - mkdir -p /opt/cmake
-        - ./cmake-3.31.12-linux-x86_64.sh --skip-license --prefix=/opt/cmake
-        - ln -sf /opt/cmake/bin/cmake /usr/local/bin/cmake
-        - ln -sf /opt/cmake/bin/ctest /usr/local/bin/ctest
-        - ln -sf /opt/cmake/bin/cpack /usr/local/bin/cpack
+        - wget https://cmake.org/files/v3.31/cmake-3.31.12-linux-x86_64.sh && chmod +x cmake-3.31.12-linux-x86_64.sh
+        - mkdir -p /opt/cmake && ./cmake-3.31.12-linux-x86_64.sh --skip-license --prefix=/opt/cmake
+        - ln -sf /opt/cmake/bin/cmake /usr/local/bin/cmake && ln -sf /opt/cmake/bin/ctest /usr/local/bin/ctest && ln -sf /opt/cmake/bin/cpack /usr/local/bin/cpack
 prebuild:
     - find /usr/lib /usr/lib/x86_64-linux-gnu -name 'libc++fs*' 2>/dev/null
 #    - /usr/bin/clang++-6.0 -v --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/7.5.0 -std=c++17 -x c++ -E /dev/null
@@ -45,7 +44,11 @@ postbuild:
     - cp -r ${ROOT}/gfx/menu/ ${ROOT}/build/ut/${ARCH_TRIPLET}/install/gfx/menu/
     - cp -r ${ROOT}/gfx/translations/ ${ROOT}/build/ut/${ARCH_TRIPLET}/install/gfx/translations/
     - cp -r ${ROOT}/gfx/ut/. ${ROOT}/build/ut/${ARCH_TRIPLET}/install/
+    - cp -r ${ROOT}/romfs/* ${ROOT}/build/ut/${ARCH_TRIPLET}/install/
     - find ${ROOT}/build/ut/${ARCH_TRIPLET}/install -type f -printf '/./%P\n' > ${ROOT}/build/ut/${ARCH_TRIPLET}/install_manifest.txt
+    - mkdir -p ${ROOT}/build/ut/${ARCH_TRIPLET}/install/lib/
+    - cp -L /usr/lib/${ARCH_TRIPLET}/libc++.so.1 ${ROOT}/build/ut/${ARCH_TRIPLET}/install/lib/
+    - cp -L /usr/lib/${ARCH_TRIPLET}/libc++abi.so.1 ${ROOT}/build/ut/${ARCH_TRIPLET}/install/lib/
 dependencies_ppa:
     - ppa:ubuntu-toolchain-r/test
 dependencies_host:
@@ -64,3 +67,11 @@ dependencies_target:
     - libfreetype6-dev
     - libc++-8-dev
     - libc++abi-8-dev
+    - libxcursor-dev
+    - libxi-dev
+    - libx11-dev
+    - libxrandr-dev
+    - libxext-dev
+    - libxfixes-dev
+    - libxss-dev
+    - libxtst-dev

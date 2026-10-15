@@ -83,11 +83,9 @@ function(_recipe_SDL2_source)
     set(SDL_URL "https://github.com/Dogo6647/SDL2/archive/refs/heads/main.tar.gz")
     set(SDL_PLATFORM_OPTIONS
       "SDL_INSTALL" "OFF"
-      #"SDL_X11" "OFF"
-      #"SDL_VIDEO_DRIVER_X11" "OFF"
-      "SDL_MIR" "ON"
+      "SDL_X11" "OFF"
+      "SDL_WAYLAND" "OFF"
       "SDL_VIDEO_MIR" "ON"
-      "SDL_VIDEO_DRIVER_MIR" "ON"
       "SDL_PTHREADS" "ON"
       "SDL_PTHREADS_SEM" "ON")
   endif()

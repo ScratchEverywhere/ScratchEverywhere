@@ -1,12 +1,12 @@
 {
-    "name": "scratcheverywhere",
+    "name": "scratch-everywhere",
     "description": "Custom Scratch Runtime made in C++!",
     "architecture": "armhf",
     "title": "Scratch Everywhere!",
     "hooks": {
-        "scratcheverywhere": {
-            "apparmor": "scratcheverywhere.apparmor",
-            "desktop":  "scratcheverywhere.desktop"
+        "scratch-everywhere": {
+            "apparmor": "scratch-everywhere.apparmor",
+            "desktop":  "scratch-everywhere.desktop"
         }
     },
     "version": "1.0.0",
