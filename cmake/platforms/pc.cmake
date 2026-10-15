@@ -55,8 +55,9 @@ add_library(threads_interface INTERFACE)
 find_package(Threads REQUIRED)
 target_link_libraries(threads_interface INTERFACE Threads::Threads)
 
-if(WIN32)
-	macro(package_platform)
+
+macro(package_platform)
+	if(WIN32)
 		set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 		install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
 
@@ -86,7 +87,14 @@ if(WIN32)
 		set(CPACK_NSIS_MODIFY_PATH OFF)
 
 		include(CPack)
-	endmacro()
+	endif()
 
+	# "multiple definition of `wp_fractional_scale_manager_v1_interface'"
+	if(SE_WINDOWING STREQUAL "all" AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$")
+		target_link_options(scratch-everywhere PRIVATE "-Wl,--allow-multiple-definition")
+	endif()
+endmacro()
+
+if(WIN32)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 endif()

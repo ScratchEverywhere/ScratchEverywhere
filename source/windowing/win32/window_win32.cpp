@@ -6,11 +6,11 @@
 #include <math.hpp>
 #include <renderer.hpp>
 
-#ifdef RENDERER_OPENGL
-#include <renderers/opengl/renderer_gl.hpp>
-#endif
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
+#endif
+#ifdef RENDERER_OPENGL
+#include <renderers/opengl/renderer_gl.hpp>
 #endif
 #if defined(RENDERER_D3D9)
 #include <renderers/d3d9/renderer_d3d9.hpp>
