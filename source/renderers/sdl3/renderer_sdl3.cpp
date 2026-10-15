@@ -553,8 +553,8 @@ void Renderer_SDL3::renderSprites() {
         SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 255, 255);
         SDL_FRect rect;
         rect.w = rect.h = 5;
-        rect.x = (Input::mousePointer.x * Render::renderScale) + (globalWindow->getWidth() * 0.5);
-        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (globalWindow->getHeight() * 0.5);
+        rect.x = (Input::mousePointer.x * Render::renderScale) + (window->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (window->getHeight() * 0.5);
         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         SDL_RenderRect(Sdlrenderer, &rect);

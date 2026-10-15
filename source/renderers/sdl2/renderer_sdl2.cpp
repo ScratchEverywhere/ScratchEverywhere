@@ -47,11 +47,8 @@ char nickname[0x21];
 #include <ogc/exi.h>
 #endif
 
-WindowSE *globalWindow = nullptr;
 static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
-
-SpeechManagerSDL2 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
@@ -127,10 +124,10 @@ Renderer_SDL2::Renderer_SDL2() {
     int windowHeight = 360;
 #endif
 
-    globalWindow = new WindowSDL2();
-    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
-        delete globalWindow;
-        globalWindow = nullptr;
+    window = new WindowSDL2();
+    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete window;
+        window = nullptr;
         error = "Failed to init window.";
         return;
     }
@@ -139,7 +136,7 @@ Renderer_SDL2::Renderer_SDL2() {
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 #endif
-    Sdlrenderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
+    Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), -1, sdlFlags);
     if (Sdlrenderer == nullptr) {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
@@ -159,10 +156,10 @@ Renderer_SDL2::~Renderer_SDL2() {
     TextObject::cleanupText();
     SDL_DestroyRenderer(Sdlrenderer);
 
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
     }
 
     SDL_Quit();
@@ -193,17 +190,17 @@ SpeechManager *Renderer_SDL2::getSpeechManager() {
 }
 
 int Renderer_SDL2::getWidth() {
-    if (globalWindow) return globalWindow->getWidth();
+    if (window) return window->getWidth();
     return 540;
 }
 
 int Renderer_SDL2::getHeight() {
-    if (globalWindow) return globalWindow->getHeight();
+    if (window) return window->getHeight();
     return 405;
 }
 
 float Renderer_SDL2::getPixelDensity() {
-    if (globalWindow) return globalWindow->getPixelDensity();
+    if (window) return window->getPixelDensity();
     return 1.0f;
 }
 
@@ -616,8 +613,8 @@ void Renderer_SDL2::renderSprites() {
         SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 255, 255);
         SDL_Rect rect;
         rect.w = rect.h = 5;
-        rect.x = (Input::mousePointer.x * Render::renderScale) + (globalWindow->getWidth() * 0.5);
-        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (globalWindow->getHeight() * 0.5);
+        rect.x = (Input::mousePointer.x * Render::renderScale) + (window->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (window->getHeight() * 0.5);
         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         SDL_RenderDrawRect(Sdlrenderer, &rect);
@@ -656,12 +653,12 @@ void Renderer_SDL2::renderPenLayer() {
 
 bool Renderer_SDL2::appShouldRun() {
     if (OS::toExit) return false;
-    if (globalWindow) {
-        globalWindow->pollEvents();
+    if (window) {
+        window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = globalWindow->getWidth();
-        int currentH = globalWindow->getHeight();
+        int currentW = window->getWidth();
+        int currentH = window->getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;
@@ -685,7 +682,7 @@ bool Renderer_SDL2::appShouldRun() {
             }
         }
 
-        return !globalWindow->shouldClose();
+        return !window->shouldClose();
     }
     return false;
 }

@@ -21,5 +21,3 @@ class SE_EXPORT WindowSE {
     virtual float getPixelDensity() const = 0;
     virtual void *getHandle() = 0;
 };
-
-// extern WindowSE *globalWindow;

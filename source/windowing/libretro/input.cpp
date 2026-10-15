@@ -24,19 +24,22 @@ std::array<int, 2> Input::getTouchPosition() {
     x = (x + 1) / 2;
     y = (y + 1) / 2;
 
-    x *= globalWindow->getWidth();
-    y *= globalWindow->getHeight();
+    WindowSE *window = Render::getGlobalRenderer()->window;
+
+    x *= window->getWidth();
+    y *= window->getHeight();
 
     return {(int)x, (int)y};
 }
 
 void Input::getInput() {
+    WindowSE *window = Render::getGlobalRenderer()->window;
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
     std::array<int, 2> touchPos = getTouchPosition();
-    auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
+    auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], window->getWidth(), window->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;
 

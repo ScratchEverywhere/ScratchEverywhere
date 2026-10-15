@@ -21,7 +21,7 @@ std::array<int, 2> Input::getTouchPosition() {
     POINT p;
 
     GetCursorPos(&p); /* appearantly this function can fail? but WINSTA_READATTRIBUTES is given to process by default */
-    ScreenToClient((HWND)globalWindow->getHandle(), &p);
+    ScreenToClient((HWND)Render::getGlobalRenderer()->window->getHandle(), &p);
     pos[0] = p.x;
     pos[1] = p.y;
 
@@ -104,7 +104,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
 }
 
 void Input::setClipboardText(const std::string &text) {
-    if (!OpenClipboard((HWND)globalWindow->getHandle())) return;
+    if (!OpenClipboard((HWND)Render::getGlobalRenderer()->window->getHandle())) return;
 
     EmptyClipboard();
 

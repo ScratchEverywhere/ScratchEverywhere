@@ -3,8 +3,6 @@
 #include <runtime.hpp>
 #include <window.hpp>
 
-extern WindowSE *globalWindow;
-
 struct retro_hw_render_callback hw_render;
 static retro_audio_sample_t audio_sample_cb;
 static retro_audio_sample_batch_t audio_sample_batch_cb;
@@ -92,8 +90,9 @@ static void update_variables(void) {
         }
 
         if (old_w != current_width || old_h != current_height) {
-            if (globalWindow) {
-                globalWindow->resize(current_width, current_height);
+            WindowSE *window = Render::getGlobalRenderer()->window;
+            if (window) {
+                window->resize(current_width, current_height);
             }
 
             struct retro_system_av_info av_info;
