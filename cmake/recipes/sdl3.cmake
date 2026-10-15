@@ -3,59 +3,6 @@ function(_recipe_SDL3_toolchain)
         add_library(SDL3 INTERFACE)
         target_compile_options(SDL3 INTERFACE "-sUSE_SDL=3")
         target_link_options(SDL3 INTERFACE "-sUSE_SDL=3")
-
-    elseif(XBOX)
-        if("$ENV{NXDK_SDL3_DIR}" STREQUAL "")
-            message(FATAL_ERROR "NXDK_SDL3_DIR is not set")
-        endif()
-
-        set(NXDL_SDL3 "$ENV{NXDK_SDL3_DIR}")
-
-        # SDL and xgu are submodules; a plain clone leaves them empty
-        if(NOT EXISTS "${NXDL_SDL3}/SDL/include/SDL3/SDL.h"
-            OR NOT EXISTS "${NXDL_SDL3}/nxdk_glue/render/xgu/xgu.h")
-            execute_process(
-                COMMAND git submodule update --init --recursive
-                WORKING_DIRECTORY ${NXDK_NXDL_SDL3}
-                RESULT_VARIABLE _submod
-            )
-            if(NOT _submod EQUAL 0)
-                message(FATAL_ERROR "Failed to init nxdk-sdl3 submodules")
-            endif()
-        endif()
-
-        set(NXDK_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch")
-        if(EXISTS "${NXDK_PATCH}")
-            # --check fails once applied, so re-configures are safe
-            execute_process(
-                COMMAND git apply --check "${NXDK_PATCH}"
-                WORKING_DIRECTORY ${NXDL_SDL3}
-                RESULT_VARIABLE _check OUTPUT_QUIET ERROR_QUIET
-            )
-            if(_check EQUAL 0)
-                message(STATUS "Applying nxdk-sdl3.patch")
-                execute_process(
-                    COMMAND git apply "${NXDK_PATCH}"
-                    WORKING_DIRECTORY ${NXDL_SDL3}
-                    RESULT_VARIABLE _apply
-                )
-                if(NOT _apply EQUAL 0)
-                    message(FATAL_ERROR "Failed to apply ${NXDK_PATCH}")
-                endif()
-            else()
-                message(STATUS "nxdk-sdl3.patch already applied")
-            endif()
-        endif()
-
-        add_subdirectory("${NXDL_SDL3}" nxdk-sdl3)
-
-        # nxdk-sdl3 builds SDL3-static; expose the names consumers expect
-        if(NOT TARGET SDL3 AND TARGET SDL3-static)
-            add_library(SDL3 ALIAS SDL3-static)
-        endif()
-        if(NOT TARGET SDL3::SDL3 AND TARGET SDL3-static)
-            add_library(SDL3::SDL3 ALIAS SDL3-static)
-        endif()
     endif()
 endfunction()
 
@@ -110,6 +57,28 @@ function(_recipe_SDL3_package)
 endfunction()
 
 function(_recipe_SDL3_source)
+    if(XBOX)
+        set(NXDK_SDL3_REPO "https://github.com/Ryzee119/nxdk-sdl3.git")
+        if(DEFINED ENV{NXDK_SDL3_DIR} AND EXISTS "$ENV{NXDK_SDL3_DIR}")
+            set(NXDK_SDL3_REPO "$ENV{NXDK_SDL3_DIR}")
+        endif()
+
+        cl_import_source(
+            NAME SDL3
+            REPO "${NXDK_SDL3_REPO}"
+            REF "nxaudio"
+            PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch"
+        )
+
+        if(NOT TARGET SDL3 AND TARGET SDL3-static)
+            add_library(SDL3 ALIAS SDL3-static)
+        endif()
+        if(NOT TARGET SDL3::SDL3 AND TARGET SDL3-static)
+            add_library(SDL3::SDL3 ALIAS SDL3-static)
+        endif()
+        return()
+    endif()
+
     set(SDL_BUILD_SHARED "ON")
     set(SDL_BUILD_STATIC "ON")
 

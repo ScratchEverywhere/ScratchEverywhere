@@ -1,3 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f5b7a0d..7988479 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,18 @@ project(SDL3Wrapper LANGUAGES C)
+ set(SDL3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/SDL)
+ set(SDL3_GLUE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/nxdk_glue)
+ 
++if(NOT EXISTS "${SDL3_DIR}/include/SDL3/SDL.h" OR NOT EXISTS "${SDL3_GLUE_DIR}/render/xgu/xgu.h")
++    message(STATUS "Initializing nxdk-sdl3 git submodules...")
++    execute_process(
++        COMMAND git submodule update --init --recursive
++        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
++        RESULT_VARIABLE _submod_res
++    )
++    if(NOT _submod_res EQUAL 0)
++        message(FATAL_ERROR "Failed to initialize submodules in nxdk-sdl3")
++    endif()
++endif()
++
+ # === Compile Definitions ===
+ set(SDL3_COMPILE_DEFS
+     SDL_DISABLE_ALLOCA
 diff --git a/nxdk_glue/audio/SDL_xboxaudio.c b/nxdk_glue/audio/SDL_xboxaudio.c
 index db1494a..a9cd6de 100644
 --- a/nxdk_glue/audio/SDL_xboxaudio.c
