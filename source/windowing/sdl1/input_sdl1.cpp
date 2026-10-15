@@ -3,7 +3,7 @@
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
-#include <input.hpp>
+#include <input_sdl1.hpp>
 #include <map>
 #include <renderer.hpp>
 #include <string>
@@ -30,7 +30,10 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_SDL1::InputDevice_SDL1() {}
+InputDevice_SDL1::~InputDevice_SDL1() {}
+
+std::array<int, 2> InputDevice_SDL1::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
 #ifdef PLATFORM_HAS_MOUSE
     int rawMouseX, rawMouseY;
@@ -44,10 +47,10 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = false;
+void InputDevice_SDL1::getInput() {
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
     int numkeys;
@@ -66,7 +69,7 @@ void Input::getInput() {
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
 
-                inputKeys.push_back(keyName);
+                Input::inputKeys.push_back(keyName);
             }
         }
     }
@@ -79,25 +82,25 @@ void Input::getInput() {
         if (hat & SDL_HAT_UP) {
             Input::buttonPress("dpadUp");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, 4)) mousePointer.y += 3;
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.y += 3;
 #endif
         }
         if (hat & SDL_HAT_DOWN) {
             Input::buttonPress("dpadDown");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, 4)) mousePointer.y -= 3;
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.y -= 3;
 #endif
         }
         if (hat & SDL_HAT_LEFT) {
             Input::buttonPress("dpadLeft");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, 4)) mousePointer.x -= 3;
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.x -= 3;
 #endif
         }
         if (hat & SDL_HAT_RIGHT) {
             Input::buttonPress("dpadRight");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, 4)) mousePointer.x += 3;
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.x += 3;
 #endif
         }
 
@@ -108,13 +111,13 @@ void Input::getInput() {
         if (SDL_JoystickGetButton(controller, 4)) {
             Input::buttonPress("shoulderL");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            mousePointer.isMoving = true;
+            Input::mousePointer.isMoving = true;
 #endif
-        } else mousePointer.isMoving = false;
+        } else Input::mousePointer.isMoving = false;
         if (SDL_JoystickGetButton(controller, 5)) {
             Input::buttonPress("shoulderR");
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, 4)) mousePointer.isPressed = true;
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.isPressed = true;
 #endif
         }
         if (SDL_JoystickGetButton(controller, 7)) Input::buttonPress("start");
@@ -144,7 +147,7 @@ void Input::getInput() {
 
 #endif
 
-    if (!inputKeys.empty()) inputKeys.push_back("any");
+    if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
@@ -153,25 +156,25 @@ void Input::getInput() {
     std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
-    mousePointer.x = coords.first;
-    mousePointer.y = coords.second;
+    Input::mousePointer.x = coords.first;
+    Input::mousePointer.y = coords.second;
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
     }
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
-        mousePointer.mouseButton = Mouse::RIGHT;
+        Input::mousePointer.mouseButton = Mouse::RIGHT;
     } else {
-        mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.mouseButton = Mouse::LEFT;
     }
 #endif
 
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::openSoftwareKeyboard(const char *hintText) {
+std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
     std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));
@@ -257,5 +260,3 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
 
     return "";
 }
-
-void Input::setClipboardText(const std::string &text) {}

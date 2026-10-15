@@ -1,7 +1,7 @@
 #include "window_3ds.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
-#include <input.hpp>
+#include <input_3ds.hpp>
 #include <log.hpp>
 #include <renderer.hpp>
 
@@ -64,21 +64,24 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_3DS::InputDevice_3DS() {}
+InputDevice_3DS::~InputDevice_3DS() {}
+
+std::array<int, 2> InputDevice_3DS::getTouchPosition() {
     std::array<int, 2> pos = {touch.px, touch.py};
 
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
+        Input::mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
     return pos;
 }
 
-void Input::getInput() {
-    mousePointer.mouseButton = Mouse::LEFT;
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = false;
-    mousePointer.isMoving = false;
+void InputDevice_3DS::getInput() {
+    Input::mousePointer.mouseButton = Input::Mouse::LEFT;
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
+    Input::mousePointer.isMoving = false;
 
     hidScanInput();
 
@@ -95,7 +98,6 @@ void Input::getInput() {
     u32 kHeld = hidKeysHeld();
 
     hidTouchRead(&touch);
-    // std::vector<int> touchPos = getTouchPosition();
     std::array<int, 2> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
@@ -103,7 +105,7 @@ void Input::getInput() {
         mouseHeldFrames += 1;
     } else {
         if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames != 0 && mouseHeldFrames < 4)) {
-            mousePointer.isPressed = true;
+            Input::mousePointer.isPressed = true;
         }
         mouseHeldFrames = 0;
     }
@@ -113,7 +115,7 @@ void Input::getInput() {
         goto skipInputCheck;
     }
 
-    inputKeys.push_back("any");
+    Input::inputKeys.push_back("any");
     for (size_t i = 0; i < key_amount; i++) {
         // Ignore L Stick & R Stick Pressed Events
         if ((III_DS_KEYS[i]) == NULL) {
@@ -129,8 +131,8 @@ void Input::getInput() {
     if (kHeld & KEY_TOUCH) {
         // Render::RenderModes rm = Render::renderMode;
         auto set_mouse_pointer_values = [&](std::pair<float, float> coords) {
-            mousePointer.x = coords.first;
-            mousePointer.y = coords.second;
+            Input::mousePointer.x = coords.first;
+            Input::mousePointer.y = coords.second;
         };
 
         if (Render::renderMode == Render::RenderModes::TOP_SCREEN_ONLY) {
@@ -140,32 +142,31 @@ void Input::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
                                                      Render::getWidth(), Render::getHeight());
 
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
         switch (Render::renderMode) {
         // map bottom screen to top screen
         default:
         case Render::RenderModes::TOP_SCREEN_ONLY: {
-            mousePointer.isMoving = true;
+            Input::mousePointer.isMoving = true;
             set_mouse_pointer_values(coords);
         } break;
         // normal touch screen if both screens or bottom screen only
         case Render::RenderModes::BOTH_SCREENS: {
-            mousePointer.x = touchPos[0] - BOTH_SCR_CONVERSION_W;
-            mousePointer.y = -touchPos[1];
+            Input::mousePointer.x = touchPos[0] - BOTH_SCR_CONVERSION_W;
+            Input::mousePointer.y = -touchPos[1];
         } break;
         case Render::RenderModes::BOTTOM_SCREEN_ONLY: {
             set_mouse_pointer_values(coords);
         } break;
         };
     }
-    //
 skipInputCheck:
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::openSoftwareKeyboard(const char *hintText) {
+std::string InputDevice_3DS::openSoftwareKeyboard(const char *hintText) {
     SwkbdState swkbd;
     char textBuffer[256];
 

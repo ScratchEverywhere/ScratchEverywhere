@@ -1,6 +1,7 @@
 #include "window_libretro.hpp"
 #include <libretro.h>
 
+#include "input_libretro.hpp"
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -21,6 +22,7 @@ extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
 }
 
 bool WindowLibretro::init(int w, int h, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_Libretro);
     resize(w, h);
 
     return true;

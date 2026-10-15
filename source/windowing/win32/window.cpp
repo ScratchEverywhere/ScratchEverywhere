@@ -1,5 +1,5 @@
 #include "window_win32.hpp"
-#include <input.hpp>
+#include <input_win32.hpp>
 #include <libdlgmod/libdlgmod.h>
 #include <log.hpp>
 #include <math.hpp>
@@ -112,6 +112,7 @@ typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
 #endif
 
 bool WindowWin32::init(int width, int height, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_Win32);
     WNDCLASSEX wc;
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     PIXELFORMATDESCRIPTOR pfd;

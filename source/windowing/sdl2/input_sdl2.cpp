@@ -1,3 +1,4 @@
+#include "input_sdl2.hpp"
 #include "log.hpp"
 #include "window_sdl2.hpp"
 #ifdef __SWITCH__
@@ -81,7 +82,10 @@ static constexpr SDL_GameControllerButton SDL2_GAMEPAD_KEYS[] = {
     SDL_CONTROLLER_BUTTON_INVALID,
 };
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_SDL2::InputDevice_SDL2() {}
+InputDevice_SDL2::~InputDevice_SDL2() {}
+
+std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
     int rawMouseX, rawMouseY;
 #ifdef PLATFORM_HAS_TOUCH
@@ -105,10 +109,10 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = false;
+void InputDevice_SDL2::getInput() {
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
 
@@ -149,7 +153,7 @@ void Input::getInput() {
         else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
         else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
 
-        inputKeys.push_back(keyName);
+        Input::inputKeys.push_back(keyName);
     }
 #endif
 
@@ -208,7 +212,7 @@ void Input::getInput() {
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         mousePointer.isMoving = true;
 #endif
-    } else mousePointer.isMoving = false;
+    } else Input::mousePointer.isMoving = false;
     if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)])) {
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
@@ -248,7 +252,7 @@ void Input::getInput() {
     Input::rightJoystick.second = joyRightY / 32767.0f;
 #endif
 
-    if (!inputKeys.empty()) inputKeys.push_back("any");
+    if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
     BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_TOUCH
@@ -258,10 +262,10 @@ void Input::getInput() {
         Input::applyInputViewportOffset(touchX, touchY);
         Input::scaleViewportToRenderSpace(touchX, touchY, Render::getWidth(), Render::getHeight());
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
-        mousePointer.x = coords.first;
-        mousePointer.y = coords.second;
-        mousePointer.isPressed = touchActive;
-        mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.x = coords.first;
+        Input::mousePointer.y = coords.second;
+        Input::mousePointer.isPressed = touchActive;
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
         return;
     }
@@ -272,27 +276,27 @@ void Input::getInput() {
     std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
-    mousePointer.x = coords.first;
-    mousePointer.y = coords.second;
+    Input::mousePointer.x = coords.first;
+    Input::mousePointer.y = coords.second;
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
     }
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
-        mousePointer.mouseButton = Mouse::RIGHT;
+        Input::mousePointer.mouseButton = Input::Mouse::RIGHT;
     } else if (buttons & (SDL_BUTTON(SDL_BUTTON_MIDDLE))) {
-        mousePointer.mouseButton = Mouse::MIDDLE;
+        Input::mousePointer.mouseButton = Input::Mouse::MIDDLE;
     } else {
-        mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
     }
 #endif
 
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::openSoftwareKeyboard(const char *hintText) {
+std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
 // doesn't work on these platforms....
 #else
@@ -389,7 +393,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     return "";
 }
 
-void Input::setClipboardText(const std::string &text) {
+void InputDevice_SDL2::setClipboardText(const std::string &text) {
 #if defined(__PC__)
     SDL_SetClipboardText(text.c_str());
 #endif

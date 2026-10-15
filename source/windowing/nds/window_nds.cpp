@@ -1,5 +1,6 @@
-#include "os.hpp"
 #include "window_nds.hpp"
+#include "input_nds.hpp"
+#include "os.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <input.hpp>
@@ -9,6 +10,7 @@
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
     // Render::debugMode = false;
+    Input::setGlobalInputDevice(new InputDevice_NDS);
 
     glScreen2D();
     videoSetMode(MODE_0_3D);

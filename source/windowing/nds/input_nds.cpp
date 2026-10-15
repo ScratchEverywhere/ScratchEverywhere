@@ -35,21 +35,24 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_NDS::InputDevice_NDS() {}
+InputDevice_NDS::~InputDevice_NDS() {}
+
+std::array<int, 2> InputDevice_NDS::getTouchPosition() {
     std::array<int, 2> pos = {touch.px, touch.py};
 
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
+        Input::mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
     return pos;
 }
 
-void Input::getInput() {
-    mousePointer.mouseButton = Mouse::LEFT;
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = false;
-    mousePointer.isMoving = false;
+void InputDevice_NDS::getInput() {
+    Input::mousePointer.mouseButton = Input::Mouse::LEFT;
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
+    Input::mousePointer.isMoving = false;
     scanKeys();
     uint16_t kHeld = keysHeld() & 0x0000FFFF;
 
@@ -61,7 +64,7 @@ void Input::getInput() {
         mouseHeldFrames += 1;
     } else {
         if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
-            mousePointer.isPressed = true;
+            Input::mousePointer.isPressed = true;
         }
         mouseHeldFrames = 0;
     }
@@ -70,7 +73,7 @@ void Input::getInput() {
         goto skipInputCheck;
     }
 
-    inputKeys.push_back("any");
+    Input::inputKeys.push_back("any");
 
     // Send Key Codes
     for (size_t i = 0; i < KEY_AMOUNT; i++) {
@@ -80,21 +83,17 @@ void Input::getInput() {
     }
 
     if (kHeld & KEY_TOUCH) {
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
 
         if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
-            mousePointer.isMoving = true;
+            Input::mousePointer.isMoving = true;
 
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
-        mousePointer.x = coords.first;
-        mousePointer.y = coords.second;
+        Input::mousePointer.x = coords.first;
+        Input::mousePointer.y = coords.second;
     }
 
 skipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
-}
-
-std::string Input::openSoftwareKeyboard(const char *hintText) {
-    return "";
 }

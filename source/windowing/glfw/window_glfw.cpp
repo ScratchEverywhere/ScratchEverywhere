@@ -8,6 +8,7 @@
 #include <GLFW/glfw3native.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
+#include "input_glfw.hpp"
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -33,6 +34,7 @@ static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) 
 }
 
 bool WindowGLFW::init(int w, int h, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_GLFW);
     if (!glfwInit()) {
         Log::logCritical("Failed to initialize GLFW", true);
         return false;

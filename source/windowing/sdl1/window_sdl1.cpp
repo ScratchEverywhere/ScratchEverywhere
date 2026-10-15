@@ -6,6 +6,7 @@
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
+#include "input_sdl1.hpp"
 #include <chrono>
 #include <cstdlib>
 #include <input.hpp>
@@ -27,6 +28,7 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_SDL1);
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif

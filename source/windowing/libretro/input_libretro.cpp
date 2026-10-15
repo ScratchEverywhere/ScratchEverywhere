@@ -14,7 +14,10 @@ extern "C" void retro_set_input_state(retro_input_state_t cb) {
     input_state_cb = cb;
 }
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_Libretro::InputDevice_Libretro() {}
+InputDevice_Libretro::~InputDevice_Libretro() {}
+
+std::array<int, 2> InputDevice_Libretro::getTouchPosition() {
     double x = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
     double y = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
@@ -32,22 +35,22 @@ std::array<int, 2> Input::getTouchPosition() {
     return {(int)x, (int)y};
 }
 
-void Input::getInput() {
+void InputDevice_Libretro::getInput() {
     WindowSE *window = Render::getGlobalRenderer()->window;
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
-    mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
+    Input::mousePointer.mouseButton = Input::Mouse::LEFT; // TODO: support multiple mouse buttons
     std::array<int, 2> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], window->getWidth(), window->getHeight());
-    mousePointer.x = (int)coords.first;
-    mousePointer.y = (int)coords.second;
+    Input::mousePointer.x = (int)coords.first;
+    Input::mousePointer.y = (int)coords.second;
 
     /* nishi sez... back / LeftStick* / RightStick* / LT / RT might be not true... */
 
     auto checkKey = [&](int key, std::string scratchName) {
         if (input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, key)) {
-            inputKeys.push_back(scratchName);
+            Input::inputKeys.push_back(scratchName);
         }
     };
 
@@ -150,8 +153,8 @@ void Input::getInput() {
     checkJoy(RETRO_DEVICE_ID_JOYPAD_L2, "LT");
     checkJoy(RETRO_DEVICE_ID_JOYPAD_R2, "RT");
 
-    if (!inputKeys.empty()) {
-        inputKeys.push_back("any");
+    if (!Input::inputKeys.empty()) {
+        Input::inputKeys.push_back("any");
     }
 
     Input::leftJoystick.first = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X) / 0x8000f;
@@ -161,8 +164,4 @@ void Input::getInput() {
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
-}
-
-std::string Input::openSoftwareKeyboard(const char *hintText) {
-    return "";
 }

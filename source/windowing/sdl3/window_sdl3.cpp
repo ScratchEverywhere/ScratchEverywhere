@@ -4,6 +4,7 @@
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/renderer_gl.hpp>
 #endif
+#include "input_sdl3.hpp"
 #include "window_sdl3.hpp"
 #include <SDL3/SDL_video.h>
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
@@ -28,6 +29,7 @@ SDL_Point touchPosition;
 #endif
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_SDL3);
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif

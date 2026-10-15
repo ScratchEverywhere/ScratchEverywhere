@@ -1,6 +1,6 @@
 #include "window_glfw.hpp"
 #include <blockExecutor.hpp>
-#include <input.hpp>
+#include <input_glfw.hpp>
 #include <renderer.hpp>
 #include <string>
 #include <text.hpp>
@@ -43,13 +43,16 @@ static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
     NULL  // Right Analog Trigger
 };
 
+InputDevice_GLFW::InputDevice_GLFW() {}
+InputDevice_GLFW::~InputDevice_GLFW() {}
+
 static GLFWwindow *inputWindow() {
     return Input::inputWindowHandleOverride
                ? (GLFWwindow *)Input::inputWindowHandleOverride
                : (GLFWwindow *)Render::getGlobalRenderer()->window->getHandle();
 }
 
-std::array<int, 2> Input::getTouchPosition() {
+std::array<int, 2> InputDevice_GLFW::getTouchPosition() {
     double x, y;
     glfwGetCursorPos(inputWindow(), &x, &y);
 
@@ -60,22 +63,22 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void InputDevice_GLFW::getInput() {
     Renderer *renderer = Render::getGlobalRenderer();
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = (glfwGetMouseButton(inputWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
-    mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = (glfwGetMouseButton(inputWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+    Input::mousePointer.mouseButton = Input::Mouse::LEFT; // TODO: support multiple mouse buttons
 
     std::array<int, 2> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], renderer->window->getWidth(), renderer->window->getHeight());
-    mousePointer.x = (int)coords.first;
-    mousePointer.y = (int)coords.second;
+    Input::mousePointer.x = (int)coords.first;
+    Input::mousePointer.y = (int)coords.second;
 
     // Handle keyboard keys
     auto checkKey = [&](int glfwKey, std::string scratchName) {
         if (glfwGetKey(inputWindow(), glfwKey) == GLFW_PRESS) {
-            inputKeys.push_back(scratchName);
+            Input::inputKeys.push_back(scratchName);
         }
     };
 
@@ -193,8 +196,8 @@ void Input::getInput() {
         }
     }
 
-    if (!inputKeys.empty()) {
-        inputKeys.push_back("any");
+    if (!Input::inputKeys.empty()) {
+        Input::inputKeys.push_back("any");
     }
 
     BlockExecutor::executeKeyHats();
@@ -207,7 +210,7 @@ static void character_callback(GLFWwindow *window, unsigned int codepoint) {
     }
 }
 
-std::string Input::openSoftwareKeyboard(const char *hintText) {
+std::string InputDevice_GLFW::openSoftwareKeyboard(const char *hintText) {
     std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));
@@ -272,6 +275,6 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     return g_inputText;
 }
 
-void Input::setClipboardText(const std::string &text) {
+void InputDevice_GLFW::setClipboardText(const std::string &text) {
     glfwSetClipboardString(inputWindow(), text.c_str());
 }

@@ -6,6 +6,7 @@
 #endif
 #include "window_sdl2.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include "input_sdl2.hpp"
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
@@ -33,6 +34,7 @@ SDL_Point touchPosition;
 #endif
 
 bool WindowSDL2::init(int width, int height, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_SDL2);
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif

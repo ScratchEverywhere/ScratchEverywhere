@@ -4,7 +4,7 @@
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
-#include <input.hpp>
+#include <input_win32.hpp>
 #include <map>
 #include <renderer.hpp>
 #include <string>
@@ -16,7 +16,10 @@
  * (nishi)
  */
 
-std::array<int, 2> Input::getTouchPosition() {
+InputDevice_Win32::InputDevice_Win32() {}
+InputDevice_Win32::~InputDevice_Win32() {}
+
+std::array<int, 2> InputDevice_Win32::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
     POINT p;
 
@@ -31,10 +34,10 @@ std::array<int, 2> Input::getTouchPosition() {
 }
 
 /* this misses input events. isn't that bad? but that's how SDL2 did so i am not going to care... */
-void Input::getInput() {
-    inputButtons.clear();
-    inputKeys.clear();
-    mousePointer.isPressed = false;
+void InputDevice_Win32::getInput() {
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
     BYTE keys[256];
@@ -65,45 +68,41 @@ void Input::getInput() {
         else if (sc == VK_SPACE) keyName = "space";
         else if (sc == VK_RETURN) keyName = "enter";
 
-        inputKeys.push_back(keyName);
+        Input::inputKeys.push_back(keyName);
     }
 #endif
 
-    if (!inputKeys.empty()) inputKeys.push_back("any");
+    if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
     BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_MOUSE
     std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
-    mousePointer.x = coords.first;
-    mousePointer.y = coords.second;
+    Input::mousePointer.x = coords.first;
+    Input::mousePointer.y = coords.second;
 
     int l = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
     int m = GetAsyncKeyState(VK_MBUTTON) & 0x8000;
     int r = GetAsyncKeyState(VK_RBUTTON) & 0x8000;
 
     if (l || m) {
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
     }
 
     if (r) {
-        mousePointer.mouseButton = Mouse::RIGHT;
+        Input::mousePointer.mouseButton = Mouse::RIGHT;
     } else if (m) {
-        mousePointer.mouseButton = Mouse::MIDDLE;
+        Input::mousePointer.mouseButton = Mouse::MIDDLE;
     } else {
-        mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.mouseButton = Mouse::LEFT;
     }
 #endif
 
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::openSoftwareKeyboard(const char *hintText) {
-    return "";
-}
-
-void Input::setClipboardText(const std::string &text) {
+void InputDevice_Win32::setClipboardText(const std::string &text) {
     if (!OpenClipboard((HWND)Render::getGlobalRenderer()->window->getHandle())) return;
 
     EmptyClipboard();
