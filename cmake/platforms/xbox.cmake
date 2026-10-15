@@ -69,6 +69,7 @@ add_compile_options(
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
+    target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
 
     # Sets maximum stack size to 4MB with 128KB reserved
     target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")
