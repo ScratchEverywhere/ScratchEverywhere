@@ -1,6 +1,3 @@
-# TODO: maybe move this somewhere else
-add_library(nxdk_interface INTERFACE)
-cl_add_dep(nxdk_interface nxdk)
 unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
 
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
@@ -9,7 +6,6 @@ set(SE_RENDERER_VALID_OPTIONS "sdl3")
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3" "headless")
 set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
-# set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
 set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
@@ -40,6 +36,7 @@ set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 # TODO: add custom extension support, no lua.h on this build
+# set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
 set(SE_CUSTOM_EXTENSIONS OFF)
 
