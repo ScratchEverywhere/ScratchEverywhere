@@ -120,50 +120,24 @@ void SettingsMenu::init() {
         menuMusic = json["MenuMusic"].get<bool>();
     }
 
-    rendererOption = std::string(RendererNames[static_cast<uint8_t>(Render::currentRenderer)]);
-    if (json.contains("Renderer") && json["Renderer"].is_string()) {
-        rendererOption = json["Renderer"].get<std::string>();
-    }
+    auto getBackendOption = [](std::string_view currentName, const auto &validOptions, auto &outIdx, std::string &outOption) {
+        auto it = std::find_if(validOptions.begin(), validOptions.end(),
+                               [currentName](const auto &info) { return info.name == currentName; });
 
-    auto it = std::find_if(validRenderers.begin(), validRenderers.end(),
-                           [&](const RendererInfo &info) { return info.name == rendererOption; });
-
-    if (it != validRenderers.end()) {
-        rendererIdx = std::distance(validRenderers.begin(), it);
-    } else {
-        rendererIdx = 0;
-        rendererOption = std::string(validRenderers[0].name);
-    }
-
-    windowingOption = std::string(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)]);
-    if (json.contains("Windowing") && json["Windowing"].is_string()) {
-        windowingOption = json["Windowing"].get<std::string>();
-    }
-
-    auto itW = std::find_if(validWindowingBackends.begin(), validWindowingBackends.end(),
-                            [&](const auto &info) { return info.name == windowingOption; });
-
-    if (itW != validWindowingBackends.end()) {
-        windowingIdx = std::distance(validWindowingBackends.begin(), itW);
-    } else {
-        windowingIdx = 0;
-        windowingOption = std::string(validWindowingBackends[0].name);
-    }
-
-    audioOption = std::string(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)]);
-    if (json.contains("AudioEngine") && json["AudioEngine"].is_string()) {
-        audioOption = json["AudioEngine"].get<std::string>();
-    }
-
-    auto itA = std::find_if(validAudioBackends.begin(), validAudioBackends.end(),
-                            [&](const auto &info) { return info.name == audioOption; });
-
-    if (itA != validAudioBackends.end()) {
-        audioIdx = std::distance(validAudioBackends.begin(), itA);
-    } else {
-        audioIdx = 0;
-        audioOption = std::string(validAudioBackends[0].name);
-    }
+        if (it != validOptions.end()) {
+            outIdx = std::distance(validOptions.begin(), it);
+            outOption = std::string(currentName);
+        } else {
+            outIdx = 0;
+            outOption = std::string(validOptions.front().name);
+        }
+    };
+    getBackendOption(RendererNames[static_cast<uint8_t>(Render::currentRenderer)],
+                     validRenderers, rendererIdx, rendererOption);
+    getBackendOption(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)],
+                     validWindowingBackends, windowingIdx, windowingOption);
+    getBackendOption(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)],
+                     validAudioBackends, audioIdx, audioOption);
 
     updateButtonStates();
 
