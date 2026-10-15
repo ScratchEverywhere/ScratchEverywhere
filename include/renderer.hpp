@@ -12,9 +12,9 @@
 // note: this is in priority order, so keep that in mind.
 // also make sure the order is the same between Renderers and RendererNames
 enum class SE_EXPORT Renderers : uint8_t {
+    D3D9,
     OpenGLCore,
     OpenGL,
-    D3D9,
     SDL3,
     SDL2,
     Citro2D,
@@ -26,9 +26,9 @@ enum class SE_EXPORT Renderers : uint8_t {
 };
 
 constexpr std::array RendererNames = {
+    "Direct 3D 9",
     "OpenGL Core",
     "OpenGL",
-    "DirectX 9",
     "SDL3",
     "SDL2",
     "Citro2D",
