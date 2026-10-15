@@ -1,5 +1,3 @@
-unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
-
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl3")
@@ -69,15 +67,20 @@ macro(package_platform)
     target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
     target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")
 
+    find_program(CXBE_BIN cxbe PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/cxbe" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/cxbe")
+    if(NOT CXBE_BIN)
+        set(CXBE_BIN "${NXDK_DIR}/bin/cxbe")
+    endif()
+
     add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND ${NXDK_DIR}/bin/cxbe
+        COMMAND ${CXBE_BIN}
         -OUT:${CMAKE_CURRENT_BINARY_DIR}/default.xbe
         -TITLE:"${SE_APP_NAME}"
         $<TARGET_FILE:scratch-everywhere>
         COMMENT "Making default.xbe"
     )
 
-    find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "$ENV{NXDK_DIR}/bin")
+    find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/extract-xiso/build" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/extract-xiso/build")
     if(EXTRACT_XISO_BIN)
         add_custom_command(TARGET scratch-everywhere POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/iso_root
