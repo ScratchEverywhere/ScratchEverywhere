@@ -63,7 +63,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     text = createTextObject(buttonText, x, y, fontPath);
     text->setCenterAligned(true);
     imageId = filePath;
-    buttonTexture = new MenuImage(filePath);
+    buttonTexture = new MenuImage(filePath, x, y, shouldNineslice);
 }
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {

@@ -22,7 +22,7 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-exceptions -fno-rtti")
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported)
 if(ipo_supported)
