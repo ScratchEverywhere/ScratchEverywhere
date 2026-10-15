@@ -1,9 +1,8 @@
 #include "window_headless.hpp"
 #include "input_headless.hpp"
 
-bool WindowHeadless::init(int width, int height, const std::string &title) {
+WindowHeadless::WindowHeadless(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_Headless);
-    return true;
 }
 
 void WindowHeadless::cleanup() {}

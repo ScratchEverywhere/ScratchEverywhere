@@ -27,14 +27,14 @@ static auto lastFrameTime = std::chrono::high_resolution_clock::now();
 static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-like behavior
 #endif
 
-bool WindowSDL1::init(int width, int height, const std::string &title) {
+WindowSDL1::WindowSDL1(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL1);
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
-        Log::logCritical("Failed to initialize SDL1", true);
-        return false;
+        error = "Failed to initialize SDL1", true;
+        return;
     }
     SDL_EnableUNICODE(1);
     SDL_WM_SetCaption(title.c_str(), NULL);
@@ -50,8 +50,8 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     }
 
     if (!window) {
-        Log::logCritical("Failed to create SDL1 window", true);
-        return false;
+        error = "Failed to create SDL1 window", true;
+        return;
     }
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -78,8 +78,6 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_version ver;
     SDL_VERSION(&ver);
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
-
-    return true;
 }
 
 void WindowSDL1::cleanup() {

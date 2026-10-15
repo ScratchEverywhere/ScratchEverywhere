@@ -4,9 +4,9 @@
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/renderer_gl.hpp>
 #endif
+#include "input_sdl2.hpp"
 #include "window_sdl2.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
-#include "input_sdl2.hpp"
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
@@ -33,7 +33,7 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
-bool WindowSDL2::init(int width, int height, const std::string &title) {
+WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL2);
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
@@ -47,8 +47,8 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     sdlFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
 #endif
     if (SDL_Init(sdlFlags) < 0) {
-        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to initialize SDL2: " + std::string(SDL_GetError());
+        return;
     }
 #endif
 
@@ -84,15 +84,15 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
     if (!window) {
-        Log::logCritical("Failed to create SDL2 window: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to create SDL2 window: " + std::string(SDL_GetError());
+        return;
     }
 
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
         context = SDL_GL_CreateContext(window);
         if (!context) {
-            Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
-            return false;
+            error = "Failed to create OpenGL context: " + std::string(SDL_GetError());
+            return;
         }
 
         SDL_GL_SetSwapInterval(1); // VSync
@@ -103,8 +103,8 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #else
         if (!gladLoaderLoadGL()) {
 #endif
-            Log::logCritical("Failed to initialize GLAD", true);
-            return false;
+            error = "Failed to initialize GLAD";
+            return;
         }
 #endif
     }
@@ -146,8 +146,6 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_version ver;
     SDL_VERSION(&ver);
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
-
-    return true;
 }
 
 void WindowSDL2::cleanup() {

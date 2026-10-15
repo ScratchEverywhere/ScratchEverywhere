@@ -28,15 +28,15 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
-bool WindowSDL3::init(int width, int height, const std::string &title) {
+WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL3);
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
-        Log::logCritical("Failed to initialize SDL3: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to initialize SDL3: " + std::string(SDL_GetError());
+        return;
     }
 
     if (Render::currentRenderer == Renderers::OpenGL) {
@@ -62,28 +62,28 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (!window) {
-        Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to create SDL3 window: " + std::string(SDL_GetError());
+        return;
     }
 
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
         context = SDL_GL_CreateContext(window);
         if (!context) {
-            Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
-            return false;
+            error = "Failed to create OpenGL context: " + std::string(SDL_GetError());
+            return;
         }
 
         if (!SDL_GL_MakeCurrent(window, context)) {
-            Log::logCritical("Failed to make OpenGL context current: " + std::string(SDL_GetError()), true);
-            return false;
+            error = "Failed to make OpenGL context current: " + std::string(SDL_GetError());
+            return;
         }
 
         SDL_GL_SetSwapInterval(1); // VSync
 
 #ifdef RENDERER_OPENGL_CORE
         if (!gladLoaderLoadGL()) {
-            Log::logCritical("Failed to initialize GLAD", true);
-            return false;
+            error = "Failed to initialize GLAD";
+            return;
         }
 
 #endif
@@ -112,7 +112,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
 #endif
 
-    return true;
+    return;
 }
 
 void WindowSDL3::cleanup() {

@@ -4,7 +4,7 @@
 
 class SE_EXPORT WindowHeadless : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowHeadless(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

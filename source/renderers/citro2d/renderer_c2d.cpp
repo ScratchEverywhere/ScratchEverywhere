@@ -8,6 +8,7 @@
 #include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
+#include <window.hpp>
 #include <windowing/3ds/window_3ds.hpp>
 
 static u8 is_2ds = CFGU_GetModelNintendo2DS(&is_2ds);
@@ -104,11 +105,11 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
 } // namespace
 
 Renderer_C2D::Renderer_C2D() {
-    window = new Window3DS();
-    if (!window->init(400, 240, "Scratch Everywhere!")) {
+    window = createWindow(400, 240, "Scratch Everywhere!", WindowingBackends::N3DS);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 

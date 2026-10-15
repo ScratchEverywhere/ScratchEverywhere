@@ -91,11 +91,11 @@ void InputDevice_Win32::getInput() {
     }
 
     if (r) {
-        Input::mousePointer.mouseButton = Mouse::RIGHT;
+        Input::mousePointer.mouseButton = Input::Mouse::RIGHT;
     } else if (m) {
-        Input::mousePointer.mouseButton = Mouse::MIDDLE;
+        Input::mousePointer.mouseButton = Input::Mouse::MIDDLE;
     } else {
-        Input::mousePointer.mouseButton = Mouse::LEFT;
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
     }
 #endif
 

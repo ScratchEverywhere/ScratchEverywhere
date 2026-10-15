@@ -1,9 +1,9 @@
 #include "window_nds.hpp"
 #include <input.hpp>
 
+#include <input_nds.h>
 #include <nds.h>
 #include <nds/arm9/input.h>
-#include <nds/input.h>
 
 #include <renderer.hpp>
 

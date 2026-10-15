@@ -21,11 +21,9 @@ extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
     video_refresh_cb = cb;
 }
 
-bool WindowLibretro::init(int w, int h, const std::string &title) {
+WindowLibretro::WindowLibretro(int w, int h, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_Libretro);
     resize(w, h);
-
-    return true;
 }
 
 void WindowLibretro::cleanup() {

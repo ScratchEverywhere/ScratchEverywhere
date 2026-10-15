@@ -4,21 +4,6 @@
 #include <log.hpp>
 #include <runtime.hpp>
 #include <window.hpp>
-#if defined(WINDOWING_GLFW)
-#include <windowing/glfw/window_glfw.hpp>
-#elif defined(WINDOWING_SDL1)
-#include <windowing/sdl1/window_sdl1.hpp>
-#elif defined(WINDOWING_SDL2)
-#include <windowing/sdl2/window_sdl2.hpp>
-#elif defined(WINDOWING_SDL3)
-#include <windowing/sdl3/window_sdl3.hpp>
-#elif defined(WINDOWING_LIBRETRO)
-#include <windowing/libretro/window_libretro.hpp>
-#elif defined(WINDOWING_WIN32)
-#include <windowing/win32/window_win32.hpp>
-#else
-#error "No windowing backend defined"
-#endif
 
 #ifdef LIBRETRO
 #include <libretro.h>
@@ -605,22 +590,6 @@ static void drawBlackBars(int screenWidth, int screenHeight, const float proj[16
 }
 
 Renderer_GLCore::Renderer_GLCore() {
-#if defined(WINDOWING_GLFW)
-    window = new WindowGLFW();
-#elif defined(WINDOWING_SDL1)
-    window = new WindowSDL1();
-#elif defined(WINDOWING_SDL2)
-    window = new WindowSDL2();
-#elif defined(WINDOWING_SDL3)
-    window = new WindowSDL3();
-#elif defined(WINDOWING_LIBRETRO)
-    window = new WindowLibretro();
-#elif defined(WINDOWING_WIN32)
-    window = new WindowWin32();
-#else
-#error "No windowing backend defined"
-#endif
-
 #ifdef __SWITCH__
     constexpr int initialWidth = 1280;
     constexpr int initialHeight = 720;
@@ -629,10 +598,12 @@ Renderer_GLCore::Renderer_GLCore() {
     constexpr int initialHeight = 405;
 #endif
 
-    if (!window->init(initialWidth, initialHeight, "Scratch Everywhere!")) {
+    window = createWindow(initialWidth, initialHeight, "Scratch Everywhere!");
+
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 

@@ -1,5 +1,7 @@
 #include "renderer_sdl1.hpp"
 #include "speech_manager_sdl1.hpp"
+#include "value.hpp"
+#include <window.hpp>
 #include <windowing/sdl1/window_sdl1.hpp>
 
 #include <SDL.h>
@@ -72,11 +74,11 @@ Renderer_SDL1::Renderer_SDL1() {
     int windowHeight = 360;
 #endif
 
-    window = new WindowSDL1();
-    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL1);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 

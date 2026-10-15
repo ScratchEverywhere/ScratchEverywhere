@@ -5,6 +5,7 @@
 #include "renderer.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
+#include "window.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
 #if defined(_WIN32) || defined(_WIN64)
@@ -68,6 +69,11 @@ void SettingsMenu::init() {
     RendererButton->textScale = 1.0;
     validRenderers = Render::getAvailableRenderers();
 
+    WindowingButton = new ButtonObject("Windowing Backend: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton->text->setColor(Math::color(0, 0, 0, 255));
+    WindowingButton->textScale = 1.0;
+    validWindowingBackends = WindowSE::getAvailableWindowingBackends();
+
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
     EnableUsername->isSelected = true;
@@ -123,6 +129,21 @@ void SettingsMenu::init() {
         rendererOption = std::string(validRenderers[0].name);
     }
 
+    windowingOption = std::string(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)]);
+    if (json.contains("Windowing") && json["Windowing"].is_string()) {
+        windowingOption = json["Windowing"].get<std::string>();
+    }
+
+    auto itW = std::find_if(validWindowingBackends.begin(), validWindowingBackends.end(),
+                            [&](const auto &info) { return info.name == windowingOption; });
+
+    if (itW != validWindowingBackends.end()) {
+        windowingIdx = std::distance(validWindowingBackends.begin(), itW);
+    } else {
+        windowingIdx = 0;
+        windowingOption = std::string(validWindowingBackends[0].name);
+    }
+
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -134,6 +155,7 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(ClearCache);
     settingsControl->buttonObjects.push_back(Language);
     settingsControl->buttonObjects.push_back(RendererButton);
+    settingsControl->buttonObjects.push_back(WindowingButton);
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
@@ -149,13 +171,15 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = RendererButton;
+    EnableUsername->buttonUp = WindowingButton;
     EnableMenuMusic->buttonDown = ClearCache;
     ClearCache->buttonUp = EnableMenuMusic;
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
     Language->buttonDown = RendererButton;
     RendererButton->buttonUp = Language;
+    RendererButton->buttonDown = WindowingButton;
+    WindowingButton->buttonUp = RendererButton;
 
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
@@ -163,7 +187,7 @@ void SettingsMenu::updateButtonStates() {
     dectalkButton->buttonDown = RendererButton;
     RendererButton->buttonUp = dectalkButton;
 #endif
-    RendererButton->buttonDown = EnableUsername;
+    WindowingButton->buttonDown = EnableUsername;
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -209,6 +233,7 @@ void SettingsMenu::updateButtonStates() {
 #endif
 
     RendererButton->text->setText("Renderer: " /* TODO: translation*/ + std::string(RendererNames[validRenderers[rendererIdx].id]));
+    WindowingButton->text->setText("Windowing Backend: " /* TODO: translation*/ + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
 }
 
 void SettingsMenu::render() {
@@ -320,6 +345,12 @@ void SettingsMenu::render() {
         updateButtonStates();
     }
 
+    if (WindowingButton->isPressed({"a"})) {
+        windowingIdx = (windowingIdx + 1) % validWindowingBackends.size();
+        windowingOption = validWindowingBackends[windowingIdx].name;
+        updateButtonStates();
+    }
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -374,6 +405,10 @@ void SettingsMenu::cleanup() {
         delete RendererButton;
         RendererButton = nullptr;
     }
+    if (WindowingButton != nullptr) {
+        delete WindowingButton;
+        WindowingButton = nullptr;
+    }
 
     // save settings
     nlohmann::json json;
@@ -385,6 +420,7 @@ void SettingsMenu::cleanup() {
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;
     json["Renderer"] = rendererOption;
+    json["Windowing"] = windowingOption;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

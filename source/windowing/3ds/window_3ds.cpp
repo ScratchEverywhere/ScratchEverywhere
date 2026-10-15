@@ -2,15 +2,13 @@
 #include "input_3ds.hpp"
 #include <iostream>
 
-bool Window3DS::init(int w, int h, const std::string &title) {
+Window3DS::Window3DS(int w, int h, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_3DS);
     gfxInitDefault();
 
     C3D_Init(0x100000);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
-
-    return true;
 }
 
 void Window3DS::cleanup() {

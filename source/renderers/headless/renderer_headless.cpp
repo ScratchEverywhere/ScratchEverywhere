@@ -1,6 +1,8 @@
 #include "renderer_headless.hpp"
+#include "window.hpp"
 
 Renderer_Headless::Renderer_Headless() {
+    window = createWindow(0, 0, "", WindowingBackends::Headless);
 }
 
 Renderer_Headless::~Renderer_Headless() = default;

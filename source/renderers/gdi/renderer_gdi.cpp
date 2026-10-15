@@ -13,6 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <window.hpp>
 #include <windowing/win32/window_win32.hpp>
 #include <windows.h>
 
@@ -89,11 +90,11 @@ Renderer_GDI::Renderer_GDI() {
     int windowWidth = 480;
     int windowHeight = 360;
 
-    window = new WindowWin32();
-    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Win32);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 

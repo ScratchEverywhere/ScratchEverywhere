@@ -1,13 +1,13 @@
 #pragma once
-#include "nonstd/expected.hpp"
-#include <renderer.hpp>
-#include <se_export.hpp>
-
 #if __has_include(<glad/gl.h>)
 #include <glad/gl.h>
 #else
 #include <glad/glad.h>
 #endif
+
+#include "nonstd/expected.hpp"
+#include <renderer.hpp>
+#include <se_export.hpp>
 
 class SE_EXPORT Renderer_GLCore : public Renderer {
   public:

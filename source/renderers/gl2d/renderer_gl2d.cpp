@@ -10,6 +10,7 @@
 #include <nds.h>
 #include <nds/arm9/dldi.h>
 #include <unordered_map>
+#include <window.hpp>
 #include <windowing/nds/window_nds.hpp>
 
 #define SCREEN_WIDTH 256
@@ -20,11 +21,11 @@
 #define SCREEN_HALF_HEIGHT 96
 
 Renderer_GL2D::Renderer_GL2D() {
-    window = new WindowNDS();
-    if (!window->init(256, 192, "Scratch Everywhere!")) {
+    window = createWindow(256, 192, "Scratch Everywhere!", WindowingBackends::NDS);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 }

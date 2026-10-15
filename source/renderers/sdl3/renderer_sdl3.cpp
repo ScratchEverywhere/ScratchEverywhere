@@ -1,6 +1,6 @@
 #include "renderer_sdl3.hpp"
 #include "speech_manager_sdl3.hpp"
-#include <windowing/sdl3/window_sdl3.hpp>
+#include <window.hpp>
 
 #include <algorithm>
 #include <audio.hpp>
@@ -82,11 +82,11 @@ Renderer_SDL3::Renderer_SDL3() {
     int windowHeight = 360;
 #endif
 
-    window = new WindowSDL3();
-    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL3);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 

@@ -1,6 +1,6 @@
 #include "renderer_sdl2.hpp"
 #include "speech_manager_sdl2.hpp"
-#include <windowing/sdl2/window_sdl2.hpp>
+#include <window.hpp>
 
 #include <algorithm>
 #include <audio.hpp>
@@ -124,11 +124,11 @@ Renderer_SDL2::Renderer_SDL2() {
     int windowHeight = 360;
 #endif
 
-    window = new WindowSDL2();
-    if (!window->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL2);
+    if (window->error.has_value()) {
+        error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
-        error = "Failed to init window.";
         return;
     }
 #if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)

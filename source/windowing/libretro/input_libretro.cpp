@@ -1,6 +1,6 @@
 #include "window_libretro.hpp"
 #include <blockExecutor.hpp>
-#include <input.hpp>
+#include <input_libretro.hpp>
 #include <libretro.h>
 #include <log.hpp>
 #include <renderer.hpp>

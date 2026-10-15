@@ -33,11 +33,11 @@ static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) 
     }
 }
 
-bool WindowGLFW::init(int w, int h, const std::string &title) {
+WindowGLFW::WindowGLFW(int w, int h, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_GLFW);
     if (!glfwInit()) {
-        Log::logCritical("Failed to initialize GLFW", true);
-        return false;
+        error = "Failed to initialize GLFW";
+        return;
     }
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
@@ -45,21 +45,21 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
 
-#ifdef RENDERER_OPENGL
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-#elif defined(RENDERER_OPENGL_CORE)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
+    if (Render::currentRenderer == Renderers::OpenGL) {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    } else if (Render::currentRenderer == Renderers::OpenGLCore) {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    }
 
     window = glfwCreateWindow(w, h, title.c_str(), NULL, NULL);
     if (!window) {
         glfwTerminate();
-        Log::logCritical("Failed to create GLFW window", true);
-        return false;
+        error = "Failed to create GLFW window";
+        return;
     }
 
     glfwMakeContextCurrent(window);
@@ -73,8 +73,6 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
 #endif
-
-    return true;
 }
 
 void WindowGLFW::cleanup() {

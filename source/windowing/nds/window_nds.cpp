@@ -8,7 +8,7 @@
 #include <nds/arm9/dldi.h>
 #include <renderer.hpp>
 
-bool WindowNDS::init(int w, int h, const std::string &title) {
+WindowNDS::WindowNDS(int w, int h, const std::string &title) {
     // Render::debugMode = false;
     Input::setGlobalInputDevice(new InputDevice_NDS);
 
@@ -27,7 +27,6 @@ bool WindowNDS::init(int w, int h, const std::string &title) {
         vramSetBankF(VRAM_F_TEX_PALETTE);
         Render::debugMode = true;
     }
-    return true;
 }
 
 void WindowNDS::cleanup() {

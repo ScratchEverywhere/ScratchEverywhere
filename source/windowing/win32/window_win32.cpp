@@ -111,7 +111,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
 #endif
 
-bool WindowWin32::init(int width, int height, const std::string &title) {
+WindowWin32::WindowWin32(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_Win32);
     WNDCLASSEX wc;
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
@@ -151,8 +151,8 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     this->hWnd = CreateWindowA("scratch", title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, 0, wc.hInstance, nullptr);
 
     if (this->hWnd == nullptr) {
-        Log::logCritical("Failed to initialize Win32: Code " + std::to_string(GetLastError()), true);
-        return false;
+        error = "Failed to initialize Win32: Code " + std::to_string(GetLastError());
+        return;
     }
 
 #if defined(_WIN32)
@@ -192,21 +192,21 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
 #ifdef RENDERER_OPENGL_CORE
     if (!gladLoaderLoadGL()) {
-        Log::logCritical("Failed to initialize GLAD", true);
-        return false;
+        error = "Failed to initialize GLAD";
+        return;
     }
 #endif
 #endif
 
 #if defined(RENDERER_D3D9)
     if ((this->pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr) {
-        Log::logCritical("Failed to create Direct3D 9 context", true);
-        return false;
+        error = "Failed to create Direct3D 9 context";
+        return;
     }
 
     if (FAILED(IDirect3D9_GetAdapterDisplayMode(this->pD3D, D3DADAPTER_DEFAULT, &dmode))) {
-        Log::logCritical("Failed to create Direct3D 9 display mode", true);
-        return false;
+        error = "Failed to create Direct3D 9 display mode";
+        return;
     }
 
     memset(&this->dpp, 0, sizeof(this->dpp));
@@ -226,8 +226,8 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     }
 
     if (FAILED(hr)) {
-        Log::logCritical("Failed to create Direct3D 9 device", true);
-        return false;
+        error = "Failed to create Direct3D 9 device";
+        return;
     }
 #endif
 
@@ -237,8 +237,6 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
     ShowWindow(this->hWnd, SW_NORMAL);
     UpdateWindow(this->hWnd);
-
-    return true;
 }
 
 void WindowWin32::cleanup() {
