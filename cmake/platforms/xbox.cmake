@@ -7,7 +7,7 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl3")
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3" "headless")
 set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 # set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
@@ -36,7 +36,7 @@ set(CMAKE_USE_WIN32_THREADS_INIT 1 CACHE BOOL "Forced WinAPI threads" FORCE)
 set(CMAKE_USE_PTHREADS_INIT 0 CACHE BOOL "Forced WinAPI threads" FORCE)
 set(SE_HAS_THREADS ON)
 
-set(SE_PLATFORM_DEFINITIONS "__XBOX__" "_WIN32")
+set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 # TODO: add custom extension support, no lua.h on this build

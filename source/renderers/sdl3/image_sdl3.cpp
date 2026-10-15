@@ -155,10 +155,6 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
         return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
 
-#if defined(__XBOX__)
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
-#endif
     return {};
 }
 

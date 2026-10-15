@@ -45,20 +45,9 @@ index db1494a..a9cd6de 100644
      return true;
  }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..061e6ae 100644
+index df82129..861bc34 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
-@@ -163,8 +163,8 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
- 
-     // Swizzled textures next to be in a power of 2 size container
-     if (xgu_texture->swizzled) {
--        xgu_texture->data_width = npot2pot(texture->w);
--        xgu_texture->data_height = npot2pot(texture->h);
-+        xgu_texture->data_width = SDL_max(16, npot2pot(texture->w));
-+        xgu_texture->data_height = SDL_max(8, npot2pot(texture->h));
- 
-         // Texture coordinates need to be normalised for swizzled textures
-         xgu_texture->u_scale = (float)xgu_texture->tex_width / (float)xgu_texture->data_width;
 @@ -319,6 +319,50 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
          format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
      }
@@ -120,6 +109,15 @@ index df82129..061e6ae 100644
      p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
                   XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, clip_width) |
                       XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+@@ -590,7 +636,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+             p = xgu_set_texture_format(p, texture_index, 2, false, XGU_SOURCE_COLOR, 2, xgu_texture->format, 1,
+                                        __builtin_ctz(xgu_texture->data_width), __builtin_ctz(xgu_texture->data_height), 0);
+             p = xgu_set_texture_control0(p, texture_index, true, 0, 0);
+-            p = xgu_set_texture_control1(p, texture_index, xgu_texture->pitch);
++            p = xgu_set_texture_control1(p, texture_index, SDL_max(64, xgu_texture->pitch));
+             p = xgu_set_texture_image_rect(p, texture_index, xgu_texture->tex_width, xgu_texture->tex_height);
+             pb_end(p);
+             render_data->active_texture = xgu_texture;
 @@ -923,6 +969,15 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
      pb_end(p);
