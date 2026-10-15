@@ -11,6 +11,7 @@
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
+#include <font_atlas.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -70,6 +71,7 @@ void MenuManager::cleanup() {
         delete previousMenu;
         previousMenu = nullptr;
     }
+    FontManager::cleanup();
 }
 
 MainMenu::MainMenu() {

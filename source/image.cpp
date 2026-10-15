@@ -284,11 +284,34 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     float docW = svgDocument->width();
     float docH = svgDocument->height();
 
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
+
     const float targetWidth = docW * scale;
     const float targetHeight = docH * scale;
 #else
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
 
     const float targetWidth = svgDocument->width() * scale;
     const float targetHeight = svgDocument->height() * scale;
@@ -347,6 +370,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
         if (scale > maxScale) scale = maxScale;
 
     if (!svgDocument || scale <= imgData.scale) return {};
+    if (svgDocument->width() <= 0.0f || svgDocument->height() <= 0.0f) return {};
 
     // TODO: De-duplicate code.
 
@@ -437,20 +461,38 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     stbi__vertical_flip(pixels, width, height, 4);
 #endif
 
+    unsigned char *resultPixels = pixels;
     if (bitmapHalfQuality) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(pixels, width, height, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
         height = resizedH;
 
-        stbi_image_free(pixels);
-
-        return resizedPixels;
-    } else {
-        return pixels;
+        stbi_image_free(resultPixels);
+        resultPixels = resizedPixels;
     }
+
+#if defined(__XBOX__)
+    while (width > 1024 || height > 1024) {
+        int resizedW, resizedH;
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+
+        imgData.pitch = resizedW * 4;
+        width = resizedW;
+        height = resizedH;
+
+        if (resultPixels == pixels) {
+            stbi_image_free(resultPixels);
+        } else {
+            free(resultPixels);
+        }
+        resultPixels = resizedPixels;
+    }
+#endif
+
+    return resultPixels;
 #endif
     width = 0;
     height = 0;

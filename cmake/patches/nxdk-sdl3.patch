@@ -45,7 +45,7 @@ index db1494a..a9cd6de 100644
      return true;
  }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..861bc34 100644
+index df82129..67932a3 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
 @@ -319,6 +319,50 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
@@ -134,6 +134,15 @@ index df82129..861bc34 100644
      const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
      pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
      pb_bind_channel(&render_data->render_target_dma_ctx);
+@@ -970,7 +1025,7 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA8888);
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);
+-    SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024 * 1024);
++    SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024);
+ 
+     // This hint makes SDL use the driver line API.
+     SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 diff --git a/nxdk_glue/thread/SDL_systhread.c b/nxdk_glue/thread/SDL_systhread.c
 index ee7eee7..a38e69d 100644
 --- a/nxdk_glue/thread/SDL_systhread.c

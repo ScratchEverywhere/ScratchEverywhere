@@ -1031,9 +1031,19 @@ void Scratch::flushCostumeImages() {
 }
 
 void Scratch::freeUnusedCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size());
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
-        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+        if (!activeCostumes.count(id)) {
+            toDelete.push_back(id);
+        }
     }
 
     for (const std::string &id : toDelete) {
