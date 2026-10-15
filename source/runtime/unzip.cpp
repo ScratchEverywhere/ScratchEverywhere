@@ -342,6 +342,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 }
 
 bool Unzip::deleteProjectFolder(const std::string &directory) {
+#if !defined(__XBOX__)
     struct stat st;
     if (stat(directory.c_str(), &st) != 0) {
         Log::logWarning("Directory does not exist: " + directory);
@@ -352,6 +353,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         Log::logWarning("Path is not a directory: " + directory);
         return false;
     }
+#endif
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {

@@ -71,15 +71,12 @@ void Parser::initMist() {
         }
     }
 
-    uint64_t assetHash = 0;
+    uint64_t assetHash = FNV_OFFSET_BASIS_64;
     for (const auto &assetId : assetIds) {
-        uint64_t hash = FNV_OFFSET_BASIS_64;
         for (char c : assetId) {
-            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
-            hash *= FNV_PRIME_64;
+            assetHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+            assetHash *= FNV_PRIME_64;
         }
-
-        assetHash += hash;
     }
 
     std::ostringstream projectID;
@@ -211,12 +208,13 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         auto assets = Bundle::assets();
         if (auto entry = assets.find(romFSPath)) {
             bundleStream = std::make_unique<bundle::istream>(assets.open(*entry));
-
             auto result = extensions::parseMetadata(*bundleStream);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
                 fromBundle = true;
-            } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+            } else if (!result.has_value()) {
+                Log::logWarning("Error while loading extension metadata: " + result.error());
+            }
         }
 #else
         if (FileSystem::fileExists(romFSPath)) {
@@ -237,7 +235,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                         if (file.size() < 4) continue;
                         if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
 
-                        in.open(folder + file, std::ios::binary | std::ios::in);
+                        in.open(path + "/" + file, std::ios::binary | std::ios::in);
                         auto result = extensions::parseMetadata(in);
 
                         if (result.has_value() && result.value()->id == targetID) {
@@ -265,13 +263,16 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 extensions::loadLua(loadedExt.get(), *bundleStream);
             } else
 #endif
+            {
                 extensions::loadLua(loadedExt.get(), in);
+            }
             Scratch::extensions.push_back(std::move(loadedExt));
-            in.close();
+            if (in.is_open()) in.close();
             Log::log("Successfully loaded Lua extension: " + targetID);
             continue;
         }
 
+        if (in.is_open()) in.close();
         Log::logError("Failed to find extension: " + targetID);
 #endif
     }
