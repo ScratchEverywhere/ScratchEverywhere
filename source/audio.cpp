@@ -70,6 +70,9 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
 #ifdef AUDIO_HEADLESS
     add(AudioBackends::Headless);
 #endif
+#ifndef ENABLE_AUDIO
+    add(AudioBackends::Disabled);
+#endif
 
     return backends;
 }
@@ -95,7 +98,10 @@ bool SoundPlayer::init() {
         startIndex = 0;
     }
 
-    for (uint8_t i = startIndex; i < static_cast<uint8_t>(AudioBackends::_default); ++i) {
+    uint8_t totalBackends = static_cast<uint8_t>(AudioBackends::_default);
+    for (uint8_t step = 0; step < totalBackends; ++step) {
+        uint8_t i = (startIndex + step) % totalBackends;
+
         auto backendName = static_cast<AudioBackends>(i);
 
         switch (backendName) {

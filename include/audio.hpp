@@ -14,6 +14,7 @@ enum class SE_EXPORT AudioBackends : uint8_t {
     SDL1,
     Libretro,
     Headless,
+    Disabled,
     _default,
 };
 
@@ -26,7 +27,8 @@ constexpr std::array AudioBackendNames = {
     "SDL2",
     "SDL1",
     "Libretro",
-    "Headless"};
+    "Headless",
+    "Disabled"};
 
 struct AudioBackendInfo {
     uint8_t id;

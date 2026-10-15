@@ -116,7 +116,9 @@ bool Render::init() {
         startIndex = 0;
     }
 
-    for (uint8_t i = startIndex; i < static_cast<uint8_t>(Renderers::_count); ++i) {
+    uint8_t totalBackends = static_cast<uint8_t>(Renderers::_count);
+    for (uint8_t step = 0; step < totalBackends; ++step) {
+        uint8_t i = (startIndex + step) % totalBackends;
         auto rendererName = static_cast<Renderers>(i);
 
         switch (rendererName) {
