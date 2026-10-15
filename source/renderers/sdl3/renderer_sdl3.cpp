@@ -1,5 +1,6 @@
 #include "renderer_sdl3.hpp"
 #include "speech_manager_sdl3.hpp"
+#include "window_sdl3.hpp"
 #include <window.hpp>
 
 #include <algorithm>

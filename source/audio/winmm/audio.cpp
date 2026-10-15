@@ -64,7 +64,7 @@ SoundDevice_Winmm::SoundDevice_Winmm() {
     for (i = 0; i < NUM_BUFFERS; i++)
         waveOutWrite(hWaveOut, &headers[i], sizeof(headers[i]));
 
-    return true;
+    return;
 #endif
     error = "Audio is not enabled.";
 }

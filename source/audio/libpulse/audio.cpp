@@ -35,7 +35,7 @@ SoundDevice_Libpulse::SoundDevice_Libpulse() {
     ss.rate = Mixer::rate;
     ss.channels = 2;
 
-    int error = 0;
+    int err = 0;
     pa_stream = pa_simple_new(
         nullptr,
         "Scratch Everywhere!",
@@ -45,10 +45,10 @@ SoundDevice_Libpulse::SoundDevice_Libpulse() {
         &ss,
         nullptr,
         nullptr,
-        &error);
+        &err);
 
     if (!pa_stream) {
-        error = "Failed to init PulseAudio stream: " + std::string(pa_strerror(error));
+        error = "Failed to init PulseAudio stream: " + std::string(pa_strerror(err));
         return;
     }
 
