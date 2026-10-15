@@ -2,8 +2,8 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
 # TODO: re-add
 # set(SE_RENDERER_VALID_OPTIONS "gdi" "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
-set(SE_RENDERER_VALID_OPTIONS "sdl3" "opengl" "opengl_core")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
+set(SE_RENDERER_VALID_OPTIONS "sdl3" "sdl2" "opengl" "opengl_core")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS  "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
 
@@ -14,6 +14,11 @@ elseif(WIN32)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "gdi" "d3d9")
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 	set(SE_AUDIO_ENGINE_DEFAULT "winmm")
+endif()
+
+if(NOT APPLE)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1")
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1")
 endif()
 
 set(SE_CACHING_DEFAULT ON)
