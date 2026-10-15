@@ -2,7 +2,7 @@
 target_link_libraries(renderer_interface INTERFACE citro2d citro3d)
 cl_add_dep(renderer_interface stb_truetype)
 
-set(SE_WINDOWING_VALID_OPTIONS "3ds")
+list(APPEND SE_WINDOWING_VALID_OPTIONS "3ds")
 
 if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
