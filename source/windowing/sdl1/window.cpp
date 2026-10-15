@@ -1,3 +1,6 @@
+#ifdef RENDERER_OPENGL
+#include <renderers/opengl/renderer_gl.hpp>
+#endif
 #include "window_sdl1.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <SDL_syswm.h>
@@ -10,10 +13,8 @@
 #include <math.hpp>
 #include <renderer.hpp>
 #include <thread>
-#ifdef RENDERER_OPENGL
-#include <renderers/opengl/renderer_gl.hpp>
-#else
-#include <renderers/sdl1/render_sdl1.hpp>
+#ifdef RENDERER_SDL1
+#include <renderers/sdl1/renderer_sdl1.hpp>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -36,15 +37,15 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_EnableUNICODE(1);
     SDL_WM_SetCaption(title.c_str(), NULL);
 
-#ifdef RENDERER_OPENGL
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    if (Render::currentRenderer == Renderers::OpenGL) {
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
-#else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-#endif
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+    }
 
     if (!window) {
         Log::logCritical("Failed to create SDL1 window", true);
@@ -112,33 +113,32 @@ void WindowSDL1::pollEvents() {
 }
 
 void WindowSDL1::swapBuffers() {
-#ifdef RENDERER_OPENGL
-    SDL_GL_SwapBuffers();
+    if (Render::currentRenderer == Renderers::OpenGL) {
+        SDL_GL_SwapBuffers();
+        // Frame rate limiting for SDL1 OpenGL (VSync-like behavior)
+        // SDL1 doesn't support SDL_GL_SetSwapInterval, so we manually limit frame rate
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - lastFrameTime);
+        auto frameTime = std::chrono::microseconds(1000000 / TARGET_FPS);
 
-    // Frame rate limiting for SDL1 OpenGL (VSync-like behavior)
-    // SDL1 doesn't support SDL_GL_SetSwapInterval, so we manually limit frame rate
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - lastFrameTime);
-    auto frameTime = std::chrono::microseconds(1000000 / TARGET_FPS);
-
-    if (elapsed < frameTime) {
-        std::this_thread::sleep_for(frameTime - elapsed);
+        if (elapsed < frameTime) {
+            std::this_thread::sleep_for(frameTime - elapsed);
+        }
+        lastFrameTime = std::chrono::high_resolution_clock::now();
     }
-    lastFrameTime = std::chrono::high_resolution_clock::now();
-#endif
 }
 
 void WindowSDL1::resize(int width, int height) {
     this->width = width;
     this->height = height;
-#ifdef RENDERER_OPENGL
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
-    if (window) {
-        glViewport(0, 0, width, height);
+    if (Render::currentRenderer == Renderers::OpenGL) {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+        if (window) {
+            glViewport(0, 0, width, height);
+        }
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
     }
-#else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-#endif
     Render::setRenderScale();
     Render::resizeSVGs();
 }
