@@ -32,11 +32,6 @@ set(SE_HAS_THREADS ON)
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
-# TODO: add custom extension support, no lua.h on this build
-# set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
-set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
-set(SE_CUSTOM_EXTENSIONS OFF)
-
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
 
 add_compile_options(

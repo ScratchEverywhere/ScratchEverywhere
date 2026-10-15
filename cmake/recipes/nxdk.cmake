@@ -1,12 +1,3 @@
-function(_recipe_nxdk_toolchain)
-endfunction()
-
-function(_recipe_nxdk_system)
-endfunction()
-
-function(_recipe_nxdk_package)
-endfunction()
-
 function(_recipe_nxdk_source)
     if(NOT XBOX)
         return()
