@@ -202,7 +202,7 @@ void InputDevice_SDL2::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::X)]);
 #ifdef WII // SDL 'x' is the A button on a wii remote
-        mousePointer.isPressed = true;
+        Input::mousePointer.isPressed = true;
 #endif
     }
     button_handler(SCRATCH_KEY_INDEX::Y, SDL_CONTROLLER_BUTTON_INVALID);

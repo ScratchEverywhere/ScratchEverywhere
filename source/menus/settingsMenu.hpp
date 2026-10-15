@@ -1,4 +1,5 @@
 #pragma once
+#include "audio.hpp"
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
 #include "window.hpp"
@@ -20,6 +21,7 @@ class SE_EXPORT SettingsMenu : public Menu {
     ButtonObject *EnableMenuMusic = nullptr;
     ButtonObject *RendererButton = nullptr;
     ButtonObject *WindowingButton = nullptr;
+    ButtonObject *AudioEngineButton = nullptr;
     ButtonObject *ClearCache = nullptr;
     ButtonObject *Language = nullptr;
     ButtonObject *dectalkButton = nullptr;
@@ -39,6 +41,10 @@ class SE_EXPORT SettingsMenu : public Menu {
     std::vector<WindowingBackendInfo> validWindowingBackends;
     unsigned int windowingIdx = 0;
     std::string windowingOption = "";
+
+    std::vector<AudioBackendInfo> validAudioBackends;
+    unsigned int audioIdx = 0;
+    std::string audioOption = "";
 
 #ifdef DECTALK_DEFAULT
     bool UseDectalk = true;

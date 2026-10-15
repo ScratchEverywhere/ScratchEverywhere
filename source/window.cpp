@@ -121,7 +121,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowSDL3(width, height, title);
         break;
 #endif
-        Log::logWarning("SDL3 Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::SDL2: {
@@ -130,7 +129,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowSDL2(width, height, title);
         break;
 #endif
-        Log::logWarning("SDL2 Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::SDL1: {
@@ -139,7 +137,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowSDL1(width, height, title);
         break;
 #endif
-        Log::logWarning("SDL1 Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::GLFW: {
@@ -148,7 +145,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowGLFW(width, height, title);
         break;
 #endif
-        Log::logWarning("GLFW Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::N3DS: {
@@ -157,7 +153,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new Window3DS(width, height, title);
         break;
 #endif
-        Log::logWarning("3DS Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::NDS: {
@@ -166,7 +161,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowNDS(width, height, title);
         break;
 #endif
-        Log::logWarning("NDS Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::Win32: {
@@ -175,7 +169,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowWin32(width, height, title);
         break;
 #endif
-        Log::logWarning("Win32 Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::Libretro: {
@@ -184,7 +177,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowLibretro(width, height, title);
         break;
 #endif
-        Log::logWarning("Libretro Windowing backend unavailable.");
         break;
     }
     case WindowingBackends::Headless: {
@@ -193,7 +185,6 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         window = new WindowHeadless(width, height, title);
         break;
 #endif
-        Log::logWarning("Headless Windowing backend unavailable.");
         break;
     }
     default: {

@@ -1,4 +1,4 @@
-#include "audio.hpp"
+#include "audio_sdl3.hpp"
 #include "audiostack.hpp"
 #include <SDL3/SDL.h>
 #include <log.hpp>
@@ -49,7 +49,7 @@ extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int a
 #endif
 }
 
-bool SoundPlayer::init() {
+SoundDevice_SDL3::SoundDevice_SDL3() {
 #ifdef ENABLE_AUDIO
 #if defined(__XBOX__)
     audioBuffer.resize(2048);
@@ -57,8 +57,8 @@ bool SoundPlayer::init() {
     SDL_AudioSpec spac;
 
     if (!SDL_Init(SDL_INIT_AUDIO)) {
-        Log::logError("Failed to init SDL3 for audio: " + std::string(SDL_GetError()));
-        return false;
+        error = "Failed to init SDL3 for audio: " + std::string(SDL_GetError());
+        return;
     }
 
     spac.freq = Mixer::rate;
@@ -66,17 +66,17 @@ bool SoundPlayer::init() {
     spac.channels = 2;
 
     if ((sdl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac, callback, NULL)) == NULL) {
-        Log::logError("Failed open SDL3 audio device: " + std::string(SDL_GetError()));
-        return false;
+        error = "Failed open SDL3 audio device: " + std::string(SDL_GetError());
+        return;
     }
 
     SDL_ResumeAudioStreamDevice(sdl_stream);
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio is not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_SDL3::~SoundDevice_SDL3() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
     // TODO: figure out why this crashes

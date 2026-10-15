@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "audio.hpp"
 #include "hasdeps.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
@@ -69,10 +70,15 @@ void SettingsMenu::init() {
     RendererButton->textScale = 1.0;
     validRenderers = Render::getAvailableRenderers();
 
-    WindowingButton = new ButtonObject("Windowing Backend: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton = new ButtonObject("Windowing: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
     WindowingButton->text->setColor(Math::color(0, 0, 0, 255));
     WindowingButton->textScale = 1.0;
     validWindowingBackends = WindowSE::getAvailableWindowingBackends();
+
+    AudioEngineButton = new ButtonObject("Audio Backend: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
+    AudioEngineButton->text->setColor(Math::color(0, 0, 0, 255));
+    AudioEngineButton->textScale = 1.0;
+    validAudioBackends = SoundPlayer::getAvailableAudioBackends();
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -144,6 +150,21 @@ void SettingsMenu::init() {
         windowingOption = std::string(validWindowingBackends[0].name);
     }
 
+    audioOption = std::string(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)]);
+    if (json.contains("AudioEngine") && json["AudioEngine"].is_string()) {
+        audioOption = json["AudioEngine"].get<std::string>();
+    }
+
+    auto itA = std::find_if(validAudioBackends.begin(), validAudioBackends.end(),
+                            [&](const auto &info) { return info.name == audioOption; });
+
+    if (itA != validAudioBackends.end()) {
+        audioIdx = std::distance(validAudioBackends.begin(), itA);
+    } else {
+        audioIdx = 0;
+        audioOption = std::string(validAudioBackends[0].name);
+    }
+
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -156,6 +177,7 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(Language);
     settingsControl->buttonObjects.push_back(RendererButton);
     settingsControl->buttonObjects.push_back(WindowingButton);
+    settingsControl->buttonObjects.push_back(AudioEngineButton);
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
@@ -180,6 +202,8 @@ void SettingsMenu::updateButtonStates() {
     RendererButton->buttonUp = Language;
     RendererButton->buttonDown = WindowingButton;
     WindowingButton->buttonUp = RendererButton;
+    WindowingButton->buttonDown = AudioEngineButton;
+    AudioEngineButton->buttonUp = WindowingButton;
 
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
@@ -187,7 +211,7 @@ void SettingsMenu::updateButtonStates() {
     dectalkButton->buttonDown = RendererButton;
     RendererButton->buttonUp = dectalkButton;
 #endif
-    WindowingButton->buttonDown = EnableUsername;
+    AudioEngineButton->buttonDown = EnableUsername;
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -233,7 +257,8 @@ void SettingsMenu::updateButtonStates() {
 #endif
 
     RendererButton->text->setText("Renderer: " /* TODO: translation*/ + std::string(RendererNames[validRenderers[rendererIdx].id]));
-    WindowingButton->text->setText("Windowing Backend: " /* TODO: translation*/ + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
+    WindowingButton->text->setText("Windowing: " /* TODO: translation*/ + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
+    AudioEngineButton->text->setText("Audio Backend: " /* TODO: translation*/ + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
 }
 
 void SettingsMenu::render() {
@@ -351,6 +376,12 @@ void SettingsMenu::render() {
         updateButtonStates();
     }
 
+    if (AudioEngineButton->isPressed({"a"})) {
+        audioIdx = (audioIdx + 1) % validAudioBackends.size();
+        windowingOption = validAudioBackends[audioIdx].name;
+        updateButtonStates();
+    }
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -408,6 +439,10 @@ void SettingsMenu::cleanup() {
     if (WindowingButton != nullptr) {
         delete WindowingButton;
         WindowingButton = nullptr;
+    }
+    if (AudioEngineButton != nullptr) {
+        delete AudioEngineButton;
+        AudioEngineButton = nullptr;
     }
 
     // save settings

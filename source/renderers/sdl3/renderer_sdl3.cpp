@@ -93,7 +93,7 @@ Renderer_SDL3::Renderer_SDL3() {
         return;
     }
 #ifdef __XBOX__
-    Sdlrenderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(globalWindow)->getRenderer());
+    Sdlrenderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(window)->getRenderer());
 #else
     Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), "");
 #endif

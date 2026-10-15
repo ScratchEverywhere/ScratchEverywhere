@@ -127,7 +127,6 @@ bool Render::init() {
             globalRenderer = new Renderer_GLCore;
             break;
 #else
-            Log::logWarning("OpenGL Core Renderer unavailable.");
             continue;
 #endif
         }
@@ -137,7 +136,6 @@ bool Render::init() {
             globalRenderer = new Renderer_GL;
             break;
 #else
-            Log::logWarning("OpenGL Renderer unavailable.");
             continue;
 #endif
         }
@@ -147,7 +145,6 @@ bool Render::init() {
             globalRenderer = new Renderer_D3D9;
             break;
 #else
-            Log::logWarning("D3D9 Renderer unavailable.");
             continue;
 #endif
         }
@@ -157,7 +154,6 @@ bool Render::init() {
             globalRenderer = new Renderer_SDL3;
             break;
 #else
-            Log::logWarning("SDL3 Renderer unavailable.");
             continue;
 #endif
         }
@@ -167,7 +163,6 @@ bool Render::init() {
             globalRenderer = new Renderer_SDL2;
             break;
 #else
-            Log::logWarning("SDL2 Renderer unavailable.");
             continue;
 #endif
         }
@@ -177,7 +172,6 @@ bool Render::init() {
             globalRenderer = new Renderer_SDL1;
             break;
 #else
-            Log::logWarning("SDL1 Renderer unavailable.");
             continue;
 #endif
         }
@@ -187,7 +181,6 @@ bool Render::init() {
             globalRenderer = new Renderer_C2D;
             break;
 #else
-            Log::logWarning("Citro2D Renderer unavailable.");
             continue;
 #endif
         }
@@ -197,7 +190,6 @@ bool Render::init() {
             globalRenderer = new Renderer_GL2D;
             break;
 #else
-            Log::logWarning("GL2D Renderer unavailable.");
             continue;
 #endif
         }
@@ -207,7 +199,6 @@ bool Render::init() {
             globalRenderer = new Renderer_GDI;
             break;
 #else
-            Log::logWarning("GDI Renderer unavailable.");
             continue;
 #endif
         }
@@ -217,7 +208,6 @@ bool Render::init() {
             globalRenderer = new Renderer_Headless;
             break;
 #else
-            Log::logWarning("Headless Renderer unavailable.");
             continue;
 #endif
         }

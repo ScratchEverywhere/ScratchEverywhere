@@ -1,7 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "audio.hpp"
+#include "audio_winmm.hpp"
 #include "audiostack.hpp"
 #include "os.hpp"
 #include <log.hpp>
@@ -31,7 +31,7 @@ extern "C" void CALLBACK callback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instanc
     waveOutWrite(hWaveOut, header, sizeof(*header));
 }
 
-bool SoundPlayer::init() {
+SoundDevice_Winmm::SoundDevice_Winmm() {
 #ifdef ENABLE_AUDIO
     WAVEFORMATEX fmt;
     int i;
@@ -47,8 +47,8 @@ bool SoundPlayer::init() {
     fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
 
     if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &fmt, (DWORD_PTR)callback, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
-        Log::logCritical("Failed to initialize WinMM: Code " + std::to_string(GetLastError()), true);
-        return false;
+        error = "Failed to initialize WinMM: Code " + std::to_string(GetLastError());
+        return;
     }
 
     for (i = 0; i < NUM_BUFFERS; i++) {
@@ -66,10 +66,10 @@ bool SoundPlayer::init() {
 
     return true;
 #endif
-    return false;
+    error = "Audio is not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_Winmm::~SoundDevice_Winmm() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
     stop = 1;

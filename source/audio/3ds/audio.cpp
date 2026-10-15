@@ -1,4 +1,4 @@
-#include "audio.hpp"
+#include "audio_3ds.hpp"
 #include "audiostack.hpp"
 #include <3ds.h>
 #include <algorithm>
@@ -29,11 +29,11 @@ static void audioUpdateThread(void *arg) {
 }
 #endif
 
-bool SoundPlayer::init() {
+SoundDevice_3DS::SoundDevice_3DS() {
 #ifdef ENABLE_AUDIO
     if (R_FAILED(ndspInit())) {
-        Log::logError("Failed to initialize NDSP for audio.");
-        return false;
+        error = "Failed to initialize NDSP for audio.";
+        return;
     }
 
     ndspSetOutputMode(NDSP_OUTPUT_STEREO);
@@ -49,9 +49,9 @@ bool SoundPlayer::init() {
 
     audioBuffer = (int16_t *)linearAlloc(BUFFER_SIZE_BYTES * 2);
     if (!audioBuffer) {
-        Log::logError("Failed to allocate audio buffer.");
+        error = "Failed to allocate audio buffer.";
         ndspExit();
-        return false;
+        return;
     }
     memset(audioBuffer, 0, BUFFER_SIZE_BYTES * 2);
 
@@ -76,18 +76,18 @@ bool SoundPlayer::init() {
     audioThread = threadCreate(audioUpdateThread, nullptr, 32768, targetPriority, -1, false);
 
     if (!audioThread) {
-        Log::logError("Failed to create high-priority audio thread.");
+        error = "Failed to create high-priority audio thread.";
         linearFree(audioBuffer);
         ndspExit();
-        return false;
+        return;
     }
 
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_3DS::~SoundDevice_3DS() {
 #ifdef ENABLE_AUDIO
     if (audioRunning) {
         audioRunning = false;

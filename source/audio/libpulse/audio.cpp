@@ -1,4 +1,4 @@
-#include "audio.hpp"
+#include "audio_libpulse.hpp"
 #include "audiostack.hpp"
 #include <atomic>
 #include <log.hpp>
@@ -28,7 +28,7 @@ static void audioCallback() {
     }
 }
 
-bool SoundPlayer::init() {
+SoundDevice_Libpulse::SoundDevice_Libpulse() {
 #ifdef ENABLE_AUDIO
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_S16NE;
@@ -48,19 +48,19 @@ bool SoundPlayer::init() {
         &error);
 
     if (!pa_stream) {
-        Log::logError("Failed to init PulseAudio stream: " + std::string(pa_strerror(error)));
-        return false;
+        error = "Failed to init PulseAudio stream: " + std::string(pa_strerror(error));
+        return;
     }
 
     audio_running.store(true, std::memory_order_relaxed);
     audio_thread = std::thread(audioCallback);
 
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_Libpulse::~SoundDevice_Libpulse() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
 
