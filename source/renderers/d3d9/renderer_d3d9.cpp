@@ -319,32 +319,32 @@ void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool ac
         dx = x2 - x1;
         dy = y2 - y1;
         length = std::sqrt(dx * dx + dy * dy);
-        if (length <= 0) return;
-
-        r /= 2;
-
-        nx = -dy / length * r;
-        ny = dx / length * r;
-
-        v[0].x = x1 + nx;
-        v[0].y = y1 + ny;
-
-        v[1].x = x2 + nx;
-        v[1].y = y2 + ny;
-
-        v[2].x = x2 - nx;
-        v[2].y = y2 - ny;
-
-        v[3].x = x1 - nx;
-        v[3].y = y1 - ny;
-
-        v[0].z = v[1].z = v[2].z = v[3].z = 0;
-        v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
-        v[0].color = v[1].color = v[2].color = v[3].color = color;
 
         beginPen();
-        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
-        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+
+        if (length > 0) {
+            nx = -dy / length * r;
+            ny = dx / length * r;
+
+            v[0].x = x1 + nx;
+            v[0].y = y1 + ny;
+
+            v[1].x = x2 + nx;
+            v[1].y = y2 + ny;
+
+            v[2].x = x2 - nx;
+            v[2].y = y2 - ny;
+
+            v[3].x = x1 - nx;
+            v[3].y = y1 - ny;
+
+            v[0].z = v[1].z = v[2].z = v[3].z = 0;
+            v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
+            v[0].color = v[1].color = v[2].color = v[3].color = color;
+
+            IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+            IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+        }
     }
 
     if (accurate) {
