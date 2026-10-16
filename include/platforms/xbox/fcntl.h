@@ -16,6 +16,9 @@
 #ifndef O_CREAT
 #define O_CREAT 0100
 #endif
+#ifndef O_EXCL
+#define O_EXCL 0200
+#endif
 #ifndef O_TRUNC
 #define O_TRUNC 01000
 #endif

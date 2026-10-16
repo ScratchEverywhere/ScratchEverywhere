@@ -161,6 +161,16 @@ static inline int lstat(const char *pathname, struct stat *statbuf) {
     return stat(pathname, statbuf);
 }
 
+static inline int fstat(int fd, struct stat *statbuf) {
+    (void)fd;
+    (void)statbuf;
+    return -1;
+}
+
+#ifndef _stat
+#define _stat stat
+#endif
+
 static inline int mkdir(const char *pathname, mode_t mode) {
     return -1;
 }

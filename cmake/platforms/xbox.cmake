@@ -31,6 +31,11 @@ set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
+include_directories(
+    ${NXDK_DIR}/lib/net/lwip/src/include
+    ${NXDK_DIR}/lib/net/nforceif/include
+    ${NXDK_DIR}/lib/net/nvnetdrv
+)
 
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
@@ -55,7 +60,10 @@ add_compile_options(
 )
 
 macro(package_platform)
-    target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
+    target_link_libraries(scratch-everywhere PUBLIC
+        ${NXDK_DIR}/lib/libnxdk_automount_d.lib
+        ${NXDK_DIR}/lib/libnxdk_net.lib
+    )
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
     target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
     target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")

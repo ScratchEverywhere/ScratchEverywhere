@@ -14,6 +14,11 @@ FILE *xbox_fopen(const char *filename, const char *mode);
 
 #define fopen xbox_fopen
 
+static inline int fileno(FILE *stream) {
+    (void)stream;
+    return -1;
+}
+
 #ifdef __cplusplus
 static inline int fopen_s(FILE **pFile, const char *filename, const char *mode) {
     *pFile = fopen(filename, mode);

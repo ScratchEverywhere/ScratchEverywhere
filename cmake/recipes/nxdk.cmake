@@ -22,7 +22,7 @@ function(_recipe_nxdk_source)
         set(_nxdk "${CL_SOURCE_DIR}")
     endif()
 
-    if(NOT EXISTS "${_nxdk}/lib/libnxdk.lib" OR NOT EXISTS "${_nxdk}/lib/libnxdk_automount_d.lib" OR NOT EXISTS "${_nxdk}/lib/libxboxrt.lib")
+    if(NOT EXISTS "${_nxdk}/lib/libnxdk.lib" OR NOT EXISTS "${_nxdk}/lib/libnxdk_automount_d.lib" OR NOT EXISTS "${_nxdk}/lib/libxboxrt.lib" OR NOT EXISTS "${_nxdk}/lib/libnxdk_net.lib")
         message(STATUS "Building nxdk (this can take a while)...")
         execute_process(
             COMMAND make -j NXDK_ONLY=y

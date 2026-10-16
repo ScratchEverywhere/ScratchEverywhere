@@ -5,6 +5,14 @@
 #include <os.hpp>
 #include <stdio.h>
 #include <windows.h>
+#include <nxdk/net.h>
+#include <lwip/debug.h>
+#include <lwip/tcpip.h>
+#include <log.hpp>
+
+extern "C" {
+extern struct netif *g_pnetif;
+}
 
 namespace OS {
 bool toExit = false;
@@ -13,11 +21,13 @@ std::string *customProjectsPath = nullptr;
 } // namespace OS
 
 bool OS::init() {
+	// TODO: add support for automatic resolution detection
+	// TODO 2: add support for overscan compensation
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
 
     // Verify D: is mounted
     if (!nxIsDriveMounted('D')) {
-        debugPrint("D: mount failure!\n");
+        Log::logError("D: mount failure!\n");
         Sleep(5000);
         return 1;
     }
@@ -26,7 +36,7 @@ bool OS::init() {
     if (!nxIsDriveMounted('C')) {
         bool ret = nxMountDrive('C', "\\Device\\Harddisk0\\Partition2\\");
         if (!ret) {
-            debugPrint("C: mount failure!\n");
+            Log::logError("C: mount failure!\n");
             Sleep(5000);
             return 1;
         }
@@ -36,7 +46,7 @@ bool OS::init() {
     if (!nxIsDriveMounted('E')) {
         bool ret = nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\");
         if (!ret) {
-            debugPrint("E: mount failure!\n");
+            Log::logError("E: mount failure!\n");
             Sleep(5000);
             return 1;
         }
@@ -45,10 +55,26 @@ bool OS::init() {
     _mkdir("E:\\ScratchEverywhere");
     remove("E:\\ScratchEverywhere\\debug.txt");
 
+	Log::log("Initializing network...");
+    int status = nxNetInit(NULL);
+    if (status != 0) {
+        Log::log("Network initialization failed: " + std::to_string(status));
+        return false;
+    }
+
+    if (g_pnetif && netif_ip4_addr(g_pnetif)) {
+        Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
+        Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
+        Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
+    }
+
+	Log::log("OS initialized.");
+	Sleep(3000);
     return true;
 }
 
 void OS::deinit() {
+	nxNetShutdown();
 	return;
 }
 
@@ -81,17 +107,22 @@ std::string OS::getRomFSLocation() {
     return "D:\\romfs\\";
 }
 
-// TODO: add support for the nxdk networking stack
-
 bool OS::isOnline() {
+    if (g_pnetif && 
+        netif_is_up(g_pnetif) && 
+        netif_ip4_addr(g_pnetif) &&
+        netif_ip4_addr(g_pnetif)->addr != 0) {
+        return true;
+    }
     return false;
 }
 
 bool OS::initWifi() {
-    return false;
+    return isOnline();
 }
 
 void OS::deInitWifi() {
+    return;
 }
 
 std::string OS::getUsername() {
