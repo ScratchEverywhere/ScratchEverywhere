@@ -81,6 +81,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
     case Renderers::GDI:
         return std::make_unique<TextObjectGDI>(txt, posX, posY, fontPath);
 #endif
+#ifdef RENDERER_D3D9
+    case Renderers::D3D9:
+        return std::make_unique<TextObjectD3D9>(txt, posX, posY, fontPath);
+#endif
 #ifdef RENDERER_HEADLESS
     case Renderers::Headless:
         return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
