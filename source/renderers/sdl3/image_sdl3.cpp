@@ -142,7 +142,11 @@ void *Image_SDL3::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
+#ifdef __XBOX__
+    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, imgData.width, imgData.height);
+#else
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+#endif
 
     if (!texture) {
         return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
