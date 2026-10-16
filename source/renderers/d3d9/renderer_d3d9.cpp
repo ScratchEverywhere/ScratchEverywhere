@@ -125,10 +125,18 @@ float4 main(PS_INPUT input) : COLOR0 {
 }
 )hlsl";
 
+/* D3DXLine is slow and bad, this makes pen very accurate tho */
+// #define USE_D3DXLINE
+
 IDirect3DSurface9 *pBackbuffer = nullptr;
+IDirect3DSurface9 *pPenLayerMSSurface = nullptr;
 IDirect3DSurface9 *pPenLayerSurface = nullptr;
 IDirect3DTexture9 *pPenLayer = nullptr;
 IDirect3DPixelShader9 *pPixelShader = nullptr;
+
+#ifdef USE_D3DXLINE
+ID3DXLine *pLine = nullptr;
+#endif
 
 int penWidth = 480;
 int penHeight = 360;
@@ -154,12 +162,19 @@ void reset(int width, int height, WindowWin32 *win) {
 
     if (width == 0 || height == 0) return;
 
+#ifdef USE_D3DXLINE
+    if (pLine != nullptr) ID3DXLine_Release(pLine);
+#endif
+    if (pPenLayerMSSurface != nullptr) IDirect3DSurface9_Release(pPenLayerMSSurface);
     if (pPenLayerSurface != nullptr) IDirect3DSurface9_Release(pPenLayerSurface);
     if (pPenLayer != nullptr) IDirect3DTexture9_Release(pPenLayer);
     if (pBackbuffer != nullptr) IDirect3DSurface9_Release(pBackbuffer);
 
     dpp->BackBufferWidth = width;
     dpp->BackBufferHeight = height;
+    if (SUCCEEDED(pD3D->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_R8G8B8, FALSE, D3DMULTISAMPLE_4_SAMPLES, nullptr))) {
+        dpp->MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+    }
     IDirect3DDevice9_Reset(pDev, dpp);
 
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_NONE);
@@ -168,6 +183,7 @@ void reset(int width, int height, WindowWin32 *win) {
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_ALPHABLENDENABLE, TRUE);
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    IDirect3DDevice9_SetRenderState(pDev, D3DRS_MULTISAMPLEANTIALIAS, dpp->MultiSampleType == D3DMULTISAMPLE_4_SAMPLES ? TRUE : FALSE);
 
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
@@ -177,6 +193,13 @@ void reset(int width, int height, WindowWin32 *win) {
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
     IDirect3DDevice9_CreateTexture(pDev, width, height, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pPenLayer, nullptr);
     IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
+    if (FAILED(IDirect3DDevice9_CreateRenderTarget(pDev, width, height, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_4_SAMPLES, 0, FALSE, &pPenLayerMSSurface, nullptr))) {
+        pPenLayerMSSurface = nullptr;
+    }
+
+#ifdef USE_D3DXLINE
+    D3DXCreateLine(pDev, &pLine);
+#endif
 }
 
 void matrix(int width, int height) {
@@ -195,15 +218,26 @@ void matrix(int width, int height) {
 }
 
 void resized(int width, int height, WindowWin32 *win) {
-    penWidth = width;
-    penHeight = height;
+    if (Scratch::hqpen) {
+        if (Scratch::projectWidth / static_cast<double>(width) <
+            Scratch::projectHeight / static_cast<double>(height)) {
+            penWidth = Scratch::projectWidth * (height / static_cast<double>(Scratch::projectHeight));
+            penHeight = height;
+        } else {
+            penWidth = width;
+            penHeight = Scratch::projectHeight * (width / static_cast<double>(Scratch::projectWidth));
+        }
+    } else {
+        penWidth = Scratch::projectWidth;
+        penHeight = Scratch::projectHeight;
+    }
 
     reset(width, height, win);
     matrix(width, height);
 }
 
 void beginPen() {
-    IDirect3DDevice9_SetRenderTarget(pDev, 0, pPenLayerSurface);
+    IDirect3DDevice9_SetRenderTarget(pDev, 0, pPenLayerMSSurface == nullptr ? pPenLayerSurface : pPenLayerMSSurface);
 }
 
 void endPen() {
@@ -211,7 +245,7 @@ void endPen() {
 }
 
 /* ehh is this enough? */
-#define NSEG 45
+#define NSEG 30
 void drawCircle(double x, double y, double r, D3DCOLOR color) {
     int i;
     NOTEXVERTEX v[NSEG + 2];
@@ -236,17 +270,17 @@ void drawCircle(double x, double y, double r, D3DCOLOR color) {
     IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, NSEG, v, sizeof(NOTEXVERTEX));
 }
 
-void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool circle, int rW, int rH) {
+void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool accurate, int rW, int rH) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    NOTEXVERTEX v[4];
     double scale = (rH < rW) ? ((float)Scratch::projectHeight / rH) : ((float)Scratch::projectWidth / rW);
-    double r = sprite->penData.size / scale / 2;
+    double r = sprite->penData.size / scale;
     float dx;
     float dy;
     float nx;
     float ny;
     float length;
     uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
+    D3DCOLOR color = D3DCOLOR_ARGB(alpha, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
 
     x1 += rW * scale / 2;
     y1 = -y1 + rH * scale / 2;
@@ -258,37 +292,64 @@ void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool ci
     x2 /= scale;
     y2 /= scale;
 
-    dx = x2 - x1;
-    dy = y2 - y1;
-    length = std::sqrt(dx * dx + dy * dy);
-    if (length <= 0) return;
+#ifdef USE_D3DXLINE
+    if (pLine != nullptr) {
+        D3DXVECTOR2 v[2];
 
-    nx = -dy / length * r;
-    ny = dx / length * r;
+        v[0].x = x1;
+        v[0].y = y1;
+        v[1].x = x2;
+        v[1].y = y2;
 
-    v[0].x = x1 + nx;
-    v[0].y = y1 + ny;
+        ID3DXLine_SetWidth(pLine, r);
 
-    v[1].x = x2 + nx;
-    v[1].y = y2 + ny;
+        beginPen();
+        ID3DXLine_Begin(pLine);
+        ID3DXLine_Draw(pLine, v, 2, color);
+        ID3DXLine_End(pLine);
 
-    v[2].x = x2 - nx;
-    v[2].y = y2 - ny;
+        r /= 2;
+    } else
+#endif
+    {
+        NOTEXVERTEX v[4];
 
-    v[3].x = x1 - nx;
-    v[3].y = y1 - ny;
+        r /= 2;
 
-    v[0].z = v[1].z = v[2].z = v[3].z = 0;
-    v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
-    v[0].color = v[1].color = v[2].color = v[3].color = D3DCOLOR_ARGB(alpha, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
+        dx = x2 - x1;
+        dy = y2 - y1;
+        length = std::sqrt(dx * dx + dy * dy);
+        if (length <= 0) return;
 
-    beginPen();
-    IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
-    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+        r /= 2;
 
-    if (circle) {
-        drawCircle(x1, y1, r, v[0].color);
-        drawCircle(x2, y2, r, v[0].color);
+        nx = -dy / length * r;
+        ny = dx / length * r;
+
+        v[0].x = x1 + nx;
+        v[0].y = y1 + ny;
+
+        v[1].x = x2 + nx;
+        v[1].y = y2 + ny;
+
+        v[2].x = x2 - nx;
+        v[2].y = y2 - ny;
+
+        v[3].x = x1 - nx;
+        v[3].y = y1 - ny;
+
+        v[0].z = v[1].z = v[2].z = v[3].z = 0;
+        v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
+        v[0].color = v[1].color = v[2].color = v[3].color = color;
+
+        beginPen();
+        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+    }
+
+    if (accurate) {
+        drawCircle(x1, y1, r, color);
+        drawCircle(x2, y2, r, color);
     }
     endPen();
 }
@@ -377,18 +438,18 @@ Renderer_D3D9::Renderer_D3D9() {
     int windowHeight = 360;
     ID3DXBuffer *code;
 
-    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Win32);
+    this->window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Win32);
     if (window->error.has_value()) {
         error = "Failed to init window: " + window->error.value();
-        delete window;
+        delete this->window;
         window = nullptr;
         return;
     }
 
-    pD3D = ((WindowWin32 *)window)->pD3D;
-    pDev = ((WindowWin32 *)window)->pDev;
+    pD3D = ((WindowWin32 *)this->window)->pD3D;
+    pDev = ((WindowWin32 *)this->window)->pDev;
 
-    resized(windowWidth, windowHeight, (WindowWin32 *)window);
+    resized(windowWidth, windowHeight, (WindowWin32 *)this->window);
 
     if ((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) {
         error = "Failed to compile shader.";
@@ -414,6 +475,10 @@ Renderer_D3D9::~Renderer_D3D9() {
     if (pPixelShaderConstantTable != nullptr) ID3DXConstantTable_Release(pPixelShaderConstantTable);
     if (pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
 
+#ifdef USE_D3DXLINE
+    if (pLine != nullptr) ID3DXLine_Release(pLine);
+#endif
+    if (pPenLayerMSSurface != nullptr) IDirect3DSurface9_Release(pPenLayerMSSurface);
     if (pPenLayerSurface != nullptr) IDirect3DSurface9_Release(pPenLayerSurface);
     if (pPenLayer != nullptr) IDirect3DTexture9_Release(pPenLayer);
     if (pBackbuffer != nullptr) IDirect3DSurface9_Release(pBackbuffer);
@@ -435,31 +500,31 @@ void Renderer_D3D9::clearRenderTarget() {
 }
 
 bool Renderer_D3D9::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerD3D9();
-    return speechManager != nullptr;
+    if (this->speechManager == nullptr) this->speechManager = new SpeechManagerD3D9();
+    return this->speechManager != nullptr;
 }
 
 void Renderer_D3D9::destroySpeechManager() {
-    delete speechManager;
-    speechManager = nullptr;
+    delete this->speechManager;
+    this->speechManager = nullptr;
 }
 
 SpeechManager *Renderer_D3D9::getSpeechManager() {
-    return speechManager;
+    return this->speechManager;
 }
 
 int Renderer_D3D9::getWidth() {
-    if (window) return window->getWidth();
+    if (this->window) return this->window->getWidth();
     return 480;
 }
 
 int Renderer_D3D9::getHeight() {
-    if (window) return window->getHeight();
+    if (this->window) return this->window->getHeight();
     return 360;
 }
 
 float Renderer_D3D9::getPixelDensity() {
-    if (window) return window->getPixelDensity();
+    if (this->window) return this->window->getPixelDensity();
     return 1.0f;
 }
 
@@ -468,7 +533,7 @@ bool Renderer_D3D9::initPen() {
 }
 
 void Renderer_D3D9::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMove(x1, y1, x2, y2, sprite, false, getWidth(), getHeight());
+    penMove(x1, y1, x2, y2, sprite, false, this->getWidth(), this->getHeight());
 }
 
 void Renderer_D3D9::penDotFast(Sprite *sprite) {
@@ -476,7 +541,7 @@ void Renderer_D3D9::penDotFast(Sprite *sprite) {
 }
 
 void Renderer_D3D9::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMove(x1, y1, x2, y2, sprite, true, getWidth(), getHeight());
+    penMove(x1, y1, x2, y2, sprite, true, this->getWidth(), this->getHeight());
 }
 
 void Renderer_D3D9::penDotAccurate(Sprite *sprite) {
@@ -485,8 +550,8 @@ void Renderer_D3D9::penDotAccurate(Sprite *sprite) {
 
 void Renderer_D3D9::penStamp(Sprite *sprite) {
     const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    int rW = getWidth();
-    int rH = getHeight();
+    int rW = this->getWidth();
+    int rH = this->getHeight();
     Image_D3D9 *image;
     bool isSVG;
     ImageRenderParams params;
@@ -526,8 +591,8 @@ void Renderer_D3D9::penClear() {
 }
 
 void Renderer_D3D9::beginFrame(int screen, int colorR, int colorG, int colorB) {
-    if (!hasFrameBegan) {
-        WindowWin32 *win = (WindowWin32 *)window;
+    if (!this->hasFrameBegan) {
+        WindowWin32 *win = (WindowWin32 *)this->window;
 
         if (win->resized) {
             resized(win->getWidth(), win->getHeight(), win);
@@ -536,16 +601,16 @@ void Renderer_D3D9::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
         IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, colorR, colorG, colorB), 1.0, 0);
         IDirect3DDevice9_BeginScene(pDev);
-        hasFrameBegan = true;
+        this->hasFrameBegan = true;
     }
 }
 
 void Renderer_D3D9::endFrame(bool shouldFlush) {
-    if (window) {
+    if (this->window) {
         IDirect3DDevice9_EndScene(pDev);
-        window->swapBuffers();
+        this->window->swapBuffers();
     }
-    hasFrameBegan = false;
+    this->hasFrameBegan = false;
 }
 
 void Renderer_D3D9::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
@@ -581,7 +646,7 @@ void Renderer_D3D9::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t 
 
 /* TODO */
 void Renderer_D3D9::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+    this->drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
 void Renderer_D3D9::renderPenLayer() {
@@ -619,6 +684,10 @@ void Renderer_D3D9::renderPenLayer() {
     v[3].tu = 0;
     v[3].tv = 1;
 
+    if (pPenLayerMSSurface != nullptr) {
+        IDirect3DDevice9_StretchRect(pDev, pPenLayerMSSurface, nullptr, pPenLayerSurface, nullptr, D3DTEXF_NONE);
+    }
+
     IDirect3DDevice9_SetTexture(pDev, 0, pPenLayer);
     IDirect3DDevice9_SetFVF(pDev, FVF_TEXVERTEX);
     IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(TEXVERTEX));
@@ -626,7 +695,7 @@ void Renderer_D3D9::renderPenLayer() {
 }
 
 void Renderer_D3D9::renderSprites() {
-    beginFrame(0, 255, 255, 255);
+    this->beginFrame(0, 255, 255, 255);
 
     IDirect3DDevice9_SetPixelShader(pDev, pPixelShader);
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
@@ -672,15 +741,15 @@ void Renderer_D3D9::renderSprites() {
 
     Render::renderMonitors();
 
-    drawBlackBars(getWidth(), getHeight());
-    endFrame(true);
+    drawBlackBars(this->getWidth(), this->getHeight());
+    this->endFrame(true);
 }
 
 bool Renderer_D3D9::appShouldRun() {
     if (OS::toExit) return false;
-    if (window) {
-        window->pollEvents();
-        return !window->shouldClose();
+    if (this->window) {
+        this->window->pollEvents();
+        return !this->window->shouldClose();
     }
     return false;
 }

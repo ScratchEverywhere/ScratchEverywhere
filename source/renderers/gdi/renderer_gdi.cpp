@@ -33,8 +33,19 @@ int penWidth = 480;
 int penHeight = 360;
 
 void resized(int width, int height) {
-    penWidth = width;
-    penHeight = height;
+    if (Scratch::hqpen) {
+        if (Scratch::projectWidth / static_cast<double>(width) <
+            Scratch::projectHeight / static_cast<double>(height)) {
+            penWidth = Scratch::projectWidth * (height / static_cast<double>(Scratch::projectHeight));
+            penHeight = height;
+        } else {
+            penWidth = width;
+            penHeight = Scratch::projectHeight * (width / static_cast<double>(Scratch::projectWidth));
+        }
+    } else {
+        penWidth = Scratch::projectWidth;
+        penHeight = Scratch::projectHeight;
+    }
 
     DeleteObject(penLayerBitmap);
     penLayerBitmap = Image_GDI::NewBitmap(rendererWin, width, height, &penLayerQuad);
@@ -90,16 +101,16 @@ Renderer_GDI::Renderer_GDI() {
     int windowWidth = 480;
     int windowHeight = 360;
 
-    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Win32);
-    if (window->error.has_value()) {
+    this->window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Win32);
+    if (this->window->error.has_value()) {
         error = "Failed to init window: " + window->error.value();
         delete window;
         window = nullptr;
         return;
     }
 
-    renderer = ((WindowWin32 *)window)->hDC;
-    rendererWin = ((WindowWin32 *)window)->winDC;
+    renderer = ((WindowWin32 *)this->window)->hDC;
+    rendererWin = ((WindowWin32 *)this->window)->winDC;
 
     penLayer = CreateCompatibleDC(rendererWin);
     penLayerBitmap = Image_GDI::NewBitmap(rendererWin, windowWidth, windowHeight, &penLayerQuad);
@@ -113,23 +124,23 @@ Renderer_GDI::Renderer_GDI() {
 }
 
 Renderer_GDI::~Renderer_GDI() {
-    if (speechManager) {
-        delete speechManager;
-        speechManager = nullptr;
+    if (this->speechManager) {
+        delete this->speechManager;
+        this->speechManager = nullptr;
     }
 
     TextObject::cleanupText();
 
-    if (window) {
+    if (this->window) {
         DeleteObject(penLayerMaskBitmap);
         DeleteDC(penLayerMask);
 
         DeleteObject(penLayerBitmap);
         DeleteDC(penLayer);
 
-        window->cleanup();
-        delete window;
-        window = nullptr;
+        this->window->cleanup();
+        delete this->window;
+        this->window = nullptr;
     }
 
     SoundPlayer::deinit();
@@ -143,31 +154,31 @@ void Renderer_GDI::clearRenderTarget() {
 }
 
 bool Renderer_GDI::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerGDI();
-    return speechManager != nullptr;
+    if (this->speechManager == nullptr) this->speechManager = new SpeechManagerGDI();
+    return this->speechManager != nullptr;
 }
 
 void Renderer_GDI::destroySpeechManager() {
-    delete speechManager;
-    speechManager = nullptr;
+    delete this->speechManager;
+    this->speechManager = nullptr;
 }
 
 SpeechManager *Renderer_GDI::getSpeechManager() {
-    return speechManager;
+    return this->speechManager;
 }
 
 int Renderer_GDI::getWidth() {
-    if (window) return window->getWidth();
+    if (this->window) return this->window->getWidth();
     return 480;
 }
 
 int Renderer_GDI::getHeight() {
-    if (window) return window->getHeight();
+    if (this->window) return this->window->getHeight();
     return 360;
 }
 
 float Renderer_GDI::getPixelDensity() {
-    if (window) return window->getPixelDensity();
+    if (this->window) return this->window->getPixelDensity();
     return 1.0f;
 }
 
@@ -188,11 +199,11 @@ void Renderer_GDI::penMoveAccurate(double x1, double y1, double x2, double y2, S
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     COLORREF rgb = RGB((DWORD)rgbColor.r, (DWORD)rgbColor.g, (DWORD)rgbColor.b);
     HPEN pen;
-    double scale = (getHeight() < getWidth()) ? ((float)Scratch::projectHeight / getHeight()) : ((float)Scratch::projectWidth / getWidth());
+    double scale = (this->getHeight() < this->getWidth()) ? ((float)Scratch::projectHeight / this->getHeight()) : ((float)Scratch::projectWidth / this->getWidth());
     double r = sprite->penData.size / scale;
     int y, x;
-    int rW = getWidth();
-    int rH = getHeight();
+    int rW = this->getWidth();
+    int rH = this->getHeight();
 
     x1 += rW * scale / 2;
     y1 = -y1 + rH * scale / 2;
@@ -228,8 +239,8 @@ void Renderer_GDI::penDotAccurate(Sprite *sprite) {
 
 void Renderer_GDI::penStamp(Sprite *sprite) {
     const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    int rW = getWidth();
-    int rH = getHeight();
+    int rW = this->getWidth();
+    int rH = this->getHeight();
     Image_GDI *image;
     bool isSVG;
     ImageRenderParams params;
@@ -256,8 +267,8 @@ void Renderer_GDI::penStamp(Sprite *sprite) {
 }
 
 void Renderer_GDI::penClear() {
-    PatBlt(penLayer, 0, 0, getWidth(), getHeight(), BLACKNESS);
-    PatBlt(penLayerMask, 0, 0, getWidth(), getHeight(), BLACKNESS);
+    PatBlt(penLayer, 0, 0, this->getWidth(), this->getHeight(), BLACKNESS);
+    PatBlt(penLayerMask, 0, 0, this->getWidth(), this->getHeight(), BLACKNESS);
 }
 
 void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -268,8 +279,8 @@ void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
         rc.left = 0;
         rc.top = 0;
-        rc.right = getWidth();
-        rc.bottom = getHeight();
+        rc.right = this->getWidth();
+        rc.bottom = this->getHeight();
 
         FillRect(renderer, &rc, brush);
         DeleteObject(brush);
@@ -285,7 +296,7 @@ void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
 void Renderer_GDI::endFrame(bool shouldFlush) {
     Sleep(16);
-    if (window) window->swapBuffers();
+    if (this->window) this->window->swapBuffers();
     hasFrameBegan = false;
 }
 
@@ -328,10 +339,10 @@ void Renderer_GDI::renderPenLayer() {
 
     p[0].x = 0;
     p[0].y = 0;
-    p[1].x = getWidth();
+    p[1].x = this->getWidth();
     p[1].y = 0;
     p[2].x = 0;
-    p[2].y = getHeight();
+    p[2].y = this->getHeight();
 
     for (i = 0; i < penWidth * penHeight; i++) {
         if (penLayerMaskQuad[i].rgbRed) {
@@ -343,7 +354,7 @@ void Renderer_GDI::renderPenLayer() {
 }
 
 void Renderer_GDI::renderSprites() {
-    beginFrame(0, 255, 255, 255);
+    this->beginFrame(0, 255, 255, 255);
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
@@ -378,15 +389,15 @@ void Renderer_GDI::renderSprites() {
 
     Render::renderMonitors();
 
-    drawBlackBars(getWidth(), getHeight());
-    endFrame(true);
+    drawBlackBars(this->getWidth(), this->getHeight());
+    this->endFrame(true);
 }
 
 bool Renderer_GDI::appShouldRun() {
     if (OS::toExit) return false;
-    if (window) {
-        window->pollEvents();
-        return !window->shouldClose();
+    if (this->window) {
+        this->window->pollEvents();
+        return !this->window->shouldClose();
     }
     return false;
 }
