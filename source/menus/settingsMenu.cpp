@@ -65,17 +65,17 @@ void SettingsMenu::init() {
     dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
 #endif
 
-    RendererButton = new ButtonObject("Renderer: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
+    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/projectBox.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
     RendererButton->text->setColor(Math::color(0, 0, 0, 255));
     RendererButton->textScale = 1.0;
     validRenderers = Render::getAvailableRenderers();
 
-    WindowingButton = new ButtonObject("Windowing: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
     WindowingButton->text->setColor(Math::color(0, 0, 0, 255));
     WindowingButton->textScale = 1.0;
     validWindowingBackends = WindowSE::getAvailableWindowingBackends();
 
-    AudioEngineButton = new ButtonObject("Audio Backend: CLICKTOLOAD" /* TODO: translation*/, "gfx/menu/projectBox.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
+    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/projectBox.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
     AudioEngineButton->text->setColor(Math::color(0, 0, 0, 255));
     AudioEngineButton->textScale = 1.0;
     validAudioBackends = SoundPlayer::getAvailableAudioBackends();
@@ -230,9 +230,9 @@ void SettingsMenu::updateButtonStates() {
     dectalkButton->text->setText(getDectalkString());
 #endif
 
-    RendererButton->text->setText("Renderer: " /* TODO: translation*/ + std::string(RendererNames[validRenderers[rendererIdx].id]));
-    WindowingButton->text->setText("Windowing: " /* TODO: translation*/ + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
-    AudioEngineButton->text->setText("Audio Backend: " /* TODO: translation*/ + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
+    RendererButton->text->setText(TranslationManager::getTranslation("ui.settings.renderer") + ": " + std::string(RendererNames[validRenderers[rendererIdx].id]));
+    WindowingButton->text->setText(TranslationManager::getTranslation("ui.settings.windowing") + ": " + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
+    AudioEngineButton->text->setText(TranslationManager::getTranslation("ui.settings.audioEngine") + ": " + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
 }
 
 void SettingsMenu::render() {
