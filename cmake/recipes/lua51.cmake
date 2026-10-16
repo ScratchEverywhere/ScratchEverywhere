@@ -13,6 +13,9 @@ if(NOT SE_LUA_BACKEND IN_LIST SE_LUA_BACKEND_VALID_OPTIONS)
 endif()
 
 function(_recipe_lua51_system)
+	if(XBOX)
+		return()
+	endif()
 	if(SE_LUA_BACKEND STREQUAL "fallback" OR SE_LUA_BACKEND STREQUAL "luajit")
 		find_package(PkgConfig QUIET)
 		if(PkgConfig_FOUND)
@@ -59,6 +62,10 @@ function(_recipe_lua51_source)
 			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/src>
 			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/etc>
 		)
+
+		if(XBOX)
+			target_compile_definitions(lua51 PUBLIC LUA_ANSI)
+		endif()
 
 		set(SE_USED_LUA "lua51" CACHE INTERNAL "Resolved Lua backend used by lua51/sol2")
 	endif()

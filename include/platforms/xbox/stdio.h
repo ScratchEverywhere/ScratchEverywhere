@@ -19,6 +19,10 @@ static inline int fopen_s(FILE **pFile, const char *filename, const char *mode) 
     *pFile = fopen(filename, mode);
     return *pFile ? 0 : 1;
 }
+static inline int freopen_s(FILE **pFile, const char *filename, const char *mode, FILE *stream) {
+    *pFile = freopen(filename, mode, stream);
+    return *pFile ? 0 : 1;
+}
 static inline int _wfopen_s(FILE **pFile, const wchar_t *filename, const wchar_t *mode) {
     return 1;
 }

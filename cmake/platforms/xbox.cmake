@@ -5,6 +5,7 @@ set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
+set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 # CPU expensive and nxdk implementation has type conflicts; keep off for now
 set(SE_DECTALK_DEFAULT OFF)
@@ -19,7 +20,6 @@ set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
-set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
 
 # Force using WinAPI threads
 set(Threads_FOUND TRUE CACHE BOOL "Forced WinAPI threads" FORCE)
