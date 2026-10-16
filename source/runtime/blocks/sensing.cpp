@@ -34,7 +34,11 @@ SCRATCH_BLOCK(sensing, setdragmode) {
 }
 
 SCRATCH_BLOCK_DOUBLE(sensing, timer) {
+#if defined(__XBOX__)
+    *outValue = BlockExecutor::timer.getTimeMsDouble() / 1000.0;
+#else
     *outValue = BlockExecutor::timer.getTimeMs() / 1000.0;
+#endif
     return BlockResult::CONTINUE;
 }
 

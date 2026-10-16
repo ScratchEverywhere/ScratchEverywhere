@@ -1,8 +1,8 @@
 diff --git a/lib/xboxrt/libc_extensions/stdlib_ext_.c b/lib/xboxrt/libc_extensions/stdlib_ext_.c
-index e07f0f6..c4a61fd 100644
+index e07f0f6..0c8b4cb 100644
 --- a/lib/xboxrt/libc_extensions/stdlib_ext_.c
 +++ b/lib/xboxrt/libc_extensions/stdlib_ext_.c
-@@ -86,22 +86,189 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
+@@ -86,22 +86,195 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
  }
  
  
@@ -116,6 +116,9 @@ index e07f0f6..c4a61fd 100644
 +
 +            if (exp_digits) {
 +                val *= pow(2.0, exp_neg ? -exp_val : exp_val);
++                if (isinf(val)) {
++                    errno = ERANGE;
++                }
 +            }
 +        }
 +
@@ -177,6 +180,9 @@ index e07f0f6..c4a61fd 100644
 +
 +    if (exp_adjust != 0) {
 +        val *= pow(10.0, exp_adjust);
++        if (isinf(val)) {
++            errno = ERANGE;
++        }
 +    }
 +
 +    if (endptr) *endptr = (char *)p;
@@ -198,3 +204,115 @@ index e07f0f6..c4a61fd 100644
  }
  
  int mbtowc (wchar_t *pwc, const char *string, size_t n)
+diff --git a/lib/pdclib/platform/xbox/functions/math/pow.c b/lib/pdclib/platform/xbox/functions/math/pow.c
+index 5c30eb2..f846a0b 100644
+--- a/lib/pdclib/platform/xbox/functions/math/pow.c
++++ b/lib/pdclib/platform/xbox/functions/math/pow.c
+@@ -1,23 +1,48 @@
++#include <errno.h>
+ #include <math.h>
+ 
+ double pow(double x, double y)
+ {
++    if (y == 0.0) return 1.0;
++    if (x == 1.0) return 1.0;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0) {
++        if (y < 0.0) {
++            errno = ERANGE;
++            return HUGE_VAL;
++        }
++        return 0.0;
++    }
+     if (x < 0.0 && y != trunc(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+     }
+ 
+-    float r = exp(y * log(fabs(x)));
++    double r = exp(y * log(fabs(x)));
+ 
+     if (x < 0.0 && remainder(y, 2.0) != 0) {
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+ 
+ float powf(float x, float y)
+ {
++    if (y == 0.0f) return 1.0f;
++    if (x == 1.0f) return 1.0f;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0f) {
++        if (y < 0.0f) {
++            errno = ERANGE;
++            return HUGE_VALF;
++        }
++        return 0.0f;
++    }
+     if (x < 0.0f && y != truncf(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+@@ -29,21 +54,39 @@ float powf(float x, float y)
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+ 
+ long double powl(long double x, long double y)
+ {
+-    if (x < 0.0 && y != truncl(y)) {
++    if (y == 0.0L) return 1.0L;
++    if (x == 1.0L) return 1.0L;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0L) {
++        if (y < 0.0L) {
++            errno = ERANGE;
++            return HUGE_VALL;
++        }
++        return 0.0L;
++    }
++    if (x < 0.0L && y != truncl(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+     }
+ 
+-    float r = expl(y * logl(fabsl(x)));
++    long double r = expl(y * logl(fabsl(x)));
+ 
+-    if (x < 0.0 && remainderl(y, 2.0) != 0) {
++    if (x < 0.0L && remainderl(y, 2.0L) != 0) {
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+diff --git a/lib/libcxx/src/chrono.cpp b/lib/libcxx/src/chrono.cpp
+index c461d19dd..702c3dbe7 100644
+--- a/lib/libcxx/src/chrono.cpp
++++ b/lib/libcxx/src/chrono.cpp
+@@ -201,7 +201,9 @@ steady_clock::now() _NOEXCEPT
+ 
+   LARGE_INTEGER counter;
+   (void) QueryPerformanceCounter(&counter);
+-  return time_point(duration(counter.QuadPart * nano::den / freq.QuadPart));
++  uint64_t sec = static_cast<uint64_t>(counter.QuadPart) / static_cast<uint64_t>(freq.QuadPart);
++  uint64_t rem = static_cast<uint64_t>(counter.QuadPart) % static_cast<uint64_t>(freq.QuadPart);
++  return time_point(duration(sec * 1000000000ULL + (rem * 1000000000ULL / static_cast<uint64_t>(freq.QuadPart))));
+ }
+ 
+ #elif defined(CLOCK_MONOTONIC)

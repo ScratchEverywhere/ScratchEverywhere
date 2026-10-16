@@ -6,6 +6,10 @@
 #include <math.hpp>
 #include <types.hpp>
 #include <value.hpp>
+#if defined(__XBOX__)
+#include <ctime>
+#include <random>
+#endif
 
 SCRATCH_BLOCK_DOUBLE(operator, add) {
     double num1, num2;
@@ -57,10 +61,27 @@ SCRATCH_BLOCK_DOUBLE(operator, random) {
     const double from = std::min(a, b);
     const double to = std::max(a, b);
 
+#if defined(__XBOX__)
+    static std::mt19937_64 rng(
+        static_cast<uint64_t>(std::time(nullptr)) ^
+        (static_cast<uint64_t>(std::clock()) << 16)
+    );
+    uint64_t r;
+    do {
+        r = (rng() >> 11); // 53-bit precision
+    } while (r == 0); // Strictly > 0 so (r * Infinity) doesn't produce NaN when lower bound is finite
+    const double u = static_cast<double>(r) / 9007199254740992.0;
+
+    if (fromValue.isScratchInt() && toValue.isScratchInt())
+        *outValue = from + std::floor(u * ((to + 1.0) - from));
+    else
+        *outValue = from + u * (to - from);
+#else
     if (fromValue.isScratchInt() && toValue.isScratchInt())
         *outValue = from + (rand() % static_cast<int>(to + 1 - from));
     else
         *outValue = from + rand() * (to - from) / (RAND_MAX + 1.0);
+#endif
 
     return BlockResult::CONTINUE;
 }
