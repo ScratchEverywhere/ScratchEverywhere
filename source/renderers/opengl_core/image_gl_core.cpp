@@ -1,10 +1,10 @@
 #include "image_gl_core.hpp"
 #include "nonstd/expected.hpp"
-#include "render_opengl_core.hpp"
+#include "renderer_gl_core.hpp"
 #include <cmath>
 #include <math.hpp>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <string>
 #include <unzip.hpp>
 

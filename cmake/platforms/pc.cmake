@@ -1,7 +1,9 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
+# TODO: re-add
+# set(SE_RENDERER_VALID_OPTIONS "gdi" "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
+set(SE_RENDERER_VALID_OPTIONS "sdl3" "sdl2" "opengl" "opengl_core")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS  "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
 
@@ -12,6 +14,11 @@ elseif(WIN32)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "gdi" "d3d9")
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 	set(SE_AUDIO_ENGINE_DEFAULT "winmm")
+endif()
+
+if(NOT APPLE)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1")
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1")
 endif()
 
 set(SE_CACHING_DEFAULT ON)
@@ -48,8 +55,9 @@ add_library(threads_interface INTERFACE)
 find_package(Threads REQUIRED)
 target_link_libraries(threads_interface INTERFACE Threads::Threads)
 
-if(WIN32)
-	macro(package_platform)
+
+macro(package_platform)
+	if(WIN32)
 		set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 		install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
 
@@ -79,7 +87,14 @@ if(WIN32)
 		set(CPACK_NSIS_MODIFY_PATH OFF)
 
 		include(CPack)
-	endmacro()
+	endif()
 
+	# "multiple definition of `wp_fractional_scale_manager_v1_interface'"
+	if(SE_WINDOWING STREQUAL "all" AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$")
+		target_link_options(scratch-everywhere PRIVATE "-Wl,--allow-multiple-definition")
+	endif()
+endmacro()
+
+if(WIN32)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 endif()

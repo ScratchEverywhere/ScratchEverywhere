@@ -1,6 +1,6 @@
 FROM devkitpro/devkita64:latest AS main_builder
 ENV CATALOG_NON_INTERACTIVE=1
-ARG RENDERER=opengl_core
+ARG RENDERER=all
 WORKDIR /app
 
 COPY . .

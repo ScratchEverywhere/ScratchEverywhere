@@ -1,0 +1,326 @@
+#include "window_sdl3.hpp"
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+#include <algorithm>
+#include <blockExecutor.hpp>
+#include <cctype>
+#include <cstddef>
+#include <input_sdl3.hpp>
+#include <map>
+#include <renderer.hpp>
+#include <string>
+#include <types.hpp>
+#include <vector>
+
+#ifdef __SWITCH__
+extern char nickname[0x21];
+#endif
+
+#ifdef VITA
+#include <psp2/apputil.h>
+#include <psp2/system_param.h>
+#endif
+
+#ifdef PLATFORM_HAS_CONTROLLER
+extern SDL_Gamepad *controller;
+#define CONTROLLER_DEADZONE_X 10000
+#define CONTROLLER_DEADZONE_Y 18000
+#define CONTROLLER_DEADZONE_TRIGGER 1000
+#endif
+
+#ifdef PLATFORM_HAS_TOUCH
+extern bool touchActive;
+extern SDL_Point touchPosition;
+#endif
+
+#ifdef ENABLE_CLOUDVARS
+extern std::string cloudUsername;
+extern bool cloudProject;
+#endif
+
+extern bool useCustomUsername;
+extern std::string customUsername;
+
+InputDevice_SDL3::InputDevice_SDL3() {}
+InputDevice_SDL3::~InputDevice_SDL3() {}
+
+std::array<int, 2> InputDevice_SDL3::getTouchPosition() {
+    std::array<int, 2> pos = {0, 0};
+    float rawMouseX, rawMouseY;
+    int numDevices, numFingers;
+    SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers)); // kanye west he likes
+    if (numDevices > 0 && numFingers > 0) {
+#ifdef PLATFORM_HAS_TOUCH
+        pos[0] = touchPosition.x;
+        pos[1] = touchPosition.y;
+#endif
+    }
+
+    SDL_free(touchID);
+#ifdef PLATFORM_HAS_MOUSE
+    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    pos[0] = rawMouseX * Render::getPixelDensity();
+    pos[1] = rawMouseY * Render::getPixelDensity();
+#endif
+    Input::applyInputViewportOffset(pos[0], pos[1]);
+    Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
+    return pos;
+}
+
+void InputDevice_SDL3::getInput() {
+    Input::inputButtons.clear();
+    Input::inputKeys.clear();
+    Input::mousePointer.isPressed = false;
+
+#ifdef PLATFORM_HAS_KEYBOARD
+    const bool *keyStates = SDL_GetKeyboardState(NULL);
+
+    for (int scancode = 0; scancode < SDL_SCANCODE_COUNT; ++scancode) {
+        if (keyStates[scancode]) {
+            const char *name = SDL_GetScancodeName(static_cast<SDL_Scancode>(scancode));
+            if (name && name[0] != '\0') {
+                std::string keyName(name);
+                std::transform(keyName.begin(), keyName.end(), keyName.begin(), ::tolower);
+
+                if (keyName == "up") keyName = "up arrow";
+                else if (keyName == "down") keyName = "down arrow";
+                else if (keyName == "left") keyName = "left arrow";
+                else if (keyName == "right") keyName = "right arrow";
+                else if (keyName == "return") keyName = "enter";
+                else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
+                else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
+
+                Input::inputKeys.push_back(keyName);
+            }
+        }
+    }
+#endif
+
+#ifdef PLATFORM_HAS_CONTROLLER
+
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_UP)) {
+        Input::buttonPress("dpadUp");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.y += 3;
+#endif
+    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
+        Input::buttonPress("dpadDown");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.y -= 3;
+#endif
+    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
+        Input::buttonPress("dpadLeft");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.x -= 3;
+#endif
+    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
+        Input::buttonPress("dpadRight");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.x += 3;
+#endif
+    }
+    // Swap face buttons for Switch
+#ifdef __SWITCH__
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("B");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("A");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("Y");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("X");
+#else
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("A");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("B");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("X");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("Y");
+#endif
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
+        Input::buttonPress("shoulderL");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        Input::mousePointer.isMoving = true;
+#endif
+    } else Input::mousePointer.isMoving = false;
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
+        Input::buttonPress("shoulderR");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+#endif
+    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START)) Input::buttonPress("start");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK)) Input::buttonPress("back");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_STICK)) Input::buttonPress("LeftStickPressed");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_STICK)) Input::buttonPress("RightStickPressed");
+    float joyLeftX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTX);
+    float joyLeftY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTY);
+    if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
+    if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
+    if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
+    if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
+    float joyRightX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTX);
+    float joyRightY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTY);
+    if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
+    if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickLeft");
+    if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
+    if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+
+    Input::leftJoystick.first = joyLeftX / 32767.0f;
+    Input::leftJoystick.second = joyLeftY / 32767.0f;
+    Input::rightJoystick.first = joyRightX / 32767.0f;
+    Input::rightJoystick.second = joyRightY / 32767.0f;
+#endif
+
+    if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
+
+    BlockExecutor::executeKeyHats();
+
+#ifdef PLATFORM_HAS_TOUCH
+    int numDevices, numFingers;
+    SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
+    if (numDevices > 0 && numFingers) {
+        // Transform touch coordinates to Scratch space
+        int touchX = touchPosition.x, touchY = touchPosition.y;
+        Input::applyInputViewportOffset(touchX, touchY);
+        Input::scaleViewportToRenderSpace(touchX, touchY, Render::getWidth(), Render::getHeight());
+        auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
+        Input::mousePointer.x = coords.first;
+        Input::mousePointer.y = coords.second;
+        Input::mousePointer.isPressed = touchActive;
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
+
+        SDL_free(touchID);
+        BlockExecutor::doSpriteClicking();
+        return;
+    }
+    SDL_free(touchID);
+#endif
+
+#ifdef PLATFORM_HAS_MOUSE
+
+    // Get raw mouse coordinates
+    std::array<int, 2> rawMouse = getTouchPosition();
+
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
+    Input::mousePointer.x = coords.first;
+    Input::mousePointer.y = coords.second;
+
+    const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
+    Input::mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
+
+    if (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) {
+        Input::mousePointer.mouseButton = Input::Mouse::RIGHT;
+    } else if (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE))) {
+        Input::mousePointer.mouseButton = Input::Mouse::MIDDLE;
+    } else {
+        Input::mousePointer.mouseButton = Input::Mouse::LEFT;
+    }
+#endif
+
+    BlockExecutor::doSpriteClicking();
+}
+
+std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
+    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
+    text->setCenterAligned(true);
+    text->setColor(Math::color(0, 0, 0, 170));
+    if (text->getSize()[0] > Render::getWidth() * 0.85) {
+        float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
+        text->setScale(scale);
+    }
+
+    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
+    enterText->setCenterAligned(true);
+    enterText->setColor(Math::color(0, 0, 0, 255));
+
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    SDL_StartTextInput(window);
+
+    std::string inputText = "";
+    bool inputActive = true;
+    SDL_Event event;
+
+    while (inputActive) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_EVENT_TEXT_INPUT:
+                // Add text
+                inputText += event.text.text;
+                text->setText(inputText);
+                text->setColor(Math::color(0, 0, 0, 255));
+
+#if defined(__SWITCH__) || defined(VITA)
+                inputActive = false;
+#endif
+
+                break;
+
+            case SDL_EVENT_KEY_DOWN:
+                switch (event.key.scancode) {
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_KP_ENTER:
+                    // finish input
+                    inputActive = false;
+                    break;
+
+                case SDL_SCANCODE_BACKSPACE:
+                    // remove character
+                    if (!inputText.empty()) {
+                        inputText.pop_back();
+                    }
+                    if (inputText.empty()) {
+                        text->setText(std::string(hintText));
+                        text->setColor(Math::color(0, 0, 0, 170));
+                    } else {
+                        text->setText(inputText);
+                    }
+
+                    break;
+
+                case SDL_SCANCODE_ESCAPE:
+                    // finish input
+                    inputActive = false;
+                    break;
+                default:
+                    break;
+                }
+                break;
+
+            case SDL_EVENT_QUIT:
+                OS::toExit = true;
+                inputActive = false;
+                break;
+            }
+        }
+
+        // set text size
+        text->setScale(1.0f);
+        if (text->getSize()[0] > Render::getWidth() * 0.95) {
+            float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.05);
+            text->setScale(scale);
+        } else {
+            text->setScale(1.0f);
+        }
+
+        Render::beginFrame(0, 117, 77, 117);
+
+        text->render(Render::getWidth() / 2, Render::getHeight() * 0.25);
+        enterText->render(Render::getWidth() / 2, Render::getHeight() * 0.15);
+
+        Render::endFrame(false);
+    }
+
+    SDL_StopTextInput(window);
+    return inputText;
+
+    return "";
+}
+
+void InputDevice_SDL3::setClipboardText(const std::string &text) {
+#if defined(__PC__)
+    SDL_SetClipboardText(text.c_str());
+#endif
+}

@@ -1,6 +1,6 @@
 #include "image_gdi.hpp"
 #include "nonstd/expected.hpp"
-#include "render_gdi.hpp"
+#include "renderer_gdi.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <string>

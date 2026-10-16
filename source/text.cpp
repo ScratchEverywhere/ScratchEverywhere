@@ -1,3 +1,4 @@
+#include "renderer.hpp"
 #include "utf8.hpp"
 #include <cstdio>
 #include <log.hpp>
@@ -11,23 +12,32 @@
 
 #ifdef RENDERER_CITRO2D
 #include <renderers/citro2d/text_c2d.hpp>
-#elif defined(RENDERER_SDL2)
+#endif
+#ifdef RENDERER_SDL2
 #include <renderers/sdl2/text_sdl2.hpp>
-#elif defined(RENDERER_SDL3)
+#endif
+#ifdef RENDERER_SDL3
 #include <renderers/sdl3/text_sdl3.hpp>
-#elif defined(RENDERER_SDL1)
+#endif
+#ifdef RENDERER_SDL1
 #include <renderers/sdl1/text_sdl1.hpp>
-#elif defined(RENDERER_OPENGL)
+#endif
+#ifdef RENDERER_OPENGL
 #include <renderers/opengl/text_gl.hpp>
-#elif defined(RENDERER_GL2D)
+#endif
+#ifdef RENDERER_GL2D
 #include <renderers/gl2d/text_gl2d.hpp>
-#elif defined(RENDERER_OPENGL_CORE)
+#endif
+#ifdef RENDERER_OPENGL_CORE
 #include <renderers/opengl_core/text_gl_core.hpp>
-#elif defined(RENDERER_GDI)
+#endif
+#ifdef RENDERER_GDI
 #include <renderers/gdi/text_gdi.hpp>
-#elif defined(RENDERER_D3D9)
+#endif
+#if defined(RENDERER_D3D9)
 #include <renderers/d3d9/text_d3d9.hpp>
-#elif defined(RENDERER_HEADLESS)
+#endif
+#ifdef RENDERER_HEADLESS
 #include <renderers/headless/text_headless.hpp>
 #endif
 
@@ -38,29 +48,48 @@ TextObject::TextObject(std::string txt, double posX, double posY, std::string fo
 }
 
 std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, double posY, std::string fontPath) {
+    switch (Render::currentRenderer) {
 #ifdef RENDERER_CITRO2D
-    return std::make_unique<TextObjectC2D>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_SDL2)
-    return std::make_unique<TextObjectSDL2>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_SDL3)
-    return std::make_unique<TextObjectSDL3>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_SDL1)
-    return std::make_unique<TextObjectSDL1>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_OPENGL)
-    return std::make_unique<TextObjectGL>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_GL2D)
-    return std::make_unique<TextObjectGL2D>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_OPENGL_CORE)
-    return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_GDI)
-    return std::make_unique<TextObjectGDI>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_D3D9)
-    return std::make_unique<TextObjectD3D9>(txt, posX, posY, fontPath);
-#elif defined(RENDERER_HEADLESS)
-    return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
-#else
-    return nullptr;
+    case Renderers::Citro2D:
+        return std::make_unique<TextObjectC2D>(txt, posX, posY, fontPath);
 #endif
+#ifdef RENDERER_SDL2
+    case Renderers::SDL2:
+        return std::make_unique<TextObjectSDL2>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_SDL3
+    case Renderers::SDL3:
+        return std::make_unique<TextObjectSDL3>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_SDL1
+    case Renderers::SDL1:
+        return std::make_unique<TextObjectSDL1>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_OPENGL
+    case Renderers::OpenGL:
+        return std::make_unique<TextObjectGL>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_GL2D
+    case Renderers::GL2D:
+        return std::make_unique<TextObjectGL2D>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_OPENGL_CORE
+    case Renderers::OpenGLCore:
+        return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_GDI
+    case Renderers::GDI:
+        return std::make_unique<TextObjectGDI>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_HEADLESS
+    case Renderers::Headless:
+        return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
+#endif
+    default: {
+        Log::logCritical("You forgot to add this renderer to createTextObject :grin: :grin:", true);
+        return nullptr;
+    }
+    }
 }
 
 std::string TextObject::wrap(int maxWidth) {
@@ -130,9 +159,8 @@ std::string TextObject::wrap(int maxWidth) {
 }
 
 void TextObject::cleanupText() {
-#ifndef RENDERER_HEADLESS
-    TextObjectBase::cleanupText();
-#endif
+    if (Render::currentRenderer != Renderers::Headless)
+        TextObjectBase::cleanupText();
 }
 
 static std::vector<unsigned char> readFontFile(const std::string &fullPath) {

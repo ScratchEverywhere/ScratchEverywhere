@@ -1,7 +1,3 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 
 if(VITA)
     cl_add_dep(renderer_interface SDL2 OPTIONS
@@ -14,7 +10,7 @@ else()
 endif()
 cl_add_dep(renderer_interface stb_truetype)
 
-set(SE_WINDOWING_VALID_OPTIONS "sdl2")
+list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 
 if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")

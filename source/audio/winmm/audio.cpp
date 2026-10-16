@@ -1,7 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "audio.hpp"
+#include "audio_winmm.hpp"
 #include "audiostack.hpp"
 #include "os.hpp"
 #include <log.hpp>
@@ -18,7 +18,7 @@ static WAVEHDR headers[NUM_BUFFERS];
 static BYTE buffers[NUM_BUFFERS][BUFFER_SIZE];
 static int stop;
 
-extern "C" void CALLBACK callback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instance, DWORD_PTR param1, DWORD_PTR param2) {
+extern "C" void CALLBACK winmmCallback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instance, DWORD_PTR param1, DWORD_PTR param2) {
     WAVEHDR *header;
 
     if (msg != WOM_DONE) return;
@@ -31,7 +31,7 @@ extern "C" void CALLBACK callback(HWAVEOUT hWaveOut, UINT msg, DWORD_PTR instanc
     waveOutWrite(hWaveOut, header, sizeof(*header));
 }
 
-bool SoundPlayer::init() {
+SoundDevice_Winmm::SoundDevice_Winmm() {
 #ifdef ENABLE_AUDIO
     WAVEFORMATEX fmt;
     int i;
@@ -46,9 +46,9 @@ bool SoundPlayer::init() {
     fmt.nBlockAlign = fmt.nChannels * fmt.wBitsPerSample / 8;
     fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
 
-    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &fmt, (DWORD_PTR)callback, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
-        Log::logCritical("Failed to initialize WinMM: Code " + std::to_string(GetLastError()), true);
-        return false;
+    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &fmt, (DWORD_PTR)winmmCallback, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
+        error = "Failed to initialize WinMM: Code " + std::to_string(GetLastError());
+        return;
     }
 
     for (i = 0; i < NUM_BUFFERS; i++) {
@@ -64,12 +64,12 @@ bool SoundPlayer::init() {
     for (i = 0; i < NUM_BUFFERS; i++)
         waveOutWrite(hWaveOut, &headers[i], sizeof(headers[i]));
 
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio is not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_Winmm::~SoundDevice_Winmm() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
     stop = 1;

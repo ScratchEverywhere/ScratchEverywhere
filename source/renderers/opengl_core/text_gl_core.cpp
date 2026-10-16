@@ -1,5 +1,5 @@
 #include "text_gl_core.hpp"
-#include "render_opengl_core.hpp"
+#include "renderer_gl_core.hpp"
 #include <cstdint>
 #include <log.hpp>
 #include <vector>

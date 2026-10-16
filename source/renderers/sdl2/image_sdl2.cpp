@@ -1,6 +1,6 @@
 #include "image_sdl2.hpp"
 #include "nonstd/expected.hpp"
-#include "render_sdl2.hpp"
+#include "renderer_sdl2.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <string>
@@ -52,12 +52,12 @@ void Image_SDL2::render(ImageRenderParams &params) {
         float b = brightness * 0.01f;
         if (brightness > 0.0f) {
             // render the normal image first
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -65,14 +65,14 @@ void Image_SDL2::render(ImageRenderParams &params) {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
 
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
             // reset for next frame
             SDL_SetTextureColorMod(texture, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+        SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
     freeTimer = maxFreeTimer;
 }
@@ -117,15 +117,15 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     SDL_GetTextureScaleMode(originalTexture, &originalScaleMode);
     SDL_SetTextureScaleMode(originalTexture, SDL_ScaleModeNearest);
 
-    SDL_RenderCopy(renderer, originalTexture, &srcTopLeft, &dstTopLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcTop, &dstTop);
-    SDL_RenderCopy(renderer, originalTexture, &srcTopRight, &dstTopRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcLeft, &dstLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcCenter, &dstCenter);
-    SDL_RenderCopy(renderer, originalTexture, &srcRight, &dstRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottom, &dstBottom);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTopLeft, &dstTopLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTop, &dstTop);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTopRight, &dstTopRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcLeft, &dstLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcCenter, &dstCenter);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcRight, &dstRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottom, &dstBottom);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottomRight, &dstBottomRight);
 
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
     freeTimer = maxFreeTimer;
@@ -152,10 +152,10 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     SDL_FreeSurface(surface);
     surface = convert;
 
-    texture = SDL_CreateTextureFromSurface(renderer, surface);
+    texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
     SDL_FreeSurface(surface);
 #else
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
     if (!texture) {
         return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
@@ -187,8 +187,10 @@ nonstd::expected<void, std::string> Image_SDL2::refreshTexture() {
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    sdlRenderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
+
     SDL_RendererInfo info;
-    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+    if (SDL_GetRendererInfo(sdlRenderer, &info) == 0) {
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
@@ -203,8 +205,10 @@ Image_SDL2::Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    sdlRenderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
+
     SDL_RendererInfo info;
-    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+    if (SDL_GetRendererInfo(sdlRenderer, &info) == 0) {
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 

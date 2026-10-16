@@ -1,13 +1,13 @@
-#include "audio.hpp"
+#include "audio_libretro.hpp"
 #include "audiostack.hpp"
 #include "os.hpp"
 
-bool SoundPlayer::init() {
+SoundDevice_Libretro::SoundDevice_Libretro() {
 #ifdef ENABLE_AUDIO
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio is not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_Libretro::~SoundDevice_Libretro() {
 }

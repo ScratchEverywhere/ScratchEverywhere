@@ -1,7 +1,9 @@
 #include "image.hpp"
 #include "nonstd/expected.hpp"
 #include "os.hpp"
+#include "renderer.hpp"
 #include <cstdlib>
+#include <log.hpp>
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -19,24 +21,33 @@
 
 #if defined(RENDERER_SDL1)
 #include <image_sdl1.hpp>
-#elif defined(RENDERER_SDL2)
+#endif
+#if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
-#elif defined(RENDERER_SDL3)
+#endif
+#if defined(RENDERER_SDL3)
 #include <image_sdl3.hpp>
-#elif defined(RENDERER_OPENGL)
+#endif
+#if defined(RENDERER_OPENGL)
 #include <image_gl.hpp>
-#elif defined(RENDERER_CITRO2D)
+#endif
+#if defined(RENDERER_CITRO2D)
 #include <image_c2d.hpp>
-#elif defined(RENDERER_GL2D)
+#endif
+#if defined(RENDERER_GL2D)
 #include <image_gl2d.hpp>
-#elif defined(RENDERER_OPENGL_CORE)
+#endif
+#if defined(RENDERER_OPENGL_CORE)
 #include <image_gl_core.hpp>
-#elif defined(RENDERER_GDI)
+#endif
+#if defined(RENDERER_GDI)
 #include <image_gdi.hpp>
-#elif defined(RENDERER_D3D9)
-#include <image_d3d9.hpp>
-#elif defined(RENDERER_HEADLESS)
+#endif
+#if defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
+#endif
+#if defined(RENDERER_D3D9)
+#include <image_d3d9.hpp>
 #endif
 
 #ifdef USE_BUNDLE
@@ -93,31 +104,62 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         }
     }
 
-#if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL_CORE)
-    Image *rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GDI)
-    Image *rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_D3D9)
-    Image *rawImg = new Image_D3D9(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#else
-#error "Image backend not defined."
-#endif
+    Image *rawImg = nullptr;
 
-    if (rawImg->error.has_value()) {
+    switch (Render::currentRenderer) {
+#if defined(RENDERER_SDL1)
+    case Renderers::SDL1:
+        rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL2)
+    case Renderers::SDL2:
+        rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL3)
+    case Renderers::SDL3:
+        rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_CITRO2D)
+    case Renderers::Citro2D:
+        rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL)
+    case Renderers::OpenGL:
+        rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GL2D)
+    case Renderers::GL2D:
+        rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL_CORE)
+    case Renderers::OpenGLCore:
+        rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GDI)
+    case Renderers::GDI:
+        rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_HEADLESS)
+    case Renderers::Headless:
+        rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+    default: {
+        Log::logCritical("You forgot to add this renderer to createImageFromFile :grin: :grin:", true);
+        break;
+    }
+    }
+    if (rawImg == nullptr) {
+        return nonstd::make_unexpected("Failed to create image.");
+    } else if (rawImg->error.has_value()) {
         const std::string errMessage = rawImg->error.value();
         delete rawImg;
         return nonstd::make_unexpected(errMessage);
@@ -142,31 +184,63 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
         }
     }
 
-#if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL_CORE)
-    Image *rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GDI)
-    Image *rawImg = new Image_GDI(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_D3D9)
-    Image *rawImg = new Image_D3D9(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
-#else
-#error "Image backend not defined."
-#endif
+    Image *rawImg = nullptr;
 
-    if (rawImg->error.has_value()) {
+    switch (Render::currentRenderer) {
+#if defined(RENDERER_SDL1)
+    case Renderers::SDL1:
+        rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL2)
+    case Renderers::SDL2:
+        rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL3)
+    case Renderers::SDL3:
+        rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_CITRO2D)
+    case Renderers::Citro2D:
+        rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL)
+    case Renderers::OpenGL:
+        rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GL2D)
+    case Renderers::GL2D:
+        rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL_CORE)
+    case Renderers::OpenGLCore:
+        rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GDI)
+    case Renderers::GDI:
+        rawImg = new Image_GDI(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_HEADLESS)
+    case Renderers::Headless:
+        rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+    default: {
+        Log::logCritical("You forgot to add this renderer to createImageFromZip :grin: :grin:", true);
+        break;
+    }
+    }
+
+    if (rawImg == nullptr) {
+        return nonstd::make_unexpected("Failed to create image.");
+    } else if (rawImg->error.has_value()) {
         const std::string errMessage = rawImg->error.value();
         delete rawImg;
         return nonstd::make_unexpected(errMessage);

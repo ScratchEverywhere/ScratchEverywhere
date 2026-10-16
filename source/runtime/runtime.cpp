@@ -20,7 +20,7 @@
 #include <math.h>
 #include <memory>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
@@ -108,7 +108,7 @@ bool Scratch::initializeRuntime() {
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
-    if (!Render::Init()) {
+    if (!Render::init()) {
         return false;
     }
 #endif
@@ -142,10 +142,11 @@ void Scratch::initializeScratchProject() {
 
     Scratch::tempo = 60;
 
-#ifdef RENDERER_CITRO2D
-    // Render first before running any blocks, otherwise 3DS rendering may get weird
-    Render::renderSprites();
-#endif
+    if (Render::currentRenderer == Renderers::Citro2D) {
+        // Render first before running any blocks, otherwise 3DS rendering may get weird
+        Render::renderSprites();
+    }
+
     Render::setRenderScale();
 
     Scratch::greenFlagClicked();
@@ -740,13 +741,11 @@ void Scratch::stopClicked() {
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-#ifdef RENDERER_CITRO2D
-    if (Render::renderMode == Render::BOTH_SCREENS) {
+    if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
         // 3DS res with both screens combined
         windowWidth = 400;
         windowHeight = 480;
     }
-#endif
 
     float screenAspect = static_cast<float>(windowWidth) / windowHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -780,11 +779,9 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
         float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
         scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
         scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
-#ifdef RENDERER_CITRO2D
-        if (Render::renderMode == Render::BOTH_SCREENS) {
+        if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
             scratchY -= 120;
         }
-#endif
     }
 
     return std::make_pair(scratchX, scratchY);

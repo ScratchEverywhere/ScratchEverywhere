@@ -4,7 +4,7 @@
 #include <iostream>
 #include <log.hpp>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
@@ -206,16 +206,14 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    if (Render::debugMode) {
-        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
-        std::ofstream logFile;
-        logFile.open(filePath, std::ios::app);
-        if (logFile.is_open()) {
-            logFile << message << std::endl;
-            logFile.close();
-        } else {
-            std::cerr << "Could not open log file: " << filePath << std::endl;
-        }
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
     }
 }
 

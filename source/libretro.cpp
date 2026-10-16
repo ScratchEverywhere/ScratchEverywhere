@@ -3,8 +3,6 @@
 #include <runtime.hpp>
 #include <window.hpp>
 
-extern WindowSE *globalWindow;
-
 struct retro_hw_render_callback hw_render;
 static retro_audio_sample_t audio_sample_cb;
 static retro_audio_sample_batch_t audio_sample_batch_cb;
@@ -13,8 +11,8 @@ static retro_environment_t environ_cb;
 #include <cstring>
 
 #include <audiostack.hpp>
-#include <render.hpp>
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderer.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -92,8 +90,9 @@ static void update_variables(void) {
         }
 
         if (old_w != current_width || old_h != current_height) {
-            if (globalWindow) {
-                globalWindow->resize(current_width, current_height);
+            WindowSE *window = Render::getGlobalRenderer()->window;
+            if (window) {
+                window->resize(current_width, current_height);
             }
 
             struct retro_system_av_info av_info;
@@ -156,7 +155,7 @@ static void context_reset(void) {
 
     update_variables();
 
-    if (!Render::Init()) return;
+    if (!Render::init()) return;
 
     if (!Unzip::load()) return;
 
