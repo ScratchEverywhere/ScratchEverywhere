@@ -50,7 +50,7 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
     add(AudioBackends::Libretro);
 #endif
 #ifdef AUDIO_WINMM
-    add(AudioBackends::Winmm);
+    add(AudioBackends::WinMM);
 #endif
 #ifdef AUDIO_3DS
     add(AudioBackends::N3DS);
@@ -125,7 +125,7 @@ bool SoundPlayer::init() {
         }
         case AudioBackends::WinMM: {
 #ifdef AUDIO_WINMM
-            currentSoundBackend = AudioBackends::Winmm;
+            currentSoundBackend = AudioBackends::WinMM;
             globalSoundDevice = new SoundDevice_Winmm;
             break;
 #else
