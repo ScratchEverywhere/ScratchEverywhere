@@ -147,6 +147,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_D3D9)
+    case Renderers::D3D9:
+        rawImg = new Image_D3D9(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_HEADLESS)
     case Renderers::Headless:
         rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -225,6 +230,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_GDI)
     case Renderers::GDI:
         rawImg = new Image_GDI(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_D3D9)
+    case Renderers::D3D9:
+        rawImg = new Image_D3D9(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_HEADLESS)
