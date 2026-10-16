@@ -5,7 +5,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <windows.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+unsigned long GetFileAttributesA(const char *lpFileName);
+#ifdef __cplusplus
+}
+#endif
+
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES ((unsigned long)-1)
+#endif
+#ifndef FILE_ATTRIBUTE_DIRECTORY
+#define FILE_ATTRIBUTE_DIRECTORY 0x00000010
+#endif
 
 static inline int close(int fd) {
     return -1;
@@ -132,7 +146,7 @@ static inline int stat(const char *pathname, struct stat *statbuf) {
     for (int i = 0; fixed_pathname[i]; i++) {
         if (fixed_pathname[i] == '/') fixed_pathname[i] = '\\';
     }
-    DWORD attr = GetFileAttributesA(fixed_pathname);
+    unsigned long attr = GetFileAttributesA(fixed_pathname);
     if (attr == INVALID_FILE_ATTRIBUTES) return -1;
     statbuf->st_mode = 0;
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {

@@ -7,9 +7,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
-# CPU expensive and nxdk implementation has type conflicts; keep off for now
-set(SE_DECTALK_DEFAULT OFF)
-
+set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
 set(SE_BUNDLE_DEFAULT ON)
 set(SE_ALLOW_BUNDLE ON)
