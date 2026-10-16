@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # keep this here; allows us to automatically build nxdk during the build process
 # instead of failing due to missing libs
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(XBOX)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 endif()
