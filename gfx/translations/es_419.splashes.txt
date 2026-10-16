@@ -51,6 +51,7 @@ Tengo picazón en todos lados, que debería- ah, sí...
 ¡Port de SDL1 por Leap!
 ¡Port de OpenGL por Leap!
 ¡Port de libretro por Nishi!
+¡Port de Xbox por MikeDEV!
 ¡Música del menú compuesta por Dogo6647!
 ¡Desde 2025!
 ¡C++!
