@@ -6,7 +6,7 @@
 // also make sure the order is the same between AudioBackends and AudioBackendNames
 enum class SE_EXPORT AudioBackends : uint8_t {
     Libpulse,
-    Winmm,
+    WinMM,
     N3DS,
     NDS,
     SDL3,
@@ -20,7 +20,7 @@ enum class SE_EXPORT AudioBackends : uint8_t {
 
 constexpr std::array AudioBackendNames = {
     "Libpulse",
-    "Windows Native",
+    "Windows Native (WinMM)",
     "3DS",
     "NDS",
     "SDL3",

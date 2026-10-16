@@ -123,7 +123,7 @@ bool SoundPlayer::init() {
             continue;
 #endif
         }
-        case AudioBackends::Winmm: {
+        case AudioBackends::WinMM: {
 #ifdef AUDIO_WINMM
             currentSoundBackend = AudioBackends::Winmm;
             globalSoundDevice = new SoundDevice_Winmm;

@@ -26,9 +26,9 @@ enum class SE_EXPORT Renderers : uint8_t {
 };
 
 constexpr std::array RendererNames = {
-    "Direct 3D 9",
+    "Direct3D 9",
     "OpenGL Core",
-    "OpenGL",
+    "OpenGL Legacy",
     "SDL3",
     "SDL2",
     "Citro2D",
