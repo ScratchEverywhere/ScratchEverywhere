@@ -420,7 +420,7 @@ void SettingsMenu::cleanup() {
     }
 
     // save settings
-    nlohmann::json json;
+    nlohmann::json json = SettingsManager::getConfigSettings();
     json["EnableUsername"] = UseCostumeUsername;
     json["Username"] = username;
     json["UseProjectsPath"] = UseProjectsPath;
