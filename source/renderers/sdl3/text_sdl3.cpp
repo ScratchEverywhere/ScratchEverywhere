@@ -11,6 +11,9 @@ TextObjectSDL3::TextObjectSDL3(std::string txt, double posX, double posY, std::s
 TextObjectSDL3::~TextObjectSDL3() = default;
 
 void TextObjectSDL3::uploadAtlas(FontGeneration &gen) {
+    if (!renderer && Render::getGlobalRenderer()) {
+        renderer = static_cast<Renderer_SDL3 *>(Render::getGlobalRenderer())->Sdlrenderer;
+    }
     if (!renderer) return;
 
     std::vector<uint8_t> rgba((size_t)gen.atlasWidth * (size_t)gen.atlasHeight * 4);
@@ -40,6 +43,9 @@ void TextObjectSDL3::uploadAtlas(FontGeneration &gen) {
 }
 
 void TextObjectSDL3::render(int xPos, int yPos) {
+    if (!renderer && Render::getGlobalRenderer()) {
+        renderer = static_cast<Renderer_SDL3 *>(Render::getGlobalRenderer())->Sdlrenderer;
+    }
     if (!renderer || !fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
 
     FontGeneration &gen = touchGeneration();

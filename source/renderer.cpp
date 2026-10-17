@@ -359,6 +359,11 @@ void Render::penClear() {
         globalRenderer->penClear();
 }
 
+void Render::cleanupPen() {
+    if (globalRenderer)
+        globalRenderer->cleanupPen();
+}
+
 namespace {
 #if defined(__PC__)
 constexpr float monitorCornerRadiusFactor = 3.0f;

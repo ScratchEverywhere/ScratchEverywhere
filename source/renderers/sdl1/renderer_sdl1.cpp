@@ -288,6 +288,13 @@ void Renderer_SDL1::penClear() {
     SDL_FillRect(penSurface, NULL, SDL_MapRGBA(penSurface->format, 0, 0, 0, 0));
 }
 
+void Renderer_SDL1::cleanupPen() {
+    if (penSurface != nullptr) {
+        SDL_FreeSurface(penSurface);
+        penSurface = nullptr;
+    }
+}
+
 void Renderer_SDL1::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         SDL_FillRect(mainSurface, NULL, SDL_MapRGB(mainSurface->format, colorR, colorG, colorB));

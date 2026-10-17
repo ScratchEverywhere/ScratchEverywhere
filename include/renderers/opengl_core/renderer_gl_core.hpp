@@ -44,4 +44,5 @@ class SE_EXPORT Renderer_GLCore : public Renderer {
     void penDotAccurate(Sprite *sprite) override;
     void penStamp(Sprite *sprite) override;
     void penClear() override;
+    void cleanupPen() override;
 };

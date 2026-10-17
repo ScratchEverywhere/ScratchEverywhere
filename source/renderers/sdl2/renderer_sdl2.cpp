@@ -494,6 +494,15 @@ void Renderer_SDL2::penClear() {
     if (!penVerts.empty()) penVerts.clear();
 }
 
+void Renderer_SDL2::cleanupPen() {
+    if (penTexture != nullptr) {
+        SDL_DestroyTexture(penTexture);
+        penTexture = nullptr;
+    }
+    penVerts.clear();
+    penVerts.shrink_to_fit();
+}
+
 void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, 255);

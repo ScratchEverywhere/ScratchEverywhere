@@ -260,6 +260,13 @@ void Renderer_GL::penClear() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
 }
 
+void Renderer_GL::cleanupPen() {
+    if (penTexture != 0) {
+        glDeleteTextures(1, &penTexture);
+        penTexture = 0;
+    }
+}
+
 void Renderer_GL::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     penMoveAccurate(x1, y1, x2, y2, sprite);
 }

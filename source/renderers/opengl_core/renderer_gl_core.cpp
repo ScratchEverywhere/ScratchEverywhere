@@ -735,6 +735,11 @@ void Renderer_GLCore::penClear() {
     penNeedsResolve = true;
 }
 
+void Renderer_GLCore::cleanupPen() {
+    discardPenBatch();
+    destroyPenFBO();
+}
+
 void Renderer_GLCore::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     penMoveAccurate(x1, y1, x2, y2, sprite);
 }

@@ -379,6 +379,18 @@ void Renderer_C2D::penClear() {
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
 }
 
+void Renderer_C2D::cleanupPen() {
+    if (penRenderTarget != nullptr) {
+        C3D_RenderTargetDelete(penRenderTarget);
+        C3D_TexDelete(penImage.tex);
+        if (penTex != nullptr) {
+            delete penTex;
+            penTex = nullptr;
+        }
+        penRenderTarget = nullptr;
+    }
+}
+
 void Renderer_C2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);

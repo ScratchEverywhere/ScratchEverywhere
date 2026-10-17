@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstddef>
 #include <image.hpp>
+#include <log.hpp>
 #include <os.hpp>
 #include <string>
 #include <unordered_map>
@@ -142,21 +143,21 @@ void *Image_SDL3::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
-#ifdef __XBOX__
-    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, imgData.width, imgData.height);
-#else
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-#endif
 
     if (!texture) {
-        return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
+        const std::string err = "Failed to create texture: " + std::string(SDL_GetError());
+        Log::logError(err);
+        return nonstd::make_unexpected(err);
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
-        return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
+        const std::string err = "Failed to update texture: " + std::string(SDL_GetError());
+        Log::logError(err);
+        return nonstd::make_unexpected(err);
     }
 
     return {};

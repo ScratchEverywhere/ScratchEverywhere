@@ -36,4 +36,5 @@ class SE_EXPORT Renderer_C2D : public Renderer {
     void penDotAccurate(Sprite *sprite) override;
     void penStamp(Sprite *sprite) override;
     void penClear() override;
+    void cleanupPen() override;
 };

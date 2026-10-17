@@ -100,6 +100,7 @@ class SE_EXPORT Renderer {
     virtual void penDotAccurate(Sprite *sprite) = 0;
     virtual void penStamp(Sprite *sprite) = 0;
     virtual void penClear() = 0;
+    virtual void cleanupPen() {}
 };
 
 extern Renderer *globalRenderer;
@@ -304,4 +305,9 @@ void penStamp(Sprite *sprite);
  * Called when the pen canvas needs to be cleared.
  */
 void penClear();
+
+/**
+ * Cleans up the pen.
+ */
+void cleanupPen();
 } // namespace Render
