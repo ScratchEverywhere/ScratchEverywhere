@@ -131,4 +131,38 @@ static inline int WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWSTR lpWi
     return toCopy;
 }
 
+static inline DWORD GetEnvironmentVariableA(LPCSTR lpName, LPSTR lpBuffer, DWORD nSize) {
+    (void)lpName;
+    (void)lpBuffer;
+    (void)nSize;
+    return 0;
+}
+
+static inline DWORD GetEnvironmentVariableW(LPCWSTR lpName, LPWSTR lpBuffer, DWORD nSize) {
+    (void)lpName;
+    (void)lpBuffer;
+    (void)nSize;
+    return 0;
+}
+
+#ifndef MOVEFILE_REPLACE_EXISTING
+#define MOVEFILE_REPLACE_EXISTING 0x00000001
+#endif
+#ifndef MOVEFILE_COPY_ALLOWED
+#define MOVEFILE_COPY_ALLOWED     0x00000002
+#endif
+#ifndef MOVEFILE_DELAY_UNTIL_REBOOT
+#define MOVEFILE_DELAY_UNTIL_REBOOT 0x00000004
+#endif
+#ifndef MOVEFILE_WRITE_THROUGH
+#define MOVEFILE_WRITE_THROUGH    0x00000008
+#endif
+
+static inline BOOL MoveFileExA(LPCSTR lpExistingFileName, LPCSTR lpNewFileName, DWORD dwFlags) {
+    if (dwFlags & MOVEFILE_REPLACE_EXISTING) {
+        DeleteFileA(lpNewFileName);
+    }
+    return MoveFileA(lpExistingFileName, lpNewFileName);
+}
+
 #endif

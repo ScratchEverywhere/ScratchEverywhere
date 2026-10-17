@@ -170,6 +170,9 @@ static inline int fstat(int fd, struct stat *statbuf) {
 #ifndef _stat
 #define _stat stat
 #endif
+#ifndef _fstat
+#define _fstat fstat
+#endif
 
 static inline int mkdir(const char *pathname, mode_t mode) {
     return -1;

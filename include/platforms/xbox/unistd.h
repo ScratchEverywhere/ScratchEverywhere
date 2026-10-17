@@ -24,6 +24,19 @@ static inline int close(int fd) {
     return -1;
 }
 
+#ifndef _read
+#define _read read
+#endif
+#ifndef _write
+#define _write write
+#endif
+#ifndef _lseek
+#define _lseek lseek
+#endif
+#ifndef _close
+#define _close close
+#endif
+
 static inline FILE *fdopen(int fd, const char *mode) {
     return NULL;
 }

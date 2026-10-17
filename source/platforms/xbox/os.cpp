@@ -55,26 +55,11 @@ bool OS::init() {
     _mkdir("E:\\ScratchEverywhere");
     remove("E:\\ScratchEverywhere\\debug.txt");
 
-	Log::log("Initializing network...");
-    int status = nxNetInit(NULL);
-    if (status != 0) {
-        Log::log("Network initialization failed: " + std::to_string(status));
-        return false;
-    }
-
-    if (g_pnetif && netif_ip4_addr(g_pnetif)) {
-        Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
-        Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
-        Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
-    }
-
 	Log::log("OS initialized.");
-	Sleep(3000);
     return true;
 }
 
 void OS::deinit() {
-	nxNetShutdown();
 	return;
 }
 
@@ -118,10 +103,28 @@ bool OS::isOnline() {
 }
 
 bool OS::initWifi() {
-    return isOnline();
+
+	if (OS::isOnline()) {
+		return true;
+	}
+
+	Log::log("Initializing network...");
+    int status = nxNetInit(NULL);
+    if (status != 0) {
+        Log::log("Network initialization failed: " + std::to_string(status));
+        return false;
+    }
+
+    if (g_pnetif && netif_ip4_addr(g_pnetif)) {
+        Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
+        Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
+        Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
+    }
+    return true;
 }
 
 void OS::deInitWifi() {
+	nxNetShutdown();
     return;
 }
 

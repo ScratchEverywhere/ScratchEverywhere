@@ -22,6 +22,7 @@
 #include <direct.h>
 #include <hal/debug.h>
 #include <stdio.h>
+#include <windows.h>
 #endif
 
 /**
@@ -79,7 +80,15 @@ void Log::writeToFile(std::string message) {
 void Log::deleteLogFile() {
 }
 #elif defined(__XBOX__)
+static CRITICAL_SECTION log_cs;
+static bool log_cs_inited = false;
+
 static void xbox_append_log(const char *prefix, const std::string &msg) {
+    if (!log_cs_inited) {
+        InitializeCriticalSection(&log_cs);
+        log_cs_inited = true;
+    }
+    EnterCriticalSection(&log_cs);
     if (prefix && strlen(prefix) > 0) {
         debugPrint("%s %s\n", prefix, msg.c_str());
     } else {
@@ -96,6 +105,7 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
         fflush(f);
         fclose(f);
     }
+    LeaveCriticalSection(&log_cs);
 }
 
 extern "C" void _xbox_assert(char const *const expression, char const *const file_name, char const *const function_name, unsigned long line) {
@@ -106,6 +116,7 @@ extern "C" void _xbox_assert(char const *const expression, char const *const fil
              file_name ? file_name : "",
              line);
     xbox_append_log("<ASSERT>", buf);
+    Sleep(200);
     __asm__("cli\n1:\nhlt\njmp 1b\n");
 }
 

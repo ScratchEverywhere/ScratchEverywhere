@@ -1,8 +1,24 @@
 diff --git a/lib/xboxrt/libc_extensions/stdlib_ext_.c b/lib/xboxrt/libc_extensions/stdlib_ext_.c
-index e07f0f6..0c8b4cb 100644
+index e07f0f6..c486096 100644
 --- a/lib/xboxrt/libc_extensions/stdlib_ext_.c
 +++ b/lib/xboxrt/libc_extensions/stdlib_ext_.c
-@@ -86,22 +86,195 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
+@@ -28,11 +28,12 @@ void init_rand_s (void)
+ 
+     // Hash the EEPROM
+     unsigned char eeprom_buffer[256];
+-    ULONG bytes_read;
++    ULONG bytes_read = 0;
+     ULONG eeprom_type;
+     ExQueryNonVolatileSetting(0xFFFF, &eeprom_type, eeprom_buffer, 256, &bytes_read);
+-    assert(bytes_read == 256);
+-    XcSHAUpdate(rand_buffer, eeprom_buffer, 256);
++    if (bytes_read > 0) {
++        XcSHAUpdate(rand_buffer, eeprom_buffer, bytes_read);
++    }
+ 
+     update_rand_buffer();
+ }
+@@ -86,22 +87,195 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
  }
  
  
@@ -316,3 +332,16 @@ index c461d19dd..702c3dbe7 100644
  }
  
  #elif defined(CLOCK_MONOTONIC)
+
+diff --git a/lib/libcxx/src/support/win32/thread_win32.cpp b/lib/libcxx/src/support/win32/thread_win32.cpp
+--- a/lib/libcxx/src/support/win32/thread_win32.cpp
++++ b/lib/libcxx/src/support/win32/thread_win32.cpp
+@@ -205,7 +205,7 @@ int __libcpp_thread_create(__libcpp_thread_t *__t, void *(*__func)(void *),
+   __data->__func = __func;
+   __data->__arg = __arg;
+ 
+-  *__t = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0,
++  *__t = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 262144,
+                                                  __libcpp_beginthreadex_thunk,
+                                                  __data, 0, nullptr));
+

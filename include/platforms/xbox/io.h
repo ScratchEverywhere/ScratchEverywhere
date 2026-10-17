@@ -35,6 +35,22 @@ static inline char *_mktemp(char *template_name) {
     return NULL;
 }
 
+#ifndef _read
+#define _read read
+#endif
+#ifndef _write
+#define _write write
+#endif
+#ifndef _lseek
+#define _lseek lseek
+#endif
+#ifndef _open
+#define _open open
+#endif
+#ifndef _close
+#define _close close
+#endif
+
 #ifndef mktemp
 #define mktemp _mktemp
 #endif

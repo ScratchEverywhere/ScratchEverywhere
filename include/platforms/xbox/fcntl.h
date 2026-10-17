@@ -3,6 +3,7 @@
 #define _XBOX_FCNTL_H
 
 #include <sys/stat.h>
+#include <stdarg.h>
 
 #ifndef O_RDONLY
 #define O_RDONLY 00
@@ -29,8 +30,41 @@
 #define O_NOFOLLOW 0
 #endif
 
+#ifndef F_GETFL
+#define F_GETFL 3
+#endif
+#ifndef F_SETFL
+#define F_SETFL 4
+#endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 1
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int lwip_fcntl(int s, int cmd, int val);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef fcntl
+#undef fcntl
+#endif
+
+static inline int fcntl(int s, int cmd, ...) {
+    int val = 0;
+    va_list va;
+    va_start(va, cmd);
+    val = va_arg(va, int);
+    va_end(va);
+    return lwip_fcntl(s, cmd, val);
+}
+
 static inline int open(const char *pathname, int flags, ...) {
+    (void)pathname;
+    (void)flags;
     return -1;
 }
 
-#endif
+#endif /* _XBOX_FCNTL_H */
