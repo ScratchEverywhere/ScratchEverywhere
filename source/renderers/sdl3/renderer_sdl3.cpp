@@ -40,6 +40,24 @@ SDL_Texture *penTexture = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
+#ifdef __XBOX__
+static void flushPenVertsBatch(SDL_Renderer *renderer, SDL_Texture *penTex, SDL_Texture *mainTarget) {
+    if (penVerts.empty() || !penTex) return;
+    SDL_SetRenderTarget(renderer, penTex);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    constexpr size_t BATCH_SIZE = 2048 * 3; // 6144 vertices
+    for (size_t i = 0; i < penVerts.size(); i += BATCH_SIZE) {
+        size_t count = std::min(BATCH_SIZE, penVerts.size() - i);
+        SDL_RenderGeometry(renderer, nullptr, &penVerts[i], static_cast<int>(count), nullptr, 0);
+        SDL_FlushRenderer(renderer);
+    }
+    penVerts.clear();
+    SDL_SetRenderTarget(renderer, mainTarget);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+}
+#else
+#endif
+
 void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -280,6 +298,12 @@ void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, 
         penVerts.push_back(cv4);
         penVerts.push_back(cv5);
     }
+#ifdef __XBOX__
+    if (penVerts.size() >= 6144) {
+        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    }
+#else
+#endif
 }
 
 void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
@@ -327,6 +351,12 @@ void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
         penVerts.push_back(v1);
         penVerts.push_back(v2);
     }
+#ifdef __XBOX__
+    if (penVerts.size() >= 6144) {
+        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    }
+#else
+#endif
 }
 
 void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -378,6 +408,12 @@ void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Spri
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
+#ifdef __XBOX__
+    if (penVerts.size() >= 6144) {
+        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    }
+#else
+#endif
 }
 
 void Renderer_SDL3::penDotFast(Sprite *sprite) {
@@ -418,11 +454,18 @@ void Renderer_SDL3::penDotFast(Sprite *sprite) {
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
+#ifdef __XBOX__
+    if (penVerts.size() >= 6144) {
+        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    }
+#else
+#endif
 }
 
 void Renderer_SDL3::penStamp(Sprite *sprite) {
 #ifdef __XBOX__
     if (!penTexture) return;
+    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
 #else
 #endif
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
@@ -436,12 +479,15 @@ void Renderer_SDL3::penStamp(Sprite *sprite) {
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
 
     // clear line draw queue so stamp can be rendered on top
+#ifdef __XBOX__
+#else
     if (!penVerts.empty()) {
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
         SDL_RenderGeometry(Sdlrenderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
+#endif
 
     Image_SDL3 *image = reinterpret_cast<Image_SDL3 *>(imgFind->second.get());
 
@@ -626,8 +672,8 @@ void Renderer_SDL3::renderSprites() {
 void Renderer_SDL3::renderPenLayer() {
 #ifdef __XBOX__
     if (!penTexture) return;
+    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
 #else
-#endif
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
@@ -638,6 +684,7 @@ void Renderer_SDL3::renderPenLayer() {
         SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
     }
+#endif
 
     SDL_FRect renderRect = {0, 0, 0, 0};
 
