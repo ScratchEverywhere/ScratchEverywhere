@@ -210,6 +210,13 @@ SCRATCH_BLOCK(control, stop) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, stop, {"STOP_OPTION", BytecodeStackKind::String});
+SCRATCH_BYTECODE_BLOCK(control, stop) {
+    if (Scratch::getFieldValue(*block, "STOP_OPTION") != "this script") return false;
+
+    outFirstInstr = compiler.here();
+    compiler.emit(BytecodeOp::Halt);
+    return true;
+}
 
 SCRATCH_BLOCK(control, start_as_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
@@ -217,6 +224,10 @@ SCRATCH_BLOCK(control, start_as_clone) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(control, start_as_clone);
+SCRATCH_BYTECODE_BLOCK(control, start_as_clone) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_SHADOW_BLOCK(control_create_clone_of_menu, CLONE_OPTION)
 

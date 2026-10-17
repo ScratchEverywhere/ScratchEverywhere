@@ -6,21 +6,37 @@ SCRATCH_BLOCK(event, whenflagclicked) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenflagclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenflagclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenbackdropswitchesto);
+SCRATCH_BYTECODE_BLOCK(event, whenbackdropswitchesto) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_BLOCK(event, whenthisspriteclicked) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenthisspriteclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenthisspriteclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_BLOCK(event, whenstageclicked) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenstageclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenstageclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_BLOCK_POSITIONAL_S_VOID(event, broadcast) {
     BlockExecutor::startBroadcastHats(str);
@@ -74,10 +90,18 @@ SCRATCH_BLOCK(event, whenkeypressed) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenkeypressed);
+SCRATCH_BYTECODE_BLOCK(event, whenkeypressed) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(event, whenbroadcastreceived);
+SCRATCH_BYTECODE_BLOCK(event, whenbroadcastreceived) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

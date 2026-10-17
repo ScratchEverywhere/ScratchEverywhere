@@ -321,14 +321,15 @@ SCRATCH_BLOCK_BOOLEAN(sensing, mousedown) {
 }
 SCRATCH_BLOCK_SIGNATURE(sensing, mousedown);
 
-SCRATCH_BLOCK_STRING(sensing, username) {
+SCRATCH_BLOCK_POSITIONAL_SPRITE_S(sensing, username) {
 #ifdef ENABLE_CLOUDVARS
-    if (Scratch::cloudProject) *outValue = Scratch::cloudUsername;
-    else
+    if (Scratch::cloudProject) return Scratch::cloudUsername;
 #endif
-        if (Scratch::useCustomUsername)
-        *outValue = Scratch::customUsername;
-    else *outValue = OS::getUsername();
+    if (Scratch::useCustomUsername) return Scratch::customUsername;
+    return OS::getUsername();
+}
+SCRATCH_BLOCK_STRING(sensing, username) {
+    *outValue = block_sensing_username_pos_(sprite);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(sensing, username);

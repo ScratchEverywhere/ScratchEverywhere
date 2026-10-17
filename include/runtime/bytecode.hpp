@@ -116,6 +116,10 @@ enum class BytecodeOp : uint8_t {
     LengthOfVar,
     MathOp,
 
+    ValueEquals,
+    ValueLess,
+    ValueGreater,
+    Random,
     NumEquals,
     NumLess,
     NumGreater,

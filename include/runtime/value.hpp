@@ -27,12 +27,31 @@ class SE_EXPORT StringPool {
                                           INDEXED };
         Utf16State utf16State = Utf16State::NOT_BUILT;
         std::vector<uint32_t> utf16Offsets;
+
+        enum class NumericState : uint8_t { NOT_COMPUTED, NUMERIC, NOT_NUMERIC };
+        NumericState numericState = NumericState::NOT_COMPUTED;
+        bool hasDot = false;
+
+        size_t hash = 0;
+    };
+
+    struct Key {
+        std::string_view sv;
+        size_t hash;
+    };
+    struct KeyHash {
+        size_t operator()(const Key &k) const noexcept { return k.hash; }
+    };
+    struct KeyEqual {
+        bool operator()(const Key &a, const Key &b) const noexcept {
+            return a.hash == b.hash && a.sv.size() == b.sv.size() && (a.sv.data() == b.sv.data() || a.sv == b.sv);
+        }
     };
 
     static void ensureUtf16(Entry &entry);
 
     static std::deque<Entry> &storageRef();
-    static std::unordered_map<std::string_view, uint32_t> &lookupRef();
+    static std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> &lookupRef();
     static std::vector<uint32_t> &freeListRef();
 
   public:
@@ -43,6 +62,8 @@ class SE_EXPORT StringPool {
 
     static size_t utf16Length(uint32_t id);
     static std::string utf16CharAt(uint32_t id, size_t index);
+
+    static bool isNumeric(uint32_t id, bool &hasDot);
     static void resetAll();
 };
 

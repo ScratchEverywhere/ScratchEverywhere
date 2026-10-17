@@ -203,6 +203,14 @@ const char *mnemonic(BytecodeOp op) {
         return "LetterOf";
     case BytecodeOp::LengthOf:
         return "LengthOf";
+    case BytecodeOp::ValueEquals:
+        return "ValueEquals";
+    case BytecodeOp::ValueLess:
+        return "ValueLess";
+    case BytecodeOp::ValueGreater:
+        return "ValueGreater";
+    case BytecodeOp::Random:
+        return "Random";
     case BytecodeOp::LetterOfVar:
         return "LetterOfVar";
     case BytecodeOp::LengthOfVar:

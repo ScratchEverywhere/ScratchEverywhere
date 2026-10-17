@@ -21,10 +21,10 @@ std::deque<StringPool::Entry> &StringPool::storageRef() {
     return s;
 }
 
-std::unordered_map<std::string_view, uint32_t> &StringPool::lookupRef() {
-    static std::unordered_map<std::string_view, uint32_t> m = [] {
-        std::unordered_map<std::string_view, uint32_t> mm;
-        mm.emplace(std::string_view(storageRef()[0].data), 0u);
+std::unordered_map<StringPool::Key, uint32_t, StringPool::KeyHash, StringPool::KeyEqual> &StringPool::lookupRef() {
+    static std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> m = [] {
+        std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> mm;
+        mm.emplace(Key{std::string_view(storageRef()[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
         return mm;
     }();
     return m;
@@ -42,7 +42,8 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
     auto &lookup = lookupRef();
     auto &freeSlots = freeListRef();
 
-    auto it = lookup.find(str);
+    const size_t hash = std::hash<std::string_view>{}(str);
+    auto it = lookup.find(Key{str, hash});
     if (it != lookup.end()) {
         uint32_t id = it->second;
         pool[id].refCount++;
@@ -60,7 +61,8 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         pool.push_back({std::string(str), 1});
     }
 
-    lookup.emplace(std::string_view(pool[id].data), id);
+    pool[id].hash = hash;
+    lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
     return id;
 }
 
@@ -81,8 +83,9 @@ void StringPool::release(uint32_t id) {
     if (e.refCount == 0) return;
 
     if (--e.refCount == 0) {
-        lookup.erase(std::string_view(e.data));
+        lookup.erase(Key{std::string_view(e.data), e.hash});
         e.data.clear();
+        e.numericState = Entry::NumericState::NOT_COMPUTED;
         e.utf16State = Entry::Utf16State::NOT_BUILT;
         std::vector<uint32_t>().swap(e.utf16Offsets);
         freeSlots.push_back(id);
@@ -99,6 +102,17 @@ void StringPool::ensureUtf16(Entry &entry) {
     }
     entry.utf16Offsets = Math::utf16Index(entry.data);
     entry.utf16State = Entry::Utf16State::INDEXED;
+}
+
+bool StringPool::isNumeric(uint32_t id, bool &hasDot) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) {
+        e.numericState = Math::isNumber(e.data) ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
+        e.hasDot = e.data.find('.') != std::string::npos;
+    }
+    hasDot = e.hasDot;
+    return e.numericState == Entry::NumericState::NUMERIC;
 }
 
 size_t StringPool::utf16Length(uint32_t id) {
@@ -132,7 +146,7 @@ void StringPool::resetAll() {
     pool.clear();
     pool.push_back({"", 1});
     lookup.clear();
-    lookup.emplace(std::string_view(pool[0].data), 0u);
+    lookup.emplace(Key{std::string_view(pool[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
     freeSlots.clear();
 }
 
@@ -217,9 +231,8 @@ bool Value::isNumeric() const {
         return (flags & FLAG_IS_NUMERIC) != 0;
     }
 
-    const std::string &str = StringPool::get(storage.stringId);
-    bool numeric = Math::isNumber(str);
-    bool hasDot = str.find('.') != std::string::npos;
+    bool hasDot;
+    const bool numeric = StringPool::isNumeric(storage.stringId, hasDot);
 
     flags |= FLAG_NUMERIC_COMPUTED;
     if (numeric) flags |= FLAG_IS_NUMERIC;
@@ -411,11 +424,10 @@ bool Value::operator==(const Value &other) const {
     std::string_view svA = asStringView(scratchA);
     std::string_view svB = other.asStringView(scratchB);
 
-    if (!std::all_of(svA.begin(), svA.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN() &&
+        !std::all_of(svA.begin(), svA.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
         !std::all_of(svB.begin(), svB.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
-        if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-            return asDouble() == other.asDouble();
-        }
+        return asDouble() == other.asDouble();
     }
 
     return caseInsensitiveEqual(svA, svB);

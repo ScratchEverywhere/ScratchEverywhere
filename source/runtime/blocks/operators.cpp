@@ -87,9 +87,14 @@ SCRATCH_BYTECODE_BLOCK(operator, random) {
 
     bool fromIsIntLiteral = fromInput != nullptr && fromInput->inputType == ParsedInput::VALUE && Value(fromInput->value).isScratchInt();
     bool toIsIntLiteral = toInput != nullptr && toInput->inputType == ParsedInput::VALUE && Value(toInput->value).isScratchInt();
-    if (!fromIsIntLiteral || !toIsIntLiteral) return false;
-
     outFirstInstr = compiler.here();
+    if (!fromIsIntLiteral || !toIsIntLiteral) {
+        compiler.compileInput(block, "FROM", BytecodeStackKind::Value);
+        compiler.compileInput(block, "TO", BytecodeStackKind::Value);
+        compiler.emit(BytecodeOp::Random);
+        return true;
+    }
+
     compiler.compileInput(block, "FROM", BytecodeStackKind::Number);
     compiler.compileInput(block, "TO", BytecodeStackKind::Number);
     compiler.emit(BytecodeOp::RandomInt);
@@ -303,7 +308,10 @@ SCRATCH_BYTECODE_BLOCK(operator, equals) {
         compiler.emit(BytecodeOp::StrEquals);
         return true;
     }
-    return false;
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueEquals);
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, gt) {
@@ -331,7 +339,10 @@ SCRATCH_BYTECODE_BLOCK(operator, gt) {
         compiler.emit(BytecodeOp::StrGreater);
         return true;
     }
-    return false;
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueGreater);
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, lt) {
@@ -359,7 +370,10 @@ SCRATCH_BYTECODE_BLOCK(operator, lt) {
         compiler.emit(BytecodeOp::StrLess);
         return true;
     }
-    return false;
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueLess);
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, and) {

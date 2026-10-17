@@ -358,7 +358,32 @@ class LowerCaseCursor {
 };
 } // namespace
 
+namespace {
+constexpr unsigned char asciiLower(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+
+bool isAscii(std::string_view s) {
+    for (unsigned char c : s) {
+        if (c & 0x80) return false;
+    }
+    return true;
+}
+}
+
 bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
+    if (a.size() == b.size()) {
+        size_t i = 0;
+        for (; i < a.size(); i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            if (x != y && asciiLower(x) != asciiLower(y)) return false;
+        }
+        if (i == a.size()) return true;
+    } else if (isAscii(a) && isAscii(b)) {
+        return false;
+    }
+
     LowerCaseCursor ca(a), cb(b);
     uint32_t cpA, cpB;
     for (;;) {
@@ -371,6 +396,18 @@ bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
 }
 
 bool Math::caseInsensitiveLess(std::string_view a, std::string_view b) {
+    {
+        const size_t n = std::min(a.size(), b.size());
+        size_t i = 0;
+        for (; i < n; i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            const unsigned char lx = asciiLower(x), ly = asciiLower(y);
+            if (lx != ly) return lx < ly;
+        }
+        if (i == n) return a.size() < b.size();
+    }
+
     LowerCaseCursor ca(a), cb(b);
     uint32_t cpA, cpB;
     for (;;) {

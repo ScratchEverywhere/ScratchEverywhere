@@ -1074,6 +1074,44 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return true;
     }
 
+    case BytecodeOp::ValueEquals:
+    case BytecodeOp::ValueLess:
+    case BytecodeOp::ValueGreater: {
+        const Value op2 = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+        const Value op1 = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+        thread.boolStack.push_back(instr.op == BytecodeOp::ValueEquals ? op1 == op2
+                                   : instr.op == BytecodeOp::ValueLess  ? op1 < op2
+                                                                        : op1 > op2);
+        thread.pc++;
+        return true;
+    }
+
+    case BytecodeOp::Random: {
+        Value toValue = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+        Value fromValue = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+
+        const double a = fromValue.get<double>();
+        const double b = toValue.get<double>();
+        double result;
+        if (a == b) {
+            result = a;
+        } else {
+            const double from = std::min(a, b);
+            const double to = std::max(a, b);
+            if (fromValue.isScratchInt() && toValue.isScratchInt())
+                result = from + (rand() % static_cast<int>(to + 1 - from));
+            else
+                result = from + rand() * (to - from) / (RAND_MAX + 1.0);
+        }
+        thread.numberStack.push_back(result);
+        thread.pc++;
+        return true;
+    }
+
     case BytecodeOp::RandomInt: {
         double b = thread.numberStack.back();
         thread.numberStack.pop_back();
@@ -1283,7 +1321,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;
 
     Timer executionTimer(false);
-    if (Scratch::warpTimer) executionTimer.start();
+    bool timerStarted = false;
     unsigned int blocksSinceTimeCheck = 0;
     constexpr unsigned int timeCheckInterval = 64;
 
@@ -1292,7 +1330,10 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
         if (Scratch::warpTimer && thread.withoutScreenRefresh && ++blocksSinceTimeCheck >= timeCheckInterval) {
             blocksSinceTimeCheck = 0;
-            if (executionTimer.getTimeMs() > 500) break;
+            if (!timerStarted) {
+                executionTimer.start();
+                timerStarted = true;
+            } else if (executionTimer.getTimeMs() > 500) break;
         }
     }
 }
