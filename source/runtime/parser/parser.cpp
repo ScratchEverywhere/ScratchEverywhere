@@ -94,8 +94,6 @@ void Parser::initMist() {
 
     std::ostringstream projectID;
     projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
-    std::string cloudURL = SettingsManager::getConfigSettings().value("CloudVariableServer", "wss://clouddata.turbowarp.org/");
-
     const std::string cloudURL = SettingsManager::getConfigSettings().value("CloudVariableServer", "wss://clouddata.turbowarp.org/");
 
     Log::log("initMist: Creating MistConnection with URL " + cloudURL + " and project ID " + projectID.str());
