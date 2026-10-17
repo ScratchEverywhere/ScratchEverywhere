@@ -9,4 +9,6 @@ set(CATALOG_RECIPES
     miniz:miniz.cmake
     SDL3:sdl3.cmake
     nxdk:nxdk.cmake
+    mbedtls:mbedtls.cmake
+    mistpp:mistpp.cmake
 )
