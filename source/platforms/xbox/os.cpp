@@ -103,15 +103,19 @@ bool OS::isOnline() {
 }
 
 bool OS::initWifi() {
+    Log::log("OS::initWifi: Checking network state...");
+    if (OS::isOnline()) {
+        Log::log("OS::initWifi: Network already initialized and online.");
+        if (g_pnetif && netif_ip4_addr(g_pnetif)) {
+            Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
+        }
+        return true;
+    }
 
-	if (OS::isOnline()) {
-		return true;
-	}
-
-	Log::log("Initializing network...");
+    Log::log("OS::initWifi: Initializing network via nxNetInit...");
     int status = nxNetInit(NULL);
     if (status != 0) {
-        Log::log("Network initialization failed: " + std::to_string(status));
+        Log::logError("OS::initWifi: Network initialization failed: " + std::to_string(status));
         return false;
     }
 
@@ -120,6 +124,7 @@ bool OS::initWifi() {
         Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
         Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
     }
+    Log::log("OS::initWifi: Network initialized successfully.");
     return true;
 }
 

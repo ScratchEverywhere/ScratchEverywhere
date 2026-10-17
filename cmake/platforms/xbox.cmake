@@ -11,8 +11,8 @@ set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
 set(SE_BUNDLE_DEFAULT ON)
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS OFF)
-set(SE_ALLOW_DOWNLOAD OFF)
+set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_DOWNLOAD ON)
 
 set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
@@ -31,6 +31,22 @@ include_directories(
     ${NXDK_DIR}/lib/net/nvnetdrv
 )
 
+# HACK: Force CMake's internal system probes to see the NXDK network stack
+# This should help libcurl detect sockets, recv, send, and struct sizes
+list(APPEND CMAKE_REQUIRED_INCLUDES
+    ${NXDK_DIR}/lib/net/lwip/src/include
+    ${NXDK_DIR}/lib/net/lwip/src/include/posix
+    ${NXDK_DIR}/lib/net/nforceif/include
+    ${NXDK_DIR}/lib/net/nvnetdrv
+)
+
+set(CMAKE_REQUIRED_FLAGS "-D__XBOX__ -DUSE_LWIPSOCK")
+
+# HACK: A few manual overrides
+set(CURL_SIZEOF_CURL_SOCKET_T 4 CACHE INTERNAL "Forced size for NXDK")
+set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced size for NXDK")
+set(HAVE_POSIX_STRERROR_R 1 CACHE INTERNAL "Forced for NXDK")
+
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
     $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox/xbox_iostream_injector.hpp>
@@ -38,11 +54,17 @@ add_compile_options(
     $<$<COMPILE_LANGUAGE:C>:-U_MSC_VER>
     -march=pentium3
     -mtune=pentium3
+    -D__XBOX__
     -DSE_NO_OPENGL
     -DSTBI_NO_SIMD
     -DHAVE_UNISTD_H
     -DHAVE_DIRENT_H
     -DHAVE_UTIME_H
+    -DHAVE_FCNTL_H
+    -DHAVE_IO_H
+    -DUSE_LWIPSOCK
+    -DLWIP_POSIX_SOCKETS_IO_NAMES=0
+    -DLWIP_TIMEVAL_PRIVATE=0
     -DMINIZ_NO_TIME=1
     -Drestrict=__restrict
     -DXBOXRT_RESTRICT=__restrict
@@ -53,6 +75,41 @@ add_compile_options(
     -fms-extensions
 )
 
+# HACK: Force CMake to skip failing network checks for libcurl on Xbox
+set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SOCKET 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_RECV 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SEND 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SELECT 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_GETADDRINFO 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_FREEADDRINFO 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_STRUCT_SOCKADDR_STORAGE 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_GETPEERNAME 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_GETSOCKNAME 1 CACHE INTERNAL "Forced for NXDK")
+
+# HACK: Force type size checks to bypass CMake's failing test compilations
+set(HAVE_SIZEOF_SSIZE_T 1 CACHE INTERNAL "Forced for NXDK")
+set(SIZEOF_SSIZE_T 4 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SIZEOF_TIME_T 1 CACHE INTERNAL "Forced for NXDK")
+set(SIZEOF_TIME_T 4 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SIZEOF_SUSECONDS_T 0 CACHE INTERNAL "Forced for NXDK")
+unset(SIZEOF_SUSECONDS_T CACHE)
+set(HAVE_SIZEOF_OFF_T 1 CACHE INTERNAL "Forced for NXDK")
+set(SIZEOF_OFF_T 4 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SIZEOF_SA_FAMILY_T 1 CACHE INTERNAL "Forced for NXDK")
+set(SIZEOF_SA_FAMILY_T 2 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_SIZEOF_STRUCT_SOCKADDR_STORAGE 1 CACHE INTERNAL "Forced for NXDK")
+set(SIZEOF_STRUCT_SOCKADDR_STORAGE 128 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_CURL_SIZEOF_CURL_SOCKET_T 1 CACHE INTERNAL "Forced for NXDK")
+set(CURL_SIZEOF_CURL_SOCKET_T 4 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_CURL_SIZEOF_CURL_OFF_T 1 CACHE INTERNAL "Forced for NXDK")
+set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
+
+# FIXME: Force mistpp to resolve via source on Xbox and apply the compatibility patch;
+# remove when mistpp gets updated to support this target without patches
+set(CL_mistpp_STAGES source)
+set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
+
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
@@ -60,7 +117,6 @@ macro(package_platform)
     )
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
     target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
-    target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")
 
     find_program(CXBE_BIN cxbe PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/cxbe" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/cxbe")
     if(NOT CXBE_BIN)
