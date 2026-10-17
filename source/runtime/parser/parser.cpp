@@ -81,7 +81,8 @@ void Parser::initMist() {
 
     std::ostringstream projectID;
     projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
-    cloudConnection = std::make_unique<MistConnection>(projectID.str(), Scratch::cloudUsername, "contact@grady.link");
+    const std::string cloudURL = SettingsManager::getConfigSettings().value("CloudVariableServer", "wss://clouddata.turbowarp.org/");
+    cloudConnection = std::make_unique<MistConnection>(cloudURL, projectID.str(), Scratch::cloudUsername, "contact@grady.link");
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
@@ -93,6 +94,7 @@ void Parser::initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
+    Log::log("Cloud Variable Server: " + cloudURL);
     Log::log("Connecting to cloud variables with id: " + projectID.str());
 #if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
     cloudConnection->connect();
