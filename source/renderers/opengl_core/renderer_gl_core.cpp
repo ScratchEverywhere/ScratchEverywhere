@@ -135,9 +135,9 @@ static GLuint linkProgram(const char *vertSrc, const char *fragSrc) {
     return prog;
 }
 
-static const char *kSpriteVert = R"glsl(
-#version 410 core
-
+static const char *kSpriteVert =
+    SE_GL_SHADER_VERSION
+    R"glsl(
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in vec2 a_uv;
 
@@ -152,9 +152,10 @@ void main() {
 }
 )glsl";
 
-static const char *kSpriteFrag = R"glsl(
-#version 410 core
-
+static const char *kSpriteFrag =
+    SE_GL_SHADER_VERSION
+    SE_GL_FRAG_PRECISION
+    R"glsl(
 in  vec2 v_uv;
 out vec4 frag_color;
 
@@ -257,9 +258,9 @@ void main() {
 }
 )glsl";
 
-static const char *kSolidVert = R"glsl(
-#version 410 core
-
+static const char *kSolidVert =
+    SE_GL_SHADER_VERSION
+    R"glsl(
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in vec4 a_color;
 
@@ -273,9 +274,10 @@ void main() {
 }
 )glsl";
 
-static const char *kSolidFrag = R"glsl(
-#version 410 core
-
+static const char *kSolidFrag =
+    SE_GL_SHADER_VERSION
+    SE_GL_FRAG_PRECISION
+    R"glsl(
 in vec4 v_color;
 out vec4 frag_color;
 
@@ -616,7 +618,7 @@ Renderer_GLCore::Renderer_GLCore() {
         error = "Failed to initialize GLAD via Libretro proc address";
         return;
     }
-#elif !defined(WINDOWING_SDL3) && !defined(WINDOWING_SDL2)
+#elif !defined(WINDOWING_SDL3) && !defined(WINDOWING_SDL2) && !defined(__EMSCRIPTEN__)
     if (!gladLoaderLoadGL()) {
         Log::logError("[GL Core] Failed to initialize GLAD");
         window->cleanup();

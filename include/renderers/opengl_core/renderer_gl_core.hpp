@@ -1,5 +1,7 @@
 #pragma once
-#if __has_include(<glad/gl.h>)
+#if defined(__EMSCRIPTEN__)
+#include <GLES3/gl3.h>
+#elif __has_include(<glad/gl.h>)
 #include <glad/gl.h>
 #else
 #include <glad/glad.h>
@@ -8,6 +10,14 @@
 #include "nonstd/expected.hpp"
 #include <renderer.hpp>
 #include <se_export.hpp>
+
+#if defined(__EMSCRIPTEN__)
+#define SE_GL_SHADER_VERSION "#version 300 es\n"
+#define SE_GL_FRAG_PRECISION "precision highp float;\n"
+#else
+#define SE_GL_SHADER_VERSION "#version 410 core\n"
+#define SE_GL_FRAG_PRECISION ""
+#endif
 
 class SE_EXPORT Renderer_GLCore : public Renderer {
   public:

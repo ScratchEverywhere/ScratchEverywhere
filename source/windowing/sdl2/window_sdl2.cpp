@@ -59,15 +59,21 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     } else if (Render::currentRenderer == Renderers::OpenGLCore) {
+#if defined(__EMSCRIPTEN__)
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#else
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 #ifndef __SWITCH__
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 #endif
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #if defined(__PS4__)
         SDL_GL_SetSwapInterval(1); // Required for VSync
 #endif
@@ -97,7 +103,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 
         SDL_GL_SetSwapInterval(1); // VSync
 
-#ifdef RENDERER_OPENGL_CORE
+#if defined(RENDERER_OPENGL_CORE) && !defined(__EMSCRIPTEN__)
 #ifdef __SWITCH__
         if (!gladLoadGL()) {
 #else
