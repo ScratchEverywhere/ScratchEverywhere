@@ -3,6 +3,7 @@
 #include "renderer_sdl3.hpp"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
@@ -43,6 +44,55 @@ void Image_SDL3::render(ImageRenderParams &params) {
             .h = static_cast<float>(imgData.height)};
     }
 
+#ifdef __XBOX__
+    if (centered) {
+        renderRect.x = x - (renderRect.w / 2.0f);
+        renderRect.y = y - (renderRect.h / 2.0f);
+    } else {
+        renderRect.x = x;
+        renderRect.y = y;
+    }
+
+    const bool isCardinalRotation = std::fmod(std::abs(rotation), 90.0) < 0.001 || std::fmod(std::abs(rotation), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        renderRect.x = std::round(renderRect.x);
+        renderRect.y = std::round(renderRect.y);
+        renderRect.w = std::round(renderRect.w);
+        renderRect.h = std::round(renderRect.h);
+    }
+
+    Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    SDL_SetTextureAlphaMod(texture, alpha);
+
+    const SDL_FPoint center = {renderRect.w / 2.0f, renderRect.h / 2.0f};
+
+    if (brightness != 0) {
+        float b = brightness * 0.01f;
+        if (brightness > 0.0f) {
+            // render the normal image first
+            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+
+            // render another, blended image on top
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
+            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+
+            // reset for next frame
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        } else {
+            Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
+            SDL_SetTextureColorMod(texture, col, col, col);
+
+            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            // reset for next frame
+            SDL_SetTextureColorMod(texture, 255, 255, 255);
+        }
+    } else {
+        // if no brightness just render normal image
+        SDL_SetTextureColorMod(texture, 255, 255, 255);
+        SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+    }
+#else
     if (centered) {
         renderRect.x = x - (renderRect.w / 2);
         renderRect.y = y - (renderRect.h / 2);
@@ -82,6 +132,7 @@ void Image_SDL3::render(ImageRenderParams &params) {
         SDL_SetTextureColorMod(texture, 255, 255, 255);
         SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
+#endif
     freeTimer = maxFreeTimer;
 }
 

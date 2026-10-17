@@ -161,8 +161,15 @@ void SpeechManager::render(int offsetX, int offsetY) {
         int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2));
         int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (screenHeight / 2));
 
+#ifdef __XBOX__
+        const Costume &costume = sprite->costumes[sprite->currentCostume];
+        const double resScale = (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) ? 1.0 : costume.bitmapResolution;
+        int spriteWidth = static_cast<int>(((sprite->spriteWidth / resScale) * sprite->size / 100.0) * scale);
+        int spriteHeight = static_cast<int>(((sprite->spriteHeight / resScale) * sprite->size / 100.0) * scale);
+#else
         int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) * scale);
         int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) * scale);
+#endif
 
         int spriteTop = spriteCenterY - (spriteHeight / 2);
         int spriteLeft = spriteCenterX - (spriteWidth / 2);

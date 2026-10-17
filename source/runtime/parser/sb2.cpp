@@ -277,8 +277,17 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
         costume.fullName = std::to_string(c.value("baseLayerID", 0)) + "." + ext;
 
         if (isStage) {
+#ifdef __XBOX__
             costume.rotationCenterX = 240.0 * costume.bitmapResolution;
             costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+            if (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
+                costume.rotationCenterX /= 2;
+                costume.rotationCenterY /= 2;
+            }
+#else
+            costume.rotationCenterX = 240.0 * costume.bitmapResolution;
+            costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+#endif
         } else if (c.contains("rotationCenterX") && c.contains("rotationCenterY")) {
             costume.rotationCenterX = c["rotationCenterX"].get<double>();
             costume.rotationCenterY = c["rotationCenterY"].get<double>();

@@ -386,20 +386,33 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
 
     // If the window size changed, or if the sprite changed costumes
     if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
+#ifdef __XBOX__
+        sprite->renderInfo.oldX = -999999.0f;
+        sprite->renderInfo.oldY = -999999.0f;
+        sprite->renderInfo.oldRotation = -999999.0f;
+        sprite->renderInfo.oldSize = -999999.0f;
+#else
         // change all renderinfo a bit to update position for all
         sprite->renderInfo.oldX++;
         sprite->renderInfo.oldY++;
         sprite->renderInfo.oldRotation++;
         sprite->renderInfo.oldSize++;
+#endif
         sprite->renderInfo.oldCostumeID = sprite->currentCostume;
         sprite->renderInfo.forceUpdate = false;
     }
 
     if (sprite->size != sprite->renderInfo.oldSize) {
         sprite->renderInfo.oldSize = sprite->size;
+#ifdef __XBOX__
+        sprite->renderInfo.oldRotation = -999999.0f;
+        sprite->renderInfo.oldX = -999999.0f;
+        sprite->renderInfo.oldY = -999999.0f;
+#else
         sprite->renderInfo.oldRotation++;
         sprite->renderInfo.oldX++;
         sprite->renderInfo.oldY++;
+#endif
         sprite->renderInfo.renderScaleX = (sprite->size * 0.01f) / costume.bitmapResolution;
 
         if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
@@ -413,9 +426,15 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
     }
     if (sprite->rotation != sprite->renderInfo.oldRotation) {
         sprite->renderInfo.oldRotation = sprite->rotation;
+#ifdef __XBOX__
+        sprite->renderInfo.oldSize = -999999.0f;
+        sprite->renderInfo.oldX = -999999.0f;
+        sprite->renderInfo.oldY = -999999.0f;
+#else
         sprite->renderInfo.oldSize++;
         sprite->renderInfo.oldX++;
         sprite->renderInfo.oldY++;
+#endif
         if (sprite->rotationStyle == sprite->ALL_AROUND) {
             sprite->renderInfo.renderRotation = Math::degreesToRadians(sprite->rotation - 90);
         } else {
@@ -447,7 +466,14 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
                 offsetX *= -1;
 
             // Offset based on size
+#ifdef __XBOX__
             float scale = (sprite->size * 0.01f) / costume.bitmapResolution;
+            if (Scratch::bitmapHalfQuality && !isSVG && costume.bitmapResolution == 2) {
+                scale *= 2.0f;
+            }
+#else
+            float scale = (sprite->size * 0.01f) / costume.bitmapResolution;
+#endif
             offsetX *= scale;
             offsetY *= scale;
 

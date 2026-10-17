@@ -72,7 +72,7 @@ index db1494a..3ac858a 100644
      return true;
  }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..29a7808 100644
+index df82129..d0ea0ea 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
 @@ -208,6 +208,10 @@ static void XBOX_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
@@ -102,7 +102,7 @@ index df82129..29a7808 100644
      return true;
  }
  
-@@ -319,6 +325,50 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -319,6 +325,52 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
          format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
      }
  
@@ -136,6 +136,8 @@ index df82129..29a7808 100644
 +                     XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8) |
 +                         XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
 +                         XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
++        p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
++        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
 +        pb_end(p);
 +
 +        return true;
@@ -153,7 +155,7 @@ index df82129..29a7808 100644
      format |= XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
                XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH);
  
-@@ -334,7 +384,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -334,7 +386,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
      p = pb_push1(p, NV097_SET_SURFACE_PITCH,
                   XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pitch) |
                       XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, zpitch));
@@ -163,7 +165,16 @@ index df82129..29a7808 100644
      p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
                   XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, clip_width) |
                       XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
-@@ -566,7 +618,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -342,6 +396,8 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+                  XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, clip_height) |
+                      XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
+     p = pb_push1(p, NV097_SET_SURFACE_FORMAT, format);
++    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
++    p = xgu_set_scissor_rect(p, false, 0, 0, clip_width, clip_height);
+ 
+     pb_end(p);
+ 
+@@ -566,7 +622,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
      if (cmd->data.draw.texture) {
          xgu_texture_t *xgu_texture = (xgu_texture_t *)cmd->data.draw.texture->internal;
  
@@ -172,7 +183,7 @@ index df82129..29a7808 100644
              p = pb_begin();
              texture_combiner_apply();
              pb_end(p);
-@@ -590,7 +642,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -590,7 +646,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
              p = xgu_set_texture_format(p, texture_index, 2, false, XGU_SOURCE_COLOR, 2, xgu_texture->format, 1,
                                         __builtin_ctz(xgu_texture->data_width), __builtin_ctz(xgu_texture->data_height), 0);
              p = xgu_set_texture_control0(p, texture_index, true, 0, 0);
@@ -181,7 +192,7 @@ index df82129..29a7808 100644
              p = xgu_set_texture_image_rect(p, texture_index, xgu_texture->tex_width, xgu_texture->tex_height);
              pb_end(p);
              render_data->active_texture = xgu_texture;
-@@ -632,7 +684,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -632,7 +688,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
          xgux_draw_arrays(XGU_TRIANGLES, 0, count);
      } else {
  
@@ -190,7 +201,7 @@ index df82129..29a7808 100644
              p = pb_begin();
              unlit_combiner_apply();
              pb_end(p);
-@@ -694,6 +746,7 @@ static bool XBOX_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
+@@ -694,6 +750,7 @@ static bool XBOX_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
  {
      SDL_XGU_MAYBE_UNUSED xgu_render_data_t *render_data = (xgu_render_data_t *)renderer->internal;
      (void)vertsize;
@@ -198,7 +209,7 @@ index df82129..29a7808 100644
      while (cmd) {
          switch (cmd->command) {
          case SDL_RENDERCMD_SETVIEWPORT:
-@@ -819,6 +872,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
+@@ -819,6 +876,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
      calculate_fps(FPS_STAGE_RESET);
      pb_reset();
      pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
@@ -207,7 +218,7 @@ index df82129..29a7808 100644
      return true;
  }
  
-@@ -923,6 +978,17 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -923,6 +982,17 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
      pb_end(p);
  
@@ -225,7 +236,7 @@ index df82129..29a7808 100644
      const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
      pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
      pb_bind_channel(&render_data->render_target_dma_ctx);
-@@ -970,7 +1036,7 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -970,7 +1040,7 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);

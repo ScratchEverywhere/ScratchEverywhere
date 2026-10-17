@@ -167,7 +167,7 @@ bool Renderer_SDL3::initPen() {
     if (penTexture != nullptr) return true;
 
 #if defined(__XBOX__)
-    constexpr auto penFormat = SDL_PIXELFORMAT_RGBA32;
+    constexpr auto penFormat = SDL_PIXELFORMAT_ARGB8888;
 #else
     constexpr auto penFormat = SDL_PIXELFORMAT_RGBA8888;
 #endif
@@ -178,6 +178,14 @@ bool Renderer_SDL3::initPen() {
         else
             penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+
+#ifdef __XBOX__
+    if (!penTexture) {
+        Log::logError(std::string("Failed to create pen texture: ") + SDL_GetError());
+        return false;
+    }
+#else
+#endif
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -191,6 +199,10 @@ bool Renderer_SDL3::initPen() {
 }
 
 void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -271,6 +283,10 @@ void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, 
 }
 
 void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -314,6 +330,10 @@ void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
 }
 
 void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -361,6 +381,10 @@ void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Spri
 }
 
 void Renderer_SDL3::penDotFast(Sprite *sprite) {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -397,6 +421,10 @@ void Renderer_SDL3::penDotFast(Sprite *sprite) {
 }
 
 void Renderer_SDL3::penStamp(Sprite *sprite) {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -429,14 +457,25 @@ void Renderer_SDL3::penStamp(Sprite *sprite) {
     if (Scratch::hqpen) {
         float penWidth;
         float penHeight;
+#ifdef __XBOX__
+        SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
+#else
         SDL_GetTextureSize(image->texture, &penWidth, &penHeight);
+#endif
         const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
         penX *= scale;
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
     } else {
+#ifdef __XBOX__
         penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
+        if (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
+            penScale *= 2.0f;
+        }
+#else
+        penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
+#endif
     }
 
     ImageRenderParams params;
@@ -585,6 +624,10 @@ void Renderer_SDL3::renderSprites() {
 }
 
 void Renderer_SDL3::renderPenLayer() {
+#ifdef __XBOX__
+    if (!penTexture) return;
+#else
+#endif
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
