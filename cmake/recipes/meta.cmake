@@ -10,5 +10,4 @@ set(CATALOG_RECIPES
     SDL3:sdl3.cmake
     nxdk:nxdk.cmake
     mbedtls:mbedtls.cmake
-    mistpp:mistpp.cmake
 )
