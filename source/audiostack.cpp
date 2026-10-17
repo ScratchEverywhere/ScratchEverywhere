@@ -402,10 +402,12 @@ void Mixer::requestSound(short *output, int frames) {
     for (auto it = streams.begin(); it != streams.end();) {
         SoundStream *s = it->second;
         if (s->paused) {
-            it++;
             if (s->auto_clean) {
+                it = streams.erase(it);
                 s->no_lock = true;
                 delete s;
+            } else {
+                it++;
             }
             continue;
         }
@@ -476,14 +478,16 @@ void Mixer::requestSound(short *output, int frames) {
 
 void Mixer::cleanupAudio() {
 #ifdef ENABLE_AUDIO
-    std::vector<SoundStream *> streams;
-    int i;
+    Mixer::mutex.lock();
 
-    for (auto e : Mixer::streams) {
+    std::vector<SoundStream *> streams;
+    for (auto &e : Mixer::streams) {
+        e.second->no_lock = true;
         streams.push_back(e.second);
     }
+    Mixer::streams.clear();
 
-    for (i = 0; i < streams.size(); i++)
+    for (size_t i = 0; i < streams.size(); i++)
         delete streams[i];
 
     Mixer::notes.clear();
@@ -499,6 +503,8 @@ void Mixer::cleanupAudio() {
     }
     Mixer::musicInitialized = false;
 #endif
+
+    Mixer::mutex.unlock();
 #endif
 }
 

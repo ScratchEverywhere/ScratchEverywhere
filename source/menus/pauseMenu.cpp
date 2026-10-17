@@ -99,6 +99,8 @@ void PauseMenu::render() {
 }
 
 void PauseMenu::cleanup() {
+    if (!isInitialized) return;
+    isInitialized = false;
 
     if (backButton != nullptr) {
         delete backButton;
@@ -124,7 +126,4 @@ void PauseMenu::cleanup() {
         delete turboButton;
         turboButton = nullptr;
     }
-    Render::beginFrame(0, 0, 0, 0);
-    Render::beginFrame(1, 0, 0, 0);
-    isInitialized = false;
 }

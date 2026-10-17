@@ -228,7 +228,13 @@ bool TextObjectBase::loadFont(std::string fontPath) {
     fontAtlas = FontManager::acquire(fullPath);
     if (!fontAtlas->isValid()) {
         auto buffer = readFontFile(fullPath);
-        if (buffer.empty()) return false;
+        if (buffer.empty()) {
+            if (fontPath != "gfx/ingame/fonts/NotoSans-Medium") {
+                // Fallback to default font
+                return loadFont("gfx/ingame/fonts/NotoSans-Medium");
+            }
+            return false;
+        }
         if (!fontAtlas->loadFromMemory(std::move(buffer))) return false;
     }
     return true;

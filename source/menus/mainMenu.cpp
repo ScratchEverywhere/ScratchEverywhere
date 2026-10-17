@@ -231,6 +231,9 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
+    if (!isInitialized) return;
+    isInitialized = false;
+
     if (!settings.empty()) {
         settings.clear();
     }
@@ -251,5 +254,6 @@ void MainMenu::cleanup() {
         delete mainMenuControl;
         mainMenuControl = nullptr;
     }
-    isInitialized = false;
+    versionNumber.reset();
+    splashText.reset();
 }
