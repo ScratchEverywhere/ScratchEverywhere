@@ -190,10 +190,15 @@ void reset(int width, int height, WindowWin32 *win) {
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
+    IDirect3DDevice9_SetSamplerState(pDev, 0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+    IDirect3DDevice9_SetSamplerState(pDev, 0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+    IDirect3DDevice9_SetSamplerState(pDev, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER);
+    IDirect3DDevice9_SetSamplerState(pDev, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
+
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
-    IDirect3DDevice9_CreateTexture(pDev, width, height, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pPenLayer, nullptr);
+    IDirect3DDevice9_CreateTexture(pDev, penWidth, penHeight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pPenLayer, nullptr);
     IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
-    if (FAILED(IDirect3DDevice9_CreateRenderTarget(pDev, width, height, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_4_SAMPLES, 0, FALSE, &pPenLayerMSSurface, nullptr))) {
+    if (FAILED(IDirect3DDevice9_CreateRenderTarget(pDev, penWidth, penHeight, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_4_SAMPLES, 0, FALSE, &pPenLayerMSSurface, nullptr))) {
         pPenLayerMSSurface = nullptr;
     }
 
@@ -209,8 +214,9 @@ void matrix(int width, int height) {
 
     D3DXMatrixIdentity(&matWorld);
     D3DXMatrixIdentity(&matView);
+    D3DXMatrixIdentity(&matProj);
 
-    D3DXMatrixOrthoOffCenterLH(&matProj, 0, width, height, 0, -1, 1);
+    // D3DXMatrixOrthoOffCenterLH(&matProj, -0.5, width - 0.5, height - 0.5, -0.5, -1, 1);
 
     IDirect3DDevice9_SetTransform(pDev, D3DTS_WORLD, &matWorld);
     IDirect3DDevice9_SetTransform(pDev, D3DTS_VIEW, &matView);
@@ -270,9 +276,9 @@ void drawCircle(double x, double y, double r, D3DCOLOR color) {
     IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, NSEG, v, sizeof(NOTEXVERTEX));
 }
 
-void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool accurate, int rW, int rH) {
+void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool accurate) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    double scale = (rH < rW) ? ((float)Scratch::projectHeight / rH) : ((float)Scratch::projectWidth / rW);
+    const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
     double r = sprite->penData.size / scale;
     float dx;
     float dy;
@@ -282,10 +288,10 @@ void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool ac
     uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
     D3DCOLOR color = D3DCOLOR_ARGB(alpha, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
 
-    x1 += rW * scale / 2;
-    y1 = -y1 + rH * scale / 2;
-    x2 += rW * scale / 2;
-    y2 = -y2 + rH * scale / 2;
+    x1 += penWidth * scale / 2;
+    y1 = -y1 + penHeight * scale / 2;
+    x2 += penWidth * scale / 2;
+    y2 = -y2 + penHeight * scale / 2;
 
     x1 /= scale;
     y1 /= scale;
@@ -533,7 +539,7 @@ bool Renderer_D3D9::initPen() {
 }
 
 void Renderer_D3D9::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMove(x1, y1, x2, y2, sprite, false, this->getWidth(), this->getHeight());
+    penMove(x1, y1, x2, y2, sprite, false);
 }
 
 void Renderer_D3D9::penDotFast(Sprite *sprite) {
@@ -541,7 +547,7 @@ void Renderer_D3D9::penDotFast(Sprite *sprite) {
 }
 
 void Renderer_D3D9::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMove(x1, y1, x2, y2, sprite, true, this->getWidth(), this->getHeight());
+    penMove(x1, y1, x2, y2, sprite, true);
 }
 
 void Renderer_D3D9::penDotAccurate(Sprite *sprite) {
@@ -550,8 +556,11 @@ void Renderer_D3D9::penDotAccurate(Sprite *sprite) {
 
 void Renderer_D3D9::penStamp(Sprite *sprite) {
     const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    int rW = this->getWidth();
-    int rH = this->getHeight();
+    float penX;
+    float penY;
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : (sprite->size / 100.0f) / costume.bitmapResolution;
+    const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
     Image_D3D9 *image;
     bool isSVG;
     ImageRenderParams params;
@@ -560,15 +569,25 @@ void Renderer_D3D9::penStamp(Sprite *sprite) {
         return;
     }
 
+    Render::calculateRenderPosition(sprite, sprite->costumes[sprite->currentCostume].isSVG);
+    auto cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, this->getWidth(), this->getHeight());
+    penX = (float)(cords.first + Scratch::projectWidth / 2.0);
+    penY = (float)(-cords.second + Scratch::projectHeight / 2.0);
+
+    if (Scratch::hqpen) {
+        penX *= (float)scale;
+        penY *= (float)scale;
+    }
+
     image = reinterpret_cast<Image_D3D9 *>(imgFind->second.get());
 
     isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
 
     params.centered = true;
-    params.x = sprite->renderInfo.renderX;
-    params.y = sprite->renderInfo.renderY;
-    params.scale = sprite->renderInfo.renderScaleY;
+    params.x = penX;
+    params.y = penY;
+    params.scale = renderScale;
     params.rotation = sprite->renderInfo.renderRotation;
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
@@ -651,33 +670,49 @@ void Renderer_D3D9::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 
 void Renderer_D3D9::renderPenLayer() {
     TEXVERTEX v[4];
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float windowAspect = static_cast<float>(this->getWidth()) / this->getHeight();
 
-    v[0].x = 0;
-    v[0].y = 0;
+    float drawW, drawH, drawX, drawY;
+
+    if (windowAspect > projectAspect) {
+        drawH = (float)this->getHeight();
+        drawW = drawH * projectAspect;
+        drawX = (this->getWidth() - drawW) / 2.0f;
+        drawY = 0;
+    } else {
+        drawW = (float)this->getWidth();
+        drawH = drawW / projectAspect;
+        drawX = 0;
+        drawY = (this->getHeight() - drawH) / 2.0f;
+    }
+
+    v[0].x = drawX - 0.5;
+    v[0].y = drawY - 0.5;
     v[0].z = 0;
     v[0].rhw = 1;
     v[0].color = 0xffffffff;
     v[0].tu = 0;
     v[0].tv = 0;
 
-    v[1].x = getWidth();
-    v[1].y = 0;
+    v[1].x = drawX + drawW - 0.5;
+    v[1].y = drawY - 0.5;
     v[1].z = 0;
     v[1].rhw = 1;
     v[1].color = 0xffffffff;
     v[1].tu = 1;
     v[1].tv = 0;
 
-    v[2].x = getWidth();
-    v[2].y = getHeight();
+    v[2].x = drawX + drawW - 0.5;
+    v[2].y = drawY + drawH - 0.5;
     v[2].z = 0;
     v[2].rhw = 1;
     v[2].color = 0xffffffff;
     v[2].tu = 1;
     v[2].tv = 1;
 
-    v[3].x = 0;
-    v[3].y = getHeight();
+    v[3].x = drawX - 0.5;
+    v[3].y = drawY + drawH - 0.5;
     v[3].z = 0;
     v[3].rhw = 1;
     v[3].color = 0xffffffff;

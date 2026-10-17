@@ -8,8 +8,8 @@
 void Image_D3D9::render(ImageRenderParams &params) {
     TEXVERTEX v[4];
     int i;
-    const int renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    const float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    const float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
     const float opacity = params.opacity;
@@ -68,10 +68,13 @@ void Image_D3D9::render(ImageRenderParams &params) {
     v[3].tv = 1;
 
     for (i = 0; i < 4; i++) {
-        int sx = params.x;
-        int sy = params.y;
+        float sx = params.x - 0.5;
+        float sy = params.y - 0.5;
         int x;
         int y;
+
+        v[i].x -= 0.5;
+        v[i].y -= 0.5;
 
         if (params.centered) {
             v[i].x -= renderWidth / 2;
@@ -101,8 +104,8 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
     double wP[] = {padding, width - padding * 2, padding};
     double hP[] = {padding, height - padding * 2, padding};
     int x, y;
-    int ySrc = 0, xSrc;
-    int yIncr = yPos, xIncr;
+    double ySrc = 0, xSrc;
+    double yIncr = yPos, xIncr;
     TEXVERTEX v[4];
 
     if (this->pTex == nullptr) return;
@@ -112,7 +115,7 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
     v[0].color = v[1].color = v[2].color = v[3].color = 0xffffffff;
 
     for (y = 0; y < 3; y++) {
-        int h = padding;
+        double h = padding;
 
         xIncr = xPos;
         xSrc = 0;
@@ -120,7 +123,7 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
         if (y == 1) h = this->imgData.height - padding * 2;
 
         for (x = 0; x < 3; x++) {
-            int w = padding;
+            double w = padding;
 
             if (x == 1) w = this->imgData.width - padding * 2;
 
@@ -145,6 +148,9 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
             v[3].tv = ySrc + h;
 
             for (i = 0; i < 4; i++) {
+                v[i].x -= 0.5;
+                v[i].y -= 0.5;
+
                 if (centered) {
                     v[i].x -= width / 2;
                     v[i].y -= height / 2;
