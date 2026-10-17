@@ -325,6 +325,7 @@ SCRATCH_BLOCK(control, repeat) {
 SCRATCH_BYTECODE_BLOCK(control, repeat) {
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "TIMES", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::ConvertNumberToValue);
 
     BytecodeIndex loopCheck = compiler.here();
     BytecodeIndex exitJump = compiler.emit(BytecodeOp::RepeatCheck);
@@ -473,6 +474,11 @@ SCRATCH_BYTECODE_BLOCK(control, for_each) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::ConvertNumberToValue);
+
+    BytecodeIndex zeroIdx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
+    compiler.chunk().constants.push_back(Value(0.0));
+    compiler.emit(BytecodeOp::PushConstValue, zeroIdx);
 
     BytecodeIndex loopCheck = compiler.here();
     BytecodeIndex exitJump = compiler.emit(BytecodeOp::ForEachCheck, invalidBytecodeIndex, compiler.variableSlot(varId));

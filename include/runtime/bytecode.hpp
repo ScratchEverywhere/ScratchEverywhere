@@ -1,18 +1,20 @@
 #pragma once
 #include "color.hpp"
 #include "value.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <se_export.hpp>
 #include <string>
 #include <timer.hpp>
-#include <unordered_map>
 #include <vector>
 
 // used instead of pointers to make this serializable (yay)
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
+
+inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 
 enum class BytecodeStackKind : uint8_t {
     Number,
@@ -308,39 +310,13 @@ class Sprite;
 
 struct BytecodeThread;
 
-struct SE_EXPORT BytecodeFrame {
-    int completedSteps = 0;
-    double repeatTimes = -1;
-    double waitDuration = 0;
-    double glideStartX = 0, glideStartY = 0;
-    double glideEndX = 0, glideEndY = 0;
-    int musicChannel = 0;
-    std::string name;
-
-    Timer waitTimer;
-    std::vector<uint64_t> threads;
-
-    BytecodeThread *pendingCall = nullptr;
-
-    std::shared_ptr<Block> bridgeBlock;
-
-    void clear() {
-        completedSteps = 0;
-        repeatTimes = -1;
-        waitDuration = 0;
-        glideStartX = glideStartY = glideEndX = glideEndY = 0;
-        waitTimer = Timer();
-        name = "";
-        threads.clear();
-        pendingCall = nullptr;
-        bridgeBlock.reset();
-    }
-};
-
 struct SE_EXPORT BytecodeCallFrame {
     BytecodeIndex procedureIndex = invalidBytecodeIndex;
     BytecodeIndex returnInstruction = invalidBytecodeIndex;
-    std::vector<Value> args;
+    BytecodeIndex stackBase = 0;
+    BytecodeIndex argCount = 0;
+    bool wantsValue = false;
+    bool previousWarp = false;
 };
 
 struct SE_EXPORT BytecodeThread {
@@ -348,7 +324,6 @@ struct SE_EXPORT BytecodeThread {
     Sprite *sprite = nullptr;
     const BytecodeChunk *chunk = nullptr;
     const BytecodeLinkTable *link = nullptr;
-    BytecodeThread *parentThread = nullptr;
 
     BytecodeIndex pc = invalidBytecodeIndex;
     BytecodeIndex hatInstruction = invalidBytecodeIndex;
@@ -364,17 +339,20 @@ struct SE_EXPORT BytecodeThread {
     std::vector<Value> valueStack;
 
     std::vector<BytecodeCallFrame> callStack;
-    std::vector<uint32_t> activeProcedureCalls;
 
-    std::unordered_map<BytecodeIndex, BytecodeFrame> frames;
-    Value returnValue;
+    Timer waitTimer;
+    double sleepTimer = 0.0;
+    bool isSleeping = false;
+
+    std::vector<uint64_t> waitHandle;
+    bool isWaitingForBroadcast = false;
+    bool isWaitingForSound = false;
+    std::string soundName;
+
+    std::shared_ptr<Block> blockingBlock;
 
     ScriptThread *legacyThread = nullptr;
     bool escapedToLegacy = false;
 
     ScriptThread *bridgeThread = nullptr;
-
-    bool isRecursiveProcedureCall(BytecodeIndex procedureIndex) const {
-        return procedureIndex < activeProcedureCalls.size() && activeProcedureCalls[procedureIndex] > 0;
-    }
 };

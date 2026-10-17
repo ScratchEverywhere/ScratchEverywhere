@@ -80,12 +80,24 @@ SCRATCH_BLOCK(procedures, call) {
 }
 
 SCRATCH_BYTECODE_BLOCK(procedures, call) {
-    if (block->MyBlockDefinitionID == nullptr) return false;
-
-    BytecodeIndex procSlot = compiler.procedureSlot(block->MyBlockDefinitionID);
-    if (procSlot == invalidBytecodeIndex) return false;
-
     outFirstInstr = compiler.here();
+
+    if (!block->bytecodeCallOpcode.empty()) {
+        auto &sigMap = BlockExecutor::getInputSignatures();
+        auto sigIt = sigMap.find(block->bytecodeCallOpcode);
+        if (sigIt != sigMap.end()) {
+            for (const auto &s : sigIt->second)
+                compiler.compileInput(block, s.name, s.kind);
+            BytecodeIndex opSlot = compiler.opcodeSlot(block->bytecodeCallOpcode, sigIt->second);
+            compiler.emit(BytecodeOp::CallNative, opSlot,
+                          static_cast<BytecodeIndex>(sigIt->second.size()));
+        }
+        return true;
+    }
+
+    if (block->MyBlockDefinitionID == nullptr) return true;
+    BytecodeIndex procSlot = compiler.procedureSlot(block->MyBlockDefinitionID);
+    if (procSlot == invalidBytecodeIndex) return true;
 
     for (size_t i = 0; i < block->argumentIDs.size(); i++) {
         const std::string &argId = block->argumentIDs[i];

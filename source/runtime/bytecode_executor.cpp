@@ -71,6 +71,21 @@ Variable *variableAt(BytecodeThread &thread, BytecodeIndex slot) {
     return thread.link->variables[slot];
 }
 
+const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot);
+
+Variable *resolveOrCreateVariable(BytecodeThread &thread, BytecodeIndex slot) {
+    Variable *var = variableAt(thread, slot);
+    if (var != nullptr) return var;
+    if (thread.sprite == nullptr || thread.link == nullptr) return nullptr;
+
+    const std::string &id = variableIdAt(thread, slot);
+    Variable &newVar = thread.sprite->variables[id];
+    newVar.id = id;
+    newVar.name = id;
+    const_cast<BytecodeLinkTable *>(thread.link)->variables[slot] = &newVar;
+    return &newVar;
+}
+
 List *listAt(BytecodeThread &thread, BytecodeIndex slot) {
     if (thread.link == nullptr || slot >= thread.link->lists.size()) return nullptr;
     return thread.link->lists[slot];
@@ -460,14 +475,20 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
 
     case BytecodeOp::PushArg: {
         Value v;
-        if (!thread.callStack.empty() && instr.a < thread.callStack.back().args.size()) v = thread.callStack.back().args[instr.a];
-        thread.valueStack.push_back(v);
+        if (!thread.callStack.empty()) {
+            const BytecodeCallFrame &frame = thread.callStack.back();
+            if (frame.stackBase >= frame.argCount && instr.a < frame.argCount) {
+                const size_t idx = static_cast<size_t>(frame.stackBase - frame.argCount) + instr.a;
+                if (idx < thread.valueStack.size()) v = thread.valueStack[idx];
+            }
+        }
+        thread.valueStack.push_back(std::move(v));
         thread.pc++;
         return true;
     }
 
     case BytecodeOp::StoreVarNumber: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         double v = thread.numberStack.back();
         thread.numberStack.pop_back();
         if (var) var->value = v;
@@ -475,7 +496,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return true;
     }
     case BytecodeOp::StoreVarString: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         std::string v = std::move(thread.stringStack.back());
         thread.stringStack.pop_back();
         if (var) var->value = std::make_shared<const std::string>(std::move(v));
@@ -483,7 +504,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return true;
     }
     case BytecodeOp::StoreVarBoolean: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         bool v = thread.boolStack.back();
         thread.boolStack.pop_back();
         if (var) var->value = v;
@@ -491,7 +512,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return true;
     }
     case BytecodeOp::StoreVarColor: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         Color v = thread.colorStack.back();
         thread.colorStack.pop_back();
         if (var) var->value = Value(v);
@@ -499,7 +520,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return true;
     }
     case BytecodeOp::StoreVarValue: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         Value v = std::move(thread.valueStack.back());
         thread.valueStack.pop_back();
         if (var) var->value = v;
@@ -508,7 +529,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
     }
 
     case BytecodeOp::ChangeVarNumber: {
-        Variable *var = variableAt(thread, instr.a);
+        Variable *var = resolveOrCreateVariable(thread, instr.a);
         double delta = thread.numberStack.back();
         thread.numberStack.pop_back();
         if (var) {
@@ -703,28 +724,26 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
 
     case BytecodeOp::CallNativeBlocking:
     case BytecodeOp::CallNativeBlockingValue: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
         const BytecodeIndex opSlot = instr.a;
         const BlockFunc *handler = (thread.link && opSlot < thread.link->opcodes.size()) ? thread.link->opcodes[opSlot] : nullptr;
 
-        if (frame.bridgeBlock == nullptr) {
-            frame.bridgeBlock = std::make_shared<Block>();
-            fillBridgeBlock(*frame.bridgeBlock, thread, opSlot);
-            frame.bridgeBlock->opcode = stringAt(thread, thread.chunk->opcodeSlots[opSlot]);
+        if (thread.blockingBlock == nullptr) {
+            thread.blockingBlock = std::make_shared<Block>();
+            fillBridgeBlock(*thread.blockingBlock, thread, opSlot);
+            thread.blockingBlock->opcode = stringAt(thread, thread.chunk->opcodeSlots[opSlot]);
         }
 
         Value result;
         BlockResult handlerResult = BlockResult::CONTINUE;
-        if (handler != nullptr) handlerResult = invokeHandler(thread, handler, frame.bridgeBlock.get(), &result);
+        if (handler != nullptr) handlerResult = invokeHandler(thread, handler, thread.blockingBlock.get(), &result);
 
         if (handlerResult == BlockResult::REPEAT) return false;
 
-        if (thread.bridgeThread) thread.bridgeThread->eraseState(frame.bridgeBlock.get());
-        Scratch::resetInput(frame.bridgeBlock.get());
+        if (thread.bridgeThread) thread.bridgeThread->eraseState(thread.blockingBlock.get());
+        Scratch::resetInput(thread.blockingBlock.get());
         const bool shouldStop = handlerResult == BlockResult::RETURN || (thread.bridgeThread && thread.bridgeThread->finished);
 
-        frame.clear();
-        thread.frames.erase(thread.pc);
+        thread.blockingBlock.reset();
 
         if (instr.op == BytecodeOp::CallNativeBlockingValue) thread.valueStack.push_back(std::move(result));
 
@@ -738,66 +757,52 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
 
     case BytecodeOp::CallProcedure:
     case BytecodeOp::CallProcedureValue: {
-        BytecodeIndex procIndex = instr.a;
-        BytecodeIndex argCount = instr.b;
-        BytecodeThread *&pending = thread.frames[thread.pc].pendingCall;
+        const BytecodeIndex procIndex = instr.a;
+        const BytecodeIndex argCount = instr.b;
 
-        if (pending == nullptr) {
-            std::vector<Value> args(argCount);
-            for (BytecodeIndex i = argCount; i-- > 0;) {
-                args[i] = popValue(thread, BytecodeStackKind::Value);
-            }
-
-            const BytecodeProcedure &proc = thread.chunk->procedures[procIndex];
-
-            BytecodeThread *nested = new BytecodeThread();
-            nested->id = BlockExecutor::nextThreadId();
-            nested->sprite = thread.sprite;
-            nested->chunk = thread.chunk;
-            nested->link = thread.link;
-            nested->parentThread = &thread;
-            nested->pc = proc.entryInstruction;
-            nested->finished = false;
-            nested->withoutScreenRefresh = proc.runWithoutScreenRefresh || thread.withoutScreenRefresh;
-
-            BytecodeCallFrame callFrame;
-            callFrame.procedureIndex = procIndex;
-            callFrame.args = std::move(args);
-            nested->callStack.push_back(std::move(callFrame));
-
-            bool recursive = thread.isRecursiveProcedureCall(procIndex);
-            nested->activeProcedureCalls = thread.activeProcedureCalls;
-            if (procIndex >= nested->activeProcedureCalls.size()) nested->activeProcedureCalls.resize(procIndex + 1, 0);
-            nested->activeProcedureCalls[procIndex]++;
-
-            pending = nested;
-
-            if (recursive && !thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh) {
-                return false;
-            }
+        if (thread.callStack.size() >= MAX_CALL_DEPTH) {
+            thread.pc++;
+            return true;
         }
 
-        BytecodeThread *nested = pending;
-        BytecodeExecutor::runThread(*nested);
+        const BytecodeProcedure &proc = thread.chunk->procedures[procIndex];
 
-        bool done = nested->escapedToLegacy ? (nested->legacyThread == nullptr || nested->legacyThread->finished) : nested->finished;
-        if (!done) return false;
+        BytecodeCallFrame frame;
+        frame.procedureIndex = procIndex;
+        frame.returnInstruction = thread.pc + 1;
+        frame.stackBase = static_cast<BytecodeIndex>(thread.valueStack.size());
+        frame.argCount = argCount;
+        frame.wantsValue = (instr.op == BytecodeOp::CallProcedureValue);
+        frame.previousWarp = thread.withoutScreenRefresh;
 
-        Value result = nested->escapedToLegacy ? nested->legacyThread->returnValue : nested->returnValue;
-
-        if (nested->bridgeThread) releaseScriptThread(nested->bridgeThread);
-        delete nested;
-        thread.frames.erase(thread.pc);
-
-        if (instr.op == BytecodeOp::CallProcedureValue) thread.valueStack.push_back(result);
-        thread.pc++;
+        thread.callStack.push_back(frame);
+        thread.withoutScreenRefresh = thread.withoutScreenRefresh || proc.runWithoutScreenRefresh;
+        thread.pc = proc.entryInstruction;
         return true;
     }
 
     case BytecodeOp::Return: {
-        thread.returnValue = popValue(thread, BytecodeStackKind::Value);
-        thread.finished = true;
-        return false;
+        if (thread.callStack.empty()) {
+            thread.finished = true;
+            return false;
+        }
+
+        const BytecodeCallFrame frame = thread.callStack.back();
+        thread.callStack.pop_back();
+
+        Value ret;
+        if (frame.wantsValue && !thread.valueStack.empty()) {
+            ret = std::move(thread.valueStack.back());
+            thread.valueStack.pop_back();
+        }
+        thread.withoutScreenRefresh = frame.previousWarp;
+
+        const size_t base = frame.stackBase >= frame.argCount ? static_cast<size_t>(frame.stackBase - frame.argCount) : 0;
+        if (thread.valueStack.size() > base) thread.valueStack.resize(base);
+
+        if (frame.wantsValue) thread.valueStack.push_back(std::move(ret));
+        thread.pc = frame.returnInstruction;
+        return true;
     }
 
     case BytecodeOp::CallLegacyReporter: {
@@ -843,9 +848,11 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         if (!thread.callStack.empty()) {
             const BytecodeCallFrame &frame = thread.callStack.back();
             const BytecodeProcedure &proc = thread.chunk->procedures[frame.procedureIndex];
+            const size_t argsStart = frame.stackBase >= frame.argCount ? static_cast<size_t>(frame.stackBase - frame.argCount) : 0;
             for (BytecodeIndex i = 0; i < proc.argumentNamesCount; i++) {
                 const std::string &argName = stringAt(thread, proc.argumentNamesStart + i);
-                newThread->MyBlocksVariablen[argName] = (i < frame.args.size()) ? frame.args[i] : Value();
+                const size_t idx = argsStart + i;
+                newThread->MyBlocksVariablen[argName] = (i < frame.argCount && idx < thread.valueStack.size()) ? thread.valueStack[idx] : Value();
             }
         }
 
@@ -929,56 +936,51 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
     }
 
     case BytecodeOp::RepeatCheck: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
-        if (frame.repeatTimes < 0) {
-            double times = thread.numberStack.back();
-            thread.numberStack.pop_back();
-            frame.repeatTimes = std::round(times);
-        }
-        if (frame.repeatTimes <= 0) {
-            frame.clear();
-            thread.frames.erase(thread.pc);
+        if (thread.valueStack.empty()) {
             thread.pc = instr.a;
             return true;
         }
-        frame.repeatTimes--;
+        const double remaining = std::round(thread.valueStack.back().get<double>()) - 1.0;
+        if (remaining < 0.0) {
+            thread.valueStack.pop_back();
+            thread.pc = instr.a;
+            return true;
+        }
+        thread.valueStack.back() = Value(remaining);
         thread.pc++;
         return true;
     }
     case BytecodeOp::ForEachCheck: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
-        if (frame.repeatTimes < 0) {
-            double bound = thread.numberStack.back();
-            thread.numberStack.pop_back();
-            frame.repeatTimes = bound;
-            frame.completedSteps = 0;
-        }
-        if (static_cast<double>(frame.completedSteps) >= frame.repeatTimes) {
-            frame.clear();
-            thread.frames.erase(thread.pc);
+        if (thread.valueStack.size() < 2) {
             thread.pc = instr.a;
             return true;
         }
-        frame.completedSteps++;
+        const double bound = thread.valueStack[thread.valueStack.size() - 2].get<double>();
+        const double counter = thread.valueStack.back().get<double>() + 1.0;
+        if (counter > bound) {
+            thread.valueStack.pop_back();
+            thread.valueStack.pop_back();
+            thread.pc = instr.a;
+            return true;
+        }
+        thread.valueStack.back() = Value(counter);
         Variable *var = variableAt(thread, instr.b);
-        if (var) var->value = static_cast<double>(frame.completedSteps);
+        if (var) var->value = counter;
         thread.pc++;
         return true;
     }
     case BytecodeOp::Wait: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
-        if (frame.completedSteps == 0) {
+        if (!thread.isSleeping) {
             double seconds = thread.numberStack.back();
             thread.numberStack.pop_back();
-            frame.waitDuration = seconds * 1000;
-            frame.waitTimer.start();
-            frame.completedSteps = 1;
+            thread.sleepTimer = seconds;
+            thread.waitTimer.start();
+            thread.isSleeping = true;
             Scratch::forceRedraw = true;
             return false;
         }
-        if (frame.waitTimer.hasElapsed(frame.waitDuration)) {
-            frame.clear();
-            thread.frames.erase(thread.pc);
+        if (thread.waitTimer.hasElapsed(static_cast<int>(thread.sleepTimer * 1000.0))) {
+            thread.isSleeping = false;
             thread.pc++;
             return true;
         }
@@ -986,47 +988,49 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
     }
 
     case BytecodeOp::BroadcastAndWait: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
-        if (frame.completedSteps == 0) {
+        if (!thread.isWaitingForBroadcast) {
             std::string broadcast = std::move(thread.stringStack.back());
             thread.stringStack.pop_back();
 
-            frame.threads = BlockExecutor::startBroadcastHats(broadcast);
-            frame.completedSteps = 1;
-            if (!frame.threads.empty()) return false;
-        } else {
-            for (uint64_t id : frame.threads) {
-                if (BlockExecutor::isThreadRunning(id)) return false;
+            thread.waitHandle = BlockExecutor::startBroadcastHats(broadcast);
+            if (thread.waitHandle.empty()) {
+                thread.pc++;
+                return true;
             }
+            thread.isWaitingForBroadcast = true;
+            return false;
         }
 
-        frame.clear();
-        thread.frames.erase(thread.pc);
+        for (uint64_t id : thread.waitHandle) {
+            if (BlockExecutor::isThreadRunning(id)) return false;
+        }
+        thread.waitHandle.clear();
+        thread.isWaitingForBroadcast = false;
         thread.pc++;
         return true;
     }
 
     case BytecodeOp::PlaySoundUntilDone: {
-        BytecodeFrame &frame = thread.frames[thread.pc];
 #ifdef ENABLE_AUDIO
-        if (frame.completedSteps == 0) {
+        if (!thread.isWaitingForSound) {
             Value soundValue = std::move(thread.valueStack.back());
             thread.valueStack.pop_back();
 
-            if (Scratch::resolveSoundName(thread.sprite, soundValue, frame.name)) {
-                Scratch::startSoundUntilDone(thread.sprite, frame.name);
-                frame.completedSteps = 1;
+            if (Scratch::resolveSoundName(thread.sprite, soundValue, thread.soundName)) {
+                Scratch::startSoundUntilDone(thread.sprite, thread.soundName);
+                thread.isWaitingForSound = true;
                 return false;
             }
-        } else {
-            if (!frame.name.empty() && Mixer::isSoundPlaying(frame.name)) return false;
-            Mixer::setAutoClean(frame.name, true);
+            thread.pc++;
+            return true;
         }
+        if (!thread.soundName.empty() && Mixer::isSoundPlaying(thread.soundName)) return false;
+        Mixer::setAutoClean(thread.soundName, true);
+        thread.soundName.clear();
+        thread.isWaitingForSound = false;
 #else
         thread.valueStack.pop_back();
 #endif
-        frame.clear();
-        thread.frames.erase(thread.pc);
         thread.pc++;
         return true;
     }
@@ -1309,6 +1313,18 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         return thread.withoutScreenRefresh;
 
     case BytecodeOp::Halt:
+        if (!thread.callStack.empty()) {
+            const BytecodeCallFrame frame = thread.callStack.back();
+            thread.callStack.pop_back();
+            thread.withoutScreenRefresh = frame.previousWarp;
+
+            const size_t base = frame.stackBase >= frame.argCount ? static_cast<size_t>(frame.stackBase - frame.argCount) : 0;
+            if (thread.valueStack.size() > base) thread.valueStack.resize(base);
+            if (frame.wantsValue) thread.valueStack.push_back(Value());
+
+            thread.pc = frame.returnInstruction;
+            return true;
+        }
         thread.finished = true;
         return false;
     }

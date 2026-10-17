@@ -368,6 +368,7 @@ struct SE_EXPORT Block {
     Block *nextBlock = nullptr;
     std::string opcode = "";
     BlockFunc blockFunction;
+    std::string bytecodeCallOpcode;
     Block *MyBlockDefinitionID = nullptr;
     std::vector<std::string> argumentIDs;
     std::vector<std::string> argumentNames;

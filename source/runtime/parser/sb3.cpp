@@ -783,14 +783,25 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
                 }
                 std::string procode = blockData["mutation"]["proccode"];
 
-                if (procode == "​​log​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
-                else if (procode == "​​warn​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-                else if (procode == "​​error​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-                else if (procode == "​​open​​ %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
-                else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
-                else if (procode == "​​exit project​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
-
-                else {
+                if (procode == "​​log​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
+                    newBlock->bytecodeCallOpcode = "logs_log";
+                } else if (procode == "​​warn​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
+                    newBlock->bytecodeCallOpcode = "logs_warn";
+                } else if (procode == "​​error​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                    newBlock->bytecodeCallOpcode = "logs_error";
+                } else if (procode == "​​open​​ %s .sb3") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3";
+                } else if (procode == "​​open​​ %s .sb3 with data %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3withData";
+                } else if (procode == "​​exit project​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
+                    newBlock->bytecodeCallOpcode = "SE_exitProject";
+                } else {
                     if (newSprite->customHatBlock.count(procode) == 0) {
                         Block *placeholder = new Block();
                         placeholder->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
@@ -828,7 +839,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             hasNext = true;
         }
 
-        if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
+        if (blockDatas[currentId].contains("shadow") && blockDatas[currentId]["shadow"].get<bool>()) {
             newBlock->shadow = true;
         }
 

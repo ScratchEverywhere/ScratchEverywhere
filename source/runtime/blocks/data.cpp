@@ -17,13 +17,12 @@ SCRATCH_BLOCK(data, setvariableto) {
 SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
-    if (var == nullptr) return false;
-
-    BytecodeStackKind varKind;
-    if (std::holds_alternative<double>(var->value)) varKind = BytecodeStackKind::Number;
-    else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) varKind = BytecodeStackKind::String;
-    else if (std::holds_alternative<bool>(var->value)) varKind = BytecodeStackKind::Boolean;
-    else varKind = BytecodeStackKind::Value;
+    BytecodeStackKind varKind = BytecodeStackKind::Value;
+    if (var != nullptr) {
+        if (std::holds_alternative<double>(var->value)) varKind = BytecodeStackKind::Number;
+        else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) varKind = BytecodeStackKind::String;
+        else if (std::holds_alternative<bool>(var->value)) varKind = BytecodeStackKind::Boolean;
+    }
 
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "VALUE", varKind);
@@ -59,7 +58,6 @@ SCRATCH_BLOCK(data, changevariableby) {
 }
 SCRATCH_BYTECODE_BLOCK(data, changevariableby) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
-    if (BlockExecutor::getVariable(varId, compiler.sprite()) == nullptr) return false;
 
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
