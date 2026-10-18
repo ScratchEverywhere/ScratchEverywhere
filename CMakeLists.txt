@@ -95,7 +95,7 @@ set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the ou
 
 option(SE_LIBRARY "Build as a library instead of an executable" OFF)
 
-option(SE_EXECUTABLE "Build the main executable." ${PROJECT_IS_TOP_LEVEL})
+option(SE_EXECUTABLE "Build the main executable." ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
