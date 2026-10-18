@@ -72,28 +72,19 @@ static size_t se_lwmem_allocated_size = 0;
 static size_t se_lwmem_total_ram = 0;
 static int se_lwmem_is_expanded = 0;
 
-static size_t se_get_target_heap_size(void) {
+static void se_probe_ram(void) {
     MM_STATISTICS stats;
     memset(&stats, 0, sizeof(stats));
     stats.Length = sizeof(stats);
 
     if (NT_SUCCESS(MmQueryStatistics(&stats))) {
         se_lwmem_total_ram = (size_t)stats.TotalPhysicalPages * 4096u;
-
-        /* If expanded RAM is detected (>64MB, typically 128MB on modded consoles/devkits) */
         if (se_lwmem_total_ram > (64u * 1024u * 1024u)) {
             se_lwmem_is_expanded = 1;
-            /* Give runtime priority over GPU: reserve what the GPU and drivers
-               need for display/audio buffers, and allocate the rest to lwmem. */
-            if (se_lwmem_total_ram > SE_LWMEM_GPU_RESERVE_BYTES) {
-                return se_lwmem_total_ram - SE_LWMEM_GPU_RESERVE_BYTES;
-            }
         }
     } else {
         se_lwmem_total_ram = 64u * 1024u * 1024u;
     }
-
-    return SE_LWMEM_HEAP_SIZE;
 }
 
 static int se_lwmem_init(void) {
@@ -101,26 +92,89 @@ static int se_lwmem_init(void) {
        thread is spawned, so there is no need for a lock here. */
     if (se_lwmem_ready) return 1;
 
-    size_t size = se_get_target_heap_size();
-    void *base = NULL;
-    while (size >= SE_LWMEM_MIN_HEAP_SIZE) {
-        base = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (base) break;
-        if (size > (4u * 1024u * 1024u)) {
-            size -= (4u * 1024u * 1024u);
+    se_probe_ram();
+
+    /* Lower region: allocate baseline heap size.
+       Ensure we leave at least SE_LWMEM_GPU_RESERVE_BYTES in lower memory (0-64MB)
+       because the NV2A GPU buffers (framebuffer, depth, DMA) can ONLY reside below 64MB. */
+    size_t lower_max = 64u * 1024u * 1024u;
+    if (lower_max > SE_LWMEM_GPU_RESERVE_BYTES) {
+        lower_max -= SE_LWMEM_GPU_RESERVE_BYTES;
+    } else {
+        lower_max = SE_LWMEM_MIN_HEAP_SIZE;
+    }
+
+    size_t lower_size = SE_LWMEM_HEAP_SIZE;
+    if (lower_size > lower_max) {
+        lower_size = lower_max;
+    }
+
+    void *lower_base = NULL;
+    while (lower_size >= SE_LWMEM_MIN_HEAP_SIZE) {
+        lower_base = VirtualAlloc(NULL, lower_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (lower_base) break;
+        if (lower_size > (4u * 1024u * 1024u)) {
+            lower_size -= (4u * 1024u * 1024u);
         } else {
             break;
         }
     }
-    if (!base) return 0;
+    if (!lower_base) return 0;
 
-    lwmem_region_t regions[] = {
-        {base, size},
-        {NULL, 0},
-    };
+    void *upper_base = NULL;
+    size_t upper_size = 0;
+
+    if (se_lwmem_is_expanded) {
+        /* Upper region: allocate from the expanded 64MB bank (physical 0x04000000 - 0x07FFFFFF).
+           This memory is not accessible to the NV2A GPU for scanout, but is fully usable
+           by the CPU. We leave 4MB headroom at the top of the upper bank for BIOS/kernel tables. */
+        upper_size = 60u * 1024u * 1024u;
+        while (upper_size >= (4u * 1024u * 1024u)) {
+            upper_base = MmAllocateContiguousMemoryEx(upper_size, 0x04000000, 0x07FFFFFF, 4096, PAGE_READWRITE);
+            if (upper_base) break;
+            upper_size -= (4u * 1024u * 1024u);
+        }
+    }
+
+    /* lwmem requires regions to be sorted in strictly increasing order by start_addr */
+    lwmem_region_t regions[3];
+    memset(regions, 0, sizeof(regions));
+
+    if (upper_base != NULL && upper_size > 0) {
+        uintptr_t addr1 = (uintptr_t)lower_base;
+        uintptr_t addr2 = (uintptr_t)upper_base;
+
+        if (addr1 < addr2) {
+            if (addr1 + lower_size <= addr2) {
+                regions[0].start_addr = lower_base;
+                regions[0].size = lower_size;
+                regions[1].start_addr = upper_base;
+                regions[1].size = upper_size;
+            } else {
+                regions[0].start_addr = lower_base;
+                regions[0].size = lower_size;
+                upper_base = NULL;
+            }
+        } else {
+            if (addr2 + upper_size <= addr1) {
+                regions[0].start_addr = upper_base;
+                regions[0].size = upper_size;
+                regions[1].start_addr = lower_base;
+                regions[1].size = lower_size;
+            } else {
+                regions[0].start_addr = lower_base;
+                regions[0].size = lower_size;
+                upper_base = NULL;
+            }
+        }
+    } else {
+        regions[0].start_addr = lower_base;
+        regions[0].size = lower_size;
+    }
+
     if (!lwmem_assignmem(regions)) return 0;
 
-    se_lwmem_allocated_size = size;
+    se_lwmem_allocated_size = lower_size + (upper_base ? upper_size : 0);
     se_lwmem_ready = 1;
     return 1;
 }
