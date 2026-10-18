@@ -99,6 +99,15 @@ void Parser::initMist() {
     Log::log("initMist: Creating MistConnection with URL " + cloudURL + " and project ID " + projectID.str());
     cloudConnection = std::make_unique<MistConnection>(cloudURL, projectID.str(), Scratch::cloudUsername, "contact@grady.link");
 
+#ifdef __XBOX__
+    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
+        if (connected) {
+            Log::log("initMist: Mist++: " + message);
+            return;
+        }
+        Log::logWarning("initMist: Mist++ Disconnected: " + message);
+    });
+#else
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
             Log::log("initMist: Mist++ Connected: " + message);
@@ -106,8 +115,16 @@ void Parser::initMist() {
         }
         Log::logWarning("initMist: Mist++ Disconnected: " + message);
     });
+#endif
 
+#ifdef __XBOX__
+    cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
+        Log::log("initMist: Variable update received: " + name + " = " + value);
+        BlockExecutor::handleCloudVariableChange(name, value);
+    });
+#else
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
+#endif
 
     Log::log("initMist: Connecting to cloud variables with id: " + projectID.str());
 #if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))

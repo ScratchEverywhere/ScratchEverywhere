@@ -417,7 +417,15 @@ void Mixer::requestSound(short *output, int frames) {
         const float step = (float)s->rate * pitch / (float)Mixer::rate;
         int maxFramesNeeded = (int)(frames * step) + 2;
 
+#if defined(__XBOX__)
+        static std::vector<float> decodeBuffer;
+        if (decodeBuffer.size() < static_cast<size_t>(maxFramesNeeded * s->channels)) {
+            decodeBuffer.resize(maxFramesNeeded * s->channels);
+        }
+        std::fill(decodeBuffer.begin(), decodeBuffer.begin() + (maxFramesNeeded * s->channels), 0.0f);
+#else
         std::vector<float> decodeBuffer(maxFramesNeeded * s->channels, 0.0f);
+#endif
 
         int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
         if (decoded <= 0) {

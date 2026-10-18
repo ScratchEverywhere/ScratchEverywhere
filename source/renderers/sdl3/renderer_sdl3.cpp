@@ -208,6 +208,15 @@ bool Renderer_SDL3::initPen() {
 
 #ifdef __XBOX__
     if (!penTexture) {
+        Scratch::freeUnusedCostumeImages();
+        if (Scratch::hqpen) {
+            if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
+                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
+            else
+                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
+        } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    }
+    if (!penTexture) {
         Log::logError(std::string("Failed to create pen texture: ") + SDL_GetError());
         return false;
     }

@@ -98,4 +98,9 @@ void Loading::cleanup() {
     else Render::beginFrame(0, 0, 0, 0);
 
     Render::endFrame();
+
+    block1.reset();
+    block2.reset();
+    block3.reset();
+    loadingStateText.reset();
 }

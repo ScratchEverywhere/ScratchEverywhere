@@ -421,6 +421,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) {
+        svgDocument.reset();
         return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
     }
 #else
@@ -441,11 +442,20 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         dst = (unsigned char *)malloc(pixelsSize);
     }
 #endif
-    if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+    if (!dst) {
+#ifdef __XBOX__
+        svgDocument.reset();
+#endif
+        return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+    }
 
     reorderPixels(src, dst, pixelsSize);
 
     imgData.pitch = width * 4;
+
+#if defined(__XBOX__)
+    svgDocument.reset();
+#endif
 
     return dst;
 #endif
@@ -515,6 +525,8 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
+    if (srcW <= 0 || srcH <= 0 || !srcPixels) return nullptr;
+
     outW = srcW >> 1;
     outH = srcH >> 1;
 
@@ -531,6 +543,8 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
 
     const int srcStride = srcW * 4;
     const int dstStride = outW * 4;
+
+    if (!dst) return nullptr;
 
     for (int y = 0; y < outH; ++y) {
         const unsigned char *srcRow = srcPixels + (y << 1) * srcStride;
@@ -554,6 +568,11 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
 #if defined(__XBOX__)
     if (!pixels) {
+        Scratch::freeUnusedCostumeImages();
+        pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
+    }
+    if (!pixels || width <= 0 || height <= 0) {
+        if (pixels) stbi_image_free(pixels);
         const char *reason = stbi_failure_reason();
         return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
     }
@@ -570,6 +589,10 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     if (bitmapHalfQuality) {
         int resizedW, resizedH;
         unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        if (!resizedPixels) {
+            stbi_image_free(resultPixels);
+            return nonstd::make_unexpected("Failed to allocate resized raster buffer");
+        }
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
@@ -583,6 +606,14 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     while (width > 1024 || height > 1024) {
         int resizedW, resizedH;
         unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        if (!resizedPixels) {
+            if (resultPixels == pixels) {
+                stbi_image_free(resultPixels);
+            } else {
+                free(resultPixels);
+            }
+            return nonstd::make_unexpected("Failed to allocate downscaled raster buffer");
+        }
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
@@ -645,11 +676,29 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
     size_t file_size = 0;
     if (zip != nullptr) {
         raw_data = zip->extractToHeap(filePath, &file_size);
+#if defined(__XBOX__)
+        if (!raw_data) {
+            Scratch::freeUnusedCostumeImages();
+            raw_data = zip->extractToHeap(filePath, &file_size);
+        }
+#endif
     } else {
         raw_data = Unzip::getFileInSB3(filePath, &file_size);
+#if defined(__XBOX__)
+        if (!raw_data) {
+            Scratch::freeUnusedCostumeImages();
+            raw_data = Unzip::getFileInSB3(filePath, &file_size);
+        }
+#endif
     }
 
-    if (!raw_data) return nonstd::make_unexpected("Failed to extract: " + filePath);
+    if (!raw_data || file_size == 0) {
+        if (raw_data) {
+            if (zip) zip->freeHeap(raw_data);
+            else free(raw_data);
+        }
+        return nonstd::make_unexpected("Failed to extract: " + filePath);
+    }
 
     struct ZipHeapGuard {
         ZipArchive *zip;

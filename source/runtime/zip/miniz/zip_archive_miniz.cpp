@@ -4,6 +4,11 @@
 #include <istream>
 #include <miniz.h>
 
+#if defined(__XBOX__)
+#include <mutex>
+static std::mutex s_minizArchiveMutex;
+#endif
+
 namespace {
 
 class MinizZipArchive : public ZipArchive {
@@ -33,6 +38,9 @@ class MinizZipArchive : public ZipArchive {
     }
 
     void *extractToHeap(const std::string &name, size_t *outSize) override {
+#if defined(__XBOX__)
+        std::lock_guard<std::mutex> lock(s_minizArchiveMutex);
+#endif
         if (!opened) return nullptr;
         int file_index = mz_zip_reader_locate_file(&archive, name.c_str(), nullptr, 0);
 #if defined(__XBOX__)

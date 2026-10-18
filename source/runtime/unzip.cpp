@@ -195,8 +195,15 @@ void projectLoaderThread(void *data) {
 void loadInitialImages() {
 #ifdef __XBOX__
     Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    const std::string missingName = "SE__Missingno";
+    if (Scratch::costumeImages.find(missingName) == Scratch::costumeImages.end()) {
+        auto missingImg = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (missingImg.has_value()) {
+            Scratch::costumeImages[missingName] = missingImg.value();
+        }
+    }
     for (auto &currentSprite : Scratch::sprites) {
-        if (Scratch::costumeImages.size() >= 8) {
+        if (Scratch::costumeImages.size() >= (Scratch::sprites.size() + 2)) {
             Scratch::freeUnusedCostumeImages();
         }
         Scratch::loadCurrentCostumeImage(currentSprite);

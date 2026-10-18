@@ -21,7 +21,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
             keepInRam = false;
 #else
             keepInRam = true;
@@ -96,16 +96,42 @@ bool ZipProjectLoader::load(std::istream *file) {
             Scratch::sb3InRam = false;
 
 #if defined(__XBOX__)
-            file->clear();
-            file->seekg(0, std::ios::end);
-            uint64_t file_size = file->tellg();
-            file->clear();
-            file->seekg(0, std::ios::beg);
+            Unzip::zipBuffer.clear();
+            Unzip::zipBuffer.shrink_to_fit();
+
+            Unzip::zipArchive = createZipArchive();
+            bool opened = false;
+            if (Scratch::projectType != ProjectType::EMBEDDED && !Unzip::filePath.empty()) {
+                opened = Unzip::zipArchive->openFile(Unzip::filePath);
+            }
+            if (!opened) {
+                file->clear();
+                file->seekg(0, std::ios::end);
+                uint64_t file_size = file->tellg();
+                file->clear();
+                file->seekg(0, std::ios::beg);
+                opened = Unzip::zipArchive->openStream(file, file_size);
+            }
+
+            if (!opened) {
+                Log::logCritical("Failed to initialize project zip reader.", false);
+                Unzip::zipArchive.reset();
+                return false;
+            }
+
+            size_t json_size;
+            void *json_data = Unzip::zipArchive->extractToHeap("project.json", &json_size);
+            if (!json_data) {
+                Log::logCritical("Failed to extract project.json", false);
+                return false;
+            }
+
+            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
+            Unzip::zipArchive->freeHeap(json_data);
 #else
             file->seekg(0, std::ios::end);
             uint64_t file_size = file->tellg();
             file->seekg(0, std::ios::beg);
-#endif
 
             auto archive = createZipArchive();
             if (!archive->openStream(file, file_size)) {
@@ -122,6 +148,7 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
             archive->freeHeap(json_data);
+#endif
         }
     } else {
 #if defined(__XBOX__)

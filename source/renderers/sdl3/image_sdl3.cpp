@@ -12,6 +12,9 @@
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>
+#if defined(__XBOX__)
+#include <runtime.hpp>
+#endif
 
 void Image_SDL3::render(ImageRenderParams &params) {
     if (!texture) return;
@@ -195,6 +198,13 @@ void *Image_SDL3::getNativeTexture() {
 
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+
+#ifdef __XBOX__
+    if (!texture) {
+        Scratch::freeUnusedCostumeImages();
+        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+    }
+#endif
 
     if (!texture) {
         const std::string err = "Failed to create texture: " + std::string(SDL_GetError());

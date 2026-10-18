@@ -144,7 +144,7 @@ void ProjectSettings::init() {
     if (!settings["settings"]["sb3InRam"].is_null()) {
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", settings["settings"]["sb3InRam"].get<bool>()));
     } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", false));
 #else
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", true));
@@ -199,7 +199,7 @@ void ProjectSettings::render() {
     }
     if (ramButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
         settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", false);
 #else
         settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", true);

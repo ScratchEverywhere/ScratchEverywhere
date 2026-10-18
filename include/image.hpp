@@ -82,11 +82,18 @@ class SE_EXPORT Image {
 
   public:
 #ifdef __XBOX__
-    const unsigned int maxFreeTimer = 60;
+    const unsigned int maxFreeTimer = 30;
 #else
     const unsigned int maxFreeTimer = 540;
 #endif
     unsigned int freeTimer = maxFreeTimer;
+
+    void freePixels() {
+        if (imgData.pixels) {
+            free(imgData.pixels);
+            imgData.pixels = nullptr;
+        }
+    }
 
     /**
      * Set if an error occurs in the constructor.
