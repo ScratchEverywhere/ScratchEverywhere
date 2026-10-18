@@ -37,8 +37,8 @@ void TextObjectD3D9::uploadAtlas(FontGeneration &gen) {
 void TextObjectD3D9::render(int xPos, int yPos) {
     TEXVERTEX v[4];
     int i;
-    int drawX = (int)xPos;
-    int drawY = (int)yPos;
+    float drawX = xPos;
+    float drawY = yPos;
     float lineHeight;
 
     if (!this->fontAtlas || !this->fontAtlas->isValid() || this->layoutLines.empty()) return;
@@ -47,8 +47,8 @@ void TextObjectD3D9::render(int xPos, int yPos) {
     if (gen.dirty) this->uploadAtlas(gen);
 
     if (this->centerAligned) {
-        drawX -= layoutWidth / 2.0f;
-        drawY -= layoutHeight / 2.0f;
+        drawX -= this->layoutWidth / 2.0f;
+        drawY -= this->layoutHeight / 2.0f;
     }
 
     lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
@@ -63,16 +63,15 @@ void TextObjectD3D9::render(int xPos, int yPos) {
         const auto &glyphs = layoutLines[i];
         if (glyphs.empty()) continue;
 
-        int lineX = drawX;
-        int lineY = drawY + (i * lineHeight + gen.ascent * glyphScale);
+        float lineX = drawX;
+        float lineY = drawY + (i * lineHeight + gen.ascent * this->glyphScale);
 
         IDirect3DDevice9_SetTexture(pDev, 0, this->pTex);
         for (const GlyphQuad &q : glyphs) {
-            float qx0 = lineX + q.x0 * glyphScale;
-            float qy0 = lineY + q.y0 * glyphScale;
-            float qx1 = lineX + q.x1 * glyphScale;
-            float qy1 = lineY + q.y1 * glyphScale;
-            int x, y;
+            float qx0 = lineX + q.x0 * this->glyphScale;
+            float qy0 = lineY + q.y0 * this->glyphScale;
+            float qx1 = lineX + q.x1 * this->glyphScale;
+            float qy1 = lineY + q.y1 * this->glyphScale;
 
             v[0].x = qx0 - 0.5;
             v[0].y = qy0 - 0.5;

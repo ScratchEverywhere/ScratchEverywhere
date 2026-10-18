@@ -36,9 +36,9 @@ void TextObjectGDI::uploadAtlas(FontGeneration &gen) {
 void TextObjectGDI::render(int xPos, int yPos) {
     POINT p[3];
     int i;
-    int drawX = (int)xPos;
-    int drawY = (int)yPos;
-    int lineHeight;
+    float drawX = xPos;
+    float drawY = yPos;
+    float lineHeight;
 
     if (!this->fontAtlas || !this->fontAtlas->isValid() || this->layoutLines.empty()) return;
 
@@ -56,8 +56,8 @@ void TextObjectGDI::render(int xPos, int yPos) {
         const auto &glyphs = layoutLines[i];
         if (glyphs.empty()) continue;
 
-        int lineX = drawX;
-        int lineY = drawY + (i * lineHeight + gen.ascent * glyphScale);
+        float lineX = drawX;
+        float lineY = drawY + (i * lineHeight + gen.ascent * glyphScale);
 
         for (const GlyphQuad &q : glyphs) {
             int qx0 = lineX + q.x0 * glyphScale;
