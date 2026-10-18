@@ -1,6 +1,6 @@
 function(_recipe_ScratchEverywhere_source)
 	set(SE_REF "1.2.1")
-	if(CL_REQ_VERSION)
+	if(CL_VERSION_REQ)
 		set(SE_REF "${CL_REQ_VERSION}")
 	endif()
 
