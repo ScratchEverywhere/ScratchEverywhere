@@ -1,4 +1,5 @@
 #include "input.hpp"
+#include <algorithm>
 #include <log.hpp>
 
 InputDevice *globalInputDevice = nullptr;
@@ -77,6 +78,9 @@ void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int rend
     if (!hasInputViewport()) return;
     x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
     y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+
+    x = std::clamp(x, 0, renderWidth);
+    y = std::clamp(y, 0, renderHeight);
 }
 
 void *Input::inputWindowHandleOverride = nullptr;
