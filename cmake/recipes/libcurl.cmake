@@ -59,11 +59,7 @@ function(_recipe_libcurl_system)
 	endif()
 
 	cl_format_pkgconfig_req("libcurl" "${CL_VERSION_REQ}" PKG_SPEC)
-	if(CL_STATIC)
-		pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL "--static" ${PKG_SPEC})
-	else()
-		pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL ${PKG_SPEC})
-	endif()
+	pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL ${PKG_SPEC})
 endfunction()
 
 function(_recipe_libcurl_package)
