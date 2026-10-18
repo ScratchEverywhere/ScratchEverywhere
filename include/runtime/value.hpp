@@ -28,12 +28,18 @@ class SE_EXPORT StringPool {
         Utf16State utf16State = Utf16State::NOT_BUILT;
         std::vector<uint32_t> utf16Offsets;
 
-        enum class NumericState : uint8_t { NOT_COMPUTED, NUMERIC, NOT_NUMERIC };
+        enum class NumericState : uint8_t { NOT_COMPUTED,
+                                            NUMERIC,
+                                            NOT_NUMERIC };
         NumericState numericState = NumericState::NOT_COMPUTED;
         bool hasDot = false;
 
+        bool deduped = false;
+
         size_t hash = 0;
     };
+
+    static constexpr size_t dedupMaxLength = 32;
 
     struct Key {
         std::string_view sv;

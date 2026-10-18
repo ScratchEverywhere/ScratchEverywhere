@@ -39,15 +39,20 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
     if (str.empty()) return 0u;
 
     auto &pool = storageRef();
-    auto &lookup = lookupRef();
     auto &freeSlots = freeListRef();
 
-    const size_t hash = std::hash<std::string_view>{}(str);
-    auto it = lookup.find(Key{str, hash});
-    if (it != lookup.end()) {
-        uint32_t id = it->second;
-        pool[id].refCount++;
-        return id;
+    const bool tryDedup = str.size() <= dedupMaxLength;
+    size_t hash = 0;
+
+    if (tryDedup) {
+        auto &lookup = lookupRef();
+        hash = std::hash<std::string_view>{}(str);
+        auto it = lookup.find(Key{str, hash});
+        if (it != lookup.end()) {
+            uint32_t id = it->second;
+            pool[id].refCount++;
+            return id;
+        }
     }
 
     uint32_t id;
@@ -61,8 +66,11 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         pool.push_back({std::string(str), 1});
     }
 
-    pool[id].hash = hash;
-    lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+    pool[id].deduped = tryDedup;
+    if (tryDedup) {
+        pool[id].hash = hash;
+        lookupRef().emplace(Key{std::string_view(pool[id].data), hash}, id);
+    }
     return id;
 }
 
@@ -75,7 +83,6 @@ void StringPool::addRef(uint32_t id) {
 void StringPool::release(uint32_t id) {
     if (id == 0) return;
     auto &pool = storageRef();
-    auto &lookup = lookupRef();
     auto &freeSlots = freeListRef();
 
     if (id >= pool.size()) return;
@@ -83,8 +90,9 @@ void StringPool::release(uint32_t id) {
     if (e.refCount == 0) return;
 
     if (--e.refCount == 0) {
-        lookup.erase(Key{std::string_view(e.data), e.hash});
+        if (e.deduped) lookupRef().erase(Key{std::string_view(e.data), e.hash});
         e.data.clear();
+        e.deduped = false;
         e.numericState = Entry::NumericState::NOT_COMPUTED;
         e.utf16State = Entry::Utf16State::NOT_BUILT;
         std::vector<uint32_t>().swap(e.utf16Offsets);

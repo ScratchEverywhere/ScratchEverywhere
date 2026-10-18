@@ -5,6 +5,8 @@
 #include "runtime.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <random>
 #ifdef ENABLE_AUDIO
 #include <audiostack.hpp>
 #endif
@@ -12,6 +14,37 @@
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
 namespace {
+
+thread_local uint64_t randState0 = 0;
+thread_local uint64_t randState1 = 0;
+
+uint64_t fastRandomNext() {
+    if (randState0 == 0 && randState1 == 0) {
+        std::random_device rd;
+        randState0 = (static_cast<uint64_t>(rd()) << 32) ^ rd() ^ 0x9E3779B97F4A7C15ULL;
+        randState1 = (static_cast<uint64_t>(rd()) << 32) ^ rd() ^ 0xBF58476D1CE4E5B9ULL;
+        if (randState0 == 0) randState0 = 1;
+        if (randState1 == 0) randState1 = 2;
+    }
+
+    uint64_t s1 = randState0;
+    const uint64_t s0 = randState1;
+    randState0 = s0;
+    s1 ^= s1 << 23;
+    s1 ^= s1 >> 17;
+    s1 ^= s0;
+    s1 ^= s0 >> 26;
+    randState1 = s1;
+    return randState0 + randState1;
+}
+
+double fastRandomDouble() {
+    return static_cast<double>(fastRandomNext() >> 11) * (1.0 / 9007199254740992.0);
+}
+
+uint64_t fastRandomBelow(uint64_t bound) {
+    return fastRandomNext() % bound;
+}
 
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
@@ -111,7 +144,7 @@ size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
     std::string indexStr = indexValue.asString();
     if (indexStr == "last") return size - 1;
-    if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(rand() % size);
+    if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
 
     double d = indexValue.get<double>();
     if (!std::isfinite(d)) return size;
@@ -557,7 +590,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
             } else if (indexStr == "last" && !list->items.empty()) {
                 list->items.pop_back();
             } else if ((indexStr == "random" || indexStr == "any") && !list->items.empty()) {
-                list->items.erase(list->items.begin() + (rand() % list->items.size()));
+                list->items.erase(list->items.begin() + fastRandomBelow(list->items.size()));
             } else {
                 double d = index.get<double>();
                 if (std::isfinite(d)) {
@@ -585,7 +618,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
             std::string indexStr = index.asString();
             size_t pos;
             if (indexStr == "last") pos = list->items.size();
-            else if (indexStr == "random" || indexStr == "any") pos = list->items.empty() ? 0 : static_cast<size_t>(rand() % (list->items.size() + 1));
+            else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list->items.size() + 1));
             else {
                 double d = index.get<double>();
                 if (!std::isfinite(d)) {
@@ -1086,8 +1119,8 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         const Value op1 = std::move(thread.valueStack.back());
         thread.valueStack.pop_back();
         thread.boolStack.push_back(instr.op == BytecodeOp::ValueEquals ? op1 == op2
-                                   : instr.op == BytecodeOp::ValueLess  ? op1 < op2
-                                                                        : op1 > op2);
+                                   : instr.op == BytecodeOp::ValueLess ? op1 < op2
+                                                                       : op1 > op2);
         thread.pc++;
         return true;
     }
@@ -1107,9 +1140,9 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
             const double from = std::min(a, b);
             const double to = std::max(a, b);
             if (fromValue.isScratchInt() && toValue.isScratchInt())
-                result = from + (rand() % static_cast<int>(to + 1 - from));
+                result = from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1 - from)));
             else
-                result = from + rand() * (to - from) / (RAND_MAX + 1.0);
+                result = from + fastRandomDouble() * (to - from);
         }
         thread.numberStack.push_back(result);
         thread.pc++;
@@ -1127,7 +1160,7 @@ bool BytecodeExecutor::step(BytecodeThread &thread) {
         } else {
             double from = std::min(a, b);
             double to = std::max(a, b);
-            result = from + (rand() % static_cast<int>(to + 1 - from));
+            result = from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1 - from)));
         }
         thread.numberStack.push_back(result);
         thread.pc++;
