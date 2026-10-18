@@ -123,7 +123,7 @@ void ProjectSettings::init() {
         bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
     }
 
-    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3) {
+    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
     } else {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));

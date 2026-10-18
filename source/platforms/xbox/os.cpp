@@ -119,7 +119,7 @@ std::string OS::getPlatform() {
 }
 
 bool OS::isEnhancedPlatform() {
-    return false;
+	return false;
 }
 
 std::string OS::getFilesystemRootPrefix() {

@@ -490,7 +490,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
     if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
     } else {
-        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3) Scratch::accuratePen = true;
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) Scratch::accuratePen = true;
         else Scratch::accuratePen = false;
     }
 

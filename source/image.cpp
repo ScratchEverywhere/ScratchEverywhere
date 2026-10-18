@@ -28,6 +28,9 @@
 #if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
 #endif
+#if defined(RENDERER_XBOX)
+#include <image_xbox.hpp>
+#endif
 #if defined(RENDERER_SDL3)
 #include <image_sdl3.hpp>
 #endif
@@ -120,6 +123,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_XBOX)
+    case Renderers::Xbox:
+        rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_SDL3)
     case Renderers::SDL3:
         rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -203,6 +211,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_SDL2)
     case Renderers::SDL2:
         rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_XBOX)
+    case Renderers::Xbox:
+        rawImg = new Image_Xbox(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_SDL3)
@@ -603,7 +616,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     }
 
 #if defined(__XBOX__)
-    while (width > 1024 || height > 1024) {
+    // Large images are split into tiles by Image_Xbox, so only cap the decoded size.
+    while (width > 2048 || height > 2048) {
         int resizedW, resizedH;
         unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
         if (!resizedPixels) {

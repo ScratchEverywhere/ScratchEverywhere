@@ -58,6 +58,7 @@ SCRATCH_BLOCK(SE, controller) {
 #endif
 #if defined(WINDOWING_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
     case Renderers::SDL3:
+    case Renderers::Xbox:
         if (controller != nullptr) *outValue = Value(std::string(SDL_GetGamepadName(controller)));
         break;
 #endif
