@@ -153,8 +153,7 @@ void main() {
 )glsl";
 
 static const char *kSpriteFrag =
-    SE_GL_SHADER_VERSION
-    SE_GL_FRAG_PRECISION
+    SE_GL_SHADER_VERSION SE_GL_FRAG_PRECISION
     R"glsl(
 in  vec2 v_uv;
 out vec4 frag_color;
@@ -275,8 +274,7 @@ void main() {
 )glsl";
 
 static const char *kSolidFrag =
-    SE_GL_SHADER_VERSION
-    SE_GL_FRAG_PRECISION
+    SE_GL_SHADER_VERSION SE_GL_FRAG_PRECISION
     R"glsl(
 in vec4 v_color;
 out vec4 frag_color;
@@ -432,6 +430,8 @@ static void appendSolidCapsuleTris(std::vector<float> &out, float x1, float y1, 
 
 static GLuint overrideFBO = 0;
 static bool hasOverrideFBO = false;
+static int overrideWidth = 0;
+static int overrideHeight = 0;
 
 static GLuint getMainFBO() {
     if (hasOverrideFBO) return overrideFBO;
@@ -442,15 +442,27 @@ static GLuint getMainFBO() {
 #endif
 }
 
+static int effectiveWidth(WindowSE *window) {
+    if (hasOverrideFBO) return overrideWidth;
+    return window ? window->getWidth() : 480;
+}
+
+static int effectiveHeight(WindowSE *window) {
+    if (hasOverrideFBO) return overrideHeight;
+    return window ? window->getHeight() : 360;
+}
+
 static bool createPenFBO(WindowSE *window) {
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(window->getWidth()) <
-            Scratch::projectHeight / static_cast<double>(window->getHeight())) {
-            penWidth = Scratch::projectWidth * (window->getHeight() / static_cast<double>(Scratch::projectHeight));
-            penHeight = window->getHeight();
+        const int renderWidth = effectiveWidth(window);
+        const int renderHeight = effectiveHeight(window);
+        if (Scratch::projectWidth / static_cast<double>(renderWidth) <
+            Scratch::projectHeight / static_cast<double>(renderHeight)) {
+            penWidth = Scratch::projectWidth * (renderHeight / static_cast<double>(Scratch::projectHeight));
+            penHeight = renderHeight;
         } else {
-            penWidth = window->getWidth();
-            penHeight = Scratch::projectHeight * (window->getWidth() / static_cast<double>(Scratch::projectWidth));
+            penWidth = renderWidth;
+            penHeight = Scratch::projectHeight * (renderWidth / static_cast<double>(Scratch::projectWidth));
         }
     } else {
         penWidth = Scratch::projectWidth;
@@ -596,8 +608,8 @@ Renderer_GLCore::Renderer_GLCore() {
     constexpr int initialWidth = 1280;
     constexpr int initialHeight = 720;
 #else
-    constexpr int initialWidth = 540;
-    constexpr int initialHeight = 405;
+    constexpr int initialWidth = 480;
+    constexpr int initialHeight = 360;
 #endif
 
     window = createWindow(initialWidth, initialHeight, "Scratch Everywhere!");
@@ -690,14 +702,26 @@ Renderer_GLCore::~Renderer_GLCore() {
     }
 }
 
-void Renderer_GLCore::setRenderTarget(void *renderTarget) {
+void Renderer_GLCore::setRenderTarget(void *renderTarget, int width, int height) {
+    const bool sizeChanged = hasOverrideFBO && (overrideWidth != width || overrideHeight != height);
+
     overrideFBO = static_cast<GLuint>(reinterpret_cast<uintptr_t>(renderTarget));
+    overrideWidth = width;
+    overrideHeight = height;
     hasOverrideFBO = true;
     glBindFramebuffer(GL_FRAMEBUFFER, overrideFBO);
+    glViewport(0, 0, overrideWidth, overrideHeight);
+
+    if (sizeChanged && Scratch::hqpen) {
+        destroyPenFBO();
+        createPenFBO(window);
+    }
 }
 
 void Renderer_GLCore::clearRenderTarget() {
     hasOverrideFBO = false;
+    overrideWidth = 0;
+    overrideHeight = 0;
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 }
 
@@ -713,8 +737,8 @@ void Renderer_GLCore::destroySpeechManager() {
 
 SpeechManager *Renderer_GLCore::getSpeechManager() { return speechManager; }
 
-int Renderer_GLCore::getWidth() { return window ? window->getWidth() : 540; }
-int Renderer_GLCore::getHeight() { return window ? window->getHeight() : 405; }
+int Renderer_GLCore::getWidth() { return effectiveWidth(window); }
+int Renderer_GLCore::getHeight() { return effectiveHeight(window); }
 
 float Renderer_GLCore::getPixelDensity() {
     return window ? window->getPixelDensity() : 1.0f;
@@ -1009,8 +1033,8 @@ bool Renderer_GLCore::appShouldRun() {
         window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = window->getWidth();
-        int currentH = window->getHeight();
+        int currentW = effectiveWidth(window);
+        int currentH = effectiveHeight(window);
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;

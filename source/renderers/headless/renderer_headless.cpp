@@ -11,7 +11,7 @@ bool Renderer_Headless::initPen() {
     return true;
 }
 
-void Renderer_Headless::setRenderTarget(void *renderTarget) {
+void Renderer_Headless::setRenderTarget(void *renderTarget, int width, int height) {
 }
 
 void Renderer_Headless::clearRenderTarget() {

@@ -189,7 +189,7 @@ Renderer_GL::~Renderer_GL() {
     }
 }
 
-void Renderer_GL::setRenderTarget(void *renderTarget) {
+void Renderer_GL::setRenderTarget(void *renderTarget, int width, int height) {
     Log::logWarning("Renderer_GL::setRenderTarget is not supported by the legacy OpenGL renderer");
 }
 
@@ -211,12 +211,12 @@ SpeechManager *Renderer_GL::getSpeechManager() {
 
 int Renderer_GL::getWidth() {
     if (window) return window->getWidth();
-    return 540;
+    return 480;
 }
 
 int Renderer_GL::getHeight() {
     if (window) return window->getHeight();
-    return 405;
+    return 360;
 }
 
 float Renderer_GL::getPixelDensity() {

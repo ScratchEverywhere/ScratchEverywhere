@@ -33,7 +33,7 @@ class SE_EXPORT Renderer_D3D9 : public Renderer {
 
     bool initPen() override;
 
-    void setRenderTarget(void *renderTarget) override;
+    void setRenderTarget(void *renderTarget, int width, int height) override;
     void clearRenderTarget() override;
 
     bool createSpeechManager() override;

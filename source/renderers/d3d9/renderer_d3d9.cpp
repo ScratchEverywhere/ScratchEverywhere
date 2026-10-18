@@ -499,7 +499,7 @@ Renderer_D3D9::~Renderer_D3D9() {
     ExitProcess(0);
 }
 
-void Renderer_D3D9::setRenderTarget(void *renderTarget) {
+void Renderer_D3D9::setRenderTarget(void *renderTarget, int width, int height) {
 }
 
 void Renderer_D3D9::clearRenderTarget() {

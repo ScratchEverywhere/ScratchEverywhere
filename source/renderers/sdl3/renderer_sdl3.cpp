@@ -36,6 +36,9 @@ char nickname[0x21];
 #endif
 
 static SDL_Texture *mainRenderTarget = nullptr;
+static bool hasOverrideTarget = false;
+static int overrideWidth = 0;
+static int overrideHeight = 0;
 SDL_Texture *penTexture = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
@@ -141,13 +144,17 @@ Renderer_SDL3::~Renderer_SDL3() {
     SDL_Quit();
 }
 
-void Renderer_SDL3::setRenderTarget(void *renderTarget) {
+void Renderer_SDL3::setRenderTarget(void *renderTarget, int width, int height) {
     mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
+    overrideWidth = width;
+    overrideHeight = height;
+    hasOverrideTarget = true;
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
 void Renderer_SDL3::clearRenderTarget() {
     mainRenderTarget = nullptr;
+    hasOverrideTarget = false;
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
@@ -167,13 +174,15 @@ SpeechManager *Renderer_SDL3::getSpeechManager() {
 }
 
 int Renderer_SDL3::getWidth() {
+    if (hasOverrideTarget) return overrideWidth;
     if (window) return window->getWidth();
-    return 540;
+    return 480;
 }
 
 int Renderer_SDL3::getHeight() {
+    if (hasOverrideTarget) return overrideHeight;
     if (window) return window->getHeight();
-    return 405;
+    return 360;
 }
 
 float Renderer_SDL3::getPixelDensity() {
@@ -707,8 +716,8 @@ bool Renderer_SDL3::appShouldRun() {
         window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = window->getWidth();
-        int currentH = window->getHeight();
+        int currentW = getWidth();
+        int currentH = getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;

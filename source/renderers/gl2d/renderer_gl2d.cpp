@@ -45,7 +45,7 @@ Renderer_GL2D::~Renderer_GL2D() {
     SoundPlayer::deinit();
 }
 
-void Renderer_GL2D::setRenderTarget(void *renderTarget) {
+void Renderer_GL2D::setRenderTarget(void *renderTarget, int width, int height) {
 }
 
 void Renderer_GL2D::clearRenderTarget() {

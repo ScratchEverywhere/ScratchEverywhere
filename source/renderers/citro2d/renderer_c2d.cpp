@@ -159,7 +159,7 @@ bool Renderer_C2D::appShouldRun() {
     return true;
 }
 
-void Renderer_C2D::setRenderTarget(void *renderTarget) {
+void Renderer_C2D::setRenderTarget(void *renderTarget, int width, int height) {
     Log::logWarning("Renderer_C2D::setRenderTarget is not supported by the citro2d renderer");
 }
 

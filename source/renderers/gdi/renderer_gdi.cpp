@@ -147,7 +147,7 @@ Renderer_GDI::~Renderer_GDI() {
     ExitProcess(0);
 }
 
-void Renderer_GDI::setRenderTarget(void *renderTarget) {
+void Renderer_GDI::setRenderTarget(void *renderTarget, int width, int height) {
 }
 
 void Renderer_GDI::clearRenderTarget() {

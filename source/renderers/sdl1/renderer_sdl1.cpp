@@ -33,6 +33,9 @@
 
 SDL_Surface *mainSurface = nullptr;
 static SDL_Surface *penSurface = nullptr;
+static bool hasOverrideTarget = false;
+static int overrideWidth = 0;
+static int overrideHeight = 0;
 
 namespace {
 void drawBlackBars(SDL_Surface *surface, int screenWidth, int screenHeight) {
@@ -107,11 +110,15 @@ Renderer_SDL1::~Renderer_SDL1() {
     SDL_Quit();
 }
 
-void Renderer_SDL1::setRenderTarget(void *renderTarget) {
+void Renderer_SDL1::setRenderTarget(void *renderTarget, int width, int height) {
     mainSurface = static_cast<SDL_Surface *>(renderTarget);
+    overrideWidth = width;
+    overrideHeight = height;
+    hasOverrideTarget = true;
 }
 
 void Renderer_SDL1::clearRenderTarget() {
+    hasOverrideTarget = false;
     if (window) {
         mainSurface = reinterpret_cast<SDL_Surface *>(window->getHandle());
     }
@@ -132,11 +139,13 @@ SpeechManager *Renderer_SDL1::getSpeechManager() {
 }
 
 int Renderer_SDL1::getWidth() {
+    if (hasOverrideTarget) return overrideWidth;
     if (window) return window->getWidth();
     return 480;
 }
 
 int Renderer_SDL1::getHeight() {
+    if (hasOverrideTarget) return overrideHeight;
     if (window) return window->getHeight();
     return 360;
 }
@@ -384,8 +393,8 @@ bool Renderer_SDL1::appShouldRun() {
         window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = window->getWidth();
-        int currentH = window->getHeight();
+        int currentW = getWidth();
+        int currentH = getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;

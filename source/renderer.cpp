@@ -249,9 +249,9 @@ bool Render::initPen() {
     return false;
 }
 
-void Render::setRenderTarget(void *renderTarget) {
+void Render::setRenderTarget(void *renderTarget, int width, int height) {
     if (globalRenderer)
-        globalRenderer->setRenderTarget(renderTarget);
+        globalRenderer->setRenderTarget(renderTarget, width, height);
 }
 
 void Render::clearRenderTarget() {

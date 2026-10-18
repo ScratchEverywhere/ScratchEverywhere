@@ -60,7 +60,7 @@ class SE_EXPORT Renderer {
 
     virtual bool initPen() = 0;
 
-    virtual void setRenderTarget(void *renderTarget) = 0;
+    virtual void setRenderTarget(void *renderTarget, int width, int height) = 0;
     virtual void clearRenderTarget() = 0;
 
     virtual bool createSpeechManager() = 0;
@@ -202,7 +202,7 @@ bool initPen();
 
 void deInit();
 
-void setRenderTarget(void *renderTarget);
+void setRenderTarget(void *renderTarget, int width, int height);
 void clearRenderTarget();
 
 /**
