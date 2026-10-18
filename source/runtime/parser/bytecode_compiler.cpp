@@ -447,6 +447,23 @@ void BytecodeCompiler::compileInput(Block *block, const std::string &inputName, 
     compileSignatureParam(*this, block, inputName, wanted);
 }
 
+BytecodeIndex BytecodeCompiler::compileConditionalJump(Block *block, const std::string &inputName, bool jumpIfTrue) {
+    compileInput(block, inputName, BytecodeStackKind::Boolean);
+
+    BytecodeInstruction &last = chunk_.instructions.back();
+    if (last.op == BytecodeOp::NumEquals || last.op == BytecodeOp::NumLess || last.op == BytecodeOp::NumGreater) {
+        const BytecodeCompareKind kind = last.op == BytecodeOp::NumEquals ? BytecodeCompareKind::Equals
+                                         : last.op == BytecodeOp::NumLess ? BytecodeCompareKind::Less
+                                                                          : BytecodeCompareKind::Greater;
+        last.op = jumpIfTrue ? BytecodeOp::JumpIfNumCompareTrue : BytecodeOp::JumpIfNumCompareFalse;
+        last.a = invalidBytecodeIndex;
+        last.b = static_cast<BytecodeIndex>(kind);
+        return static_cast<BytecodeIndex>(chunk_.instructions.size() - 1);
+    }
+
+    return emit(jumpIfTrue ? BytecodeOp::JumpIfTrue : BytecodeOp::JumpIfFalse);
+}
+
 bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, BytecodeIndex &outFirstInstr) {
     BytecodeIndex firstInstruction = invalidBytecodeIndex;
     Block *block = start;

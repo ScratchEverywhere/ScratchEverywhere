@@ -18,7 +18,4 @@ class SE_EXPORT BytecodeExecutor {
     static void runThreads();
 
     static void runThread(BytecodeThread &thread);
-
-  private:
-    static bool step(BytecodeThread &thread);
 };

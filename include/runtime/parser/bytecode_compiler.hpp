@@ -28,6 +28,8 @@ class SE_EXPORT BytecodeCompiler {
     void compileOperand(const ParsedInput *input, BytecodeStackKind wanted);
     void compileInput(Block *block, const std::string &inputName, BytecodeStackKind wanted);
 
+    BytecodeIndex compileConditionalJump(Block *block, const std::string &inputName, bool jumpIfTrue);
+
     static Block *substackBlock(Block *block, const std::string &inputName);
 
     bool compileBlockChain(Block *start, Block *stopBlock, BytecodeIndex &outFirstInstr);

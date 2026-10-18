@@ -31,8 +31,7 @@ SCRATCH_BLOCK(control, if) {
 }
 SCRATCH_BYTECODE_BLOCK(control, if) {
     outFirstInstr = compiler.here();
-    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
-    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfFalse);
+    BytecodeIndex exitJump = compiler.compileConditionalJump(block, "CONDITION", false);
 
     BytecodeIndex ignored;
     compiler.compileSubstack(block, "SUBSTACK", block->nextBlock, ignored);
@@ -78,8 +77,7 @@ SCRATCH_BLOCK(control, if_else) {
 }
 SCRATCH_BYTECODE_BLOCK(control, if_else) {
     outFirstInstr = compiler.here();
-    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
-    BytecodeIndex elseJump = compiler.emit(BytecodeOp::JumpIfFalse);
+    BytecodeIndex elseJump = compiler.compileConditionalJump(block, "CONDITION", false);
 
     BytecodeIndex ignored;
     compiler.compileSubstack(block, "SUBSTACK", block->nextBlock, ignored);
@@ -261,8 +259,7 @@ SCRATCH_BLOCK(control, wait_until) {
 }
 SCRATCH_BYTECODE_BLOCK(control, wait_until) {
     BytecodeIndex loopStart = compiler.here();
-    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
-    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfTrue);
+    BytecodeIndex exitJump = compiler.compileConditionalJump(block, "CONDITION", true);
     compiler.emit(BytecodeOp::Yield);
     compiler.emit(BytecodeOp::Jump, loopStart);
     compiler.patchJumpTarget(exitJump, compiler.here());
@@ -363,8 +360,7 @@ SCRATCH_BLOCK(control, while) {
 }
 SCRATCH_BYTECODE_BLOCK(control, while) {
     BytecodeIndex loopStart = compiler.here();
-    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
-    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfFalse);
+    BytecodeIndex exitJump = compiler.compileConditionalJump(block, "CONDITION", false);
 
     BytecodeIndex ignored;
     compiler.compileSubstack(block, "SUBSTACK", block, ignored);
@@ -400,8 +396,7 @@ SCRATCH_BLOCK(control, repeat_until) {
 }
 SCRATCH_BYTECODE_BLOCK(control, repeat_until) {
     BytecodeIndex loopStart = compiler.here();
-    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
-    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfTrue);
+    BytecodeIndex exitJump = compiler.compileConditionalJump(block, "CONDITION", true);
 
     BytecodeIndex ignored;
     compiler.compileSubstack(block, "SUBSTACK", block, ignored);

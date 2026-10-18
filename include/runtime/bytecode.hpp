@@ -105,6 +105,9 @@ enum class BytecodeOp : uint8_t {
     JumpIfFalse,
     JumpIfTrue,
 
+    JumpIfNumCompareFalse,
+    JumpIfNumCompareTrue,
+
     RepeatCheck,
     ForEachCheck,
     Wait,
@@ -277,6 +280,12 @@ enum class BytecodeMathOp : uint8_t {
     Log,
     Exp,
     Pow10,
+};
+
+enum class BytecodeCompareKind : uint8_t {
+    Equals,
+    Less,
+    Greater,
 };
 
 enum class BytecodeEffect : uint8_t {

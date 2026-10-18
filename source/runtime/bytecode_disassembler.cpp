@@ -187,6 +187,10 @@ const char *mnemonic(BytecodeOp op) {
         return "JumpIfFalse";
     case BytecodeOp::JumpIfTrue:
         return "JumpIfTrue";
+    case BytecodeOp::JumpIfNumCompareFalse:
+        return "JumpIfNumCompareFalse";
+    case BytecodeOp::JumpIfNumCompareTrue:
+        return "JumpIfNumCompareTrue";
     case BytecodeOp::RepeatCheck:
         return "RepeatCheck";
     case BytecodeOp::ForEachCheck:
@@ -358,6 +362,14 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
     case BytecodeOp::RepeatCheck:
         out << "  ; -> #" << instr.a;
         return;
+
+    case BytecodeOp::JumpIfNumCompareFalse:
+    case BytecodeOp::JumpIfNumCompareTrue: {
+        static const char *kinds[] = {"==", "<", ">"};
+        const auto kind = static_cast<uint8_t>(instr.b);
+        out << "  ; -> #" << instr.a << ", " << (kind < 3 ? kinds[kind] : "?");
+        return;
+    }
 
     case BytecodeOp::ForEachCheck:
         out << "  ; -> #" << instr.a << ", var \"" << variableNameForSlot(chunk, instr.b) << "\"";
