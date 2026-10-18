@@ -37,6 +37,8 @@
 
 volatile int Unzip::projectOpened = 0;
 std::string Unzip::loadingState = "";
+#ifdef __XBOX__
+#include <mutex>
 static std::mutex s_loadingStateMutex;
 
 void Unzip::setLoadingState(const std::string &state) {
@@ -48,6 +50,7 @@ std::string Unzip::getLoadingState() {
     std::lock_guard<std::mutex> lock(s_loadingStateMutex);
     return loadingState;
 }
+#endif
 
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
@@ -190,15 +193,20 @@ void projectLoaderThread(void *data) {
 }
 
 void loadInitialImages() {
+#ifdef __XBOX__
     Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
     for (auto &currentSprite : Scratch::sprites) {
-#ifdef __XBOX__
         if (Scratch::costumeImages.size() >= 8) {
             Scratch::freeUnusedCostumeImages();
         }
-#endif
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
+#else
+    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#endif
 }
 
 bool Unzip::load() {
@@ -244,7 +252,11 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
+#ifdef __XBOX__
     setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+#else
+    loadingState = TranslationManager::getTranslation("ui.loading.opening");
+#endif
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
@@ -262,7 +274,11 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+#ifdef __XBOX__
     setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
+#else
+    loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
+#endif
     Unzip::loader = createProjectLoader(format);
     bool loaded = Unzip::loader->load(file);
     delete file;

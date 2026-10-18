@@ -72,7 +72,11 @@ void Loading::render() {
         block3->render(p3);
     }
 
+#ifdef __XBOX__
     loadingStateText->setText(Unzip::getLoadingState());
+#else
+    loadingStateText->setText(Unzip::loadingState);
+#endif
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)

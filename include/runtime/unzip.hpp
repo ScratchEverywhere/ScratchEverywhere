@@ -19,8 +19,13 @@ class SE_EXPORT Unzip {
   public:
     static volatile int projectOpened;
     static std::string loadingState;
+#ifdef __XBOX__
     static void setLoadingState(const std::string &state);
     static std::string getLoadingState();
+#else
+    static inline void setLoadingState(const std::string &state) { loadingState = state; }
+    static inline const std::string &getLoadingState() { return loadingState; }
+#endif
     static volatile bool threadFinished;
     static std::string filePath;
     static bool UnpackedInSD;

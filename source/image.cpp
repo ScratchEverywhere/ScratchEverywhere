@@ -4,7 +4,9 @@
 #include "renderer.hpp"
 #include <cstdlib>
 #include <log.hpp>
+#ifdef __XBOX__
 #include <runtime.hpp>
+#endif
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
