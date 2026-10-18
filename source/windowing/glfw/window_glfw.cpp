@@ -44,6 +44,7 @@ WindowGLFW::WindowGLFW(int w, int h, const std::string &title) {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
+    glfwWindowHint(GLFW_SAMPLES, WindowSE::msaaSamples);
 
     if (Render::currentRenderer == Renderers::OpenGL) {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);

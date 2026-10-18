@@ -873,7 +873,7 @@ void Renderer_GLCore::beginFrame(int /*screen*/, int colorR, int colorG, int col
 }
 
 void Renderer_GLCore::endFrame(bool shouldFlush) {
-    if (window) window->swapBuffers();
+    if (window && !hasOverrideFBO) window->swapBuffers();
     hasFrameBegan = false;
 }
 

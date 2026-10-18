@@ -30,6 +30,7 @@
 #endif
 
 WindowingBackends WindowSE::currentWindowingBackend = WindowingBackends::Headless;
+int WindowSE::msaaSamples = 0;
 
 WindowSE *createWindow(int width, int height, const std::string &title, WindowingBackends backend) {
     WindowingBackends b;

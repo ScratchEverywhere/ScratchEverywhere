@@ -42,6 +42,8 @@ class SE_EXPORT WindowSE {
     static WindowingBackends currentWindowingBackend;
     static const std::vector<WindowingBackendInfo> getAvailableWindowingBackends();
 
+    static int msaaSamples;
+
     /**
      * Set if an error occurs in the constructor.
      */
