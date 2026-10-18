@@ -1,13 +1,13 @@
 function(_recipe_ScratchEverywhere_source)
-	set(SE_TAG "1.2.1")
+	set(SE_REF "1.2.1")
 	if(CL_REQ_VERSION)
-		set(SE_TAG "${CL_REQ_VERSION}")
+		set(SE_REF "${CL_REQ_VERSION}")
 	endif()
-
 
 	cl_import_source(
 		NAME ScratchEverywhere
-		URL https://github.com/ScratchEverywhere/ScratchEverywhere/archive/refs/tags/${SE_TAG}.tar.gz
+		URL https://github.com/ScratchEverywhere/ScratchEverywhere.git
+		REF ${SE_REF}
 		OPTIONS "SE_LIBRARY ON"
 	)
 
