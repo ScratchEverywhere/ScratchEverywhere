@@ -72,7 +72,7 @@ void Loading::render() {
         block3->render(p3);
     }
 
-    loadingStateText->setText(Unzip::loadingState);
+    loadingStateText->setText(Unzip::getLoadingState());
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)

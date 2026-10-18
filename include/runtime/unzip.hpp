@@ -19,6 +19,8 @@ class SE_EXPORT Unzip {
   public:
     static volatile int projectOpened;
     static std::string loadingState;
+    static void setLoadingState(const std::string &state);
+    static std::string getLoadingState();
     static volatile bool threadFinished;
     static std::string filePath;
     static bool UnpackedInSD;

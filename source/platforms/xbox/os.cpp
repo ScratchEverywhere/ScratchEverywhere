@@ -20,6 +20,31 @@ bool loadedSettings = false;
 std::string *customProjectsPath = nullptr;
 } // namespace OS
 
+bool initNetworking() {
+    if (OS::isOnline()) {
+        Log::log("Network already initialized.");
+        if (g_pnetif && netif_ip4_addr(g_pnetif)) {
+            Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
+        }
+        return true;
+    }
+
+    Log::log("Initializing network...");
+    int status = nxNetInit(NULL);
+    if (status != 0) {
+        Log::logError("Network initialization failed: " + std::to_string(status));
+        return false;
+    }
+
+    if (g_pnetif && netif_ip4_addr(g_pnetif)) {
+        Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
+        Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
+        Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
+    }
+    Log::log("Network initialized successfully.");
+    return true;
+}
+
 bool OS::init() {
 	// TODO: add support for automatic resolution detection
 	// TODO 2: add support for overscan compensation
@@ -56,10 +81,12 @@ bool OS::init() {
     remove("E:\\ScratchEverywhere\\debug.txt");
 
 	Log::log("OS initialized.");
+	initNetworking();
     return true;
 }
 
 void OS::deinit() {
+	nxNetShutdown();
 	return;
 }
 
@@ -103,33 +130,10 @@ bool OS::isOnline() {
 }
 
 bool OS::initWifi() {
-    Log::log("OS::initWifi: Checking network state...");
-    if (OS::isOnline()) {
-        Log::log("OS::initWifi: Network already initialized and online.");
-        if (g_pnetif && netif_ip4_addr(g_pnetif)) {
-            Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
-        }
-        return true;
-    }
-
-    Log::log("OS::initWifi: Initializing network via nxNetInit...");
-    int status = nxNetInit(NULL);
-    if (status != 0) {
-        Log::logError("OS::initWifi: Network initialization failed: " + std::to_string(status));
-        return false;
-    }
-
-    if (g_pnetif && netif_ip4_addr(g_pnetif)) {
-        Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
-        Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
-        Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
-    }
-    Log::log("OS::initWifi: Network initialized successfully.");
-    return true;
+    return initNetworking();
 }
 
 void OS::deInitWifi() {
-	nxNetShutdown();
     return;
 }
 

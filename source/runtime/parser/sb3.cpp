@@ -377,7 +377,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             Render::monitors.emplace(newMonitor.id, newMonitor);
         }
 
-        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.finish");
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
 
         Input::applyControls(Unzip::filePath + ".json");
         Parser::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");

@@ -379,7 +379,9 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
         assignToVar(globalIt->second);
 #ifdef ENABLE_CLOUDVARS
         if (globalIt->second.cloud) {
-            cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
+            if (cloudConnection) {
+                cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
+            }
         }
 #endif
         return;

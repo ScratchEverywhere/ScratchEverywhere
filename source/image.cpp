@@ -4,6 +4,7 @@
 #include "renderer.hpp"
 #include <cstdlib>
 #include <log.hpp>
+#include <runtime.hpp>
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -432,6 +433,12 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(pixelsSize);
+    }
+#endif
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     reorderPixels(src, dst, pixelsSize);
@@ -484,6 +491,12 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(pixelsSize);
+    }
+#endif
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     reorderPixels(src, dst, pixelsSize);
@@ -507,6 +520,12 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     if (outH <= 0) outH = 1;
 
     unsigned char *dst = (unsigned char *)malloc(outW * outH * 4);
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(outW * outH * 4);
+    }
+#endif
 
     const int srcStride = srcW * 4;
     const int dstStride = outW * 4;

@@ -36,9 +36,10 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
     data->args = args;
 
     unsigned id;
-    impl->thread = (HANDLE)_beginthreadex(nullptr, 0, win32_Wrapper, data, 0, &id);
+    unsigned stack = stackSize > 0 ? static_cast<unsigned>(stackSize) : 0x80000;
+    impl->thread = (HANDLE)_beginthreadex(nullptr, stack, win32_Wrapper, data, 0, &id);
 
-    if (impl->thread == (HANDLE)-1) {
+    if (impl->thread == (HANDLE)-1 || impl->thread == nullptr) {
         delete data;
         delete impl;
         impl = nullptr;

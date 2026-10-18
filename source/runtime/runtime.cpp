@@ -911,6 +911,12 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
+#ifdef __XBOX__
+    if (costumeImages.size() >= 8) {
+        freeUnusedCostumeImages();
+    }
+#endif
+
     loadCurrentCostumeImage(sprite);
 
     if (sprite->visible) Scratch::forceRedraw = true;
@@ -957,6 +963,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     std::shared_ptr<Image> image;
 
+#ifdef __XBOX__
+    if (costumeImages.size() >= 8) {
+        freeUnusedCostumeImages();
+    }
+#endif
+
     auto onErr = [&](std::string error) -> bool {
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
@@ -995,6 +1007,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
+#ifdef __XBOX__
+        if (!imageOrErr.has_value()) {
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
+        }
+#endif
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;
@@ -1002,6 +1020,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             image = imageOrErr.value();
     } else {
         auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+#ifdef __XBOX__
+        if (!imageOrErr.has_value()) {
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+        }
+#endif
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;
