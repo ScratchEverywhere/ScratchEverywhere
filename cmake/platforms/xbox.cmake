@@ -23,6 +23,15 @@ set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_HAS_THREADS ON)
 
+# - On 64MB retail consoles, SE_LWMEM_HEAP_SIZE_MB sets the baseline heap size.
+# - On 128MB expanded consoles, the runtime dynamically scales the heap to
+#   prioritize the runtime over the GPU.
+# - Right now, I'm splitting memory 50/50 between the runtime and the GPU. This is
+#   an experimental feature, so this will need refinement.
+set(SE_USE_LWMEM_DEFAULT ON)
+set(SE_LWMEM_HEAP_SIZE_MB 28 CACHE STRING "Baseline size in MB of the lwmem heap on 64MB Xbox")
+set(SE_LWMEM_GPU_RESERVE_MB 28 CACHE STRING "Size in MB reserved for GPU and system buffers on 128MB Xbox")
+
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 

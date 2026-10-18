@@ -106,6 +106,21 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
+if(NOT DEFINED SE_USE_LWMEM_DEFAULT)
+    set(SE_USE_LWMEM_DEFAULT OFF)
+endif()
+option(SE_USE_LWMEM "Route all memory management calls (malloc, free, etc.) through lwmem. Experimental, but helps reduce memory fragmentation." ${SE_USE_LWMEM_DEFAULT})
+
+if(SE_USE_LWMEM)
+    if(DEFINED SE_LWMEM_HEAP_SIZE_MB AND DEFINED SE_LWMEM_GPU_RESERVE_MB)
+        math(EXPR SE_LWMEM_HEAP_SIZE_BYTES "${SE_LWMEM_HEAP_SIZE_MB} * 1024 * 1024")
+        math(EXPR SE_LWMEM_GPU_RESERVE_BYTES "${SE_LWMEM_GPU_RESERVE_MB} * 1024 * 1024")
+    else()
+        message(STATUS "LwMEM disabled: SE_LWMEM_HEAP_SIZE_MB and SE_LWMEM_GPU_RESERVE_MB must both be defined.")
+        set(SE_USE_LWMEM OFF)
+    endif()
+endif()
+
 option(SE_MENU "Enables the SE! Main Menu." ON)
 if(SE_LIBRARY)
     set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
@@ -602,6 +617,14 @@ endif()
 if(SE_DOWNLOAD)
     target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
     cl_add_dep(se-interface libcurl)
+endif()
+if(SE_USE_LWMEM AND DEFINED SE_LWMEM_HEAP_SIZE_MB AND DEFINED SE_LWMEM_GPU_RESERVE_MB)
+    target_compile_definitions(se-interface INTERFACE
+        SE_USE_LWMEM
+        SE_LWMEM_HEAP_SIZE=${SE_LWMEM_HEAP_SIZE_BYTES}u
+        SE_LWMEM_GPU_RESERVE_BYTES=${SE_LWMEM_GPU_RESERVE_BYTES}u
+    )
+    cl_add_dep(se-interface lwmem)
 endif()
 if(SE_CLOUDVARS)
     target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)

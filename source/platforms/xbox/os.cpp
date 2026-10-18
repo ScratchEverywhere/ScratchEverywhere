@@ -12,6 +12,9 @@
 
 extern "C" {
 extern struct netif *g_pnetif;
+#if defined(SE_USE_LWMEM)
+void se_lwmem_get_info(size_t *heap_size, size_t *total_ram, int *is_expanded);
+#endif
 }
 
 namespace OS {
@@ -81,6 +84,27 @@ bool OS::init() {
     remove("E:\\ScratchEverywhere\\debug.txt");
 
 	Log::log("OS initialized.");
+#if defined(SE_USE_LWMEM)
+    size_t heap_size = 0, total_ram = 0;
+    int is_expanded = 0;
+    se_lwmem_get_info(&heap_size, &total_ram, &is_expanded);
+
+    char memMsg[256];
+    if (is_expanded) {
+        snprintf(memMsg, sizeof(memMsg),
+                 "Expanded RAM configuration detected.\n Total: %u MB\n Heap: %u MB\n Reserved for GPU: %u MB",
+                 (unsigned int)(total_ram / (1024 * 1024)),
+                 (unsigned int)(heap_size / (1024 * 1024)),
+                 (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
+    } else {
+        snprintf(memMsg, sizeof(memMsg),
+                 "Stock RAM configuration detected.\n Total: %u MB\n Heap: %u MB\n Reserved for GPU: %u MB",
+                 (unsigned int)(total_ram / (1024 * 1024)),
+                 (unsigned int)(heap_size / (1024 * 1024)),
+                 (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
+    }
+    Log::log(memMsg);
+#endif
 	initNetworking();
     return true;
 }
