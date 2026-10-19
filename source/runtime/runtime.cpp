@@ -86,6 +86,11 @@ bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+bool Scratch::useBytecode = false;
+#else
+bool Scratch::useBytecode = true;
+#endif
 
 Timer Scratch::fpsTimer(false);
 

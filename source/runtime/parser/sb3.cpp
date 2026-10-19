@@ -308,7 +308,9 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             }
 
             resolveVariableTypes(newSprite);
-            compileBytecode(newSprite);
+            if (Scratch::useBytecode) {
+                compileBytecode(newSprite);
+            }
             clearSpriteBlockOpcodes(newSprite);
         }
 
