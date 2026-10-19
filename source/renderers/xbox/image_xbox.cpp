@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <filesystem.hpp>
@@ -24,22 +25,28 @@
 
 #pragma pack(push, 1)
 struct XBTHeader {
-    char magic[4];       // "XBT1"
-    uint32_t version;    // 1
-    uint32_t width;      // original full width
-    uint32_t height;     // original full height
-    uint32_t isTiled;    // 1 if tiled, 0 if single texture
-    uint32_t numTiles;   // number of tiles
+    char magic[4];     // "XBT1"
+    uint32_t version;  // 3
+    uint32_t width;    // original full width
+    uint32_t height;   // original full height
+    uint32_t isTiled;  // 1 if tiled, 0 if single texture
+    uint32_t numTiles; // number of tiles
+    uint32_t flags;    // bit0: image has alpha
+    uint32_t maskSize; // bytes of 1-bit alpha mask following the header (0 = none)
 };
 
 struct XBTTileHeader {
-    int32_t x;           // tile x offset in image
-    int32_t y;           // tile y offset in image
-    int32_t w;           // tile width
-    int32_t h;           // tile height
-    uint32_t dataSize;   // byte length of DXT1 data following
+    int32_t x;         // tile x offset in image
+    int32_t y;         // tile y offset in image
+    int32_t w;         // tile width
+    int32_t h;         // tile height
+    uint32_t dataSize; // byte length of compressed data following
+    uint32_t codec;    // 1 = DXT1, 2 = DXT5
 };
 #pragma pack(pop)
+
+enum : uint32_t { CODEC_DXT1 = 1,
+                  CODEC_DXT5 = 2 };
 
 static size_t getAvailablePhysicalMemory() {
     MM_STATISTICS stats;
@@ -59,6 +66,10 @@ static size_t getAvailablePhysicalMemory() {
 #define SDL_PIXELFORMAT_DXT1 static_cast<SDL_PixelFormat>(SDL_DEFINE_PIXELFOURCC('D', 'X', 'T', '1'))
 #endif
 
+#ifndef SDL_PIXELFORMAT_DXT5
+#define SDL_PIXELFORMAT_DXT5 static_cast<SDL_PixelFormat>(SDL_DEFINE_PIXELFOURCC('D', 'X', 'T', '5'))
+#endif
+
 static inline int toPowerOfTwo(int v) {
     if (v <= 1) return 1;
     return 1 << (32 - __builtin_clz(v - 1));
@@ -66,14 +77,20 @@ static inline int toPowerOfTwo(int v) {
 
 // 2x2 Bayer dithering matrix centered around 0 to eliminate color banding on 16-bit conversions
 static const int ditherMatrix[2][2] = {
-    { -3,  1 },
-    {  3, -1 }
-};
+    {-3, 1},
+    {3, -1}};
 
-// Images bigger than this (in either dimension) are split into tiles.
-// 512 keeps each contiguous GPU allocation small (<=1MB at 32bpp, <=512KB at 16bpp, 128KB at DXT1) and
-// avoids the power-of-two padding blowup of large swizzled textures.
-static constexpr int TILE_SIZE = 512;
+// Images bigger than TILE_THRESHOLD (in either dimension) are split into TILE_SIZE chunks.
+// Small chunks keep each contiguous GPU allocation small (<=256KB at 32bpp, 128KB at 16bpp,
+// 64KB at DXT5, 32KB at DXT1) which is far easier to satisfy on a fragmented 64MB heap,
+// and reduces power-of-two padding waste on edge tiles.
+// The threshold is higher than the tile size so mid-sized sprites stay a single draw call.
+static constexpr int TILE_SIZE = 256;
+static constexpr int TILE_THRESHOLD = 512;
+
+// Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
+// many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
+static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
 
 static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
     r = (c >> 11) & 31;
@@ -171,103 +188,74 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
     dst_block[7] = static_cast<uint8_t>(indices >> 24);
 }
 
-static bool compressAndUploadTileDXT1(SDL_Renderer *sdlRenderer, Image_Xbox::Tile &tile,
-                                      const uint8_t *src, int srcPitch, int imgW, int imgH,
-                                      int tx, int ty, bool isOpaque = true) {
-    const int pot_w = toPowerOfTwo(tile.w);
-    const int pot_h = toPowerOfTwo(tile.h);
-    const int blocks_x = (pot_w + 3) / 4;
-    const int blocks_y = (pot_h + 3) / 4;
-    std::vector<uint8_t> dxt1Data(static_cast<size_t>(blocks_x) * blocks_y * 8);
+static inline int dxtBlockBytes(uint32_t codec) { return codec == CODEC_DXT5 ? 16 : 8; }
+static inline int dxtPitch(int w, uint32_t codec) { return ((toPowerOfTwo(w) + 3) / 4) * dxtBlockBytes(codec); }
 
-    const int max_sy = std::min(ty + tile.h - 1, imgH - 1);
-    const int max_sx = std::min(tx + tile.w - 1, imgW - 1);
-
-    uint8_t block[64];
-    for (int by = 0; by < blocks_y; by++) {
-        for (int bx = 0; bx < blocks_x; bx++) {
-            for (int py = 0; py < 4; py++) {
-                int sy = ty + by * 4 + py;
-                if (sy > max_sy) sy = max_sy;
-                const uint8_t *row = src + sy * srcPitch;
-                for (int px = 0; px < 4; px++) {
-                    int sx = tx + bx * 4 + px;
-                    if (sx > max_sx) sx = max_sx;
-                    const uint8_t *pix = row + sx * 4;
-                    block[(py * 4 + px) * 4 + 0] = pix[0];
-                    block[(py * 4 + px) * 4 + 1] = pix[1];
-                    block[(py * 4 + px) * 4 + 2] = pix[2];
-                    block[(py * 4 + px) * 4 + 3] = isOpaque ? 255 : (pix[3] >= 128 ? 255 : 0);
-                }
-            }
-            uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-            compressDXT1BlockFast(dst_block, block, isOpaque);
-        }
-    }
-
-    tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-    if (!tile.texture) {
-        Scratch::freeUnusedCostumeImages();
-        tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-    }
-    if (!tile.texture) return false;
-
-    SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_LINEAR);
-    if (!SDL_UpdateTexture(tile.texture, nullptr, dxt1Data.data(), pot_w * 2)) {
-        SDL_DestroyTexture(tile.texture);
-        tile.texture = nullptr;
-        return false;
-    }
-    return true;
-}
-
-static bool compressAndUploadImageDXT1(SDL_Renderer *sdlRenderer, SDL_Texture *&texture,
-                                       const uint8_t *src, int srcPitch, int imgW, int imgH, bool isOpaque = true) {
-    const int pot_w = toPowerOfTwo(imgW);
-    const int pot_h = toPowerOfTwo(imgH);
-    const int blocks_x = (pot_w + 3) / 4;
-    const int blocks_y = (pot_h + 3) / 4;
-    std::vector<uint8_t> dxt1Data(static_cast<size_t>(blocks_x) * blocks_y * 8);
+// Encodes the region [tx,tx+tw) x [ty,ty+th) of an RGBA image, edge-clamped, POT-padded.
+static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int imgW, int imgH,
+                                            int tx, int ty, int tw, int th,
+                                            uint32_t codec, bool isOpaque) {
+    const int blocks_x = (toPowerOfTwo(tw) + 3) / 4;
+    const int blocks_y = (toPowerOfTwo(th) + 3) / 4;
+    const int bytes = dxtBlockBytes(codec);
+    std::vector<uint8_t> out(static_cast<size_t>(blocks_x) * blocks_y * bytes);
+    const int max_sx = std::min(tx + tw - 1, imgW - 1);
+    const int max_sy = std::min(ty + th - 1, imgH - 1);
 
     uint8_t block[64];
     for (int by = 0; by < blocks_y; by++) {
         for (int bx = 0; bx < blocks_x; bx++) {
             for (int py = 0; py < 4; py++) {
-                int sy = by * 4 + py;
-                if (sy >= imgH) sy = imgH - 1;
-                const uint8_t *row = src + sy * srcPitch;
+                const int sy = std::min(ty + by * 4 + py, max_sy);
+                const uint8_t *row = src + sy * pitch;
                 for (int px = 0; px < 4; px++) {
-                    int sx = bx * 4 + px;
-                    if (sx >= imgW) sx = imgW - 1;
+                    const int sx = std::min(tx + bx * 4 + px, max_sx);
                     const uint8_t *pix = row + sx * 4;
-                    block[(py * 4 + px) * 4 + 0] = pix[0];
-                    block[(py * 4 + px) * 4 + 1] = pix[1];
-                    block[(py * 4 + px) * 4 + 2] = pix[2];
-                    block[(py * 4 + px) * 4 + 3] = isOpaque ? 255 : (pix[3] >= 128 ? 255 : 0);
+                    uint8_t *d = block + (py * 4 + px) * 4;
+                    d[0] = pix[0];
+                    d[1] = pix[1];
+                    d[2] = pix[2];
+                    d[3] = (codec == CODEC_DXT5) ? pix[3] : (isOpaque ? 255 : (pix[3] >= 128 ? 255 : 0));
                 }
             }
-            uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-            compressDXT1BlockFast(dst_block, block, isOpaque);
+            uint8_t *dst = out.data() + (by * blocks_x + bx) * bytes;
+            if (codec == CODEC_DXT5) stb_compress_dxt_block(dst, block, 1, STB_DXT_NORMAL); // 16-byte block
+            else compressDXT1BlockFast(dst, block, isOpaque);
         }
     }
-
-    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, imgW, imgH);
-    if (!texture) {
-        Scratch::freeUnusedCostumeImages();
-        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, imgW, imgH);
-    }
-    if (!texture) return false;
-
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
-    if (!SDL_UpdateTexture(texture, nullptr, dxt1Data.data(), pot_w * 2)) {
-        SDL_DestroyTexture(texture);
-        texture = nullptr;
-        return false;
-    }
-    return true;
+    return out;
 }
+
+static SDL_Texture *createDXTTexture(SDL_Renderer *r, int w, int h, uint32_t codec, const uint8_t *data) {
+    const SDL_PixelFormat fmt = (codec == CODEC_DXT5) ? SDL_PIXELFORMAT_DXT5 : SDL_PIXELFORMAT_DXT1;
+    SDL_Texture *t = SDL_CreateTexture(r, fmt, SDL_TEXTUREACCESS_STATIC, w, h);
+    if (!t) {
+        Scratch::freeUnusedCostumeImages();
+        t = SDL_CreateTexture(r, fmt, SDL_TEXTUREACCESS_STATIC, w, h);
+    }
+    if (!t) return nullptr;
+    SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(t, SDL_SCALEMODE_LINEAR);
+    if (!SDL_UpdateTexture(t, nullptr, data, dxtPitch(w, codec))) {
+        SDL_DestroyTexture(t);
+        return nullptr;
+    }
+    return t;
+}
+
+// SDL_OutOfMemory() sets "Out of memory". Used to tell an allocation failure (retrying with a larger
+// 16-bit format cannot help) from an unsupported format (where the fallback is worthwhile).
+static bool lastSDLErrorWasOOM() {
+    const char *e = SDL_GetError();
+    return e && (strstr(e, "emory") != nullptr);
+}
+
+static std::string freeMemKB() {
+    return std::to_string(getAvailablePhysicalMemory() / 1024) + " KB free";
+}
+
+// Set by loadFromCache when it failed because texture memory ran out rather than because the file was bad.
+static bool g_cacheLoadOOM = false;
 
 void Image_Xbox::destroyTiles() {
     for (auto &tile : tiles) {
@@ -309,13 +297,9 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
                 }
             }
 
-            // Decide whether we can use relaxed (uncompressed 32-bit RGBA) compression:
-            // 1) On 128MB systems (OS::isEnhancedPlatform()), RAM is abundant if freeMem > 20MB.
-            // 2) For translucent tiles with multi-level alpha (where 16-bit looks degraded), try 32-bit if freeMem > 8MB.
-            // 3) For opaque tiles, DXT1 is preferred on 64MB systems (128KB vs 1MB per tile) to prevent OOM.
+            // 32-bit only where RAM is abundant (128MB platform). 64MB consoles go straight to DXT.
             const size_t freeMem = getAvailablePhysicalMemory();
-            const bool prefer32Bit = OS::isEnhancedPlatform() ? (freeMem > 20 * 1024 * 1024)
-                                                              : (!isOpaque && !isBinaryAlpha && freeMem > 8 * 1024 * 1024);
+            const bool prefer32Bit = OS::isEnhancedPlatform() && freeMem > 20 * 1024 * 1024;
 
             if (prefer32Bit) {
                 tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
@@ -336,18 +320,33 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
                 }
             }
 
-            // DXT1 compressed path for opaque and binary alpha (cutout) tiles (128KB per 512x512 tile).
+            // Compressed path: DXT1 for opaque / cutout tiles, DXT5 for smooth-alpha tiles.
             // Pixels stay resident in imgData, so alpha-based collision keeps working.
-            if (isOpaque || isBinaryAlpha) {
-                if (compressAndUploadTileDXT1(sdlRenderer, tile, src, imgData.pitch, imgData.width, imgData.height, tx, ty, isOpaque)) {
+            {
+                const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
+                const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                                  tx, ty, tile.w, tile.h, codec, isOpaque);
+                tile.texture = createDXTTexture(sdlRenderer, tile.w, tile.h, codec, data.data());
+                if (tile.texture) {
                     tiles.push_back(tile);
                     continue;
                 }
+                if (lastSDLErrorWasOOM()) {
+                    // 16-bit tiles need 2-4x the memory of DXT, so the fallback cannot succeed here.
+                    const std::string err = "Out of texture memory at tile (" + std::to_string(tx) + "," +
+                                            std::to_string(ty) + ") [" + freeMemKB() + "]";
+                    Log::logError(err);
+                    destroyTiles();
+                    return nonstd::make_unexpected(err);
+                }
+                Log::logWarning("Tile (" + std::to_string(tx) + "," + std::to_string(ty) + ") " +
+                                (codec == CODEC_DXT5 ? "DXT5" : "DXT1") + " failed (" + std::string(SDL_GetError()) +
+                                "); falling back to 16-bit");
             }
 
             // 16-bit compressed fallback path:
             // - Opaque: RGB565 (65,536 colors, dithered)
-            // - Binary alpha (cutout): ARGB1555 (32,768 colors, dithered) - 8x better color than ARGB4444!
+            // - Binary alpha (cutout): ARGB1555 (32,768 colors, dithered)
             // - Multi-level alpha: ARGB4444
             SDL_PixelFormat fmt;
             scratch16.resize(static_cast<size_t>(tile.w) * tile.h);
@@ -401,7 +400,9 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
                 tile.texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
             }
             if (!tile.texture) {
-                const std::string err = "Failed to create texture tile: " + std::string(SDL_GetError());
+                const std::string err = "Failed to create texture tile (" + std::to_string(tx) + "," +
+                                        std::to_string(ty) + "): " + std::string(SDL_GetError()) +
+                                        " [" + freeMemKB() + "]";
                 Log::logError(err);
                 destroyTiles();
                 return nonstd::make_unexpected(err);
@@ -671,7 +672,7 @@ void *Image_Xbox::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
-    if (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE) return buildTiles();
+    if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) return buildTiles();
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
     if (!texture) {
@@ -680,7 +681,7 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
     }
 
     if (!texture) {
-        // Fall back to DXT1 (if opaque) or 16-bit to avoid Out Of Memory on projects with many assets
+        // Fall back to DXT1 (opaque/cutout), DXT5 (smooth alpha), then 16-bit to avoid Out Of Memory
         bool isOpaque = true;
         bool isBinaryAlpha = true;
         const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
@@ -695,15 +696,20 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
             }
         }
 
-        if (isOpaque || isBinaryAlpha) {
-            if (compressAndUploadImageDXT1(sdlRenderer, texture, src, imgData.pitch, imgData.width, imgData.height, isOpaque)) {
-                return {};
-            }
+        bool skip16bit = false;
+        {
+            const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
+            const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                              0, 0, imgData.width, imgData.height, codec, isOpaque);
+            texture = createDXTTexture(sdlRenderer, imgData.width, imgData.height, codec, data.data());
+            if (texture) return {};
+            // 16-bit needs 2-4x the memory of DXT; don't bother if DXT failed for lack of memory.
+            skip16bit = lastSDLErrorWasOOM();
         }
 
         const SDL_PixelFormat fmt = isOpaque ? SDL_PIXELFORMAT_RGB565 : (isBinaryAlpha ? SDL_PIXELFORMAT_ARGB1555 : SDL_PIXELFORMAT_ARGB4444);
-        texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-        if (!texture) {
+        texture = skip16bit ? nullptr : SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+        if (!texture && !skip16bit) {
             Scratch::freeUnusedCostumeImages();
             texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
         }
@@ -761,8 +767,14 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
         }
     }
 
+    // Last resort: split into smaller allocations that fit in a fragmented heap.
+    if (!texture && (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE)) {
+        Scratch::freeUnusedCostumeImages();
+        return buildTiles();
+    }
+
     if (!texture) {
-        const std::string err = "Failed to create texture: " + std::string(SDL_GetError());
+        const std::string err = "Failed to create texture: " + std::string(SDL_GetError()) + " [" + freeMemKB() + "]";
         Log::logError(err);
         return nonstd::make_unexpected(err);
     }
@@ -805,7 +817,7 @@ static std::string getProjectCacheKey() {
 }
 
 std::string Image_Xbox::getTextureCacheDir() {
-    return OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() + "_v2\\";
+    return OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() + (Scratch::bitmapHalfQuality ? "_v4h\\" : "_v4f\\");
 }
 
 std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
@@ -824,237 +836,152 @@ std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
     return getTextureCacheDir() + base + ".xbt";
 }
 
-static bool writeCompressedTextureCache(const std::string &cachePath, int width, int height, const uint8_t *src, int pitch) {
-    std::string tempPath = cachePath + ".tmp";
+static bool writeCompressedTextureCache(const std::string &cachePath, int width, int height,
+                                        const uint8_t *src, int pitch, bool isOpaque, uint32_t codec) {
+    const std::string tempPath = cachePath + ".tmp";
     FILE *f = fopen(tempPath.c_str(), "wb");
     if (!f) return false;
+    auto fail = [&]() {
+        fclose(f);
+        remove(tempPath.c_str());
+        return false;
+    };
 
-    const bool isTiled = (width > TILE_SIZE || height > TILE_SIZE);
+    const bool isTiled = (width > TILE_THRESHOLD || height > TILE_THRESHOLD);
+    const int stepX = isTiled ? TILE_SIZE : width;
+    const int stepY = isTiled ? TILE_SIZE : height;
+
+    uint32_t numTiles = 0;
+    for (int ty = 0; ty < height; ty += stepY)
+        for (int tx = 0; tx < width; tx += stepX)
+            numTiles++;
+
     XBTHeader header;
     memcpy(header.magic, "XBT1", 4);
-    header.version = 1;
+    header.version = 3;
     header.width = width;
     header.height = height;
     header.isTiled = isTiled ? 1 : 0;
+    header.numTiles = numTiles;
+    header.flags = isOpaque ? 0 : 1;
 
-    if (!isTiled) {
-        header.numTiles = 1;
-        if (fwrite(&header, sizeof(header), 1, f) != 1) {
-            fclose(f);
-            remove(tempPath.c_str());
-            return false;
-        }
-
-        const int pot_w = toPowerOfTwo(width);
-        const int pot_h = toPowerOfTwo(height);
-        const int blocks_x = (pot_w + 3) / 4;
-        const int blocks_y = (pot_h + 3) / 4;
-        const uint32_t dataSize = static_cast<uint32_t>(blocks_x) * blocks_y * 8;
-
-        std::vector<uint8_t> dxt1Data(dataSize);
-        uint8_t block[64];
-        for (int by = 0; by < blocks_y; by++) {
-            for (int bx = 0; bx < blocks_x; bx++) {
-                for (int py = 0; py < 4; py++) {
-                    int sy = by * 4 + py;
-                    if (sy >= height) sy = height - 1;
-                    const uint8_t *row = src + sy * pitch;
-                    for (int px = 0; px < 4; px++) {
-                        int sx = bx * 4 + px;
-                        if (sx >= width) sx = width - 1;
-                        const uint8_t *pix = row + sx * 4;
-                        block[(py * 4 + px) * 4 + 0] = pix[0];
-                        block[(py * 4 + px) * 4 + 1] = pix[1];
-                        block[(py * 4 + px) * 4 + 2] = pix[2];
-                        block[(py * 4 + px) * 4 + 3] = 255;
-                    }
-                }
-                uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-                stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+    // 1 bit per pixel, LSB first within each byte. Bit set = alpha > 0.
+    std::vector<uint8_t> alphaMask;
+    if (!isOpaque) {
+        const int maskPitch = (width + 7) / 8;
+        alphaMask.assign(static_cast<size_t>(maskPitch) * height, 0);
+        for (int y = 0; y < height; y++) {
+            const uint8_t *row = src + static_cast<size_t>(y) * pitch;
+            uint8_t *maskRow = alphaMask.data() + static_cast<size_t>(y) * maskPitch;
+            for (int x = 0; x < width; x++) {
+                if (row[x * 4 + 3] != 0) maskRow[x >> 3] |= static_cast<uint8_t>(1u << (x & 7));
             }
         }
+    }
+    header.maskSize = static_cast<uint32_t>(alphaMask.size());
 
-        XBTTileHeader tileHeader;
-        tileHeader.x = 0;
-        tileHeader.y = 0;
-        tileHeader.w = width;
-        tileHeader.h = height;
-        tileHeader.dataSize = dataSize;
+    if (fwrite(&header, sizeof(header), 1, f) != 1) return fail();
+    if (!alphaMask.empty() && fwrite(alphaMask.data(), 1, alphaMask.size(), f) != alphaMask.size()) return fail();
 
-        if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
-            fwrite(dxt1Data.data(), 1, dataSize, f) != dataSize) {
-            fclose(f);
-            remove(tempPath.c_str());
-            return false;
-        }
-    } else {
-        uint32_t numTiles = 0;
-        for (int ty = 0; ty < height; ty += TILE_SIZE) {
-            for (int tx = 0; tx < width; tx += TILE_SIZE) {
-                numTiles++;
-            }
-        }
-        header.numTiles = numTiles;
-        if (fwrite(&header, sizeof(header), 1, f) != 1) {
-            fclose(f);
-            remove(tempPath.c_str());
-            return false;
-        }
+    for (int ty = 0; ty < height; ty += stepY) {
+        for (int tx = 0; tx < width; tx += stepX) {
+            const int tw = std::min(stepX, width - tx);
+            const int th = std::min(stepY, height - ty);
+            const auto data = encodeRegionDXT(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque);
 
-        for (int ty = 0; ty < height; ty += TILE_SIZE) {
-            for (int tx = 0; tx < width; tx += TILE_SIZE) {
-                const int tw = std::min(TILE_SIZE, width - tx);
-                const int th = std::min(TILE_SIZE, height - ty);
-                const int pot_w = toPowerOfTwo(tw);
-                const int pot_h = toPowerOfTwo(th);
-                const int blocks_x = (pot_w + 3) / 4;
-                const int blocks_y = (pot_h + 3) / 4;
-                const uint32_t dataSize = static_cast<uint32_t>(blocks_x) * blocks_y * 8;
-
-                std::vector<uint8_t> dxt1Data(dataSize);
-                const int max_sy = std::min(ty + th - 1, height - 1);
-                const int max_sx = std::min(tx + tw - 1, width - 1);
-
-                uint8_t block[64];
-                for (int by = 0; by < blocks_y; by++) {
-                    for (int bx = 0; bx < blocks_x; bx++) {
-                        for (int py = 0; py < 4; py++) {
-                            int sy = ty + by * 4 + py;
-                            if (sy > max_sy) sy = max_sy;
-                            const uint8_t *row = src + sy * pitch;
-                            for (int px = 0; px < 4; px++) {
-                                int sx = tx + bx * 4 + px;
-                                if (sx > max_sx) sx = max_sx;
-                                const uint8_t *pix = row + sx * 4;
-                                block[(py * 4 + px) * 4 + 0] = pix[0];
-                                block[(py * 4 + px) * 4 + 1] = pix[1];
-                                block[(py * 4 + px) * 4 + 2] = pix[2];
-                                block[(py * 4 + px) * 4 + 3] = 255;
-                            }
-                        }
-                        uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-                        stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
-                    }
-                }
-
-                XBTTileHeader tileHeader;
-                tileHeader.x = tx;
-                tileHeader.y = ty;
-                tileHeader.w = tw;
-                tileHeader.h = th;
-                tileHeader.dataSize = dataSize;
-
-                if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
-                    fwrite(dxt1Data.data(), 1, dataSize, f) != dataSize) {
-                    fclose(f);
-                    remove(tempPath.c_str());
-                    return false;
-                }
-            }
+            XBTTileHeader tileHeader;
+            tileHeader.x = tx;
+            tileHeader.y = ty;
+            tileHeader.w = tw;
+            tileHeader.h = th;
+            tileHeader.dataSize = static_cast<uint32_t>(data.size());
+            tileHeader.codec = codec;
+            if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
+                fwrite(data.data(), 1, data.size(), f) != data.size()) return fail();
         }
     }
 
     fclose(f);
     remove(cachePath.c_str());
-    rename(tempPath.c_str(), cachePath.c_str());
-    return true;
+    return rename(tempPath.c_str(), cachePath.c_str()) == 0;
 }
 
 bool Image_Xbox::loadFromCache(const std::string &cachePath) {
+    g_cacheLoadOOM = false;
     FILE *f = fopen(cachePath.c_str(), "rb");
     if (!f) return false;
 
     XBTHeader header;
-    if (fread(&header, sizeof(header), 1, f) != 1) {
+    if (fread(&header, sizeof(header), 1, f) != 1 ||
+        memcmp(header.magic, "XBT1", 4) != 0 || header.version != 3 ||
+        header.numTiles == 0) {
         fclose(f);
         return false;
     }
-    if (memcmp(header.magic, "XBT1", 4) != 0 || header.version != 1) {
+
+    // Any failure after this point must leave no partial state behind.
+    auto bail = [&]() {
+        destroyTiles();
+        if (texture) {
+            SDL_DestroyTexture(texture);
+            texture = nullptr;
+        }
+        alphaMask.clear();
+        alphaMaskPitch = 0;
         fclose(f);
         return false;
-    }
+    };
 
     imgData.width = header.width;
     imgData.height = header.height;
     imgData.scale = 1.0f;
     imgData.pitch = header.width * 4;
     imgData.pixels = nullptr;
-    isOpaque = true;
+    isOpaque = !(header.flags & 1);
 
-    if (header.isTiled == 0) {
-        XBTTileHeader tileHeader;
-        if (fread(&tileHeader, sizeof(tileHeader), 1, f) != 1) {
-            fclose(f);
-            return false;
-        }
-        std::vector<uint8_t> dxt1Data(tileHeader.dataSize);
-        if (fread(dxt1Data.data(), 1, tileHeader.dataSize, f) != tileHeader.dataSize) {
-            fclose(f);
-            return false;
-        }
-        fclose(f);
-
-        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tileHeader.w, tileHeader.h);
-        if (!texture) {
-            Scratch::freeUnusedCostumeImages();
-            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tileHeader.w, tileHeader.h);
-        }
-        if (!texture) return false;
-
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
-        const int pot_w = toPowerOfTwo(tileHeader.w);
-        if (!SDL_UpdateTexture(texture, nullptr, dxt1Data.data(), pot_w * 2)) {
-            SDL_DestroyTexture(texture);
-            texture = nullptr;
-            return false;
-        }
-        return true;
-    } else {
-        destroyTiles();
-        for (uint32_t i = 0; i < header.numTiles; i++) {
-            XBTTileHeader tileHeader;
-            if (fread(&tileHeader, sizeof(tileHeader), 1, f) != 1) {
-                destroyTiles();
-                fclose(f);
-                return false;
-            }
-            std::vector<uint8_t> dxt1Data(tileHeader.dataSize);
-            if (fread(dxt1Data.data(), 1, tileHeader.dataSize, f) != tileHeader.dataSize) {
-                destroyTiles();
-                fclose(f);
-                return false;
-            }
-            Tile tile;
-            tile.x = tileHeader.x;
-            tile.y = tileHeader.y;
-            tile.w = tileHeader.w;
-            tile.h = tileHeader.h;
-            tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-            if (!tile.texture) {
-                Scratch::freeUnusedCostumeImages();
-                tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-            }
-            if (!tile.texture) {
-                destroyTiles();
-                fclose(f);
-                return false;
-            }
-            SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-            SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_LINEAR);
-            const int pot_w = toPowerOfTwo(tile.w);
-            if (!SDL_UpdateTexture(tile.texture, nullptr, dxt1Data.data(), pot_w * 2)) {
-                SDL_DestroyTexture(tile.texture);
-                tile.texture = nullptr;
-                destroyTiles();
-                fclose(f);
-                return false;
-            }
-            tiles.push_back(tile);
-        }
-        fclose(f);
-        return true;
+    alphaMask.clear();
+    alphaMaskPitch = 0;
+    if (header.maskSize > 0) {
+        const uint32_t pitchBytes = (header.width + 7) / 8;
+        if (header.maskSize != pitchBytes * header.height) return bail();
+        alphaMask.resize(header.maskSize);
+        if (fread(alphaMask.data(), 1, header.maskSize, f) != header.maskSize) return bail();
+        alphaMaskPitch = static_cast<int>(pitchBytes);
     }
+
+    destroyTiles();
+    for (uint32_t i = 0; i < header.numTiles; i++) {
+        XBTTileHeader th;
+        if (fread(&th, sizeof(th), 1, f) != 1 ||
+            (th.codec != CODEC_DXT1 && th.codec != CODEC_DXT5) ||
+            th.dataSize > 4 * 1024 * 1024) {
+            return bail();
+        }
+        std::vector<uint8_t> data(th.dataSize);
+        if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return bail();
+
+        SDL_Texture *t = createDXTTexture(sdlRenderer, th.w, th.h, th.codec, data.data());
+        if (!t) {
+            g_cacheLoadOOM = lastSDLErrorWasOOM();
+            Log::logWarning("Cache load failed (" + std::string(SDL_GetError()) + ") [" + freeMemKB() + "]: " + cachePath);
+            return bail();
+        }
+
+        if (!header.isTiled) {
+            texture = t;
+            fclose(f);
+            return true;
+        }
+        Tile tile;
+        tile.x = th.x;
+        tile.y = th.y;
+        tile.w = th.w;
+        tile.h = th.h;
+        tile.texture = t;
+        tiles.push_back(tile);
+    }
+    fclose(f);
+    return true;
 }
 
 static void *extractProjectAsset(const std::string &assetName, size_t &outSize) {
@@ -1071,9 +998,15 @@ static void *extractProjectAsset(const std::string &assetName, size_t &outSize) 
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (sz <= 0) { fclose(f); return nullptr; }
+    if (sz <= 0) {
+        fclose(f);
+        return nullptr;
+    }
     void *buf = malloc(sz);
-    if (!buf) { fclose(f); return nullptr; }
+    if (!buf) {
+        fclose(f);
+        return nullptr;
+    }
     if (fread(buf, 1, sz, f) != static_cast<size_t>(sz)) {
         free(buf);
         fclose(f);
@@ -1113,7 +1046,10 @@ void Image_Xbox::precacheProjectTextures() {
 
     bool allSucceeded = true;
 
-    auto precacheCostume = [&](const Costume &costume) {
+    // Opaque costumes are always cached. Non-opaque costumes are cached when they are stage backdrops,
+    // or sprites large enough (CACHE_MIN_ALPHA_PIXELS) that dropping the RGBA buffer matters. Cached
+    // images have no CPU pixels, so their collision data is stored as a 1-bit alpha mask instead.
+    auto precacheCostume = [&](const Costume &costume, bool isStage) {
         if (costume.isSVG) return;
         const std::string &name = costume.fullName;
         if (name.empty()) return;
@@ -1125,13 +1061,20 @@ void Image_Xbox::precacheProjectTextures() {
 
         size_t fileSize = 0;
         void *fileData = extractProjectAsset(name, fileSize);
-        if (!fileData || fileSize == 0) return;
+        if (!fileData || fileSize == 0) {
+            Log::logWarning("Precache: failed to extract " + name);
+            allSucceeded = false;
+            return;
+        }
 
         int rawW = 0, rawH = 0, channels = 0;
         unsigned char *pixels = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
         freeProjectAsset(fileData);
 
         if (!pixels || rawW <= 0 || rawH <= 0) {
+            const char *reason = stbi_failure_reason();
+            Log::logWarning("Precache: failed to decode " + name + ": " + (reason ? reason : "unknown"));
+            allSucceeded = false;
             if (pixels) stbi_image_free(pixels);
             return;
         }
@@ -1165,23 +1108,31 @@ void Image_Xbox::precacheProjectTextures() {
             curH = dh;
         }
 
-        // Verify opacity - only opaque textures qualify for DXT1
-        bool isOpaque = true;
+        // Classify alpha: opaque, binary (cutout), or smooth
+        bool isOpaque = true, isBinary = true;
         const int pitch = curW * 4;
-        for (int y = 0; y < curH; y++) {
+        for (int y = 0; y < curH && isBinary; y++) {
             const uint8_t *row = curPixels + y * pitch;
             for (int x = 0; x < curW; x++) {
-                if (row[x * 4 + 3] != 255) {
+                const uint8_t a = row[x * 4 + 3];
+                if (a != 255) {
                     isOpaque = false;
-                    break;
+                    if (a != 0) {
+                        isBinary = false;
+                        break;
+                    }
                 }
             }
-            if (!isOpaque) break;
         }
 
-        if (isOpaque) {
+        uint32_t codec = 0;
+        if (isOpaque) codec = CODEC_DXT1;
+        else if (isStage || static_cast<long long>(curW) * curH >= CACHE_MIN_ALPHA_PIXELS)
+            codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
+
+        if (codec) {
             ensureCachingState();
-            if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch)) {
+            if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec)) {
                 allSucceeded = false;
             }
         }
@@ -1193,15 +1144,15 @@ void Image_Xbox::precacheProjectTextures() {
     // 1. Stage backdrops (critical for memory and background rendering)
     if (Scratch::stageSprite) {
         for (const auto &costume : Scratch::stageSprite->costumes) {
-            precacheCostume(costume);
+            precacheCostume(costume, true);
         }
     }
 
-    // 2. Sprite costumes
+    // 2. Sprite costumes (opaque, or large with an alpha mask)
     for (auto *sprite : Scratch::sprites) {
         if (sprite == Scratch::stageSprite) continue;
         for (const auto &costume : sprite->costumes) {
-            precacheCostume(costume);
+            precacheCostume(costume, false);
         }
     }
 
@@ -1223,6 +1174,7 @@ nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
             if (loadFromCache(cachePath)) {
                 return {};
             }
+            if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
         }
     }
     return setInitialTexture();
@@ -1238,6 +1190,10 @@ Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
     std::string cachePath = getTextureCachePath(filePath);
     if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
         if (loadFromCache(cachePath)) {
+            return;
+        }
+        if (g_cacheLoadOOM) {
+            error = "Out of texture memory loading " + filePath;
             return;
         }
     }
@@ -1263,6 +1219,10 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
         std::string cachePath = getTextureCachePath(filePath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
             if (loadFromCache(cachePath)) {
+                return;
+            }
+            if (g_cacheLoadOOM) {
+                error = "Out of texture memory loading " + filePath;
                 return;
             }
         }

@@ -28,8 +28,8 @@ set(SE_HAS_THREADS ON)
 #   prioritize the runtime over the GPU.
 # - Right now, this is an experimental feature, so this will need refinement.
 set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 28 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 28 CACHE STRING "Size in MB reserved for GPU and system buffers")
+set(SE_LWMEM_HEAP_SIZE_MB 16 CACHE STRING "Baseline size in MB of the lwmem heap")
+set(SE_LWMEM_GPU_RESERVE_MB 40 CACHE STRING "Size in MB reserved for GPU and system buffers")
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")

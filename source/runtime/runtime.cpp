@@ -85,6 +85,10 @@ bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
 
+#ifdef __XBOX__
+bool Scratch::bitmapHalfQuality = false;
+#endif
+
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU
@@ -986,9 +990,10 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     auto onErr = [&](std::string error) -> bool {
         const std::string missingName = "SE__Missingno";
+const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
-            failedCostumeImages.insert(costumeName);
+            if (!transient) failedCostumeImages.insert(costumeName);
         }
 
         const auto missingIt = costumeImages.find(missingName);

@@ -1,14 +1,14 @@
 #include <errno.h>
 #include <hal/debug.h>
 #include <hal/video.h>
+#include <log.hpp>
+#include <lwip/debug.h>
+#include <lwip/tcpip.h>
 #include <nxdk/mount.h>
+#include <nxdk/net.h>
 #include <os.hpp>
 #include <stdio.h>
 #include <windows.h>
-#include <nxdk/net.h>
-#include <lwip/debug.h>
-#include <lwip/tcpip.h>
-#include <log.hpp>
 
 extern "C" {
 extern struct netif *g_pnetif;
@@ -20,6 +20,7 @@ void se_lwmem_get_info(size_t *heap_size, size_t *total_ram, int *is_expanded);
 namespace OS {
 bool toExit = false;
 bool loadedSettings = false;
+bool isExpanded = false;
 std::string *customProjectsPath = nullptr;
 } // namespace OS
 
@@ -49,8 +50,8 @@ bool initNetworking() {
 }
 
 bool OS::init() {
-	// TODO: add support for automatic resolution detection
-	// TODO 2: add support for overscan compensation
+    // TODO: add support for automatic resolution detection
+    // TODO 2: add support for overscan compensation
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
 
     // Verify D: is mounted
@@ -83,7 +84,7 @@ bool OS::init() {
     _mkdir("E:\\ScratchEverywhere");
     remove("E:\\ScratchEverywhere\\debug.txt");
 
-	Log::log("OS initialized.");
+    Log::log("OS initialized.");
 #if defined(SE_USE_LWMEM)
     size_t heap_size = 0, total_ram = 0;
     int is_expanded = 0;
@@ -91,6 +92,7 @@ bool OS::init() {
 
     char memMsg[256];
     if (is_expanded) {
+        isExpanded = true;
         snprintf(memMsg, sizeof(memMsg),
                  "Expanded RAM configuration detected.\n Total: %u MB\n Heap: %u MB\n Reserved for GPU: %u MB",
                  (unsigned int)(total_ram / (1024 * 1024)),
@@ -105,13 +107,13 @@ bool OS::init() {
     }
     Log::log(memMsg);
 #endif
-	initNetworking();
+    initNetworking();
     return true;
 }
 
 void OS::deinit() {
-	nxNetShutdown();
-	return;
+    nxNetShutdown();
+    return;
 }
 
 std::string OS::getPlatform() {
@@ -119,7 +121,7 @@ std::string OS::getPlatform() {
 }
 
 bool OS::isEnhancedPlatform() {
-	return false;
+    return isExpanded;
 }
 
 std::string OS::getFilesystemRootPrefix() {
@@ -144,8 +146,8 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
-    if (g_pnetif && 
-        netif_is_up(g_pnetif) && 
+    if (g_pnetif &&
+        netif_is_up(g_pnetif) &&
         netif_ip4_addr(g_pnetif) &&
         netif_ip4_addr(g_pnetif)->addr != 0) {
         return true;

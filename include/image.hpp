@@ -114,11 +114,24 @@ class SE_EXPORT Image {
         return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
     }
 
+#ifdef __XBOX__
+    std::vector<uint8_t> alphaMask;
+    int alphaMaskPitch = 0;
+
+    inline int getPixelWidth() const { return imgData.width; }
+    inline int getPixelHeight() const { return imgData.height; }
+    inline bool hasAlphaData() const { return imgData.pixels != nullptr || isOpaque || !alphaMask.empty(); }
+#endif
+
     inline uint8_t getAlphaAt(int x, int y) const {
         if (x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
             return 0;
         if (isOpaque)
             return 255;
+#ifdef __XBOX__
+        if (!alphaMask.empty())
+            return ((alphaMask[static_cast<size_t>(y) * alphaMaskPitch + (x >> 3)] >> (x & 7)) & 1) ? 255 : 0;
+#endif
         if (!imgData.pixels)
             return 0;
         const uint8_t *px =
