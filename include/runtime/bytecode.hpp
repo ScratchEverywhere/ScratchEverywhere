@@ -14,6 +14,8 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
+inline constexpr uint16_t bytecodeCacheVersion = 1;
+
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 
 enum class BytecodeStackKind : uint8_t {
@@ -174,6 +176,7 @@ struct SE_EXPORT BytecodeProcedure {
 struct SE_EXPORT BytecodeScript {
     BytecodeIndex opcodeIndex = invalidBytecodeIndex;
     BytecodeIndex entryInstruction = invalidBytecodeIndex;
+    BytecodeIndex blockOrdinal = invalidBytecodeIndex;
 };
 
 struct SE_EXPORT BytecodeChunk {
@@ -198,6 +201,8 @@ struct SE_EXPORT BytecodeChunk {
 
     std::vector<BytecodeProcedure> procedures;
     std::vector<BytecodeScript> scripts;
+
+    std::vector<BytecodeIndex> escapeBlockOrdinals;
 
     BytecodeIndex internString(const std::string &s) {
         for (BytecodeIndex i = 0; i < strings.size(); ++i) {

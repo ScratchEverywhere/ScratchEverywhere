@@ -207,6 +207,7 @@ BytecodeIndex BytecodeCompiler::escapeSlot(Block *block) {
 
     BytecodeIndex slot = static_cast<BytecodeIndex>(link_.escapeBlocks.size());
     link_.escapeBlocks.push_back(block);
+    chunk_.escapeBlockOrdinals.push_back(block->bytecodeOrdinal);
     escapeBlockMap_[block] = slot;
     return slot;
 }
@@ -543,6 +544,7 @@ void Parser::compileBytecode(Sprite *sprite) {
             BytecodeScript script;
             script.opcodeIndex = compiler.chunk().internString(opcode);
             script.entryInstruction = compileStatementChain(compiler, hat);
+            script.blockOrdinal = hat->bytecodeOrdinal;
             compiler.chunk().scripts.push_back(script);
             compiler.link().scriptBlocks.push_back(hat);
         }

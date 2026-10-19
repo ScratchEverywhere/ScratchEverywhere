@@ -1,4 +1,5 @@
 #include "blockExecutor.hpp"
+#include "bytecode_cache.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
@@ -20,6 +21,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
     Scratch::sprites.reserve(spriteAmount);
+
+    BytecodeCache::beginLoadSession();
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -187,6 +190,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         std::vector<std::string> procedureCallBlocks;
 
         // Blocks
+        size_t blockOrdinalBase = Scratch::blocks.size();
         if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
@@ -218,6 +222,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
                 loadInputsSb3(*newBlock, newSprite, id, target["blocks"], 2);
                 loadFieldsSb3(*newBlock, id, target["blocks"], 2);
 
+                newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
                 Scratch::blocks.push_back(newBlock);
                 newSprite->hats[opcode].insert(newBlock);
 
@@ -309,7 +314,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
 
             resolveVariableTypes(newSprite);
             if (Scratch::useBytecode) {
-                compileBytecode(newSprite);
+                BytecodeCache::processSprite(newSprite, static_cast<uint32_t>(blockOrdinalBase), static_cast<uint32_t>(Scratch::blocks.size()));
             }
             clearSpriteBlockOpcodes(newSprite);
         }
@@ -317,6 +322,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         Scratch::sprites.push_back(newSprite);
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
+
+    BytecodeCache::endLoadSession();
 
     Scratch::sortSprites();
 
@@ -827,6 +834,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             if (name == "​​received data​​") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
         }
 
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
 
         if (currentBlock) {

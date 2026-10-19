@@ -91,6 +91,7 @@ bool Scratch::useBytecode = false;
 #else
 bool Scratch::useBytecode = true;
 #endif
+bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);
 
@@ -147,6 +148,17 @@ bool Scratch::startScratchProject() {
             cleanupScratchProject();
             return false;
         }
+    }
+
+    if (bytecodeCacheTooNew) {
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACKNOWLEDGE, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
+        MenuManager::changeMenu(popupMenu);
+        while (Render::appShouldRun() && popupMenu->accepted == -1) {
+            MenuManager::render();
+        }
+        popupMenu->cleanup();
+        cleanupScratchProject();
+        return false;
     }
 
 #endif
@@ -250,6 +262,7 @@ void Scratch::cleanupScratchProject() {
     useCustomUsername = false;
     sb3InRam = true;
     warpTimer = true;
+    bytecodeCacheTooNew = false;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 

@@ -116,6 +116,7 @@ class SE_EXPORT Scratch {
     static bool debugVars;
     static bool sb3InRam;
     static bool useBytecode;
+    static bool bytecodeCacheTooNew;
 
     static double counter;
 

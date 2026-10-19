@@ -1,8 +1,8 @@
 #pragma once
 #include "bytecode.hpp"
+#include "runtime/data/entity_components.hpp"
 #include "small_string_map.hpp"
 #include "value.hpp"
-#include "runtime/data/entity_components.hpp"
 #include <functional>
 #include <memory>
 #include <se_export.hpp>
@@ -365,6 +365,8 @@ struct BlockFunc {
 };
 
 struct SE_EXPORT Block {
+    uint32_t bytecodeOrdinal = 0;
+
     Block *nextBlock = nullptr;
     std::string opcode = "";
     BlockFunc blockFunction;
