@@ -1,4 +1,5 @@
 #include "blockExecutor.hpp"
+#include "bytecode_cache.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
@@ -20,6 +21,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
     Scratch::sprites.reserve(spriteAmount);
+
+    BytecodeCache::beginLoadSession();
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -187,6 +190,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         std::vector<std::string> procedureCallBlocks;
 
         // Blocks
+        size_t blockOrdinalBase = Scratch::blocks.size();
         if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
@@ -218,6 +222,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
                 loadInputsSb3(*newBlock, newSprite, id, target["blocks"], 2);
                 loadFieldsSb3(*newBlock, id, target["blocks"], 2);
 
+                newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
                 Scratch::blocks.push_back(newBlock);
                 newSprite->hats[opcode].insert(newBlock);
 
@@ -308,11 +313,17 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             }
 
             resolveVariableTypes(newSprite);
+            if (Scratch::useBytecode) {
+                BytecodeCache::processSprite(newSprite, static_cast<uint32_t>(blockOrdinalBase), static_cast<uint32_t>(Scratch::blocks.size()));
+            }
+            clearSpriteBlockOpcodes(newSprite);
         }
 
         Scratch::sprites.push_back(newSprite);
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
+
+    BytecodeCache::endLoadSession();
 
     Scratch::sortSprites();
 
@@ -782,14 +793,25 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
                 }
                 std::string procode = blockData["mutation"]["proccode"];
 
-                if (procode == "​​log​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
-                else if (procode == "​​warn​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-                else if (procode == "​​error​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-                else if (procode == "​​open​​ %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
-                else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
-                else if (procode == "​​exit project​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
-
-                else {
+                if (procode == "​​log​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
+                    newBlock->bytecodeCallOpcode = "logs_log";
+                } else if (procode == "​​warn​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
+                    newBlock->bytecodeCallOpcode = "logs_warn";
+                } else if (procode == "​​error​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                    newBlock->bytecodeCallOpcode = "logs_error";
+                } else if (procode == "​​open​​ %s .sb3") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3";
+                } else if (procode == "​​open​​ %s .sb3 with data %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3withData";
+                } else if (procode == "​​exit project​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
+                    newBlock->bytecodeCallOpcode = "SE_exitProject";
+                } else {
                     if (newSprite->customHatBlock.count(procode) == 0) {
                         Block *placeholder = new Block();
                         placeholder->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
@@ -813,6 +835,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             if (name == "​​received data​​") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
         }
 
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
 
         if (currentBlock) {
@@ -827,7 +850,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             hasNext = true;
         }
 
-        if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
+        if (blockDatas[currentId].contains("shadow") && blockDatas[currentId]["shadow"].get<bool>()) {
             newBlock->shadow = true;
         }
 
@@ -881,9 +904,41 @@ void Parser::setSubstackSb3(Block *startBlock, Block *stopBlock) {
             }
         }
 
-        if (!current->shadow) current->opcode.clear();
         if (current->isEndBlock) break;
         current = current->nextBlock;
+    }
+}
+
+static void clearBlockOpcodes(Block *startBlock, Block *stopBlock = nullptr) {
+    Block *current = startBlock;
+
+    while (current != nullptr && current != stopBlock) {
+        for (const std::string &stackName : {"SUBSTACK", "SUBSTACK2"}) {
+            Block *firstSubBlock = nullptr;
+            for (auto &[name, input] : current->inputs) {
+                if (input.block != nullptr && name == stackName) {
+                    firstSubBlock = input.block;
+                    break;
+                }
+            }
+            if (firstSubBlock != nullptr) clearBlockOpcodes(firstSubBlock, current);
+        }
+
+        bool wasEndBlock = current->isEndBlock;
+        if (!current->shadow) current->opcode.clear();
+        if (wasEndBlock) break;
+        current = current->nextBlock;
+    }
+}
+
+void Parser::clearSpriteBlockOpcodes(Sprite *sprite) {
+    for (const auto &[opcode, hatBlocks] : sprite->hats) {
+        for (Block *hat : hatBlocks) {
+            if (hat != nullptr) clearBlockOpcodes(hat);
+        }
+    }
+    for (const auto &[proccode, definitionBlock] : sprite->customHatBlock) {
+        if (definitionBlock != nullptr) clearBlockOpcodes(definitionBlock);
     }
 }
 

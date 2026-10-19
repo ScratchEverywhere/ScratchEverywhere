@@ -219,10 +219,13 @@ int main(int argc, char **argv) {
 #endif
 
     bool enableInspector = false;
+    std::string unpackToDest;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--inspector") {
             enableInspector = true;
+        } else if (arg == "--unpack-to" && i + 1 < argc) {
+            unpackToDest = argv[++i];
         } else if (arg == "--glcore") {
             Render::currentRenderer = Renderers::OpenGLCore;
         } else if (arg == "--opengl") {
@@ -263,6 +266,45 @@ int main(int argc, char **argv) {
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
+#endif
+
+#if defined(__PC__)
+    if (!unpackToDest.empty()) {
+        if (Unzip::filePath.empty()) {
+            Log::logCritical("--unpack-to requires a project path, e.g: scratch-everywhere MyProject.sb3 --unpack-to romfs/project", true);
+            exitApp();
+            return 1;
+        }
+
+        ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+        if (format == ProjectFormat::SB1) {
+            Log::logCritical("Unpacking is not supported for .sb (Scratch 1.4) projects.", true);
+            exitApp();
+            return 1;
+        }
+
+        std::string sourcePath = Unzip::filePath;
+        if (!Unzip::extractProject(sourcePath, unpackToDest)) {
+            Log::logCritical("Failed to unpack project to: " + unpackToDest, true);
+            exitApp();
+            return 1;
+        }
+
+        // Load the freshly unpacked copy once, exactly like opening it normally would, so
+        // Scratch::useBytecode's cache gets baked into unpackToDest alongside project.json -
+        // ready to be copied straight into romfs/project for a bundle.cmake build.
+        Unzip::filePath = unpackToDest;
+        Unzip::unpackedFormatHint = format;
+        if (!Unzip::load()) {
+            Log::logCritical("Unpacked project to " + unpackToDest + ", but failed to load it back to bake its bytecode cache.", true);
+            exitApp();
+            return 1;
+        }
+
+        Log::log("Unpacked '" + sourcePath + "' to '" + unpackToDest + "' (with a baked bytecode cache).");
+        exitApp();
+        return 0;
+    }
 #endif
 
 #if defined(__EMSCRIPTEN__)

@@ -178,6 +178,17 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
+    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    if (useBytecodeSetting.is_null()) {
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+        Scratch::useBytecode = false;
+#else
+        Scratch::useBytecode = true;
+#endif
+    } else {
+        Scratch::useBytecode = useBytecodeSetting.get<bool>();
+    }
+
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
     return true;

@@ -8,6 +8,7 @@ SCRATCH_BLOCK(logs, log) {
     Log::log("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(logs, log, {"arg0", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(logs, warn) {
     std::string arg0;
@@ -16,6 +17,7 @@ SCRATCH_BLOCK(logs, warn) {
     Log::logWarning("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(logs, warn, {"arg0", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(logs, error) {
     std::string arg0;
@@ -24,3 +26,4 @@ SCRATCH_BLOCK(logs, error) {
     Log::logError("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(logs, error, {"arg0", BytecodeStackKind::String});
