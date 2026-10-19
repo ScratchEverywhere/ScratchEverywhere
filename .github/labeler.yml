@@ -42,3 +42,6 @@ macOS:
 
 Linux:
     - '### Device\(s\)\s*.*Linux'
+
+Xbox:
+    - '### Device\(s\)\s*.*Original Xbox'

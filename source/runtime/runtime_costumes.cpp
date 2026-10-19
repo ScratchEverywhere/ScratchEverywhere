@@ -4,7 +4,7 @@
 #include <cmath>
 #include <image.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <unordered_set>
 #include <vector>
@@ -12,6 +12,12 @@
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+#ifdef __XBOX__
+    if (costumeImages.size() >= (sprites.size() + 2)) {
+        freeUnusedCostumeImages();
+    }
+#endif
 
     loadCurrentCostumeImage(sprite);
 
@@ -44,36 +50,48 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         return;
     }
 
+    if (failedCostumeImages.count(costumeName) != 0) {
+        const std::string missingName = "SE__Missingno";
+        const auto missingIt = costumeImages.find(missingName);
+        if (missingIt != costumeImages.end()) {
+            costumeImages[costumeName] = missingIt->second;
+            sprite->spriteWidth = missingIt->second->getWidth();
+            sprite->spriteHeight = missingIt->second->getHeight();
+        }
+        return;
+    }
+
     std::shared_ptr<Image> image;
 
+#ifdef __XBOX__
+    if (costumeImages.size() >= (sprites.size() + 2)) {
+        freeUnusedCostumeImages();
+    }
+#endif
+
     auto onErr = [&](std::string error) -> bool {
-        static std::set<std::string> failedImages;
-        if (failedImages.count(costumeName) == 0) {
+        const std::string missingName = "SE__Missingno";
+        if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
-            freeUnusedCostumeImages();
-            failedImages.insert(costumeName);
-
-            const std::string missingName = "SE__Missingno";
-            const auto missingIt = costumeImages.find(missingName);
-
-            if (missingIt == costumeImages.end()) {
-                if (failedImages.count(missingName) == 0 && error != "LunaSVG failed to render SVG to bitmap") {
-                    auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
-                    if (!img.has_value()) {
-                        Log::logWarning("Failed to load missing image texture: " + img.error());
-                        failedImages.insert(missingName);
-                    } else {
-                        costumeImages[missingName] = img.value();
-                        image = img.value();
-                        return true;
-                    }
-                }
-            } else {
-                const auto missingImage = costumeImages[missingName];
-                image = missingImage;
-                return true;
-            }
+            failedCostumeImages.insert(costumeName);
         }
+
+        const auto missingIt = costumeImages.find(missingName);
+        if (missingIt != costumeImages.end()) {
+            image = missingIt->second;
+            return true;
+        }
+
+        freeUnusedCostumeImages();
+        auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (img.has_value()) {
+            costumeImages[missingName] = img.value();
+            image = img.value();
+            return true;
+        } else {
+            Log::logWarning("Failed to load missing image texture: " + img.error());
+        }
+
         sprite->spriteWidth = 0;
         sprite->spriteHeight = 0;
         return false;
@@ -85,13 +103,27 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
+#ifdef __XBOX__
+        if (!imageOrErr.has_value()) {
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
+        }
+#endif
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;
         } else
             image = imageOrErr.value();
     } else {
+#ifdef __XBOX__
+        auto imageOrErr = createImageFromZip(costumeName, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+        if (!imageOrErr.has_value()) {
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromZip(costumeName, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+        }
+#else
         auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+#endif
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;
@@ -110,12 +142,18 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             costume.rotationCenterY = sprite->spriteHeight / 2;
 
         costumeImages[costumeName] = image;
+#ifdef __XBOX__
+        if (sprite->isStage) {
+            image->freePixels();
+        }
+#endif
     }
 }
 
 void Scratch::flushCostumeImages() {
     std::unordered_set<std::string> activeCostumes;
-    activeCostumes.reserve(sprites.size());
+    activeCostumes.reserve(sprites.size() + 1);
+    activeCostumes.insert("SE__Missingno");
     for (Sprite *sprite : sprites) {
         if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
             activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
@@ -124,10 +162,23 @@ void Scratch::flushCostumeImages() {
 
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
-        if (activeCostumes.count(id)) continue;
+        if (id == "SE__Missingno" || activeCostumes.count(id)) continue;
         img->freeTimer--;
         if (img->freeTimer <= 0) toDelete.push_back(id);
     }
+
+#ifdef __XBOX__
+    if (!toDelete.empty()) {
+        std::unordered_set<std::string> deletingSet(toDelete.begin(), toDelete.end());
+        for (Sprite *sprite : sprites) {
+            for (auto &costume : sprite->costumes) {
+                if (deletingSet.count(costume.fullName)) {
+                    costume.collisionMask = nullptr;
+                }
+            }
+        }
+    }
+#endif
 
     for (const std::string &id : toDelete) {
         costumeImages.erase(id);
@@ -135,9 +186,31 @@ void Scratch::flushCostumeImages() {
 }
 
 void Scratch::freeUnusedCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size() + 1);
+    activeCostumes.insert("SE__Missingno");
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
+#ifdef __XBOX__
+    for (Sprite *sprite : sprites) {
+        for (auto &costume : sprite->costumes) {
+            if (!activeCostumes.count(costume.fullName)) {
+                costume.collisionMask = nullptr;
+            }
+        }
+    }
+#endif
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
-        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+        if (id == "SE__Missingno") continue;
+        if (!activeCostumes.count(id)) {
+            toDelete.push_back(id);
+        }
     }
 
     for (const std::string &id : toDelete) {

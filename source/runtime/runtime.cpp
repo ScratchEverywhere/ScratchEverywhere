@@ -21,7 +21,8 @@
 #include <math.h>
 #include <memory>
 #include <os.hpp>
-#include <render.hpp>
+#include <parser.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
@@ -109,6 +110,7 @@ bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+std::set<std::string> Scratch::failedCostumeImages;
 
 bool Scratch::initializeRuntime() {
     if (!OS::init()) {
@@ -117,7 +119,7 @@ bool Scratch::initializeRuntime() {
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
-    if (!Render::Init()) {
+    if (!Render::init()) {
         return false;
     }
 #endif
@@ -184,25 +186,32 @@ void Scratch::cleanupScratchProject() {
     extensions::cleanup();
 #endif
 
-    Scratch::cleanupSprites();
-    costumeImages.clear();
-    Mixer::cleanupAudio();
-    Render::monitorTexts.clear();
-    Render::listMonitors.clear();
-
-    TextObject::cleanupText();
-    Render::monitors.clear();
-    Render::penClear();
+    Input::draggingSprite = nullptr;
 
     if (Render::getSpeechManager())
         Render::destroySpeechManager();
 
-    // Clean up ZIP archive if it was initialized
-    if (projectType != ProjectType::UNZIPPED) {
-        Unzip::zipArchive.reset();
-        Unzip::zipBuffer.clear();
-        Unzip::zipBuffer.shrink_to_fit();
-    }
+    Scratch::cleanupSprites();
+    costumeImages.clear();
+    failedCostumeImages.clear();
+    Mixer::cleanupAudio();
+    Render::monitorTexts.clear();
+    Render::listMonitors.clear();
+    Render::monitors.clear();
+
+    TextObject::cleanupText();
+    Render::penClear();
+    Render::cleanupPen();
+
+#ifdef ENABLE_CLOUDVARS
+    Parser::cleanupMist();
+#endif
+
+    // Clean up ZIP archive and loader unconditionally
+    Unzip::zipArchive.reset();
+    Unzip::zipBuffer.clear();
+    Unzip::zipBuffer.shrink_to_fit();
+    Unzip::loader.reset();
 
     DownloadManager::deinit();
 
@@ -239,10 +248,17 @@ void Scratch::cleanupScratchProject() {
         }
     }
 
+    Pools::states.clear();
+    Pools::states.shrink_to_fit();
+    Pools::threads.clear();
+    Pools::threads.shrink_to_fit();
+
     for (Block *block : blocks) {
         delete block;
     }
     blocks.clear();
+    blocks.shrink_to_fit();
+    sprites.shrink_to_fit();
     stageSprite = nullptr;
     answer.clear();
     customUsername.clear();
@@ -260,11 +276,17 @@ void Scratch::cleanupScratchProject() {
     shouldStop = false;
     forceRedraw = false;
     useCustomUsername = false;
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+    sb3InRam = false;
+#else
     sb3InRam = true;
+#endif
     warpTimer = true;
     bytecodeCacheTooNew = false;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::UnpackedInSD = false;
+    Unzip::filePath.clear();
 
     Log::log("Cleaned up Scratch project.");
 }

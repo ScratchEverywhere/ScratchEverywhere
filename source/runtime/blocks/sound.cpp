@@ -31,7 +31,11 @@ void Scratch::startSoundUntilDone(Sprite *sprite, const std::string &fullName) {
     if (Scratch::projectType == ProjectType::UNZIPPED)
         strm = new SoundStream(fullName);
     else
+#ifdef __XBOX__
+        strm = new SoundStream(Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, fullName);
+#else
         strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, fullName);
+#endif
     if (strm->error.has_value()) {
         Log::logError("[Sound] " + strm->error.value());
         delete strm;
@@ -107,7 +111,11 @@ SCRATCH_BLOCK(sound, play) {
         if (Scratch::projectType == ProjectType::UNZIPPED)
             strm = new SoundStream(soundFullName, false);
         else
+#ifdef __XBOX__
+            strm = new SoundStream(Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, soundFullName);
+#else
             strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, soundFullName);
+#endif
         if (strm->error.has_value()) {
             Log::logError("[Sound] " + strm->error.value());
             delete strm;

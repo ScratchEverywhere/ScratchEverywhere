@@ -1,0 +1,69 @@
+diff --git a/src/mist.cpp b/src/mist.cpp
+index fe316d5..57e9eec 100644
+--- a/src/mist.cpp
++++ b/src/mist.cpp
+@@ -37,13 +37,13 @@ bool MistConnection::connect(bool secure) {
+-  if (!(versionInfo->features & CURL_VERSION_SSL)) {
++  if (secure && !(versionInfo->features & CURL_VERSION_SSL)) {
+     std::cerr << "[ERROR] This version of CURL does not support SSL." << std::endl;
+     if (conn_status_callback_) conn_status_callback_(false, "CURL has SSL disabled.");
+     return false;
+   }
+ 
+   bool supportsWebsockets = false;
+-  for (unsigned int i = 0; versionInfo->protocols[i]; i++) {
+-    if (strcmp(versionInfo->protocols[i], "wss") == 0) {
++  for (unsigned int i = 0; versionInfo->protocols && versionInfo->protocols[i]; i++) {
++    if (strcmp(versionInfo->protocols[i], "wss") == 0 || strcmp(versionInfo->protocols[i], "ws") == 0) {
+       supportsWebsockets = true;
+       break;
+     }
+   }
+@@ -90,12 +90,16 @@ bool MistConnection::connect(bool secure) {
+ 
+   running_ = true;
+   curl_thread_ = std::thread([this]() {
++#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
+     try {
+       this->processMessages();
+     } catch (const std::exception &e) {
+       std::cerr << "[ERROR] Error in CURL processing thread: " << e.what() << std::endl;
+       if (conn_status_callback_) conn_status_callback_(false, "Internal thread error: " + std::string(e.what()));
+     }
++#else
++    this->processMessages();
++#endif
+   });
+ 
+   return true;
+@@ -279,6 +283,7 @@ void MistConnection::handle_recv_message(const char *data, size_t len) {
+   std::string line;
+ 
+   while (std::getline(stream, line)) {
++#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
+     try {
+       nlohmann::json json_msg = nlohmann::json::parse(line);
+ 
+@@ -299,5 +304,22 @@ void MistConnection::handle_recv_message(const char *data, size_t len) {
+     } catch (const std::exception &e) {
+       std::cerr << "[ERROR] Error processing message: " << e.what() << " Raw message: " << std::string(data, len) << std::endl;
+     }
++#else
++    auto json_msg = nlohmann::json::parse(line, nullptr, false);
++    if (!json_msg.is_discarded()) {
++      if (json_msg.contains("method") && json_msg["method"] == "set") {
++        std::string name = json_msg["name"].get<std::string>();
++
++        std::string value;
++        if (json_msg["value"].is_string()) value = json_msg["value"].get<std::string>();
++        else value = std::to_string(json_msg["value"].get<double>());
++
++        std::lock_guard<std::mutex> lock(variables_mutex_);
++        cloud_variables_[name] = value;
++
++        if (var_update_callback_) var_update_callback_(name, value);
++      }
++    }
++#endif
+   }
+ }

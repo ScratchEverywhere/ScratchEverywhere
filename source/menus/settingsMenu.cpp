@@ -1,10 +1,13 @@
 #include "settingsMenu.hpp"
+#include "audio.hpp"
 #include "hasdeps.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include "window.hpp"
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <algorithm>
@@ -57,6 +60,26 @@ void SettingsMenu::init() {
     Language->text->setColor(Math::color(0, 0, 0, 255));
     Language->textScale = 1.0;
 
+#ifdef ENABLE_DECTALK
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
+
+    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/projectBox.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
+    RendererButton->text->setColor(Math::color(0, 0, 0, 255));
+    RendererButton->textScale = 1.0;
+    validRenderers = Render::getAvailableRenderers();
+
+    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton->text->setColor(Math::color(0, 0, 0, 255));
+    WindowingButton->textScale = 1.0;
+    validWindowingBackends = WindowSE::getAvailableWindowingBackends();
+
+    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/projectBox.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
+    AudioEngineButton->text->setColor(Math::color(0, 0, 0, 255));
+    AudioEngineButton->textScale = 1.0;
+    validAudioBackends = SoundPlayer::getAvailableAudioBackends();
+
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
     EnableUsername->isSelected = true;
@@ -69,11 +92,6 @@ void SettingsMenu::init() {
     if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
         UseDectalk = json["UseDectalk"].get<bool>();
     }
-
-#ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
-#endif
 
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
         UseCostumeUsername = json["EnableUsername"].get<bool>();
@@ -102,6 +120,25 @@ void SettingsMenu::init() {
         menuMusic = json["MenuMusic"].get<bool>();
     }
 
+    auto getBackendOption = [](std::string_view currentName, const auto &validOptions, auto &outIdx, std::string &outOption) {
+        auto it = std::find_if(validOptions.begin(), validOptions.end(),
+                               [currentName](const auto &info) { return info.name == currentName; });
+
+        if (it != validOptions.end()) {
+            outIdx = std::distance(validOptions.begin(), it);
+            outOption = std::string(currentName);
+        } else {
+            outIdx = 0;
+            outOption = std::string(validOptions.front().name);
+        }
+    };
+    getBackendOption(RendererNames[static_cast<uint8_t>(Render::currentRenderer)],
+                     validRenderers, rendererIdx, rendererOption);
+    getBackendOption(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)],
+                     validWindowingBackends, windowingIdx, windowingOption);
+    getBackendOption(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)],
+                     validAudioBackends, audioIdx, audioOption);
+
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -112,6 +149,9 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableUsername);
     settingsControl->buttonObjects.push_back(ClearCache);
     settingsControl->buttonObjects.push_back(Language);
+    settingsControl->buttonObjects.push_back(RendererButton);
+    settingsControl->buttonObjects.push_back(WindowingButton);
+    settingsControl->buttonObjects.push_back(AudioEngineButton);
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
@@ -127,16 +167,25 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = Language;
+    EnableUsername->buttonUp = WindowingButton;
     EnableMenuMusic->buttonDown = ClearCache;
     ClearCache->buttonUp = EnableMenuMusic;
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
-    Language->buttonDown = EnableUsername;
+    Language->buttonDown = RendererButton;
+    RendererButton->buttonUp = Language;
+    RendererButton->buttonDown = WindowingButton;
+    WindowingButton->buttonUp = RendererButton;
+    WindowingButton->buttonDown = AudioEngineButton;
+    AudioEngineButton->buttonUp = WindowingButton;
+
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
     dectalkButton->buttonUp = Language;
+    dectalkButton->buttonDown = RendererButton;
+    RendererButton->buttonUp = dectalkButton;
 #endif
+    AudioEngineButton->buttonDown = EnableUsername;
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -180,6 +229,10 @@ void SettingsMenu::updateButtonStates() {
 #ifdef ENABLE_DECTALK
     dectalkButton->text->setText(getDectalkString());
 #endif
+
+    RendererButton->text->setText(TranslationManager::getTranslation("ui.settings.renderer") + ": " + std::string(RendererNames[validRenderers[rendererIdx].id]));
+    WindowingButton->text->setText(TranslationManager::getTranslation("ui.settings.windowing") + ": " + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
+    AudioEngineButton->text->setText(TranslationManager::getTranslation("ui.settings.audioEngine") + ": " + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
 }
 
 void SettingsMenu::render() {
@@ -285,6 +338,24 @@ void SettingsMenu::render() {
     }
 #endif
 
+    if (RendererButton->isPressed({"a"})) {
+        rendererIdx = (rendererIdx + 1) % validRenderers.size();
+        rendererOption = validRenderers[rendererIdx].name;
+        updateButtonStates();
+    }
+
+    if (WindowingButton->isPressed({"a"})) {
+        windowingIdx = (windowingIdx + 1) % validWindowingBackends.size();
+        windowingOption = validWindowingBackends[windowingIdx].name;
+        updateButtonStates();
+    }
+
+    if (AudioEngineButton->isPressed({"a"})) {
+        audioIdx = (audioIdx + 1) % validAudioBackends.size();
+        audioOption = validAudioBackends[audioIdx].name;
+        updateButtonStates();
+    }
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -335,9 +406,21 @@ void SettingsMenu::cleanup() {
         delete dectalkButton;
         dectalkButton = nullptr;
     }
+    if (RendererButton != nullptr) {
+        delete RendererButton;
+        RendererButton = nullptr;
+    }
+    if (WindowingButton != nullptr) {
+        delete WindowingButton;
+        WindowingButton = nullptr;
+    }
+    if (AudioEngineButton != nullptr) {
+        delete AudioEngineButton;
+        AudioEngineButton = nullptr;
+    }
 
     // save settings
-    nlohmann::json json;
+    nlohmann::json json = SettingsManager::getConfigSettings();
     json["EnableUsername"] = UseCostumeUsername;
     json["Username"] = username;
     json["UseProjectsPath"] = UseProjectsPath;
@@ -345,6 +428,9 @@ void SettingsMenu::cleanup() {
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;
+    json["Renderer"] = rendererOption;
+    json["Windowing"] = windowingOption;
+    json["AudioEngine"] = audioOption;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

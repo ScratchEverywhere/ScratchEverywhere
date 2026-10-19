@@ -52,6 +52,7 @@ PwLDevがPS4に移植したよ!
 LeapがSDL1に移植したよ!
 LeapがOpenGLに移植したよ!
 Nishiがlibretroに移植したよ!
+MikeDEVがXboxに移植したよ!
 Dogo6647がメニューの音楽を作ったよ!
 2025年から進行中!
 C++!

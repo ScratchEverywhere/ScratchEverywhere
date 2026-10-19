@@ -30,4 +30,4 @@ void SE_Mutex::lock() {}
 
 void SE_Mutex::unlock() {}
 
-bool SE_Mutex::tryLock() {}
+bool SE_Mutex::tryLock() { return false; }

@@ -1,4 +1,4 @@
-#include "audio.hpp"
+#include "audio_3ds.hpp"
 #include "audiostack.hpp"
 #include <3ds.h>
 #include <algorithm>
@@ -15,7 +15,7 @@ static int16_t *audioBuffer = nullptr;
 static ndspWaveBuf waveBuf[2];
 static bool fillBlock = false;
 
-static void audioUpdateThread(void *arg) {
+static void n3dsCallback(void *arg) {
     while (audioRunning) {
         if (waveBuf[fillBlock].status == NDSP_WBUF_DONE) {
             Mixer::requestSound(waveBuf[fillBlock].data_pcm16, SAMPLESPERBUF);
@@ -29,11 +29,11 @@ static void audioUpdateThread(void *arg) {
 }
 #endif
 
-bool SoundPlayer::init() {
+SoundDevice_3DS::SoundDevice_3DS() {
 #ifdef ENABLE_AUDIO
     if (R_FAILED(ndspInit())) {
-        Log::logError("Failed to initialize NDSP for audio.");
-        return false;
+        error = "Failed to initialize NDSP for audio.";
+        return;
     }
 
     ndspSetOutputMode(NDSP_OUTPUT_STEREO);
@@ -49,9 +49,9 @@ bool SoundPlayer::init() {
 
     audioBuffer = (int16_t *)linearAlloc(BUFFER_SIZE_BYTES * 2);
     if (!audioBuffer) {
-        Log::logError("Failed to allocate audio buffer.");
+        error = "Failed to allocate audio buffer.";
         ndspExit();
-        return false;
+        return;
     }
     memset(audioBuffer, 0, BUFFER_SIZE_BYTES * 2);
 
@@ -73,21 +73,21 @@ bool SoundPlayer::init() {
         targetPriority--;
     }
     targetPriority = std::clamp(static_cast<int>(targetPriority), 0x19, 0x2f);
-    audioThread = threadCreate(audioUpdateThread, nullptr, 32768, targetPriority, -1, false);
+    audioThread = threadCreate(n3dsCallback, nullptr, 32768, targetPriority, -1, false);
 
     if (!audioThread) {
-        Log::logError("Failed to create high-priority audio thread.");
+        error = "Failed to create high-priority audio thread.";
         linearFree(audioBuffer);
         ndspExit();
-        return false;
+        return;
     }
 
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_3DS::~SoundDevice_3DS() {
 #ifdef ENABLE_AUDIO
     if (audioRunning) {
         audioRunning = false;

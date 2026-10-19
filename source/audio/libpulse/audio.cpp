@@ -1,4 +1,4 @@
-#include "audio.hpp"
+#include "audio_libpulse.hpp"
 #include "audiostack.hpp"
 #include <atomic>
 #include <log.hpp>
@@ -12,7 +12,7 @@ static pa_simple *pa_stream = nullptr;
 static std::thread audio_thread;
 static std::atomic<bool> audio_running{false};
 
-static void audioCallback() {
+static void pulseCallback() {
     short samples[2048];
     int error = 0;
 
@@ -28,14 +28,14 @@ static void audioCallback() {
     }
 }
 
-bool SoundPlayer::init() {
+SoundDevice_Libpulse::SoundDevice_Libpulse() {
 #ifdef ENABLE_AUDIO
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_S16NE;
     ss.rate = Mixer::rate;
     ss.channels = 2;
 
-    int error = 0;
+    int err = 0;
     pa_stream = pa_simple_new(
         nullptr,
         "Scratch Everywhere!",
@@ -45,22 +45,22 @@ bool SoundPlayer::init() {
         &ss,
         nullptr,
         nullptr,
-        &error);
+        &err);
 
     if (!pa_stream) {
-        Log::logError("Failed to init PulseAudio stream: " + std::string(pa_strerror(error)));
-        return false;
+        error = "Failed to init PulseAudio stream: " + std::string(pa_strerror(err));
+        return;
     }
 
     audio_running.store(true, std::memory_order_relaxed);
-    audio_thread = std::thread(audioCallback);
+    audio_thread = std::thread(pulseCallback);
 
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_Libpulse::~SoundDevice_Libpulse() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
 

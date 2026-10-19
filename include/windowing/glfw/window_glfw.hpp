@@ -1,17 +1,17 @@
 #pragma once
-#include <se_export.hpp>
-#include <window.hpp>
-
-#ifdef RENDERER_OPENGL_CORE
+#if defined(RENDERER_OPENGL_CORE) && !defined(RENDERER_OPENGL)
 #include <glad/gl.h>
 #endif
+
+#include <se_export.hpp>
+#include <window.hpp>
 
 #define GL_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 class SE_EXPORT WindowGLFW : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowGLFW(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

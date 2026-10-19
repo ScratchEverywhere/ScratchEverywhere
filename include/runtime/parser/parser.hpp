@@ -29,6 +29,7 @@ struct SE_EXPORT Parser {
 
 #ifdef ENABLE_CLOUDVARS
     static void initMist();
+    static void cleanupMist();
 #endif
   private:
     static void log(const std::string &message);

@@ -1,0 +1,342 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f5b7a0d..7988479 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,18 @@ project(SDL3Wrapper LANGUAGES C)
+ set(SDL3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/SDL)
+ set(SDL3_GLUE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/nxdk_glue)
+ 
++if(NOT EXISTS "${SDL3_DIR}/include/SDL3/SDL.h" OR NOT EXISTS "${SDL3_GLUE_DIR}/render/xgu/xgu.h")
++    message(STATUS "Initializing nxdk-sdl3 git submodules...")
++    execute_process(
++        COMMAND git submodule update --init --recursive
++        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
++        RESULT_VARIABLE _submod_res
++    )
++    if(NOT _submod_res EQUAL 0)
++        message(FATAL_ERROR "Failed to initialize submodules in nxdk-sdl3")
++    endif()
++endif()
++
+ # === Compile Definitions ===
+ set(SDL3_COMPILE_DEFS
+     SDL_DISABLE_ALLOCA
+diff --git a/nxdk_glue/audio/SDL_xboxaudio.c b/nxdk_glue/audio/SDL_xboxaudio.c
+index db1494a..3ac858a 100644
+--- a/nxdk_glue/audio/SDL_xboxaudio.c
++++ b/nxdk_glue/audio/SDL_xboxaudio.c
+@@ -32,11 +32,12 @@ static void xbox_audio_callback(struct nxAudioVoice *voice, void *user_context)
+ static bool XBOXAUDIO_WaitDevice(SDL_AudioDevice *device)
+ {
+     LARGE_INTEGER timeout;
+-    timeout.QuadPart = -5000 * 100; // 50ms
++    timeout.QuadPart = -10000000LL; // 1000ms
+ 
+     SDL_PrivateAudioData *audio_data = (SDL_PrivateAudioData *)device->hidden;
+     if (KeWaitForSingleObject(&audio_data->playsem, Executive, KernelMode, FALSE, &timeout) == STATUS_TIMEOUT) {
+         SDL_memset(audio_data->buffer_mem[audio_data->next_buffer], 0, audio_data->buffer_size);
++        __asm__ __volatile__ ("sfence" ::: "memory");
+     }
+     return true;
+ }
+@@ -126,8 +127,9 @@ static bool XBOXAUDIO_OpenDevice(SDL_AudioDevice *device)
+         SDL_memset(audio_data->buffer_mem[i], 0, audio_data->buffer_size);
+         nxAudioBufferInitialize(&audio_data->buffers[i], audio_data->buffer_mem[i], audio_data->buffer_size);
+     }
++    __asm__ __volatile__ ("sfence" ::: "memory");
+ 
+-    KeInitializeSemaphore(&audio_data->playsem, 1, SDL_XBOXAUDIO_BUFFER_COUNT);
++    KeInitializeSemaphore(&audio_data->playsem, 0, 32);
+     nxAudioBufferSetCallback(&audio_data->voice, xbox_audio_callback, (void *)audio_data);
+ 
+     // Prime the voice with the initial buffer
+@@ -142,6 +144,7 @@ static void XBOXAUDIO_CloseDevice(SDL_AudioDevice *device)
+ {
+     SDL_PrivateAudioData *audio_data = (SDL_PrivateAudioData *)device->hidden;
+     if (audio_data) {
++        nxAudioBufferSetCallback(&audio_data->voice, NULL, NULL);
+         nxAudioVoiceStop(&audio_data->voice);
+         nxAudioVoiceDestroy(&audio_data->voice);
+         nxAudioShutdown();
+@@ -167,8 +170,12 @@ static bool XBOXAUDIO_PlayDevice(SDL_AudioDevice *device, const Uint8 *buffer, i
+ {
+     SDL_PrivateAudioData *audio_data = (SDL_PrivateAudioData *)device->hidden;
+     int idx = audio_data->next_buffer;
++    __asm__ __volatile__ ("sfence" ::: "memory");
+     nxAudioBufferInitialize(&audio_data->buffers[idx], audio_data->buffer_mem[idx], buflen);
+     nxAudioBufferQueue(&audio_data->voice, &audio_data->buffers[idx]);
++    if (nxAudioVoiceGetState(&audio_data->voice) != NX_PLAYING) {
++        nxAudioVoiceStart(&audio_data->voice);
++    }
+     audio_data->next_buffer = (audio_data->next_buffer + 1) % SDL_XBOXAUDIO_BUFFER_COUNT;
+     return true;
+ }
+diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
+index df82129..fec5974 100644
+--- a/nxdk_glue/render/SDL_render_xgu.c
++++ b/nxdk_glue/render/SDL_render_xgu.c
+@@ -18,7 +18,7 @@
+ // hold three frames (pbkit is tripple buffered) worth of vertices. This is to allow for
+ // both the back buffers being rendered, and the active front buffer being calculated.
+ #ifndef SDL_XGU_VERTEX_BUFFER_SIZE
+-#define SDL_XGU_VERTEX_BUFFER_SIZE (512 * 1024)
++#define SDL_XGU_VERTEX_BUFFER_SIZE (4 * 1024 * 1024)
+ #endif
+ 
+ #ifndef SDL_XGU_VERTEX_ALIGNMENT
+@@ -208,6 +208,10 @@ static void XBOX_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
+         return;
+     }
+ 
++    if (render_data->active_texture == xgu_texture) {
++        render_data->active_texture = NULL;
++    }
++
+     MmFreeContiguousMemory(xgu_texture->data);
+     SDL_free(xgu_texture);
+     texture->internal = NULL;
+@@ -231,6 +235,7 @@ static void XBOX_UnlockTexture(SDL_Renderer *renderer, SDL_Texture *texture)
+ {
+     (void)renderer;
+     (void)texture;
++    __asm__ __volatile__ ("sfence" ::: "memory");
+     return;
+ }
+ 
+@@ -277,6 +282,7 @@ static bool XBOX_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
+                           texture->format, dst, xgu_texture->pitch);
+     }
+ 
++    __asm__ __volatile__ ("sfence" ::: "memory");
+     return true;
+ }
+ 
+@@ -319,6 +325,59 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+         format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
+     }
+ 
++    render_data->active_texture = NULL;
++
++    if (xgu_texture == NULL) {
++        uint32_t *p = pb_begin();
++        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
++        pb_end(p);
++
++        pb_target_back_buffer();
++        render_data->active_render_target = NULL;
++        render_data->viewport.x = 0;
++        render_data->viewport.y = 0;
++        render_data->viewport.w = pb_back_buffer_width();
++        render_data->viewport.h = pb_back_buffer_height();
++        render_data->clip_rect.x = 0;
++        render_data->clip_rect.y = 0;
++        render_data->clip_rect.w = pb_back_buffer_width();
++        render_data->clip_rect.h = pb_back_buffer_height();
++
++        p = pb_begin();
++        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
++        p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, DMA_CHANNEL_PIXEL_RENDERER);
++        p = pb_push1(p, NV097_SET_SURFACE_PITCH,
++                     XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pb_back_buffer_pitch()) |
++                         XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
++
++        p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0); // pb_target_back_buffer sets DMA addr directly
++
++        p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
++                     XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, pb_back_buffer_width()) |
++                         XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
++        p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
++                     XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, pb_back_buffer_height()) |
++                         XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
++        p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
++                     XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, pb_ColorFmt) |
++                         XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
++                         XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
++        p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
++        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
++        pb_end(p);
++
++        return true;
++    }
++
++    render_data->viewport.x = 0;
++    render_data->viewport.y = 0;
++    render_data->viewport.w = xgu_texture->tex_width;
++    render_data->viewport.h = xgu_texture->tex_height;
++    render_data->clip_rect.x = 0;
++    render_data->clip_rect.y = 0;
++    render_data->clip_rect.w = xgu_texture->tex_width;
++    render_data->clip_rect.h = xgu_texture->tex_height;
++
+     format |= XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
+               XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH);
+ 
+@@ -334,7 +393,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+     p = pb_push1(p, NV097_SET_SURFACE_PITCH,
+                  XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pitch) |
+                      XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, zpitch));
++
+     p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0); // This is offset from the DMA address
++
+     p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
+                  XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, clip_width) |
+                      XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+@@ -342,6 +403,8 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+                  XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, clip_height) |
+                      XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
+     p = pb_push1(p, NV097_SET_SURFACE_FORMAT, format);
++    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
++    p = xgu_set_scissor_rect(p, false, 0, 0, clip_width, clip_height);
+ 
+     pb_end(p);
+ 
+@@ -566,7 +629,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+     if (cmd->data.draw.texture) {
+         xgu_texture_t *xgu_texture = (xgu_texture_t *)cmd->data.draw.texture->internal;
+ 
+-        if (render_data->texture_shader_active == 0) {
++        if (render_data->texture_shader_active != 1) {
+             p = pb_begin();
+             texture_combiner_apply();
+             pb_end(p);
+@@ -588,9 +651,9 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+             p = pb_begin();
+             p = xgu_set_texture_offset(p, texture_index, xgu_texture->data_physical_address);
+             p = xgu_set_texture_format(p, texture_index, 2, false, XGU_SOURCE_COLOR, 2, xgu_texture->format, 1,
+-                                       __builtin_ctz(xgu_texture->data_width), __builtin_ctz(xgu_texture->data_height), 0);
++                                       __builtin_ctz(npot2pot(xgu_texture->data_width)), __builtin_ctz(npot2pot(xgu_texture->data_height)), 0);
+             p = xgu_set_texture_control0(p, texture_index, true, 0, 0);
+-            p = xgu_set_texture_control1(p, texture_index, xgu_texture->pitch);
++            p = xgu_set_texture_control1(p, texture_index, SDL_max(64, xgu_texture->pitch));
+             p = xgu_set_texture_image_rect(p, texture_index, xgu_texture->tex_width, xgu_texture->tex_height);
+             pb_end(p);
+             render_data->active_texture = xgu_texture;
+@@ -632,7 +695,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+         xgux_draw_arrays(XGU_TRIANGLES, 0, count);
+     } else {
+ 
+-        if (render_data->texture_shader_active == 1) {
++        if (render_data->texture_shader_active != 0) {
+             p = pb_begin();
+             unlit_combiner_apply();
+             pb_end(p);
+@@ -694,6 +757,7 @@ static bool XBOX_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
+ {
+     SDL_XGU_MAYBE_UNUSED xgu_render_data_t *render_data = (xgu_render_data_t *)renderer->internal;
+     (void)vertsize;
++    __asm__ __volatile__ ("sfence" ::: "memory");
+     while (cmd) {
+         switch (cmd->command) {
+         case SDL_RENDERCMD_SETVIEWPORT:
+@@ -819,6 +883,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
+     calculate_fps(FPS_STAGE_RESET);
+     pb_reset();
+     pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
++    render_data->active_texture = NULL;
++    render_data->texture_shader_active = -1;
+     return true;
+ }
+ 
+@@ -923,6 +989,17 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+     p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+     pb_end(p);
+ 
++    render_data->viewport.x = 0;
++    render_data->viewport.y = 0;
++    render_data->viewport.w = pb_back_buffer_width();
++    render_data->viewport.h = pb_back_buffer_height();
++    render_data->clip_rect.x = 0;
++    render_data->clip_rect.y = 0;
++    render_data->clip_rect.w = pb_back_buffer_width();
++    render_data->clip_rect.h = pb_back_buffer_height();
++    render_data->active_texture = NULL;
++    render_data->texture_shader_active = -1;
++
+     const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
+     pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
+     pb_bind_channel(&render_data->render_target_dma_ctx);
+@@ -970,7 +1047,7 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA8888);
+     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);
+-    SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024 * 1024);
++    SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024);
+ 
+     // This hint makes SDL use the driver line API.
+     SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
+@@ -1080,21 +1157,29 @@ static void *arena_allocate(SDL_Renderer *renderer, size_t size, size_t *vertex_
+     // Ensure alignment. If every allocation is aligned, we know every pointer will be aligned.
+     size = (size + SDL_XGU_VERTEX_ALIGNMENT - 1) & ~(SDL_XGU_VERTEX_ALIGNMENT - 1);
+ 
+-    if (render_data->vertex_arena_offset + size > SDL_XGU_VERTEX_BUFFER_SIZE) {
+-        // We lost some space to end padding, so ensure we tag that on when we validate our allocation size
+-        total_allocated += render_data->vertex_arena_offset + size - SDL_XGU_VERTEX_BUFFER_SIZE;
+-
+-        // Round robin back to the start of the arena
+-        render_data->vertex_arena_offset = 0;
++    if (size > SDL_XGU_VERTEX_BUFFER_SIZE) {
++        SDL_Log("Single allocation size exceeds SDL_XGU_VERTEX_BUFFER_SIZE (%zu > %d)", size, SDL_XGU_VERTEX_BUFFER_SIZE);
++        return NULL;
+     }
+ 
+-    // Area we going to overflow the vertex buffer?
++    bool wrap_needed = (render_data->vertex_arena_offset + size > SDL_XGU_VERTEX_BUFFER_SIZE);
++
+     for (int i = 0; i < SDL_XGU_BUFFER_COUNT; i++) {
+         total_allocated += render_data->vertex_allocations[i];
+     }
+-    if (total_allocated + size > SDL_XGU_VERTEX_BUFFER_SIZE) {
+-        SDL_Log("Vertex buffer overflow. Increase SDL_XGU_VERTEX_BUFFER_SIZE", size);
+-        return NULL;
++
++    if (wrap_needed || (total_allocated + size > SDL_XGU_VERTEX_BUFFER_SIZE)) {
++        while (pb_busy()) {
++            Sleep(0);
++        }
++        for (int i = 0; i < SDL_XGU_BUFFER_COUNT; i++) {
++            render_data->vertex_allocations[i] = 0;
++        }
++        total_allocated = 0;
++
++        if (wrap_needed) {
++            render_data->vertex_arena_offset = 0;
++        }
+     }
+ 
+     void *ptr = (void *)((intptr_t)render_data->vertex_data + render_data->vertex_arena_offset);
+diff --git a/nxdk_glue/thread/SDL_systhread.c b/nxdk_glue/thread/SDL_systhread.c
+index ee7eee7..a38e69d 100644
+--- a/nxdk_glue/thread/SDL_systhread.c
++++ b/nxdk_glue/thread/SDL_systhread.c
+@@ -34,7 +34,7 @@ bool SDL_SYS_CreateThread(SDL_Thread *thread,
+     (void)vpfnBeginThread;
+     (void)vpfnEndThread;
+ 
+-    const SIZE_T stack_size = (thread->stacksize > PAGE_SIZE) ? ROUND_TO_PAGES(thread->stacksize) : PAGE_SIZE;
++    const SIZE_T stack_size = (thread->stacksize > 0) ? ROUND_TO_PAGES(thread->stacksize) : 0;
+ 
+     thread->handle = CreateThread(NULL, stack_size, sdl_thread, thread, 0, NULL);
+     if (thread->handle == NULL) {
+@@ -55,7 +55,7 @@ bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
+         value = THREAD_PRIORITY_HIGHEST;
+         break;
+     case SDL_THREAD_PRIORITY_TIME_CRITICAL:
+-        value = THREAD_PRIORITY_TIME_CRITICAL;
++        value = THREAD_PRIORITY_HIGHEST;
+         break;
+     default:
+         value = THREAD_PRIORITY_NORMAL;
+diff --git a/nxdk_glue/video/SDL_xboxvideo.c b/nxdk_glue/video/SDL_xboxvideo.c
+index 62ba919..0dd63c8 100644
+--- a/nxdk_glue/video/SDL_xboxvideo.c
++++ b/nxdk_glue/video/SDL_xboxvideo.c
+@@ -23,6 +23,9 @@ static bool XBOX_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Pr
+ 
+     SDL_PixelFormat format = SDL_GetWindowPixelFormat(window);
+     int bpp = SDL_BYTESPERPIXEL(format) * 8;
++    if (bpp == 0) {
++        bpp = 32;
++    }
+ 
+     // Unless it looks like we are request HD modes, fall back to 640x480
+     if (window->w * window->h < 1280 * 720) {

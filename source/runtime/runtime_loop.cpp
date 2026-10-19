@@ -9,7 +9,7 @@
 #include <input.hpp>
 #include <iostream>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <speech_manager.hpp>
 #include <utility>
 
@@ -44,10 +44,11 @@ void Scratch::initializeScratchProject() {
 
     Scratch::tempo = 60;
 
-#ifdef RENDERER_CITRO2D
-    // Render first before running any blocks, otherwise 3DS rendering may get weird
-    Render::renderSprites();
-#endif
+    if (Render::currentRenderer == Renderers::Citro2D) {
+        // Render first before running any blocks, otherwise 3DS rendering may get weird
+        Render::renderSprites();
+    }
+
     Render::setRenderScale();
 
     Scratch::greenFlagClicked();

@@ -1,13 +1,14 @@
 #include "text_gl_core.hpp"
-#include "render_opengl_core.hpp"
+#include "renderer_gl_core.hpp"
 #include <cstdint>
 #include <log.hpp>
 #include <vector>
 
 static GLuint textProgram = 0;
 
-static const char *textVertSrc = R"glsl(
-#version 410 core
+static const char *textVertSrc =
+    SE_GL_SHADER_VERSION
+    R"glsl(
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in vec2 a_uv;
 out vec2 v_uv;
@@ -18,8 +19,10 @@ void main() {
 }
 )glsl";
 
-static const char *textFragSrc = R"glsl(
-#version 410 core
+static const char *textFragSrc =
+    SE_GL_SHADER_VERSION
+    SE_GL_FRAG_PRECISION
+    R"glsl(
 in  vec2 v_uv;
 out vec4 frag_color;
 uniform sampler2D u_tex;
@@ -91,7 +94,7 @@ void TextObjectGLCore::uploadAtlas(FontGeneration &gen) {
 
     glBindTexture(GL_TEXTURE_2D, texId);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, gen.atlasWidth, gen.atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, gen.pixels.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gen.atlasWidth, gen.atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, gen.pixels.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

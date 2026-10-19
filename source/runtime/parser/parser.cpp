@@ -28,6 +28,7 @@
 
 #ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>
+#include <ctime>
 #include <random>
 #include <sstream>
 
@@ -42,24 +43,36 @@ std::unique_ptr<MistConnection> cloudConnection = nullptr;
 
 #ifdef ENABLE_CLOUDVARS
 void Parser::initMist() {
-    OS::initWifi();
+    Log::log("initMist: Starting cloud variable initialization");
+
+    if (!OS::initWifi()) {
+        Log::logWarning("initMist: Network initialization failed, cannot connect to cloud variables.");
+        return;
+    }
 
     const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
+        Log::log("initMist: Generating new cloud username");
         std::random_device rd;
         std::ostringstream usernameStream;
         usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
         Scratch::cloudUsername = usernameStream.str();
         std::ofstream usernameFile;
         usernameFile.open(usernameFilename);
-        usernameFile << Scratch::cloudUsername;
-        usernameFile.close();
+        if (usernameFile.good()) {
+            usernameFile << Scratch::cloudUsername;
+            usernameFile.close();
+            Log::log("initMist: Saved username to " + usernameFilename);
+        } else {
+            Log::logWarning("initMist: Failed to open " + usernameFilename + " for writing");
+        }
     } else {
         fileStream >> Scratch::cloudUsername;
     }
     fileStream.close();
+    Log::log("initMist: Cloud username is: " + Scratch::cloudUsername);
 
     std::vector<std::string> assetIds;
     for (const auto &sprite : Scratch::sprites) {
@@ -71,37 +84,64 @@ void Parser::initMist() {
         }
     }
 
-    uint64_t assetHash = 0;
+    uint64_t assetHash = FNV_OFFSET_BASIS_64;
     for (const auto &assetId : assetIds) {
-        uint64_t hash = FNV_OFFSET_BASIS_64;
         for (char c : assetId) {
-            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
-            hash *= FNV_PRIME_64;
+            assetHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+            assetHash *= FNV_PRIME_64;
         }
-
-        assetHash += hash;
     }
 
     std::ostringstream projectID;
     projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
-    cloudConnection = std::make_unique<MistConnection>(projectID.str(), Scratch::cloudUsername, "contact@grady.link");
+    const std::string cloudURL = SettingsManager::getConfigSettings().value("CloudVariableServer", "wss://clouddata.turbowarp.org/");
 
+    Log::log("initMist: Creating MistConnection with URL " + cloudURL + " and project ID " + projectID.str());
+    cloudConnection = std::make_unique<MistConnection>(cloudURL, projectID.str(), Scratch::cloudUsername, "contact@grady.link");
+
+#ifdef __XBOX__
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
-            Log::log("Mist++ Connected: " + message);
+            Log::log("initMist: Mist++: " + message);
             return;
         }
-        Log::log("Mist++ Disconnected: " + message);
+        Log::logWarning("initMist: Mist++ Disconnected: " + message);
     });
-
-    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
-
-    Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
-    cloudConnection->connect();
 #else
-    cloudConnection->connect(false);
+    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
+        if (connected) {
+            Log::log("initMist: Mist++ Connected: " + message);
+            return;
+        }
+        Log::logWarning("initMist: Mist++ Disconnected: " + message);
+    });
 #endif
+
+#ifdef __XBOX__
+    cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
+        Log::log("initMist: Variable update received: " + name + " = " + value);
+        BlockExecutor::handleCloudVariableChange(name, value);
+    });
+#else
+    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
+#endif
+
+    Log::log("initMist: Connecting to cloud variables with id: " + projectID.str());
+#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
+    bool connectSuccess = cloudConnection->connect();
+#else
+    bool connectSuccess = cloudConnection->connect(false);
+#endif
+    Log::log(std::string("initMist: cloudConnection->connect() returned ") + (connectSuccess ? "true" : "false"));
+}
+
+void Parser::cleanupMist() {
+    if (cloudConnection) {
+        Log::log("cleanupMist: Disconnecting and cleaning up MistConnection");
+        cloudConnection->disconnect();
+        cloudConnection.reset();
+    }
+    Scratch::cloudProject = false;
 }
 #endif
 
@@ -211,12 +251,13 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         auto assets = Bundle::assets();
         if (auto entry = assets.find(romFSPath)) {
             bundleStream = std::make_unique<bundle::istream>(assets.open(*entry));
-
             auto result = extensions::parseMetadata(*bundleStream);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
                 fromBundle = true;
-            } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+            } else if (!result.has_value()) {
+                Log::logWarning("Error while loading extension metadata: " + result.error());
+            }
         }
 #else
         if (FileSystem::fileExists(romFSPath)) {
@@ -237,7 +278,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                         if (file.size() < 4) continue;
                         if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
 
-                        in.open(folder + file, std::ios::binary | std::ios::in);
+                        in.open(path + "/" + file, std::ios::binary | std::ios::in);
                         auto result = extensions::parseMetadata(in);
 
                         if (result.has_value() && result.value()->id == targetID) {
@@ -265,13 +306,16 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 extensions::loadLua(loadedExt.get(), *bundleStream);
             } else
 #endif
+            {
                 extensions::loadLua(loadedExt.get(), in);
+            }
             Scratch::extensions.push_back(std::move(loadedExt));
-            in.close();
+            if (in.is_open()) in.close();
             Log::log("Successfully loaded Lua extension: " + targetID);
             continue;
         }
 
+        if (in.is_open()) in.close();
         Log::logError("Failed to find extension: " + targetID);
 #endif
     }

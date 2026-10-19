@@ -1,4 +1,4 @@
-#include <audio.hpp>
+#include <audio_nds.hpp>
 #include <audiostack.hpp>
 #ifdef ENABLE_AUDIO
 #include <maxmod9.h>
@@ -6,14 +6,14 @@
 #include <nds.h>
 
 #ifdef ENABLE_AUDIO
-static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format) {
+static mm_word ndsCallback(mm_word length, mm_addr dest, mm_stream_formats format) {
 
     Mixer::requestSound((short *)dest, length);
     return length;
 }
 #endif
 
-bool SoundPlayer::init() {
+SoundDevice_NDS::SoundDevice_NDS() {
 #ifdef ENABLE_AUDIO
     mm_ds_system mmSys =
         {
@@ -27,18 +27,18 @@ bool SoundPlayer::init() {
         {
             .sampling_rate = Mixer::rate,
             .buffer_length = 2048, // We may be able to get away with 1024
-            .callback = streamingCallback,
+            .callback = ndsCallback,
             .format = MM_STREAM_16BIT_STEREO,
             .timer = MM_TIMER2,
             .manual = false,
-    };
+        };
     mmStreamOpen(&stream);
-    return true;
+    return;
 #endif
-    return false;
+    error = "Audio is not enabled.";
 }
 
-void SoundPlayer::deinit() {
+SoundDevice_NDS::~SoundDevice_NDS() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
     mmStreamClose();

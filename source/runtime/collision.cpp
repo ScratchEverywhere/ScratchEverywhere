@@ -1,11 +1,22 @@
 #include "collision.hpp"
 #include "image.hpp"
 #include "math.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <cmath>
 #include <log.hpp>
+
+#ifdef __XBOX__
+static inline float getEffectiveSpriteSize(const Sprite *sprite, const Costume &costume) {
+    const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
+    if (!costume.isSVG && costume.bitmapResolution == 2 && !isHalved) {
+        return sprite->size * 0.5f;
+    }
+    return sprite->size;
+}
+#endif
 
 std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
@@ -30,50 +41,50 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
 
     uint32_t *pixels = (uint32_t *)imgData.pixels;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
-    mask->alphaPixels.resize(mask->width * mask->height, 0);
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        mask->alphaPixels.resize(mask->width * mask->height, 0);
 
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
+                const uint8_t alpha = px & 0xFF;
 #else
-            const uint8_t alpha = (px >> 24) & 0xFF;
+                const uint8_t alpha = (px >> 24) & 0xFF;
 #endif
-            if (alpha > 0) {
-                mask->alphaPixels[y * mask->width + x] = alpha;
+                if (alpha > 0) {
+                    mask->alphaPixels[y * mask->width + x] = alpha;
 
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
+            }
+        }
+
+        free(imgData.pixels);
+    } else {
+        mask->image = imgFind->second;
+        mask->imgScaleFactor = scaleFactor;
+
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+                const uint8_t alpha = px & 0xFF;
+#else
+                const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
+                if (alpha > 0) {
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
             }
         }
     }
-
-    free(imgData.pixels);
-#else
-    mask->image = imgFind->second;
-    mask->imgScaleFactor = scaleFactor;
-
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
-#else
-            const uint8_t alpha = (px >> 24) & 0xFF;
-#endif
-            if (alpha > 0) {
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
-            }
-        }
-    }
-#endif
 
     mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
     return mask;
@@ -131,7 +142,11 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
     const float distSq = dx * dx + dy * dy;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) {
@@ -170,8 +185,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float dy = a->yPosition - b->yPosition;
     const float distSq = dx * dx + dy * dy;
 
+#ifdef __XBOX__
+    const float aSize = getEffectiveSpriteSize(a, costumeA);
+    const float bSize = getEffectiveSpriteSize(b, costumeB);
+#else
     const float aSize = !costumeA.isSVG && !Scratch::bitmapHalfQuality ? a->size * 0.5f : a->size;
     const float bSize = !costumeB.isSVG && !Scratch::bitmapHalfQuality ? b->size * 0.5f : b->size;
+#endif
 
     const float radiusA = maskA->maxRadius * (aSize / 100.0f);
     const float radiusB = maskB->maxRadius * (bSize / 100.0f);
@@ -245,7 +265,11 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
     const float distSq = dx * dx + dy * dy;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) return false;
@@ -307,7 +331,11 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
     std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
     if (mask == nullptr) return false;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
@@ -333,7 +361,11 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
     std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
     if (mask == nullptr) return false;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
@@ -361,7 +393,11 @@ bool collision::spriteOnEdge(Sprite *sprite) {
 
     const float halfWidth = Scratch::projectWidth / 2.0f;
     const float halfHeight = Scratch::projectHeight / 2.0f;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
 
@@ -414,7 +450,11 @@ collision::AABB collision::getSpriteBounds(Sprite *sprite) {
     float x = sprite->xPosition;
     float y = sprite->yPosition;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, sprite->costumes[sprite->currentCostume]);
+#else
     const float spriteSize = !sprite->costumes[sprite->currentCostume].isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     float scale = spriteSize * 0.01f;
 
     int rotCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;

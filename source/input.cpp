@@ -1,5 +1,8 @@
 #include "input.hpp"
+#include <algorithm>
 #include <log.hpp>
+
+InputDevice *globalInputDevice = nullptr;
 
 std::pair<float, float> Input::leftJoystick = {0, 0};
 std::pair<float, float> Input::rightJoystick = {0, 0};
@@ -18,6 +21,36 @@ int Input::inputViewportX = 0;
 int Input::inputViewportY = 0;
 int Input::inputViewportW = 0;
 int Input::inputViewportH = 0;
+
+InputDevice *Input::getGlobalInputDevice() {
+    return globalInputDevice;
+}
+
+void Input::setGlobalInputDevice(InputDevice *device) {
+    globalInputDevice = device;
+}
+
+void Input::destroyGlobalInputDevice() {
+    if (globalInputDevice) delete globalInputDevice;
+}
+
+std::array<int, 2> Input::getTouchPosition() {
+    if (globalInputDevice) return globalInputDevice->getTouchPosition();
+    return {0, 0};
+}
+
+void Input::getInput() {
+    if (globalInputDevice) globalInputDevice->getInput();
+}
+
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
+    return "";
+}
+
+void Input::setClipboardText(const std::string &text) {
+    if (globalInputDevice) globalInputDevice->setClipboardText(text);
+}
 
 void Input::setInputViewport(int x, int y, int w, int h) {
     inputViewportX = x;
@@ -45,6 +78,9 @@ void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int rend
     if (!hasInputViewport()) return;
     x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
     y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+
+    x = std::clamp(x, 0, renderWidth);
+    y = std::clamp(y, 0, renderHeight);
 }
 
 void *Input::inputWindowHandleOverride = nullptr;

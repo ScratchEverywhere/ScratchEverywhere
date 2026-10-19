@@ -1,0 +1,347 @@
+diff --git a/lib/xboxrt/libc_extensions/stdlib_ext_.c b/lib/xboxrt/libc_extensions/stdlib_ext_.c
+index e07f0f6..c486096 100644
+--- a/lib/xboxrt/libc_extensions/stdlib_ext_.c
++++ b/lib/xboxrt/libc_extensions/stdlib_ext_.c
+@@ -28,11 +28,12 @@ void init_rand_s (void)
+ 
+     // Hash the EEPROM
+     unsigned char eeprom_buffer[256];
+-    ULONG bytes_read;
++    ULONG bytes_read = 0;
+     ULONG eeprom_type;
+     ExQueryNonVolatileSetting(0xFFFF, &eeprom_type, eeprom_buffer, 256, &bytes_read);
+-    assert(bytes_read == 256);
+-    XcSHAUpdate(rand_buffer, eeprom_buffer, 256);
++    if (bytes_read > 0) {
++        XcSHAUpdate(rand_buffer, eeprom_buffer, bytes_read);
++    }
+ 
+     update_rand_buffer();
+ }
+@@ -86,22 +87,195 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
+ }
+ 
+ 
++#include <ctype.h>
++#include <math.h>
++#include <stdbool.h>
++#include <string.h>
++
++static bool match_ic(const char **pp, const char *target)
++{
++    const char *p = *pp;
++    while (*target) {
++        if (tolower((unsigned char)*p) != tolower((unsigned char)*target)) {
++            return false;
++        }
++        p++;
++        target++;
++    }
++    *pp = p;
++    return true;
++}
++
+ double strtod( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    const char *p = nptr;
++    if (!p) {
++        if (endptr) *endptr = NULL;
++        return 0.0;
++    }
++
++    // Skip leading whitespace
++    while (isspace((unsigned char)*p)) {
++        p++;
++    }
++
++    // Optional sign
++    bool negative = false;
++    if (*p == '-') {
++        negative = true;
++        p++;
++    } else if (*p == '+') {
++        p++;
++    }
++
++    // Special cases: NAN and INF
++    const char *spec_p = p;
++    if (match_ic(&spec_p, "nan")) {
++        p = spec_p;
++        if (*p == '(') {
++            const char *ep = p + 1;
++            while (*ep && *ep != ')') ep++;
++            if (*ep == ')') p = ep + 1;
++        }
++        if (endptr) *endptr = (char *)p;
++        return negative ? -NAN : NAN;
++    }
++
++    spec_p = p;
++    if (match_ic(&spec_p, "infinity") || match_ic(&spec_p, "inf")) {
++        p = spec_p;
++        if (endptr) *endptr = (char *)p;
++        return negative ? -HUGE_VAL : HUGE_VAL;
++    }
++
++    // Hexadecimal float format: 0x...
++    if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
++        p += 2;
++        double val = 0.0;
++        bool has_digits = false;
++
++        while (isxdigit((unsigned char)*p)) {
++            has_digits = true;
++            int digit = isdigit((unsigned char)*p) ? (*p - '0') : (tolower((unsigned char)*p) - 'a' + 10);
++            val = val * 16.0 + digit;
++            p++;
++        }
++
++        if (*p == '.') {
++            p++;
++            double factor = 1.0 / 16.0;
++            while (isxdigit((unsigned char)*p)) {
++                has_digits = true;
++                int digit = isdigit((unsigned char)*p) ? (*p - '0') : (tolower((unsigned char)*p) - 'a' + 10);
++                val += digit * factor;
++                factor /= 16.0;
++                p++;
++            }
++        }
++
++        if (!has_digits) {
++            if (endptr) *endptr = (char *)nptr;
++            return 0.0;
++        }
++
++        // Binary exponent 'p' or 'P'
++        if (*p == 'p' || *p == 'P') {
++            p++;
++            bool exp_neg = false;
++            if (*p == '-') { exp_neg = true; p++; }
++            else if (*p == '+') { p++; }
++
++            int exp_val = 0;
++            bool exp_digits = false;
++            while (isdigit((unsigned char)*p)) {
++                exp_digits = true;
++                exp_val = exp_val * 10 + (*p - '0');
++                p++;
++            }
++
++            if (exp_digits) {
++                val *= pow(2.0, exp_neg ? -exp_val : exp_val);
++                if (isinf(val)) {
++                    errno = ERANGE;
++                }
++            }
++        }
++
++        if (endptr) *endptr = (char *)p;
++        return negative ? -val : val;
++    }
++
++    // Standard decimal float format
++    double val = 0.0;
++    bool has_digits = false;
++    int exp_adjust = 0;
++
++    // Parse integer digits
++    while (isdigit((unsigned char)*p)) {
++        has_digits = true;
++        val = val * 10.0 + (*p - '0');
++        p++;
++    }
++
++    // Parse fractional digits
++    if (*p == '.') {
++        p++;
++        while (isdigit((unsigned char)*p)) {
++            has_digits = true;
++            val = val * 10.0 + (*p - '0');
++            exp_adjust--;
++            p++;
++        }
++    }
++
++    if (!has_digits) {
++        if (endptr) *endptr = (char *)nptr;
++        return 0.0;
++    }
++
++    // Parse exponent part: 'e' or 'E'
++    if (*p == 'e' || *p == 'E') {
++        const char *exp_start = p;
++        p++;
++        bool exp_neg = false;
++        if (*p == '-') { exp_neg = true; p++; }
++        else if (*p == '+') { p++; }
++
++        int exp_val = 0;
++        bool exp_digits = false;
++        while (isdigit((unsigned char)*p)) {
++            exp_digits = true;
++            exp_val = exp_val * 10 + (*p - '0');
++            p++;
++        }
++
++        if (exp_digits) {
++            exp_adjust += (exp_neg ? -exp_val : exp_val);
++        } else {
++            // Revert if no digits followed 'e'/'E'
++            p = exp_start;
++        }
++    }
++
++    if (exp_adjust != 0) {
++        val *= pow(10.0, exp_adjust);
++        if (isinf(val)) {
++            errno = ERANGE;
++        }
++    }
++
++    if (endptr) *endptr = (char *)p;
++    return negative ? -val : val;
+ }
+ 
+ float strtof( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    return (float)strtod(nptr, endptr);
+ }
+ 
+ long double strtold( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    return (long double)strtod(nptr, endptr);
+ }
+ 
+ int mbtowc (wchar_t *pwc, const char *string, size_t n)
+diff --git a/lib/pdclib/platform/xbox/functions/math/pow.c b/lib/pdclib/platform/xbox/functions/math/pow.c
+index 5c30eb2..f846a0b 100644
+--- a/lib/pdclib/platform/xbox/functions/math/pow.c
++++ b/lib/pdclib/platform/xbox/functions/math/pow.c
+@@ -1,23 +1,48 @@
++#include <errno.h>
+ #include <math.h>
+ 
+ double pow(double x, double y)
+ {
++    if (y == 0.0) return 1.0;
++    if (x == 1.0) return 1.0;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0) {
++        if (y < 0.0) {
++            errno = ERANGE;
++            return HUGE_VAL;
++        }
++        return 0.0;
++    }
+     if (x < 0.0 && y != trunc(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+     }
+ 
+-    float r = exp(y * log(fabs(x)));
++    double r = exp(y * log(fabs(x)));
+ 
+     if (x < 0.0 && remainder(y, 2.0) != 0) {
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+ 
+ float powf(float x, float y)
+ {
++    if (y == 0.0f) return 1.0f;
++    if (x == 1.0f) return 1.0f;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0f) {
++        if (y < 0.0f) {
++            errno = ERANGE;
++            return HUGE_VALF;
++        }
++        return 0.0f;
++    }
+     if (x < 0.0f && y != truncf(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+@@ -29,21 +54,39 @@ float powf(float x, float y)
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+ 
+ long double powl(long double x, long double y)
+ {
+-    if (x < 0.0 && y != truncl(y)) {
++    if (y == 0.0L) return 1.0L;
++    if (x == 1.0L) return 1.0L;
++    if (isnan(x) || isnan(y)) return NAN;
++    if (x == 0.0L) {
++        if (y < 0.0L) {
++            errno = ERANGE;
++            return HUGE_VALL;
++        }
++        return 0.0L;
++    }
++    if (x < 0.0L && y != truncl(y)) {
+         // Negative base and non-integer exponent
+         return -NAN;
+     }
+ 
+-    float r = expl(y * logl(fabsl(x)));
++    long double r = expl(y * logl(fabsl(x)));
+ 
+-    if (x < 0.0 && remainderl(y, 2.0) != 0) {
++    if (x < 0.0L && remainderl(y, 2.0L) != 0) {
+         r = -r;
+     }
+ 
++    if (isinf(r)) {
++        errno = ERANGE;
++    }
++
+     return r;
+ }
+diff --git a/lib/libcxx/src/chrono.cpp b/lib/libcxx/src/chrono.cpp
+index c461d19dd..702c3dbe7 100644
+--- a/lib/libcxx/src/chrono.cpp
++++ b/lib/libcxx/src/chrono.cpp
+@@ -201,7 +201,9 @@ steady_clock::now() _NOEXCEPT
+ 
+   LARGE_INTEGER counter;
+   (void) QueryPerformanceCounter(&counter);
+-  return time_point(duration(counter.QuadPart * nano::den / freq.QuadPart));
++  uint64_t sec = static_cast<uint64_t>(counter.QuadPart) / static_cast<uint64_t>(freq.QuadPart);
++  uint64_t rem = static_cast<uint64_t>(counter.QuadPart) % static_cast<uint64_t>(freq.QuadPart);
++  return time_point(duration(sec * 1000000000ULL + (rem * 1000000000ULL / static_cast<uint64_t>(freq.QuadPart))));
+ }
+ 
+ #elif defined(CLOCK_MONOTONIC)
+
+diff --git a/lib/libcxx/src/support/win32/thread_win32.cpp b/lib/libcxx/src/support/win32/thread_win32.cpp
+--- a/lib/libcxx/src/support/win32/thread_win32.cpp
++++ b/lib/libcxx/src/support/win32/thread_win32.cpp
+@@ -205,7 +205,7 @@ int __libcpp_thread_create(__libcpp_thread_t *__t, void *(*__func)(void *),
+   __data->__func = __func;
+   __data->__arg = __arg;
+ 
+-  *__t = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0,
++  *__t = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 262144,
+                                                  __libcpp_beginthreadex_thunk,
+                                                  __data, 0, nullptr));
+

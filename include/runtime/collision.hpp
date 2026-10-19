@@ -1,6 +1,7 @@
 #pragma once
 #include <se_export.hpp>
 
+#include "renderer.hpp"
 #include "types.hpp"
 #include <image.hpp>
 #include <memory>
@@ -8,7 +9,7 @@
 
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
 constexpr unsigned int bitmaskScaleFactor = 3;
-#elif defined(__3DS__) || defined(WII)
+#elif defined(__3DS__) || defined(WII) || defined(__XBOX__)
 constexpr unsigned int bitmaskScaleFactor = 2;
 #else
 constexpr unsigned int bitmaskScaleFactor = 1;
@@ -21,33 +22,32 @@ struct SE_EXPORT CollisionMask {
     float scaleFactor = 0;
     float sourceScale = -1.0f;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
     std::vector<uint8_t> alphaPixels;
-
-    bool getPixel(int x, int y) const {
-        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
-        return alphaPixels[y * width + x] != 0;
-    }
-
-    bool getColor(int, int, uint8_t &, uint8_t &, uint8_t &) const { return false; }
-#else
     std::shared_ptr<Image> image;
     unsigned int imgScaleFactor = 1;
 
     bool getPixel(int x, int y) const {
-        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
-        return image && image->getAlphaAt(x * imgScaleFactor, y * imgScaleFactor) > 0;
+        if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+            if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
+            return alphaPixels[y * width + x] != 0;
+        } else {
+            if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
+            return image && image->getAlphaAt(x * imgScaleFactor, y * imgScaleFactor) > 0;
+        }
     }
 
     bool getColor(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
-        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height || !image) return false;
-        const int ix = x * imgScaleFactor;
-        const int iy = y * imgScaleFactor;
-        if (image->getAlphaAt(ix, iy) == 0) return false;
-        image->getColorAt(ix, iy, r, g, b);
-        return true;
+        if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D)
+            return false;
+        else {
+            if (x < 0 || x >= (int)width || y < 0 || y >= (int)height || !image) return false;
+            const int ix = x * imgScaleFactor;
+            const int iy = y * imgScaleFactor;
+            if (image->getAlphaAt(ix, iy) == 0) return false;
+            image->getColorAt(ix, iy, r, g, b);
+            return true;
+        }
     }
-#endif
 };
 
 namespace collision {

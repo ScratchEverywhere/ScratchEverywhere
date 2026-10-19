@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <log.hpp>
 #include <memory>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -281,8 +281,17 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
         costume.fullName = std::to_string(c.value("baseLayerID", 0)) + "." + ext;
 
         if (isStage) {
+#ifdef __XBOX__
             costume.rotationCenterX = 240.0 * costume.bitmapResolution;
             costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+            if (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
+                costume.rotationCenterX /= 2;
+                costume.rotationCenterY /= 2;
+            }
+#else
+            costume.rotationCenterX = 240.0 * costume.bitmapResolution;
+            costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+#endif
         } else if (c.contains("rotationCenterX") && c.contains("rotationCenterY")) {
             costume.rotationCenterX = c["rotationCenterX"].get<double>();
             costume.rotationCenterY = c["rotationCenterY"].get<double>();
@@ -398,31 +407,29 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::miscellaneousLimits = true;
     Scratch::maxClones = 300;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
-    auto bottomScreen = Unzip::getSetting("bottomScreen");
-    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        auto bottomScreen = Unzip::getSetting("bottomScreen");
+        if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+            Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+        else
+            Render::renderMode = Render::TOP_SCREEN_ONLY;
+    } else {
         Render::renderMode = Render::TOP_SCREEN_ONLY;
-#else
-    Render::renderMode = Render::TOP_SCREEN_ONLY;
-#endif
+    }
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null()) Scratch::accuratePen = accuratePen.get<bool>();
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    else Scratch::accuratePen = true;
-#else
-    else Scratch::accuratePen = false;
-#endif
+    if (!accuratePen.is_null()) {
+        Scratch::accuratePen = accuratePen.get<bool>();
+    } else {
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3) Scratch::accuratePen = true;
+        else Scratch::accuratePen = false;
+    }
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-#ifdef __NDS__
-        Scratch::accurateCollision = false;
-#else
-        Scratch::accurateCollision = true;
-#endif
+        if (Render::currentRenderer == Renderers::GL2D) {
+            Scratch::accurateCollision = false;
+        } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");

@@ -1,6 +1,6 @@
 #include "image_gdi.hpp"
 #include "nonstd/expected.hpp"
-#include "render_gdi.hpp"
+#include "renderer_gdi.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <string>
@@ -12,8 +12,8 @@ void Image_GDI::render(ImageRenderParams &params) {
 void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
-    const int renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    const float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    const float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
 
@@ -25,8 +25,8 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     p[2].y = params.y + renderHeight;
 
     for (i = 0; i < 3; i++) {
-        int sx = params.x;
-        int sy = params.y;
+        float sx = params.x;
+        float sy = params.y;
         int x;
         int y;
 
@@ -35,7 +35,7 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
             p[i].y -= renderHeight / 2;
 
             if (params.flip) {
-                p[i].x = sx + renderWidth - (p[i].x - sx);
+                p[i].x = sx + (renderWidth - (p[i].x - sx)) - renderWidth;
             }
         }
 
@@ -56,11 +56,11 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
     double wP[] = {padding, width - padding * 2, padding};
     double hP[] = {padding, height - padding * 2, padding};
     int x, y;
-    int ySrc = 0, xSrc;
-    int yIncr = yPos, xIncr;
+    double ySrc = 0, xSrc;
+    double yIncr = yPos, xIncr;
 
     for (y = 0; y < 3; y++) {
-        int h = padding;
+        double h = padding;
 
         xIncr = xPos;
         xSrc = 0;
@@ -68,7 +68,7 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
         if (y == 1) h = this->imgData.height - padding * 2;
 
         for (x = 0; x < 3; x++) {
-            int w = padding;
+            double w = padding;
 
             if (x == 1) w = this->imgData.width - padding * 2;
 

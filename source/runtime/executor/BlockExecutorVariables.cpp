@@ -45,7 +45,9 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
         assignToVar(globalIt->second);
 #ifdef ENABLE_CLOUDVARS
         if (globalIt->second.cloud) {
-            cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
+            if (cloudConnection) {
+                cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
+            }
         }
 #endif
         return;
@@ -189,6 +191,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
+    if (!Scratch::stageSprite) return;
     for (auto it = Scratch::stageSprite->variables.begin(); it != Scratch::stageSprite->variables.end(); ++it) {
         if (it->second.name != name) continue;
         it->second.value = Value(value);

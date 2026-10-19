@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <types.hpp>
@@ -406,8 +406,14 @@ SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, setsizeto) {
             maxScale = 1800.0;
         } else {
             const Costume &costume = sprite->costumes[sprite->currentCostume];
+#ifdef __XBOX__
+            const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
+            const int sprWidth = isHalved ? sprite->spriteWidth : (sprite->spriteWidth / costume.bitmapResolution);
+            const int sprHeight = isHalved ? sprite->spriteHeight : (sprite->spriteHeight / costume.bitmapResolution);
+#else
             const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
             const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+#endif
             minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
             maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
         }
@@ -447,8 +453,14 @@ SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, changesizeby) {
             maxScale = 1800.0;
         } else {
             const Costume &costume = sprite->costumes[sprite->currentCostume];
+#ifdef __XBOX__
+            const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
+            const int sprWidth = isHalved ? sprite->spriteWidth : (sprite->spriteWidth / costume.bitmapResolution);
+            const int sprHeight = isHalved ? sprite->spriteHeight : (sprite->spriteHeight / costume.bitmapResolution);
+#else
             const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
             const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+#endif
             minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
             maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
         }

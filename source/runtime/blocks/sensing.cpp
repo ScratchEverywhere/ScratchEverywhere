@@ -49,7 +49,11 @@ SCRATCH_BYTECODE_BLOCK(sensing, setdragmode) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, timer) {
+#if defined(__XBOX__)
+    return BlockExecutor::timer.getTimeMsDouble() / 1000.0;
+#else
     return BlockExecutor::timer.getTimeMs() / 1000.0;
+#endif
 }
 SCRATCH_BLOCK_DOUBLE(sensing, timer) {
     *outValue = block_sensing_timer_pos_(sprite);

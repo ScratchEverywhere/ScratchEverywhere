@@ -37,6 +37,21 @@
 
 volatile int Unzip::projectOpened = 0;
 std::string Unzip::loadingState = "";
+#ifdef __XBOX__
+#include <mutex>
+static std::mutex s_loadingStateMutex;
+
+void Unzip::setLoadingState(const std::string &state) {
+    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
+    loadingState = state;
+}
+
+std::string Unzip::getLoadingState() {
+    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
+    return loadingState;
+}
+#endif
+
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
@@ -178,11 +193,27 @@ void projectLoaderThread(void *data) {
 }
 
 void loadInitialImages() {
-    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+#ifdef __XBOX__
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    const std::string missingName = "SE__Missingno";
+    if (Scratch::costumeImages.find(missingName) == Scratch::costumeImages.end()) {
+        auto missingImg = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (missingImg.has_value()) {
+            Scratch::costumeImages[missingName] = missingImg.value();
+        }
+    }
     for (auto &currentSprite : Scratch::sprites) {
-
+        if (Scratch::costumeImages.size() >= (Scratch::sprites.size() + 2)) {
+            Scratch::freeUnusedCostumeImages();
+        }
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
+#else
+    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#endif
 }
 
 bool Unzip::load() {
@@ -198,6 +229,9 @@ bool Unzip::load() {
 
         while (!Unzip::threadFinished) {
             loading.render();
+#ifdef __XBOX__
+            SE_Thread::sleep(10);
+#endif
         }
 
         projectThread.join();
@@ -225,7 +259,11 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
+#ifdef __XBOX__
+    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+#else
     loadingState = TranslationManager::getTranslation("ui.loading.opening");
+#endif
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
@@ -243,7 +281,11 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+#ifdef __XBOX__
+    setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
+#else
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
+#endif
     Unzip::loader = createProjectLoader(format);
     bool loaded = Unzip::loader->load(file);
     delete file;
@@ -342,6 +384,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 }
 
 bool Unzip::deleteProjectFolder(const std::string &directory) {
+#if !defined(__XBOX__)
     struct stat st;
     if (stat(directory.c_str(), &st) != 0) {
         Log::logWarning("Directory does not exist: " + directory);
@@ -352,6 +395,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         Log::logWarning("Path is not a directory: " + directory);
         return false;
     }
+#endif
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {

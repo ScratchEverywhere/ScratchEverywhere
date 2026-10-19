@@ -4,6 +4,7 @@
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
+#include <set>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
@@ -81,6 +82,7 @@ class SE_EXPORT Scratch {
     static void moveLayer(Sprite *s, int layers);
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
+    static std::set<std::string> failedCostumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
     static void flushCostumeImages();
     static void freeUnusedCostumeImages();
@@ -107,7 +109,7 @@ class SE_EXPORT Scratch {
     static bool forceRedraw;
     static bool warpTimer;
 
-#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__) || defined(__XBOX__)
     constexpr static bool bitmapHalfQuality = true;
 #else
     constexpr static bool bitmapHalfQuality = false;

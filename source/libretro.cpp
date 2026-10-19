@@ -3,8 +3,6 @@
 #include <runtime.hpp>
 #include <window.hpp>
 
-extern WindowSE *globalWindow;
-
 struct retro_hw_render_callback hw_render;
 static retro_audio_sample_t audio_sample_cb;
 static retro_audio_sample_batch_t audio_sample_batch_cb;
@@ -13,8 +11,8 @@ static retro_environment_t environ_cb;
 #include <cstring>
 
 #include <audiostack.hpp>
-#include <render.hpp>
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderer.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -22,8 +20,8 @@ static retro_environment_t environ_cb;
 #include <audio.hpp>
 #endif
 
-#define WIDTH 540
-#define HEIGHT 405
+#define WIDTH 480
+#define HEIGHT 360
 
 #ifndef GL_FRAMEBUFFER
 #define GL_FRAMEBUFFER 0x8D40
@@ -65,8 +63,8 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
     audio_sample_batch_cb = cb;
 }
 
-static int current_width = 540;
-static int current_height = 405;
+static int current_width = 480;
+static int current_height = 360;
 
 static void update_variables(void) {
     struct retro_variable var = {"scratch_internal_resolution", NULL};
@@ -86,14 +84,18 @@ static void update_variables(void) {
         } else if (strcmp(var.value, "2880x2160") == 0) {
             current_width = 2880;
             current_height = 2160;
-        } else {
+        } else if (strcmp(var.value, "540x405") == 0) {
             current_width = 540;
             current_height = 405;
+        } else {
+            current_width = 480;
+            current_height = 360;
         }
 
         if (old_w != current_width || old_h != current_height) {
-            if (globalWindow) {
-                globalWindow->resize(current_width, current_height);
+            WindowSE *window = Render::getGlobalRenderer()->window;
+            if (window) {
+                window->resize(current_width, current_height);
             }
 
             struct retro_system_av_info av_info;
@@ -105,7 +107,7 @@ static void update_variables(void) {
 
 static void set_core_options(void) {
     static const struct retro_variable vars[] = {
-        {"scratch_internal_resolution", "Internal Resolution; 540x405|1080x810|1620x1215|2160x1620|2880x2160"},
+        {"scratch_internal_resolution", "Internal Resolution; 480x360|540x405|1080x810|1620x1215|2160x1620|2880x2160"},
         {NULL, NULL}};
     environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void *)vars);
 }
@@ -156,7 +158,7 @@ static void context_reset(void) {
 
     update_variables();
 
-    if (!Render::Init()) return;
+    if (!Render::init()) return;
 
     if (!Unzip::load()) return;
 

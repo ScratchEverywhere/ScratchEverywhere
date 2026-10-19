@@ -1,7 +1,7 @@
 #include "loading.hpp"
 #include "image.hpp"
 #include <memory>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <string>
 #include <unzip.hpp>
 
@@ -72,7 +72,11 @@ void Loading::render() {
         block3->render(p3);
     }
 
+#ifdef __XBOX__
+    loadingStateText->setText(Unzip::getLoadingState());
+#else
     loadingStateText->setText(Unzip::loadingState);
+#endif
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
@@ -94,4 +98,9 @@ void Loading::cleanup() {
     else Render::beginFrame(0, 0, 0, 0);
 
     Render::endFrame();
+
+    block1.reset();
+    block2.reset();
+    block3.reset();
+    loadingStateText.reset();
 }
