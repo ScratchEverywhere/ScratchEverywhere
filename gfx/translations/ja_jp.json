@@ -16,6 +16,7 @@
   "ui.settings.fps": "FPSを表示する",
   "ui.settings.keepProjectInRam": "プロジェクトをRAMに維持する",
   "ui.settings.warp": "ワープタイマー",
+  "ui.settings.runtime": "バイトコード使用",
   "ui.settings.username": "ユーザー名",
   "ui.settings.name": "名前",
   "ui.settings.path": "カスタムパス",
