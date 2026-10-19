@@ -5,17 +5,41 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
+#include <cstring>
+#include <filesystem.hpp>
 #include <image.hpp>
 #include <log.hpp>
 #include <os.hpp>
+#include <runtime.hpp>
+#include <stb_image.h>
 #include <string>
+#include <translation.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>
-#include <runtime.hpp>
 
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
+
+#pragma pack(push, 1)
+struct XBTHeader {
+    char magic[4];       // "XBT1"
+    uint32_t version;    // 1
+    uint32_t width;      // original full width
+    uint32_t height;     // original full height
+    uint32_t isTiled;    // 1 if tiled, 0 if single texture
+    uint32_t numTiles;   // number of tiles
+};
+
+struct XBTTileHeader {
+    int32_t x;           // tile x offset in image
+    int32_t y;           // tile y offset in image
+    int32_t w;           // tile width
+    int32_t h;           // tile height
+    uint32_t dataSize;   // byte length of DXT1 data following
+};
+#pragma pack(pop)
 
 static size_t getAvailablePhysicalMemory() {
     MM_STATISTICS stats;
@@ -51,9 +75,105 @@ static const int ditherMatrix[2][2] = {
 // avoids the power-of-two padding blowup of large swizzled textures.
 static constexpr int TILE_SIZE = 512;
 
+static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
+    r = (c >> 11) & 31;
+    g = (c >> 5) & 63;
+    b = c & 31;
+    r = (r << 3) | (r >> 2);
+    g = (g << 2) | (g >> 4);
+    b = (b << 3) | (b >> 2);
+}
+
+// Writes exactly 8 bytes (DXT1). Alpha is treated as 1-bit when !isOpaque.
+// NOTE: stb_compress_dxt_block(alpha=1) emits a 16-byte DXT5 block, so it must never be used here.
+static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool isOpaque) {
+    if (isOpaque) {
+        stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+        return;
+    }
+
+    uint8_t fixedBlock[64];
+    uint16_t opaqueMask = 0;
+    int count = 0, sr = 0, sg = 0, sb = 0;
+    for (int i = 0; i < 16; i++) {
+        if (block[i * 4 + 3] >= 128) {
+            opaqueMask |= (1 << i);
+            sr += block[i * 4 + 0];
+            sg += block[i * 4 + 1];
+            sb += block[i * 4 + 2];
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        // Fully transparent: c0 == c1 (3-colour mode), all indices = 3
+        memset(dst_block, 0, 4);
+        memset(dst_block + 4, 0xFF, 4);
+        return;
+    }
+
+    const uint8_t ar = static_cast<uint8_t>(sr / count);
+    const uint8_t ag = static_cast<uint8_t>(sg / count);
+    const uint8_t ab = static_cast<uint8_t>(sb / count);
+    for (int i = 0; i < 16; i++) {
+        if (opaqueMask & (1 << i)) {
+            memcpy(fixedBlock + i * 4, block + i * 4, 3);
+        } else {
+            fixedBlock[i * 4 + 0] = ar;
+            fixedBlock[i * 4 + 1] = ag;
+            fixedBlock[i * 4 + 2] = ab;
+        }
+        fixedBlock[i * 4 + 3] = 255;
+    }
+
+    uint8_t tmp[8];
+    stb_compress_dxt_block(tmp, fixedBlock, 0, STB_DXT_NORMAL);
+    const uint16_t e0 = static_cast<uint16_t>(tmp[0] | (tmp[1] << 8));
+    const uint16_t e1 = static_cast<uint16_t>(tmp[2] | (tmp[3] << 8));
+    // 3-colour mode requires c0 <= c1
+    const uint16_t c0 = e0 < e1 ? e0 : e1;
+    const uint16_t c1 = e0 < e1 ? e1 : e0;
+
+    int pal[3][3];
+    unpackRGB565(c0, pal[0][0], pal[0][1], pal[0][2]);
+    unpackRGB565(c1, pal[1][0], pal[1][1], pal[1][2]);
+    pal[2][0] = (pal[0][0] + pal[1][0]) / 2;
+    pal[2][1] = (pal[0][1] + pal[1][1]) / 2;
+    pal[2][2] = (pal[0][2] + pal[1][2]) / 2;
+
+    uint32_t indices = 0;
+    for (int i = 0; i < 16; i++) {
+        uint32_t idx = 3;
+        if (opaqueMask & (1 << i)) {
+            int best = 0, bestD = 0x7FFFFFFF;
+            for (int k = 0; k < 3; k++) {
+                const int dr = block[i * 4 + 0] - pal[k][0];
+                const int dg = block[i * 4 + 1] - pal[k][1];
+                const int db = block[i * 4 + 2] - pal[k][2];
+                const int d = dr * dr + dg * dg + db * db;
+                if (d < bestD) {
+                    bestD = d;
+                    best = k;
+                }
+            }
+            idx = static_cast<uint32_t>(best);
+        }
+        indices |= idx << (i * 2);
+    }
+
+    dst_block[0] = static_cast<uint8_t>(c0 & 0xFF);
+    dst_block[1] = static_cast<uint8_t>(c0 >> 8);
+    dst_block[2] = static_cast<uint8_t>(c1 & 0xFF);
+    dst_block[3] = static_cast<uint8_t>(c1 >> 8);
+    dst_block[4] = static_cast<uint8_t>(indices);
+    dst_block[5] = static_cast<uint8_t>(indices >> 8);
+    dst_block[6] = static_cast<uint8_t>(indices >> 16);
+    dst_block[7] = static_cast<uint8_t>(indices >> 24);
+}
+
 static bool compressAndUploadTileDXT1(SDL_Renderer *sdlRenderer, Image_Xbox::Tile &tile,
                                       const uint8_t *src, int srcPitch, int imgW, int imgH,
-                                      int tx, int ty) {
+                                      int tx, int ty, bool isOpaque = true) {
     const int pot_w = toPowerOfTwo(tile.w);
     const int pot_h = toPowerOfTwo(tile.h);
     const int blocks_x = (pot_w + 3) / 4;
@@ -77,11 +197,11 @@ static bool compressAndUploadTileDXT1(SDL_Renderer *sdlRenderer, Image_Xbox::Til
                     block[(py * 4 + px) * 4 + 0] = pix[0];
                     block[(py * 4 + px) * 4 + 1] = pix[1];
                     block[(py * 4 + px) * 4 + 2] = pix[2];
-                    block[(py * 4 + px) * 4 + 3] = 255;
+                    block[(py * 4 + px) * 4 + 3] = isOpaque ? 255 : (pix[3] >= 128 ? 255 : 0);
                 }
             }
             uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-            stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+            compressDXT1BlockFast(dst_block, block, isOpaque);
         }
     }
 
@@ -92,7 +212,7 @@ static bool compressAndUploadTileDXT1(SDL_Renderer *sdlRenderer, Image_Xbox::Til
     }
     if (!tile.texture) return false;
 
-    SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_LINEAR);
     if (!SDL_UpdateTexture(tile.texture, nullptr, dxt1Data.data(), pot_w * 2)) {
         SDL_DestroyTexture(tile.texture);
@@ -103,7 +223,7 @@ static bool compressAndUploadTileDXT1(SDL_Renderer *sdlRenderer, Image_Xbox::Til
 }
 
 static bool compressAndUploadImageDXT1(SDL_Renderer *sdlRenderer, SDL_Texture *&texture,
-                                       const uint8_t *src, int srcPitch, int imgW, int imgH) {
+                                       const uint8_t *src, int srcPitch, int imgW, int imgH, bool isOpaque = true) {
     const int pot_w = toPowerOfTwo(imgW);
     const int pot_h = toPowerOfTwo(imgH);
     const int blocks_x = (pot_w + 3) / 4;
@@ -124,11 +244,11 @@ static bool compressAndUploadImageDXT1(SDL_Renderer *sdlRenderer, SDL_Texture *&
                     block[(py * 4 + px) * 4 + 0] = pix[0];
                     block[(py * 4 + px) * 4 + 1] = pix[1];
                     block[(py * 4 + px) * 4 + 2] = pix[2];
-                    block[(py * 4 + px) * 4 + 3] = 255;
+                    block[(py * 4 + px) * 4 + 3] = isOpaque ? 255 : (pix[3] >= 128 ? 255 : 0);
                 }
             }
             uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
-            stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+            compressDXT1BlockFast(dst_block, block, isOpaque);
         }
     }
 
@@ -139,7 +259,7 @@ static bool compressAndUploadImageDXT1(SDL_Renderer *sdlRenderer, SDL_Texture *&
     }
     if (!texture) return false;
 
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
     if (!SDL_UpdateTexture(texture, nullptr, dxt1Data.data(), pot_w * 2)) {
         SDL_DestroyTexture(texture);
@@ -216,9 +336,10 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
                 }
             }
 
-            // DXT1 compressed path for opaque tiles (128KB per 512x512 tile, saving 87.5% memory over 32-bit):
-            if (isOpaque) {
-                if (compressAndUploadTileDXT1(sdlRenderer, tile, src, imgData.pitch, imgData.width, imgData.height, tx, ty)) {
+            // DXT1 compressed path for opaque and binary alpha (cutout) tiles (128KB per 512x512 tile).
+            // Pixels stay resident in imgData, so alpha-based collision keeps working.
+            if (isOpaque || isBinaryAlpha) {
+                if (compressAndUploadTileDXT1(sdlRenderer, tile, src, imgData.pitch, imgData.width, imgData.height, tx, ty, isOpaque)) {
                     tiles.push_back(tile);
                     continue;
                 }
@@ -304,6 +425,7 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
 }
 
 void Image_Xbox::renderTiled(ImageRenderParams &params) {
+    if (tiles.empty()) return;
     const float &x = params.x;
     const float &y = params.y;
     const int &brightness = params.brightness;
@@ -311,6 +433,10 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     const float &scale = params.scale;
     const float &opacity = params.opacity;
     const SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+
+    if (opacity <= 0.001f) return;
+    const Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    if (alpha == 0) return;
 
     SDL_FRect renderRect;
     renderRect.w = imgData.width / imgData.scale * scale;
@@ -373,8 +499,10 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     auto setColor = [&](Uint8 c) { for (auto &t : tiles) SDL_SetTextureColorMod(t.texture, c, c, c); };
     auto setBlend = [&](SDL_BlendMode m) { for (auto &t : tiles) SDL_SetTextureBlendMode(t.texture, m); };
 
-    setAlpha(static_cast<Uint8>(opacity * 255));
+    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
+    setAlpha(alpha);
     setColor(255);
+    setBlend(normalBlendMode);
 
     if (brightness > 0) {
         const float b = brightness * 0.01f;
@@ -382,7 +510,7 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
         setBlend(SDL_BLENDMODE_ADD);
         setAlpha(Uint8(255 * b * opacity));
         drawAll();
-        setBlend(SDL_BLENDMODE_BLEND);
+        setBlend(normalBlendMode);
     } else if (brightness < 0) {
         const float b = brightness * 0.01f;
         setColor(Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f)));
@@ -409,6 +537,10 @@ void Image_Xbox::render(ImageRenderParams &params) {
     const float &opacity = params.opacity;
     const bool &centered = params.centered;
     SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+
+    if (opacity <= 0.001f) return;
+    const Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    if (alpha == 0) return;
 
     SDL_FRect renderRect;
     renderRect.w = imgData.width / imgData.scale * scale;
@@ -445,8 +577,9 @@ void Image_Xbox::render(ImageRenderParams &params) {
         renderRect.h = std::round(renderRect.h);
     }
 
-    Uint8 alpha = static_cast<Uint8>(opacity * 255);
     SDL_SetTextureAlphaMod(texture, alpha);
+    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
+    SDL_SetTextureBlendMode(texture, normalBlendMode);
 
     const SDL_FPoint center = {renderRect.w / 2.0f, renderRect.h / 2.0f};
 
@@ -462,7 +595,7 @@ void Image_Xbox::render(ImageRenderParams &params) {
             SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // reset for next frame
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureBlendMode(texture, normalBlendMode);
         } else {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
@@ -533,6 +666,7 @@ void Image_Xbox::renderNineslice(double xPos, double yPos, double width, double 
 }
 
 void *Image_Xbox::getNativeTexture() {
+    if (!tiles.empty()) return tiles[0].texture;
     return texture;
 }
 
@@ -561,8 +695,8 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
             }
         }
 
-        if (isOpaque) {
-            if (compressAndUploadImageDXT1(sdlRenderer, texture, src, imgData.pitch, imgData.width, imgData.height)) {
+        if (isOpaque || isBinaryAlpha) {
+            if (compressAndUploadImageDXT1(sdlRenderer, texture, src, imgData.pitch, imgData.width, imgData.height, isOpaque)) {
                 return {};
             }
         }
@@ -645,11 +779,451 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
     return {};
 }
 
+static std::string getProjectCacheKey() {
+    std::string key = Unzip::filePath;
+    if (key.empty()) {
+        key = "embedded";
+    } else {
+        size_t lastSlash = key.find_last_of("/\\");
+        if (lastSlash != std::string::npos) {
+            key = key.substr(lastSlash + 1);
+        }
+        size_t dot = key.find_last_of('.');
+        if (dot != std::string::npos) {
+            key = key.substr(0, dot);
+        }
+    }
+    std::string clean;
+    for (char c : key) {
+        if (isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') {
+            clean += c;
+        }
+    }
+    if (clean.empty()) clean = "project";
+    if (clean.length() > 24) clean = clean.substr(0, 24);
+    return clean;
+}
+
+std::string Image_Xbox::getTextureCacheDir() {
+    return OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() + "_v2\\";
+}
+
+std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
+    if (assetName.empty()) return "";
+    std::string base = assetName;
+    size_t lastSlash = base.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        base = base.substr(lastSlash + 1);
+    }
+    size_t lastDot = base.find_last_of('.');
+    if (lastDot != std::string::npos) {
+        base = base.substr(0, lastDot);
+    }
+    if (base.empty()) return "";
+    if (base.length() > 36) base = base.substr(0, 36);
+    return getTextureCacheDir() + base + ".xbt";
+}
+
+static bool writeCompressedTextureCache(const std::string &cachePath, int width, int height, const uint8_t *src, int pitch) {
+    std::string tempPath = cachePath + ".tmp";
+    FILE *f = fopen(tempPath.c_str(), "wb");
+    if (!f) return false;
+
+    const bool isTiled = (width > TILE_SIZE || height > TILE_SIZE);
+    XBTHeader header;
+    memcpy(header.magic, "XBT1", 4);
+    header.version = 1;
+    header.width = width;
+    header.height = height;
+    header.isTiled = isTiled ? 1 : 0;
+
+    if (!isTiled) {
+        header.numTiles = 1;
+        if (fwrite(&header, sizeof(header), 1, f) != 1) {
+            fclose(f);
+            remove(tempPath.c_str());
+            return false;
+        }
+
+        const int pot_w = toPowerOfTwo(width);
+        const int pot_h = toPowerOfTwo(height);
+        const int blocks_x = (pot_w + 3) / 4;
+        const int blocks_y = (pot_h + 3) / 4;
+        const uint32_t dataSize = static_cast<uint32_t>(blocks_x) * blocks_y * 8;
+
+        std::vector<uint8_t> dxt1Data(dataSize);
+        uint8_t block[64];
+        for (int by = 0; by < blocks_y; by++) {
+            for (int bx = 0; bx < blocks_x; bx++) {
+                for (int py = 0; py < 4; py++) {
+                    int sy = by * 4 + py;
+                    if (sy >= height) sy = height - 1;
+                    const uint8_t *row = src + sy * pitch;
+                    for (int px = 0; px < 4; px++) {
+                        int sx = bx * 4 + px;
+                        if (sx >= width) sx = width - 1;
+                        const uint8_t *pix = row + sx * 4;
+                        block[(py * 4 + px) * 4 + 0] = pix[0];
+                        block[(py * 4 + px) * 4 + 1] = pix[1];
+                        block[(py * 4 + px) * 4 + 2] = pix[2];
+                        block[(py * 4 + px) * 4 + 3] = 255;
+                    }
+                }
+                uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
+                stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+            }
+        }
+
+        XBTTileHeader tileHeader;
+        tileHeader.x = 0;
+        tileHeader.y = 0;
+        tileHeader.w = width;
+        tileHeader.h = height;
+        tileHeader.dataSize = dataSize;
+
+        if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
+            fwrite(dxt1Data.data(), 1, dataSize, f) != dataSize) {
+            fclose(f);
+            remove(tempPath.c_str());
+            return false;
+        }
+    } else {
+        uint32_t numTiles = 0;
+        for (int ty = 0; ty < height; ty += TILE_SIZE) {
+            for (int tx = 0; tx < width; tx += TILE_SIZE) {
+                numTiles++;
+            }
+        }
+        header.numTiles = numTiles;
+        if (fwrite(&header, sizeof(header), 1, f) != 1) {
+            fclose(f);
+            remove(tempPath.c_str());
+            return false;
+        }
+
+        for (int ty = 0; ty < height; ty += TILE_SIZE) {
+            for (int tx = 0; tx < width; tx += TILE_SIZE) {
+                const int tw = std::min(TILE_SIZE, width - tx);
+                const int th = std::min(TILE_SIZE, height - ty);
+                const int pot_w = toPowerOfTwo(tw);
+                const int pot_h = toPowerOfTwo(th);
+                const int blocks_x = (pot_w + 3) / 4;
+                const int blocks_y = (pot_h + 3) / 4;
+                const uint32_t dataSize = static_cast<uint32_t>(blocks_x) * blocks_y * 8;
+
+                std::vector<uint8_t> dxt1Data(dataSize);
+                const int max_sy = std::min(ty + th - 1, height - 1);
+                const int max_sx = std::min(tx + tw - 1, width - 1);
+
+                uint8_t block[64];
+                for (int by = 0; by < blocks_y; by++) {
+                    for (int bx = 0; bx < blocks_x; bx++) {
+                        for (int py = 0; py < 4; py++) {
+                            int sy = ty + by * 4 + py;
+                            if (sy > max_sy) sy = max_sy;
+                            const uint8_t *row = src + sy * pitch;
+                            for (int px = 0; px < 4; px++) {
+                                int sx = tx + bx * 4 + px;
+                                if (sx > max_sx) sx = max_sx;
+                                const uint8_t *pix = row + sx * 4;
+                                block[(py * 4 + px) * 4 + 0] = pix[0];
+                                block[(py * 4 + px) * 4 + 1] = pix[1];
+                                block[(py * 4 + px) * 4 + 2] = pix[2];
+                                block[(py * 4 + px) * 4 + 3] = 255;
+                            }
+                        }
+                        uint8_t *dst_block = dxt1Data.data() + (by * blocks_x + bx) * 8;
+                        stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+                    }
+                }
+
+                XBTTileHeader tileHeader;
+                tileHeader.x = tx;
+                tileHeader.y = ty;
+                tileHeader.w = tw;
+                tileHeader.h = th;
+                tileHeader.dataSize = dataSize;
+
+                if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
+                    fwrite(dxt1Data.data(), 1, dataSize, f) != dataSize) {
+                    fclose(f);
+                    remove(tempPath.c_str());
+                    return false;
+                }
+            }
+        }
+    }
+
+    fclose(f);
+    remove(cachePath.c_str());
+    rename(tempPath.c_str(), cachePath.c_str());
+    return true;
+}
+
+bool Image_Xbox::loadFromCache(const std::string &cachePath) {
+    FILE *f = fopen(cachePath.c_str(), "rb");
+    if (!f) return false;
+
+    XBTHeader header;
+    if (fread(&header, sizeof(header), 1, f) != 1) {
+        fclose(f);
+        return false;
+    }
+    if (memcmp(header.magic, "XBT1", 4) != 0 || header.version != 1) {
+        fclose(f);
+        return false;
+    }
+
+    imgData.width = header.width;
+    imgData.height = header.height;
+    imgData.scale = 1.0f;
+    imgData.pitch = header.width * 4;
+    imgData.pixels = nullptr;
+    isOpaque = true;
+
+    if (header.isTiled == 0) {
+        XBTTileHeader tileHeader;
+        if (fread(&tileHeader, sizeof(tileHeader), 1, f) != 1) {
+            fclose(f);
+            return false;
+        }
+        std::vector<uint8_t> dxt1Data(tileHeader.dataSize);
+        if (fread(dxt1Data.data(), 1, tileHeader.dataSize, f) != tileHeader.dataSize) {
+            fclose(f);
+            return false;
+        }
+        fclose(f);
+
+        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tileHeader.w, tileHeader.h);
+        if (!texture) {
+            Scratch::freeUnusedCostumeImages();
+            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tileHeader.w, tileHeader.h);
+        }
+        if (!texture) return false;
+
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
+        const int pot_w = toPowerOfTwo(tileHeader.w);
+        if (!SDL_UpdateTexture(texture, nullptr, dxt1Data.data(), pot_w * 2)) {
+            SDL_DestroyTexture(texture);
+            texture = nullptr;
+            return false;
+        }
+        return true;
+    } else {
+        destroyTiles();
+        for (uint32_t i = 0; i < header.numTiles; i++) {
+            XBTTileHeader tileHeader;
+            if (fread(&tileHeader, sizeof(tileHeader), 1, f) != 1) {
+                destroyTiles();
+                fclose(f);
+                return false;
+            }
+            std::vector<uint8_t> dxt1Data(tileHeader.dataSize);
+            if (fread(dxt1Data.data(), 1, tileHeader.dataSize, f) != tileHeader.dataSize) {
+                destroyTiles();
+                fclose(f);
+                return false;
+            }
+            Tile tile;
+            tile.x = tileHeader.x;
+            tile.y = tileHeader.y;
+            tile.w = tileHeader.w;
+            tile.h = tileHeader.h;
+            tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+            if (!tile.texture) {
+                Scratch::freeUnusedCostumeImages();
+                tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_DXT1, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+            }
+            if (!tile.texture) {
+                destroyTiles();
+                fclose(f);
+                return false;
+            }
+            SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_LINEAR);
+            const int pot_w = toPowerOfTwo(tile.w);
+            if (!SDL_UpdateTexture(tile.texture, nullptr, dxt1Data.data(), pot_w * 2)) {
+                SDL_DestroyTexture(tile.texture);
+                tile.texture = nullptr;
+                destroyTiles();
+                fclose(f);
+                return false;
+            }
+            tiles.push_back(tile);
+        }
+        fclose(f);
+        return true;
+    }
+}
+
+static void *extractProjectAsset(const std::string &assetName, size_t &outSize) {
+    if (Unzip::loader) {
+        void *data = Unzip::loader->getAsset(assetName, &outSize);
+        if (data) return data;
+    }
+    std::string fullPath;
+    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + assetName;
+    else fullPath = OS::getRomFSLocation() + "project/" + assetName;
+
+    FILE *f = fopen(fullPath.c_str(), "rb");
+    if (!f) return nullptr;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz <= 0) { fclose(f); return nullptr; }
+    void *buf = malloc(sz);
+    if (!buf) { fclose(f); return nullptr; }
+    if (fread(buf, 1, sz, f) != static_cast<size_t>(sz)) {
+        free(buf);
+        fclose(f);
+        return nullptr;
+    }
+    fclose(f);
+    outSize = static_cast<size_t>(sz);
+    return buf;
+}
+
+static void freeProjectAsset(void *ptr) {
+    if (!ptr) return;
+    if (Unzip::zipArchive) {
+        Unzip::zipArchive->freeHeap(ptr);
+        return;
+    }
+    free(ptr);
+}
+
+void Image_Xbox::precacheProjectTextures() {
+    std::string cacheDir = getTextureCacheDir();
+    FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache\\");
+    FileSystem::createDirectory(cacheDir);
+
+    const std::string completeFile = cacheDir + ".complete";
+    if (FileSystem::fileExists(completeFile)) {
+        return;
+    }
+
+    bool cachingStateSet = false;
+    auto ensureCachingState = [&]() {
+        if (!cachingStateSet) {
+            Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.caching"));
+            cachingStateSet = true;
+        }
+    };
+
+    bool allSucceeded = true;
+
+    auto precacheCostume = [&](const Costume &costume) {
+        if (costume.isSVG) return;
+        const std::string &name = costume.fullName;
+        if (name.empty()) return;
+
+        std::string cachePath = getTextureCachePath(name);
+        if (cachePath.empty() || FileSystem::fileExists(cachePath)) {
+            return;
+        }
+
+        size_t fileSize = 0;
+        void *fileData = extractProjectAsset(name, fileSize);
+        if (!fileData || fileSize == 0) return;
+
+        int rawW = 0, rawH = 0, channels = 0;
+        unsigned char *pixels = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
+        freeProjectAsset(fileData);
+
+        if (!pixels || rawW <= 0 || rawH <= 0) {
+            if (pixels) stbi_image_free(pixels);
+            return;
+        }
+
+        int curW = rawW;
+        int curH = rawH;
+        unsigned char *curPixels = pixels;
+
+        // Downscale if bitmapHalfQuality and resolution == 2 (matching Image::loadRasterFromMemory)
+        if (Scratch::bitmapHalfQuality && costume.bitmapResolution == 2) {
+            int dw, dh;
+            unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+            if (downscaled) {
+                if (curPixels == pixels) stbi_image_free(curPixels);
+                else free(curPixels);
+                curPixels = downscaled;
+                curW = dw;
+                curH = dh;
+            }
+        }
+
+        // Downscale if > 2048 in either dimension
+        while (curW > 2048 || curH > 2048) {
+            int dw, dh;
+            unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+            if (!downscaled) break;
+            if (curPixels == pixels) stbi_image_free(curPixels);
+            else free(curPixels);
+            curPixels = downscaled;
+            curW = dw;
+            curH = dh;
+        }
+
+        // Verify opacity - only opaque textures qualify for DXT1
+        bool isOpaque = true;
+        const int pitch = curW * 4;
+        for (int y = 0; y < curH; y++) {
+            const uint8_t *row = curPixels + y * pitch;
+            for (int x = 0; x < curW; x++) {
+                if (row[x * 4 + 3] != 255) {
+                    isOpaque = false;
+                    break;
+                }
+            }
+            if (!isOpaque) break;
+        }
+
+        if (isOpaque) {
+            ensureCachingState();
+            if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch)) {
+                allSucceeded = false;
+            }
+        }
+
+        if (curPixels == pixels) stbi_image_free(curPixels);
+        else free(curPixels);
+    };
+
+    // 1. Stage backdrops (critical for memory and background rendering)
+    if (Scratch::stageSprite) {
+        for (const auto &costume : Scratch::stageSprite->costumes) {
+            precacheCostume(costume);
+        }
+    }
+
+    // 2. Sprite costumes
+    for (auto *sprite : Scratch::sprites) {
+        if (sprite == Scratch::stageSprite) continue;
+        for (const auto &costume : sprite->costumes) {
+            precacheCostume(costume);
+        }
+    }
+
+    if (allSucceeded) {
+        FILE *f = fopen(completeFile.c_str(), "wb");
+        if (f) fclose(f);
+    }
+}
+
 nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
     destroyTiles();
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = nullptr;
+    }
+    if (!cachedAssetPath.empty()) {
+        std::string cachePath = getTextureCachePath(cachedAssetPath);
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            if (loadFromCache(cachePath)) {
+                return {};
+            }
+        }
     }
     return setInitialTexture();
 }
@@ -659,6 +1233,14 @@ Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(sdlRenderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
+
+    cachedAssetPath = filePath;
+    std::string cachePath = getTextureCachePath(filePath);
+    if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+        if (loadFromCache(cachePath)) {
+            return;
+        }
+    }
 
     const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
@@ -676,6 +1258,16 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(sdlRenderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
+    if (fromScratchProject) {
+        cachedAssetPath = filePath;
+        std::string cachePath = getTextureCachePath(filePath);
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            if (loadFromCache(cachePath)) {
+                return;
+            }
+        }
+    }
+
     const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
         error = initResult.error();
@@ -688,5 +1280,8 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
 
 Image_Xbox::~Image_Xbox() {
     destroyTiles();
-    SDL_DestroyTexture(texture);
+    if (texture) {
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
 }

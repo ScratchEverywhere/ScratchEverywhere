@@ -100,7 +100,7 @@ class SE_EXPORT Scratch {
     static bool forceRedraw;
     static bool warpTimer;
 
-#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__) || defined(__XBOX__)
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
     constexpr static bool bitmapHalfQuality = true;
 #else
     constexpr static bool bitmapHalfQuality = false;

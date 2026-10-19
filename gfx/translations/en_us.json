@@ -38,6 +38,7 @@
   "ui.loading.unzipping": "Unzipping Scratch project",
   "ui.loading.sprites": "Loading Sprites",
   "ui.loading.extensions": "Loading Extensions",
+  "ui.loading.caching": "Caching images",
   "ui.loading.finish": "Finishing up!",
   "ui.popup.extensions": "Warning! This project contains Native Extensions. Native Extensions have full access to your device.",
   "version.prefix.beta": "Beta Build",

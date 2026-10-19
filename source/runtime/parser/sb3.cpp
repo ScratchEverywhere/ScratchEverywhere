@@ -378,9 +378,9 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         }
 
 #ifdef __XBOX__
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.sprites"));
 #else
-        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.finish");
+        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.sprites");
 #endif
 
         Input::applyControls(Unzip::filePath + ".json");

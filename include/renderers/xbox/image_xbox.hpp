@@ -42,5 +42,12 @@ class SE_EXPORT Image_Xbox : public Image {
 
     void *getNativeTexture() override;
 
+    std::string cachedAssetPath;
+
+    static void precacheProjectTextures();
+    static std::string getTextureCacheDir();
+    static std::string getTextureCachePath(const std::string &assetName);
+    bool loadFromCache(const std::string &cachePath);
+
     nonstd::expected<void, std::string> refreshTexture() override;
 };
