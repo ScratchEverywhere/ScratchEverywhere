@@ -94,6 +94,10 @@ bool Scratch::useBytecode = true;
 #endif
 bool Scratch::bytecodeCacheTooNew = false;
 
+#ifdef __XBOX__
+bool Scratch::bitmapHalfQuality = false;
+#endif
+
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU

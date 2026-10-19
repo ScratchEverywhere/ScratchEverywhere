@@ -71,7 +71,6 @@ class SE_EXPORT Image {
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
     inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
-    inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
 
   protected:
     ImageData imgData;
@@ -81,6 +80,10 @@ class SE_EXPORT Image {
     std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
   public:
+    bool isOpaque = false;
+
+    static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
+
 #ifdef __XBOX__
     const unsigned int maxFreeTimer = 30;
 #else
@@ -111,8 +114,25 @@ class SE_EXPORT Image {
         return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
     }
 
+#ifdef __XBOX__
+    std::vector<uint8_t> alphaMask;
+    int alphaMaskPitch = 0;
+
+    inline int getPixelWidth() const { return imgData.width; }
+    inline int getPixelHeight() const { return imgData.height; }
+    inline bool hasAlphaData() const { return imgData.pixels != nullptr || isOpaque || !alphaMask.empty(); }
+#endif
+
     inline uint8_t getAlphaAt(int x, int y) const {
-        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
+        if (x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
+            return 0;
+        if (isOpaque)
+            return 255;
+#ifdef __XBOX__
+        if (!alphaMask.empty())
+            return ((alphaMask[static_cast<size_t>(y) * alphaMaskPitch + (x >> 3)] >> (x & 7)) & 1) ? 255 : 0;
+#endif
+        if (!imgData.pixels)
             return 0;
         const uint8_t *px =
             static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;

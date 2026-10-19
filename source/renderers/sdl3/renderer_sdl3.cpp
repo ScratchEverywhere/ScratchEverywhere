@@ -43,24 +43,6 @@ SDL_Texture *penTexture = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
-#ifdef __XBOX__
-static void flushPenVertsBatch(SDL_Renderer *renderer, SDL_Texture *penTex, SDL_Texture *mainTarget) {
-    if (penVerts.empty() || !penTex) return;
-    SDL_SetRenderTarget(renderer, penTex);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    constexpr size_t BATCH_SIZE = 2048 * 3; // 6144 vertices
-    for (size_t i = 0; i < penVerts.size(); i += BATCH_SIZE) {
-        size_t count = std::min(BATCH_SIZE, penVerts.size() - i);
-        SDL_RenderGeometry(renderer, nullptr, &penVerts[i], static_cast<int>(count), nullptr, 0);
-        SDL_FlushRenderer(renderer);
-    }
-    penVerts.clear();
-    SDL_SetRenderTarget(renderer, mainTarget);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-}
-#else
-#endif
-
 void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -99,9 +81,6 @@ Renderer_SDL3::Renderer_SDL3() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
-#elif defined(__XBOX__)
-    int windowWidth = 640;
-    int windowHeight = 480;
 #else
     int windowWidth = 480;
     int windowHeight = 360;
@@ -114,11 +93,7 @@ Renderer_SDL3::Renderer_SDL3() {
         window = nullptr;
         return;
     }
-#ifdef __XBOX__
-    Sdlrenderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(window)->getRenderer());
-#else
     Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), "");
-#endif
     if (Sdlrenderer == nullptr) {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
@@ -193,11 +168,7 @@ float Renderer_SDL3::getPixelDensity() {
 bool Renderer_SDL3::initPen() {
     if (penTexture != nullptr) return true;
 
-#if defined(__XBOX__)
-    constexpr auto penFormat = SDL_PIXELFORMAT_ARGB8888;
-#else
     constexpr auto penFormat = SDL_PIXELFORMAT_RGBA8888;
-#endif
 
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
@@ -206,22 +177,6 @@ bool Renderer_SDL3::initPen() {
             penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
-#ifdef __XBOX__
-    if (!penTexture) {
-        Scratch::freeUnusedCostumeImages();
-        if (Scratch::hqpen) {
-            if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
-            else
-                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-        } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
-    }
-    if (!penTexture) {
-        Log::logError(std::string("Failed to create pen texture: ") + SDL_GetError());
-        return false;
-    }
-#else
-#endif
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -235,10 +190,6 @@ bool Renderer_SDL3::initPen() {
 }
 
 void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-#ifdef __XBOX__
-    if (!penTexture) return;
-#else
-#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -316,19 +267,9 @@ void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, 
         penVerts.push_back(cv4);
         penVerts.push_back(cv5);
     }
-#ifdef __XBOX__
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-    }
-#else
-#endif
 }
 
 void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
-#ifdef __XBOX__
-    if (!penTexture) return;
-#else
-#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -369,19 +310,9 @@ void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
         penVerts.push_back(v1);
         penVerts.push_back(v2);
     }
-#ifdef __XBOX__
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-    }
-#else
-#endif
 }
 
 void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-#ifdef __XBOX__
-    if (!penTexture) return;
-#else
-#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -426,19 +357,9 @@ void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Spri
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-#ifdef __XBOX__
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-    }
-#else
-#endif
 }
 
 void Renderer_SDL3::penDotFast(Sprite *sprite) {
-#ifdef __XBOX__
-    if (!penTexture) return;
-#else
-#endif
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -472,20 +393,9 @@ void Renderer_SDL3::penDotFast(Sprite *sprite) {
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-#ifdef __XBOX__
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-    }
-#else
-#endif
 }
 
 void Renderer_SDL3::penStamp(Sprite *sprite) {
-#ifdef __XBOX__
-    if (!penTexture) return;
-    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-#else
-#endif
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -497,15 +407,12 @@ void Renderer_SDL3::penStamp(Sprite *sprite) {
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
 
     // clear line draw queue so stamp can be rendered on top
-#ifdef __XBOX__
-#else
     if (!penVerts.empty()) {
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
         SDL_RenderGeometry(Sdlrenderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
-#endif
 
     Image_SDL3 *image = reinterpret_cast<Image_SDL3 *>(imgFind->second.get());
 
@@ -521,25 +428,14 @@ void Renderer_SDL3::penStamp(Sprite *sprite) {
     if (Scratch::hqpen) {
         float penWidth;
         float penHeight;
-#ifdef __XBOX__
-        SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
-#else
         SDL_GetTextureSize(image->texture, &penWidth, &penHeight);
-#endif
         const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
         penX *= scale;
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
     } else {
-#ifdef __XBOX__
         penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
-        if (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
-            penScale *= 2.0f;
-        }
-#else
-        penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
-#endif
     }
 
     ImageRenderParams params;
@@ -688,10 +584,6 @@ void Renderer_SDL3::renderSprites() {
 }
 
 void Renderer_SDL3::renderPenLayer() {
-#ifdef __XBOX__
-    if (!penTexture) return;
-    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
-#else
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
@@ -702,7 +594,6 @@ void Renderer_SDL3::renderPenLayer() {
         SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
     }
-#endif
 
     SDL_FRect renderRect = {0, 0, 0, 0};
 

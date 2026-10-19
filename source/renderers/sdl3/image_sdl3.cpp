@@ -12,9 +12,6 @@
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>
-#if defined(__XBOX__)
-#include <runtime.hpp>
-#endif
 
 void Image_SDL3::render(ImageRenderParams &params) {
     if (!texture) return;
@@ -47,55 +44,6 @@ void Image_SDL3::render(ImageRenderParams &params) {
             .h = static_cast<float>(imgData.height)};
     }
 
-#ifdef __XBOX__
-    if (centered) {
-        renderRect.x = x - (renderRect.w / 2.0f);
-        renderRect.y = y - (renderRect.h / 2.0f);
-    } else {
-        renderRect.x = x;
-        renderRect.y = y;
-    }
-
-    const bool isCardinalRotation = std::fmod(std::abs(rotation), 90.0) < 0.001 || std::fmod(std::abs(rotation), 90.0) > 89.999;
-    if (isCardinalRotation) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
-    }
-
-    Uint8 alpha = static_cast<Uint8>(opacity * 255);
-    SDL_SetTextureAlphaMod(texture, alpha);
-
-    const SDL_FPoint center = {renderRect.w / 2.0f, renderRect.h / 2.0f};
-
-    if (brightness != 0) {
-        float b = brightness * 0.01f;
-        if (brightness > 0.0f) {
-            // render the normal image first
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-
-            // render another, blended image on top
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-
-            // reset for next frame
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        } else {
-            Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
-            SDL_SetTextureColorMod(texture, col, col, col);
-
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-            // reset for next frame
-            SDL_SetTextureColorMod(texture, 255, 255, 255);
-        }
-    } else {
-        // if no brightness just render normal image
-        SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-    }
-#else
     if (centered) {
         renderRect.x = x - (renderRect.w / 2);
         renderRect.y = y - (renderRect.h / 2);
@@ -135,7 +83,6 @@ void Image_SDL3::render(ImageRenderParams &params) {
         SDL_SetTextureColorMod(texture, 255, 255, 255);
         SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
-#endif
     freeTimer = maxFreeTimer;
 }
 
@@ -199,12 +146,6 @@ void *Image_SDL3::getNativeTexture() {
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
-#ifdef __XBOX__
-    if (!texture) {
-        Scratch::freeUnusedCostumeImages();
-        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-    }
-#endif
 
     if (!texture) {
         const std::string err = "Failed to create texture: " + std::string(SDL_GetError());

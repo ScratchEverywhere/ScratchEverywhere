@@ -9,6 +9,9 @@
 #ifdef RENDERER_OPENGL
 #include "renderer_gl.hpp"
 #endif
+#ifdef RENDERER_XBOX
+#include "renderer_xbox.hpp"
+#endif
 #ifdef RENDERER_SDL3
 #include "renderer_sdl3.hpp"
 #endif
@@ -69,6 +72,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_D3D9
     add(Renderers::D3D9);
 #endif
+#ifdef RENDERER_XBOX
+    add(Renderers::Xbox);
+#endif
 #ifdef RENDERER_SDL3
     add(Renderers::SDL3);
 #endif
@@ -107,7 +113,11 @@ bool Render::init() {
     }
 
     if (!found && j.contains("Renderer") && j["Renderer"].is_string()) {
-        const std::string rendererString = j["Renderer"].get<std::string>();
+        std::string rendererString = j["Renderer"].get<std::string>();
+#if defined(RENDERER_XBOX) && !defined(RENDERER_SDL3)
+        // Settings saved before the dedicated Xbox renderer existed still say "SDL3".
+        if (rendererString == "SDL3") rendererString = "Xbox";
+#endif
         for (auto &r : RendererNames) {
             if (r == rendererString) {
                 Log::log("Initializing " + rendererString + " renderer from settings...");
@@ -150,6 +160,15 @@ bool Render::init() {
 #ifdef RENDERER_D3D9
             Render::currentRenderer = Renderers::D3D9;
             globalRenderer = new Renderer_D3D9;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::Xbox: {
+#ifdef RENDERER_XBOX
+            Render::currentRenderer = Renderers::Xbox;
+            globalRenderer = new Renderer_Xbox;
             break;
 #else
             continue;

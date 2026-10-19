@@ -1,22 +1,26 @@
 #include <errno.h>
 #include <hal/debug.h>
 #include <hal/video.h>
+#include <log.hpp>
+#include <lwip/debug.h>
+#include <lwip/tcpip.h>
 #include <nxdk/mount.h>
+#include <nxdk/net.h>
 #include <os.hpp>
 #include <stdio.h>
 #include <windows.h>
-#include <nxdk/net.h>
-#include <lwip/debug.h>
-#include <lwip/tcpip.h>
-#include <log.hpp>
 
 extern "C" {
 extern struct netif *g_pnetif;
+#if defined(SE_USE_LWMEM)
+void se_lwmem_get_info(size_t *heap_size, size_t *total_ram, int *is_expanded);
+#endif
 }
 
 namespace OS {
 bool toExit = false;
 bool loadedSettings = false;
+bool isExpanded = false;
 std::string *customProjectsPath = nullptr;
 } // namespace OS
 
@@ -46,8 +50,8 @@ bool initNetworking() {
 }
 
 bool OS::init() {
-	// TODO: add support for automatic resolution detection
-	// TODO 2: add support for overscan compensation
+    // TODO: add support for automatic resolution detection
+    // TODO 2: add support for overscan compensation
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
 
     // Verify D: is mounted
@@ -80,14 +84,36 @@ bool OS::init() {
     _mkdir("E:\\ScratchEverywhere");
     remove("E:\\ScratchEverywhere\\debug.txt");
 
-	Log::log("OS initialized.");
-	initNetworking();
+    Log::log("OS initialized.");
+#if defined(SE_USE_LWMEM)
+    size_t heap_size = 0, total_ram = 0;
+    int is_expanded = 0;
+    se_lwmem_get_info(&heap_size, &total_ram, &is_expanded);
+
+    char memMsg[256];
+    if (is_expanded) {
+        isExpanded = true;
+        snprintf(memMsg, sizeof(memMsg),
+                 "Expanded RAM configuration detected.\n Total: %u MB\n Heap: %u MB\n Reserved for GPU: %u MB",
+                 (unsigned int)(total_ram / (1024 * 1024)),
+                 (unsigned int)(heap_size / (1024 * 1024)),
+                 (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
+    } else {
+        snprintf(memMsg, sizeof(memMsg),
+                 "Stock RAM configuration detected.\n Total: %u MB\n Heap: %u MB\n Reserved for GPU: %u MB",
+                 (unsigned int)(total_ram / (1024 * 1024)),
+                 (unsigned int)(heap_size / (1024 * 1024)),
+                 (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
+    }
+    Log::log(memMsg);
+#endif
+    initNetworking();
     return true;
 }
 
 void OS::deinit() {
-	nxNetShutdown();
-	return;
+    nxNetShutdown();
+    return;
 }
 
 std::string OS::getPlatform() {
@@ -95,7 +121,7 @@ std::string OS::getPlatform() {
 }
 
 bool OS::isEnhancedPlatform() {
-    return false;
+    return isExpanded;
 }
 
 std::string OS::getFilesystemRootPrefix() {
@@ -120,8 +146,8 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
-    if (g_pnetif && 
-        netif_is_up(g_pnetif) && 
+    if (g_pnetif &&
+        netif_is_up(g_pnetif) &&
         netif_ip4_addr(g_pnetif) &&
         netif_ip4_addr(g_pnetif)->addr != 0) {
         return true;

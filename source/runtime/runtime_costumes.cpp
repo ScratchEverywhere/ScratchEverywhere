@@ -71,9 +71,10 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     auto onErr = [&](std::string error) -> bool {
         const std::string missingName = "SE__Missingno";
+        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
-            failedCostumeImages.insert(costumeName);
+            if (!transient) failedCostumeImages.insert(costumeName);
         }
 
         const auto missingIt = costumeImages.find(missingName);

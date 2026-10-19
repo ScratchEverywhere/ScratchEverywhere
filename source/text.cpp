@@ -16,6 +16,9 @@
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/text_sdl2.hpp>
 #endif
+#ifdef RENDERER_XBOX
+#include <renderers/xbox/text_xbox.hpp>
+#endif
 #ifdef RENDERER_SDL3
 #include <renderers/sdl3/text_sdl3.hpp>
 #endif
@@ -56,6 +59,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_SDL2
     case Renderers::SDL2:
         return std::make_unique<TextObjectSDL2>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_XBOX
+    case Renderers::Xbox:
+        return std::make_unique<TextObjectXbox>(txt, posX, posY, fontPath);
 #endif
 #ifdef RENDERER_SDL3
     case Renderers::SDL3:

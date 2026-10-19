@@ -26,6 +26,42 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
         return nullptr;
     }
 
+#ifdef __XBOX__
+    {
+        const std::shared_ptr<Image> &image = imgFind->second;
+        if (!image->hasAlphaData()) return nullptr;
+
+        const int srcW = image->getPixelWidth();
+        const int srcH = image->getPixelHeight();
+        const float srcScale = image->getScale();
+
+        auto mask = std::make_shared<CollisionMask>();
+        mask->width = srcW / scaleFactor;
+        mask->height = srcH / scaleFactor;
+        mask->scaleFactor = (float)scaleFactor / srcScale;
+        mask->sourceScale = srcScale;
+        mask->image = image;
+        mask->imgScaleFactor = scaleFactor;
+
+        const float centerX = costume.rotationCenterX / mask->scaleFactor;
+        const float centerY = costume.rotationCenterY / mask->scaleFactor;
+        float maxDistSq = 0;
+
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                if (image->getAlphaAt(x * scaleFactor, y * scaleFactor) == 0) continue;
+                const float dx = x - centerX;
+                const float dy = y - centerY;
+                const float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq) maxDistSq = distSq;
+            }
+        }
+
+        mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
+        return mask;
+    }
+#endif
+
     ImageData imgData = imgFind->second->getPixels();
     if (!imgData.pixels) return nullptr;
 

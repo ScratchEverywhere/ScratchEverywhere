@@ -36,6 +36,7 @@
   "ui.loading.unzipping": "Scratchのプロジェクトを展開しています",
   "ui.loading.sprites": "スプライトを読み込んでいます",
   "ui.loading.extensions": "拡張機能を読み込んでいます",
+  "ui.loading.caching": "画像をキャッシュ中",
   "ui.loading.finish": "最後の一歩!",
   "ui.popup.extensions": "警告! このプロジェクトはネイティブ拡張機能を含んでいます。ネイティブ拡張機能はあなたのデバイスにフルアクセスを持ちます.",
   "ui.popup.bytecodeCacheTooNew": "この展開されたプロジェクトは新しいバージョンのScratch Everywhere!で生成されました。もう一度展開するか、展開されてないバージョンを使用してください。",

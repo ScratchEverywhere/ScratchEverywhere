@@ -19,6 +19,10 @@
 #include <sys/types.h>
 #include <vector>
 
+#ifdef __XBOX__
+#include <renderers/xbox/image_xbox.hpp>
+#endif
+
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -235,16 +239,30 @@ bool Unzip::load() {
         }
 
         projectThread.join();
-        loading.cleanup();
 
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+
+#ifdef __XBOX__
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+#else
+        loadInitialImages();
+#endif
+        loading.cleanup();
+        return true;
     } else {
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
             return false;
         }
+        loadInitialImages();
+        return true;
     }
 
 #else
@@ -253,13 +271,16 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1) {
         return false;
     }
-#endif
     loadInitialImages();
     return true;
+#endif
 }
 
 void Unzip::openScratchProject(void *arg) {
 #ifdef __XBOX__
+    // 64 MB consoles: render 2x bitmaps at native Scratch size. Must be set before the project is
+    // parsed, since parsing may adjust costume rotation centers based on this flag.
+    if (!OS::isEnhancedPlatform()) Scratch::bitmapHalfQuality = true;
     setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
 #else
     loadingState = TranslationManager::getTranslation("ui.loading.opening");
@@ -295,6 +316,10 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+
+#ifdef __XBOX__
+    Image_Xbox::precacheProjectTextures();
+#endif
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
