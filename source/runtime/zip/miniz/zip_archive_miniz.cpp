@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <istream>
+#include <log.hpp>
 #include <miniz.h>
 
 #if defined(__XBOX__)
@@ -67,8 +68,21 @@ class MinizZipArchive : public ZipArchive {
             }
         }
 #endif
-        if (file_index < 0) return nullptr;
-        return mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
+        if (file_index < 0) {
+            Log::logWarning("Zip: entry not found: " + name);
+            return nullptr;
+        }
+        void *data = mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
+        if (!data) {
+            std::string detail;
+            mz_zip_archive_file_stat st;
+            if (mz_zip_reader_file_stat(&archive, file_index, &st)) {
+                detail = " (" + std::to_string(st.m_uncomp_size / 1024) + " KB)";
+            }
+            Log::logWarning("Zip: failed to extract " + name + detail + ": " +
+                            mz_zip_get_error_string(mz_zip_get_last_error(&archive)));
+        }
+        return data;
     }
 
     void freeHeap(void *ptr) override {
