@@ -1,3 +1,4 @@
+// source/audiostack.cpp
 #include "nonstd/expected.hpp"
 #define DR_MP3_IMPLEMENTATION
 #define DR_WAV_IMPLEMENTATION
@@ -15,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <cstdio>
 
 SoundConfig::SoundConfig() {
     this->volume = 100;
@@ -160,6 +162,19 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     bool loadFromDisk = !isSystemAsset && (cached || Unzip::UnpackedInSD || on_disk);
     if (loadFromDisk) {
 #endif
+
+#if defined(__XBOX__)
+        FILE *f = fopen(fullAudioPath.c_str(), "rb");
+        if (!f) return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+
+        fseek(f, 0, SEEK_END);
+        this->buffer_size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        this->buffer = (unsigned char *)malloc(this->buffer_size);
+        fread(this->buffer, 1, this->buffer_size, f);
+        fclose(f);
+#else
         std::ifstream ifs(fullAudioPath, std::ios::binary);
 
         ifs.seekg(0, std::ios::end);
@@ -172,12 +187,27 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         ifs.read((char *)this->buffer, this->buffer_size);
 
         ifs.close();
+#endif
+
 #ifdef USE_BUNDLE
     } else {
         auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
         auto entry = archive.find(prefix + path);
         if (!entry) {
             // Fallback to disk if not in bundle archive
+#if defined(__XBOX__)
+            FILE *f = fopen(fullAudioPath.c_str(), "rb");
+            if (f) {
+                fseek(f, 0, SEEK_END);
+                this->buffer_size = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                this->buffer = (unsigned char *)malloc(this->buffer_size);
+                fread(this->buffer, 1, this->buffer_size, f);
+                fclose(f);
+            } else {
+                return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+            }
+#else
             std::ifstream ifs(fullAudioPath, std::ios::binary);
             if (ifs) {
                 ifs.seekg(0, std::ios::end);
@@ -189,6 +219,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
             } else {
                 return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
             }
+#endif
         } else {
             this->buffer_size = entry->size();
             this->buffer = (unsigned char *)malloc(this->buffer_size);
@@ -345,10 +376,18 @@ void Mixer::initMusic() {
 #else
 #if defined(__XBOX__)
     std::string fullSF2Path = OS::normalizePath(path);
-    std::ifstream ifs(fullSF2Path, std::ios::binary);
+    FILE *f = fopen(fullSF2Path.c_str(), "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        Mixer::sf2_buffer = malloc(size);
+        fread(Mixer::sf2_buffer, 1, size, f);
+        fclose(f);
+    }
 #else
     std::ifstream ifs(path, std::ios::binary);
-#endif
 
     ifs.seekg(0, std::ios::end);
     size = ifs.tellg();
@@ -361,6 +400,7 @@ void Mixer::initMusic() {
 
         ifs.close();
     }
+#endif
 #endif
 
     if (Mixer::sf2_buffer) {

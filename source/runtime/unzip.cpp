@@ -59,7 +59,11 @@ std::string Unzip::getLoadingState() {
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
+#ifdef __XBOX__
+std::vector<char, DefaultInitAllocator<char>> Unzip::zipBuffer;
+#else
 std::vector<char> Unzip::zipBuffer;
+#endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
 bool Unzip::UnpackedInSD = false;

@@ -49,13 +49,17 @@ class MinizZipArchive : public ZipArchive {
         }
         if (file_index < 0) {
             mz_uint numFiles = mz_zip_reader_get_num_files(&archive);
+            size_t name_len = name.size();
             for (mz_uint i = 0; i < numFiles; i++) {
                 mz_zip_archive_file_stat st;
                 if (mz_zip_reader_file_stat(&archive, i, &st)) {
-                    std::string filename = st.m_filename;
-                    if (filename == name ||
-                        (filename.size() >= name.size() &&
-                         filename.compare(filename.size() - name.size(), name.size(), name) == 0)) {
+                    size_t st_len = strlen(st.m_filename);
+                    if (st_len == name_len && strcmp(st.m_filename, name.c_str()) == 0) {
+                        file_index = static_cast<int>(i);
+                        break;
+                    } else if (st_len > name_len &&
+                               st.m_filename[st_len - name_len - 1] == '/' &&
+                               strcmp(st.m_filename + st_len - name_len, name.c_str()) == 0) {
                         file_index = static_cast<int>(i);
                         break;
                     }
