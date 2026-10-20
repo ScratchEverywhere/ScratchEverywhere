@@ -991,7 +991,7 @@ static void *extractProjectAsset(const std::string &assetName, size_t &outSize) 
     }
     std::string fullPath;
     if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + assetName;
-    else fullPath = OS::getRomFSLocation() + "project/" + assetName;
+    else fullPath = OS::getScratchFolderLocation() + "project/" + assetName;
 
     FILE *f = fopen(fullPath.c_str(), "rb");
     if (!f) return nullptr;
