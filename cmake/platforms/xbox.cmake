@@ -11,9 +11,9 @@ set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
-set(SE_BUNDLE_DEFAULT ON)
+set(SE_BUNDLE_DEFAULT ON) # DO NOT TOUCH; Xbox relies on using bundle entirely.
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_CLOUDVARS OFF) # TODO: Revisit cloud vars once Mist++ is integrated into SE!
 set(SE_ALLOW_DOWNLOAD ON)
 
 set(SE_HAS_TOUCH FALSE)
@@ -117,8 +117,9 @@ set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
 
 # FIXME: Force mistpp to resolve via source on Xbox and apply the compatibility patch;
 # remove when mistpp gets updated to support this target without patches
-set(CL_mistpp_STAGES source)
-set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
+#set(CL_mistpp_STAGES source)
+#set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
+
 
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC
