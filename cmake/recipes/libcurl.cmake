@@ -7,6 +7,10 @@ function(_recipe_libcurl_toolchain)
 endfunction()
 
 function(_recipe_libcurl_system)	
+    if(XBOX)
+        return()
+    endif()
+
 	if(NOT CMAKE_CROSSCOMPILING)
 		if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 			cmake_host_system_information(RESULT DISTRO QUERY DISTRIB_INFO)

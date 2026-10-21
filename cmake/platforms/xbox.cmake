@@ -23,13 +23,18 @@ set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_HAS_THREADS ON)
 
+# While the runtime already adds any compatible project.sb/sb2/sb3 file into the executable,
+# you can set this flag to ON if you want to place whatever projects you have in the romfs
+# folder into the ISO image. This is helpful if you have a buggy Xemu FTP implementation.
+set(COPY_PROJECTS_TO_XBOX OFF)
+
 # - On 64MB retail consoles, SE_LWMEM_HEAP_SIZE_MB sets the baseline heap size.
 # - On 128MB expanded consoles, the runtime dynamically scales the heap to
 #   prioritize the runtime over the GPU.
 # - Right now, this is an experimental feature, so this will need refinement.
 set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 16 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 40 CACHE STRING "Size in MB reserved for GPU and system buffers")
+set(SE_LWMEM_HEAP_SIZE_MB 18 CACHE STRING "Baseline size in MB of the lwmem heap")
+set(SE_LWMEM_GPU_RESERVE_MB 38 CACHE STRING "Size in MB reserved for GPU and system buffers")
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -120,7 +125,6 @@ set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
 #set(CL_mistpp_STAGES source)
 #set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
 
-
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
@@ -144,11 +148,25 @@ macro(package_platform)
 
     find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/extract-xiso/build" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/extract-xiso/build")
     if(EXTRACT_XISO_BIN)
-        add_custom_command(TARGET scratch-everywhere POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/iso_root
-            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/default.xbe ${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe
-            COMMAND ${EXTRACT_XISO_BIN} -c ${CMAKE_CURRENT_BINARY_DIR}/iso_root ${CMAKE_CURRENT_BINARY_DIR}/SE.iso
-            COMMENT "Building SE.iso"
-        )
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/default.xbe" "${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe"
+        COMMENT "Preparing ISO root directory..."
+    )
+    if(COPY_PROJECTS_TO_XBOX)
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*.sb*" "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMENT "Copying projects in romfs to ISO..."
+    )
     endif()
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${EXTRACT_XISO_BIN}" -c "${CMAKE_CURRENT_BINARY_DIR}/iso_root" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.iso"
+        COMMENT "Building scratch-xbox.iso"
+    )
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.exe"
+        COMMENT "Cleaning up"
+    )
+endif()
 endmacro()
