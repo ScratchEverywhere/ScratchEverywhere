@@ -1,11 +1,25 @@
-FROM gradylink/pacbrew:latest AS main_builder
-ENV CATALOG_NON_INTERACTIVE=1
-WORKDIR /app
+FROM debian:trixie AS main_builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	build-essential cmake clang lld llvm git wget ca-certificates tar
+
+# Download, install and cleanup prebuilt toolchain
+RUN wget -qO /tmp/sdk.tar.gz \
+	"https://github.com/ps4-homebrew-dev/pacbrew/releases/download/v0.2.4/ps4-homebrew-dev.tar.gz" && \
+	tar -xzf /tmp/sdk.tar.gz -C / &&
+	rm -f /tmp/sdk.tar.gz
+
+# Fetch and install only the Orbis headers
+RUN git clone --no-checkout https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git /tmp/openorbis && \
+	cd /tmp/openorbis && git sparse-checkout init --cone && \
+	git sparse-checkout set include/orbis && git checkout main && \
+	mkdir -p /opt/ps4-homebrew-dev/target/include/orbis && \
+	cp -r include/orbis /opt/ps4-homebrew-dev/target/include/orbis \
+	&& cd /app && rm -rf /tmp/openorbis
 
 COPY . .
 
-RUN cmake -B build-ps4 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/ps4.cmake -DCMAKE_BUILD_TYPE=Release && cmake --build build-ps4 -j2
+RUN /opt/ps4-homebrew-sdk/orbis-cmake -B build-ps4 -DCMAKE_BUILD_TYPE=Release && cmake --build build-ps4 -j2
 
 FROM scratch AS exporter
-
 COPY --from=main_builder /app/build-ps4/scratch-ps4.pkg /

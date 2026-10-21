@@ -18,12 +18,6 @@
 #include <renderers/sdl2/renderer_sdl2.hpp>
 #endif
 
-#ifdef __PS4__
-#include <orbis/Net.h>
-#include <orbis/Sysmodule.h>
-#include <orbis/libkernel.h>
-#endif
-
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_GameController *controller = nullptr;
 #endif
@@ -74,9 +68,6 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-#if defined(__PS4__)
-        SDL_GL_SetSwapInterval(1); // Required for VSync
-#endif
     }
 
 #ifdef WEBOS
@@ -103,7 +94,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 
         SDL_GL_SetSwapInterval(1); // VSync
 
-#if defined(RENDERER_OPENGL_CORE) && !defined(__EMSCRIPTEN__)
+#if defined(RENDERER_OPENGL_CORE) && !defined(__EMSCRIPTEN__) && !defined(__PS4__)
 #ifdef __SWITCH__
         if (!gladLoadGL()) {
 #else
@@ -228,7 +219,7 @@ void WindowSDL2::pollEvents() {
 }
 
 void WindowSDL2::calculatePixelDensity() {
-#if !defined(__PS4__) && !defined(WEBOS)
+#ifndef WEBOS
     int logicalW, logicalH, pixelW, pixelH;
 
     SDL_GetWindowSize(window, &logicalW, &logicalH);
