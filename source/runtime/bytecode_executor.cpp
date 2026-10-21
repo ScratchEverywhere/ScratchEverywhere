@@ -1433,11 +1433,11 @@ bool BytecodeExecutor::isRunning(Sprite *sprite, Block *hat) {
 
 void BytecodeExecutor::stopThread(Sprite *sprite, Block *hat) {
     for (size_t i = 0; i < threads.size(); i++) {
-        if (threads[i]->sprite == sprite && threads[i]->hatBlock == hat) {
-            BytecodeThread *t = threads[i];
-            if (t->bridgeThread) releaseScriptThread(t->bridgeThread);
-            delete t;
-            threads.erase(threads.begin() + i);
+        BytecodeThread *t = threads[i];
+        const bool threadDone = t->escapedToLegacy ? (t->legacyThread == nullptr || t->legacyThread->finished) : t->finished;
+        if (!threadDone && t->sprite == sprite && t->hatBlock == hat) {
+            t->finished = true;
+            if (t->escapedToLegacy && t->legacyThread) t->legacyThread->finished = true;
             return;
         }
     }
@@ -1458,7 +1458,8 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
 
     size_t restartIndex = static_cast<size_t>(-1);
     for (size_t i = 0; i < threads.size(); i++) {
-        if (threads[i]->sprite == sprite && threads[i]->hatBlock == hat) {
+        const bool threadDone = threads[i]->escapedToLegacy ? (threads[i]->legacyThread == nullptr || threads[i]->legacyThread->finished) : threads[i]->finished;
+        if (!threadDone && threads[i]->sprite == sprite && threads[i]->hatBlock == hat) {
             if (shouldRestart) {
                 restartIndex = i;
                 break;
@@ -1486,12 +1487,10 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
 
     if (restartIndex != static_cast<size_t>(-1)) {
         BytecodeThread *old = threads[restartIndex];
-        if (old->bridgeThread) releaseScriptThread(old->bridgeThread);
-        delete old;
-        threads[restartIndex] = newThread;
-    } else {
-        threads.push_back(newThread);
+        old->finished = true;
+        if (old->escapedToLegacy && old->legacyThread) old->legacyThread->finished = true;
     }
+    threads.push_back(newThread);
 
     return newThread;
 }
