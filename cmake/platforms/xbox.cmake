@@ -33,8 +33,8 @@ set(COPY_PROJECTS_TO_XBOX OFF)
 #   prioritize the runtime over the GPU.
 # - Right now, this is an experimental feature, so this will need refinement.
 set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 18 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 38 CACHE STRING "Size in MB reserved for GPU and system buffers")
+set(SE_LWMEM_HEAP_SIZE_MB 24 CACHE STRING "Baseline size in MB of the lwmem heap")
+set(SE_LWMEM_GPU_RESERVE_MB 36 CACHE STRING "Size in MB reserved for GPU and system buffers")
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
