@@ -464,8 +464,7 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
     if (!penTexture) return;
     lastCapValid = false;
 
-    // Queued lines must be drawn first so the stamp lands on top of them. This leaves the pen texture
-    // as the active target, and it stays active for the next pen operation.
+    // Queued lines must be drawn first so the stamp lands on top of them.
     flushPenVerts(Sdlrenderer);
 
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
@@ -476,7 +475,10 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     const Costume &costume = sprite->costumes[sprite->currentCostume];
 
-    ensurePenTarget(Sdlrenderer);
+    //  The NV2A Xbox GPU corrupts the texture cache if multiple different
+    // textures are stamped into a render target without unbinding it. We must explicitly
+    // bind, draw, and immediately unbind back to the main target for EVERY stamp.
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
 
     Image_Xbox *image = reinterpret_cast<Image_Xbox *>(imgFind->second.get());
 
@@ -491,7 +493,6 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
     float penScale;
     if (Scratch::hqpen) {
         const double scale = penScaleY;
-
         penX *= scale;
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
@@ -514,10 +515,10 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    if (++stampsSinceFlush >= PEN_STAMP_FLUSH_INTERVAL) {
-        SDL_FlushRenderer(Sdlrenderer);
-        stampsSinceFlush = 0;
-    }
+    // Force the Xbox GPU to resolve the render target immediately
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+    penTargetActive = false;
+    stampsSinceFlush = 0;
 }
 
 void Renderer_Xbox::penClear() {
@@ -525,16 +526,13 @@ void Renderer_Xbox::penClear() {
     penVerts.clear(); // pending lines would be erased by the clear anyway
     lastCapValid = false;
 
-    ensurePenTarget(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
     SDL_RenderClear(Sdlrenderer);
 
-    // Force the command queue to flush the clear operation.
-    // If a Stamp immediately follows a Clear, the Stamp's standard geometry flush
-    // gets skipped (because penVerts is empty). This leaves the nxdk GPU transitioning
-    // directly from a Clear to a Texture draw in the same batch, corrupting the cache.
-    // Flushing here resolves it without an expensive render target switch.
-    SDL_FlushRenderer(Sdlrenderer);
+    // Force the Xbox GPU to resolve the render target immediately
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+    penTargetActive = false;
 }
 
 void Renderer_Xbox::cleanupPen() {
