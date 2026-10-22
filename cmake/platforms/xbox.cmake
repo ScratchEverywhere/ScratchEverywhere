@@ -90,7 +90,7 @@ add_compile_options(
     -fms-extensions
 
     # Miscellaneous Xbox performance tuning
-    -O3                         # Maximize optimizations
+    -O1                         # Maximize optimizations
     -fomit-frame-pointer        # Frees up the EBP register
     -msse                       # Enable SSE instructions
     -mfpmath=sse                # Use SSE for floating point math instead of x87 FPU
