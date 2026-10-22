@@ -31,10 +31,10 @@ set(COPY_PROJECTS_TO_XBOX OFF)
 # - On 64MB retail consoles, SE_LWMEM_HEAP_SIZE_MB sets the baseline heap size.
 # - On 128MB expanded consoles, the runtime dynamically scales the heap to
 #   prioritize the runtime over the GPU.
-# - Right now, this is an experimental feature, so this will need refinement.
+# - It is recommended to leave this enabled for the Xbox.
 set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 24 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 36 CACHE STRING "Size in MB reserved for GPU and system buffers")
+set(SE_LWMEM_HEAP_SIZE_MB 32 CACHE STRING "Baseline size in MB of the lwmem heap")
+set(SE_LWMEM_GPU_RESERVE_MB 32 CACHE STRING "Size in MB reserved for GPU and system buffers")
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -88,6 +88,20 @@ add_compile_options(
     -Dfseeko=fseek
     -DUNLEN=256
     -fms-extensions
+
+    # Miscellaneous Xbox performance tuning
+    -O3                         # Maximize optimizations
+    -fomit-frame-pointer        # Frees up the EBP register
+    -msse                       # Enable SSE instructions
+    -mfpmath=sse                # Use SSE for floating point math instead of x87 FPU
+    -ffast-math                 # Breaks strict IEEE 754 compliance for significantly faster math
+    -fno-math-errno             # Tells the compiler math functions won't set errno (allows better vectorization)
+    -fsingle-precision-constant # Treats floating-point constants (like 1.5) as float instead of double
+
+    # Aligning loops and functions to the CPU's cache line boundary
+    -falign-functions=16
+    -falign-loops=16
+    -falign-jumps=16
 )
 
 # HACK: Force CMake to skip failing network checks for libcurl on Xbox
@@ -130,8 +144,10 @@ macro(package_platform)
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
         ${NXDK_DIR}/lib/libnxdk_net.lib
     )
-    target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
-    target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
+    target_link_options(scratch-everywhere PRIVATE 
+        "-safeseh:no"                  # REQUIRED FOR BUNDLE
+        "-include:_automount_d_drive"  # TODO: Do we even need D: anymore if automount is on?
+    )
 
     find_program(CXBE_BIN cxbe PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/cxbe" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/cxbe")
     if(NOT CXBE_BIN)

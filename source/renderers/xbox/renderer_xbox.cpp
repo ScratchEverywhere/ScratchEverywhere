@@ -32,7 +32,7 @@ static std::vector<SDL_Vertex> penVerts;
 static constexpr size_t PEN_FLUSH_THRESHOLD = 6144;
 
 // Stamps queued since SDL's command queue was last flushed.
-static constexpr unsigned PEN_STAMP_FLUSH_INTERVAL = 256;
+static constexpr unsigned PEN_STAMP_FLUSH_INTERVAL = 16;
 static unsigned stampsSinceFlush = 0;
 
 // Pen texture metrics, cached when the texture is (re)created instead of queried on every pen call.
@@ -485,8 +485,8 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     // Pen mapping stuff
     const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    int penX = cords.first + Scratch::projectWidth / 2;
-    int penY = -cords.second + Scratch::projectHeight / 2;
+    float penX = cords.first + Scratch::projectWidth / 2.0f;
+    float penY = -cords.second + Scratch::projectHeight / 2.0f;
 
     float penScale;
     if (Scratch::hqpen) {
