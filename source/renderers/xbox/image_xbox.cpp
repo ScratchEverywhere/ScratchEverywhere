@@ -1175,7 +1175,7 @@ static void clearTextureCacheDir(const std::string &dir) {
 // later ones "_v<N>h\" and "_v<N>f\", so all three forms are tried.
 static void removeStaleTextureCaches() {
     const std::string base = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey();
-    const char *suffixes[] = {"", "h", "f"};
+    const char *suffixes[] = {"", "h", "f", "_64m", "_128m"};
     for (uint32_t v = 1; v < XBT_VERSION; v++) {
         for (const char *suffix : suffixes) {
             auto result = FileSystem::removeDirectory(base + "_v" + std::to_string(v) + suffix + "\\");
