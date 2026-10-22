@@ -23,10 +23,28 @@
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
+// Bump this value by one for any changes to the caching system
+constexpr uint32_t XBT_VERSION = 5;
+
+// Images bigger than TILE_THRESHOLD (in either dimension) are split into TILE_SIZE chunks.
+// Small chunks keep each contiguous GPU allocation small (<=256KB at 32bpp, 128KB at 16bpp,
+// 64KB at DXT5, 32KB at DXT1) which is far easier to satisfy on a fragmented 64MB heap,
+// and reduces power-of-two padding waste on edge tiles.
+// The threshold is higher than the tile size so mid-sized sprites stay a single draw call.
+static constexpr int TILE_SIZE = 256;
+static constexpr int TILE_THRESHOLD = 512;
+
+// Force an asset to downscale in quality if it exceeds x amount of pixels in either dimension.
+static constexpr int FORCE_DOWNSCALE_DIM = 1024;
+
+// Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
+// many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
+static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
+
 #pragma pack(push, 1)
 struct XBTHeader {
     char magic[4];     // "XBT1"
-    uint32_t version;  // 4
+    uint32_t version;  // XBT_VERSION
     uint32_t width;    // original full width
     uint32_t height;   // original full height
     uint32_t isTiled;  // 1 if tiled, 0 if single texture
@@ -119,21 +137,6 @@ static const int ditherMatrix[2][2] = {
     {-3, 1},
     {3, -1}};
 
-// Images bigger than TILE_THRESHOLD (in either dimension) are split into TILE_SIZE chunks.
-// Small chunks keep each contiguous GPU allocation small (<=256KB at 32bpp, 128KB at 16bpp,
-// 64KB at DXT5, 32KB at DXT1) which is far easier to satisfy on a fragmented 64MB heap,
-// and reduces power-of-two padding waste on edge tiles.
-// The threshold is higher than the tile size so mid-sized sprites stay a single draw call.
-static constexpr int TILE_SIZE = 256;
-static constexpr int TILE_THRESHOLD = 512;
-
-// Force an asset to downscale in quality if it exceeds x amount of pixels in either dimension.
-static constexpr int FORCE_DOWNSCALE_DIM = 1024;
-
-// Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
-// many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
-static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
-
 static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
     r = (c >> 11) & 31;
     g = (c >> 5) & 63;
@@ -145,9 +148,10 @@ static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
 
 // Writes exactly 8 bytes (DXT1). Alpha is treated as 1-bit when !isOpaque.
 // NOTE: stb_compress_dxt_block(alpha=1) emits a 16-byte DXT5 block, so it must never be used here.
-static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool isOpaque) {
+static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool isOpaque, bool highQuality) {
+    int mode = highQuality ? STB_DXT_HIGHQUAL : STB_DXT_NORMAL;
     if (isOpaque) {
-        stb_compress_dxt_block(dst_block, block, 0, STB_DXT_NORMAL);
+        stb_compress_dxt_block(dst_block, block, 0, mode);
         return;
     }
 
@@ -186,7 +190,7 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
     }
 
     uint8_t tmp[8];
-    stb_compress_dxt_block(tmp, fixedBlock, 0, STB_DXT_NORMAL);
+    stb_compress_dxt_block(tmp, fixedBlock, 0, mode);
     const uint16_t e0 = static_cast<uint16_t>(tmp[0] | (tmp[1] << 8));
     const uint16_t e1 = static_cast<uint16_t>(tmp[2] | (tmp[3] << 8));
     // 3-colour mode requires c0 <= c1
@@ -236,13 +240,15 @@ static inline int dxtPitch(int w, uint32_t codec) { return ((toPowerOfTwo(w) + 3
 // Encodes the region [tx,tx+tw) x [ty,ty+th) of an RGBA image, edge-clamped, POT-padded.
 static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int imgW, int imgH,
                                             int tx, int ty, int tw, int th,
-                                            uint32_t codec, bool isOpaque) {
+                                            uint32_t codec, bool isOpaque, bool highQuality = false) {
     const int blocks_x = (toPowerOfTwo(tw) + 3) / 4;
     const int blocks_y = (toPowerOfTwo(th) + 3) / 4;
     const int bytes = dxtBlockBytes(codec);
     std::vector<uint8_t> out(static_cast<size_t>(blocks_x) * blocks_y * bytes);
     const int max_sx = std::min(tx + tw - 1, imgW - 1);
     const int max_sy = std::min(ty + th - 1, imgH - 1);
+
+    int mode = highQuality ? STB_DXT_HIGHQUAL : STB_DXT_NORMAL;
 
     uint8_t block[64];
     for (int by = 0; by < blocks_y; by++) {
@@ -261,8 +267,8 @@ static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int i
                 }
             }
             uint8_t *dst = out.data() + (by * blocks_x + bx) * bytes;
-            if (codec == CODEC_DXT5) stb_compress_dxt_block(dst, block, 1, STB_DXT_NORMAL); // 16-byte block
-            else compressDXT1BlockFast(dst, block, isOpaque);
+            if (codec == CODEC_DXT5) stb_compress_dxt_block(dst, block, 1, mode); // 16-byte block
+            else compressDXT1BlockFast(dst, block, isOpaque, highQuality);
         }
     }
     return out;
@@ -352,7 +358,7 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
                         memcpy(scratch32.data() + y * tile.w, row, tile.w * 4);
                     }
                     SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_NEAREST);
+                    SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_PIXELART);
                     if (!SDL_UpdateTexture(tile.texture, nullptr, scratch32.data(), tile.w * 4)) {
                         tiles.push_back(tile);
                         continue;
@@ -366,7 +372,7 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
             {
                 const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
                 const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                                  tx, ty, tile.w, tile.h, codec, isOpaque);
+                                                  tx, ty, tile.w, tile.h, codec, isOpaque, false);
                 tile.texture = createDXTTexture(sdlRenderer, tile.w, tile.h, codec, data.data());
                 if (tile.texture) {
                     tiles.push_back(tile);
@@ -450,7 +456,7 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
             }
 
             SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-            SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_NEAREST);
+            SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_PIXELART);
 
             if (!SDL_UpdateTexture(tile.texture, nullptr, scratch16.data(), tile.w * 2)) {
                 const std::string err = "Failed to update texture tile: " + std::string(SDL_GetError());
@@ -797,7 +803,7 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
         if (imgData.width * imgData.height > 128 * 128) {
             const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
             const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                              0, 0, imgData.width, imgData.height, codec, isOpaque);
+                                              0, 0, imgData.width, imgData.height, codec, isOpaque, false);
             texture = createDXTTexture(sdlRenderer, imgData.width, imgData.height, codec, data.data());
             if (texture) return {};
             // 16-bit needs 2-4x the memory of DXT; don't bother if DXT failed for lack of memory.
@@ -854,7 +860,7 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
             }
 
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-            SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+            SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
             if (!SDL_UpdateTexture(texture, nullptr, scratch16.data(), imgData.width * 2)) {
                 safeDestroyTexture(texture);
             } else {
@@ -876,7 +882,7 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
 
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
         const std::string err = "Failed to update texture: " + std::string(SDL_GetError());
@@ -913,7 +919,14 @@ static std::string getProjectCacheKey() {
 }
 
 std::string Image_Xbox::getTextureCacheDir() {
-    return OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() + (Scratch::bitmapHalfQuality ? "_v4h\\" : "_v4f\\");
+    static std::string cachedDir, cachedProjectPath;
+    if (cachedDir.empty() || cachedProjectPath != Unzip::filePath) {
+        cachedProjectPath = Unzip::filePath;
+        std::string ramMode = OS::isEnhancedPlatform() ? "128m" : "64m";
+        cachedDir = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
+                    "_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
+    }
+    return cachedDir;
 }
 
 std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
@@ -954,7 +967,7 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
 
     XBTHeader header;
     memcpy(header.magic, "XBT1", 4);
-    header.version = 4;
+    header.version = XBT_VERSION;
     header.width = width;
     header.height = height;
     header.isTiled = isTiled ? 1 : 0;
@@ -984,7 +997,7 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
         for (int tx = 0; tx < width; tx += stepX) {
             const int tw = std::min(stepX, width - tx);
             const int th = std::min(stepY, height - ty);
-            const auto data = encodeRegionDXT(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque);
+            const auto data = encodeRegionDXT(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque, true);
 
             XBTTileHeader tileHeader;
             tileHeader.x = tx;
@@ -1010,7 +1023,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
 
     XBTHeader header;
     if (fread(&header, sizeof(header), 1, f) != 1 ||
-        memcmp(header.magic, "XBT1", 4) != 0 || header.version != 4 ||
+        memcmp(header.magic, "XBT1", 4) != 0 || header.version != XBT_VERSION ||
         header.numTiles == 0) {
         fclose(f);
         return false;
@@ -1028,7 +1041,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
 
     imgData.width = header.width;
     imgData.height = header.height;
-    imgData.scale = header.scale; // Restores the true logical scale directly from the cache!
+    imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
     imgData.pitch = header.width * 4;
     imgData.pixels = nullptr;
     isOpaque = !(header.flags & 1);
@@ -1120,15 +1133,74 @@ static void freeProjectAsset(void *ptr) {
     free(ptr);
 }
 
+// Describes how a cache was built. Stored in .complete: a cache built under different settings is rebuilt.
+static std::string textureCacheSignature() {
+    return "xbt=" + std::to_string(XBT_VERSION) +
+           " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
+           " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
+           " maxdim=" + std::to_string(FORCE_DOWNSCALE_DIM);
+}
+
+static std::string readTextFile(const std::string &path) {
+    FILE *f = fopen(path.c_str(), "rb");
+    if (!f) return "";
+    char buf[256];
+    const size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    std::string text(buf, n);
+    while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
+        text.pop_back();
+    return text;
+}
+
+static bool writeTextFile(const std::string &path, const std::string &text) {
+    FILE *f = fopen(path.c_str(), "wb");
+    if (!f) return false;
+    const bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
+    fclose(f);
+    return ok;
+}
+
+// Deletes every file in a cache folder so it will be rebuilt from scratch.
+static void clearTextureCacheDir(const std::string &dir) {
+    auto files = FileSystem::listDirectory(dir);
+    if (!files.has_value()) return;
+    for (const std::string &name : files.value()) {
+        if (name == "." || name == "..") continue;
+        remove((dir + name).c_str());
+    }
+}
+
+// Removes this project's cache folders from older cache versions. Early builds named folders "_v<N>\",
+// later ones "_v<N>h\" and "_v<N>f\", so all three forms are tried.
+static void removeStaleTextureCaches() {
+    const std::string base = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey();
+    const char *suffixes[] = {"", "h", "f"};
+    for (uint32_t v = 1; v < XBT_VERSION; v++) {
+        for (const char *suffix : suffixes) {
+            auto result = FileSystem::removeDirectory(base + "_v" + std::to_string(v) + suffix + "\\");
+            (void)result; // folders that don't exist just return an error
+        }
+    }
+}
+
 void Image_Xbox::precacheProjectTextures() {
     std::string cacheDir = getTextureCacheDir();
     FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache\\");
     FileSystem::createDirectory(cacheDir);
 
     const std::string completeFile = cacheDir + ".complete";
+    const std::string signature = textureCacheSignature();
     if (FileSystem::fileExists(completeFile)) {
-        return;
+        const std::string builtFor = readTextFile(completeFile);
+        if (builtFor == signature) return;
+
+        Log::log("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
+                 "] Current: [" + signature + "]");
+        clearTextureCacheDir(cacheDir);
     }
+
+    removeStaleTextureCaches();
 
     bool cachingStateSet = false;
     auto ensureCachingState = [&]() {
@@ -1177,8 +1249,7 @@ void Image_Xbox::precacheProjectTextures() {
         int curH = rawH;
         unsigned char *curPixels = pixels;
 
-        float logicalScale = costume.bitmapResolution;
-        if (logicalScale <= 0.0f) logicalScale = 1.0f;
+        float logicalScale = 1.0f; // the runtime handles bitmapResolution / half-quality itself
 
         // Skip DXT caching for very small sprites to prevent 4x4 block interpolation artifacts.
         // They consume negligible memory and load instantly on the fly anyway.
@@ -1188,18 +1259,24 @@ void Image_Xbox::precacheProjectTextures() {
             return;
         }
 
-        // Physical downscaling is required by the Scratch runtime
-        // to prevent double-scaling rendering bugs.
-        if (Scratch::bitmapHalfQuality && costume.bitmapResolution == 2) {
-            int dw, dh;
-            unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
-            if (downscaled) {
-                logicalScale /= 2.0f;
-                if (curPixels == pixels) stbi_image_free(curPixels);
-                else free(curPixels);
-                curPixels = downscaled;
-                curW = dw;
-                curH = dh;
+        // Instead of the global runtime dictating half-quality,
+        // the Xbox renderer decides based on available memory and asset dimensions.
+        // We only downscale "Retina" (resolution == 2) assets on 64MB consoles IF
+        // they are relatively large. Small pixel-art sprites are left untouched
+        // to prevent uneven blocky scaling artifacts.
+        if (!OS::isEnhancedPlatform() && costume.bitmapResolution == 2) {
+            // Only downscale if it takes up significant VRAM (e.g. > 256x256)
+            if (curW * curH > 256 * 256) {
+                int dw, dh;
+                unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+                if (downscaled) {
+                    logicalScale /= 2.0f; // Track the scale so it still renders at the correct size
+                    if (curPixels == pixels) stbi_image_free(curPixels);
+                    else free(curPixels);
+                    curPixels = downscaled;
+                    curW = dw;
+                    curH = dh;
+                }
             }
         }
 
@@ -1264,8 +1341,7 @@ void Image_Xbox::precacheProjectTextures() {
     }
 
     if (allSucceeded) {
-        FILE *f = fopen(completeFile.c_str(), "wb");
-        if (f) fclose(f);
+        writeTextFile(completeFile, signature);
     }
 }
 

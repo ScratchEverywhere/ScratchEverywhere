@@ -281,14 +281,7 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
-#ifdef __XBOX__
-    // 64 MB consoles: render 2x bitmaps at native Scratch size. Must be set before the project is
-    // parsed, since parsing may adjust costume rotation centers based on this flag.
-    if (!OS::isEnhancedPlatform()) Scratch::bitmapHalfQuality = true;
-    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
-#else
     loadingState = TranslationManager::getTranslation("ui.loading.opening");
-#endif
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 

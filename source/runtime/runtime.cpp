@@ -85,10 +85,6 @@ bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
 
-#ifdef __XBOX__
-bool Scratch::bitmapHalfQuality = false;
-#endif
-
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU
