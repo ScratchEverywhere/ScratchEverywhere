@@ -43,29 +43,32 @@ enum BUTTON_TYPES {
 
 // PS4 implementation of logging
 #ifdef __PS4__
-char logBuffer[1024];
 void Log::log(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logWarning(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> Warning: %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logError(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> Error: %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logCritical(std::string message, bool fatal) {
+    char log[1024];
     if (fatal) {
-        snprintf(logBuffer, 1023, "<SE!> Fatal: %s\n", message.c_str());
+        snprintf(log, sizeof(log), "<SE!> Fatal: %s\n", message.c_str());
     } else {
-        snprintf(logBuffer, 1023, "<SE!> Critical: %s\n", message.c_str());
+        snprintf(log, sizeof(log), "<SE!> Critical: %s\n", message.c_str());
     }
-    sceKernelDebugOutText(0, logBuffer);
+    sceKernelDebugOutText(0, log);
     // If fatal, exit the current SE! process instance:
     if (fatal) {
         sceSystemServiceLoadExec("exit", nullptr);
@@ -73,11 +76,22 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
+    }
 }
 
 void Log::deleteLogFile() {
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
 }
 #elif defined(__XBOX__)
 static CRITICAL_SECTION log_cs;
