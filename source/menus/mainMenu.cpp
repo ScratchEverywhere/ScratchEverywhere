@@ -1,7 +1,9 @@
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "settingsMenu.hpp"
+#include "unpackMenu.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <cctype>
@@ -10,8 +12,11 @@
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
+#include <font_atlas.hpp>
 
 #include <nlohmann/json.hpp>
+
+#include <version_config.h>
 
 Menu::~Menu() = default;
 
@@ -67,6 +72,7 @@ void MenuManager::cleanup() {
         delete previousMenu;
         previousMenu = nullptr;
     }
+    FontManager::cleanup();
 }
 
 MainMenu::MainMenu() {
@@ -77,20 +83,33 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-#if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
-    // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
+#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
+    if (Render::currentRenderer == Renderers::Headless) {
+#endif
+        // let the user type what project they want to open
+        std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
 
-    const std::string ext = ".sb3";
-    if (answer.size() >= ext.size() &&
-        answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
-        answer = answer.substr(0, answer.size() - ext.size());
+        for (const std::string &ext : {".sb3", ".sb2", ".sb"}) {
+            if (answer.size() >= ext.size() &&
+                answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
+                answer = answer.substr(0, answer.size() - ext.size());
+                break;
+            }
+        }
+
+        ProjectFormat format;
+        std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + answer, format);
+        if (!resolved.empty()) {
+            Unzip::filePath = resolved;
+        } else {
+            Unzip::filePath = OS::getScratchFolderLocation() + answer;
+            Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", answer);
+        }
+
+        MenuManager::loadProject();
+        return;
+#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
     }
-
-    Unzip::filePath = OS::getScratchFolderLocation() + answer + ".sb3";
-
-    MenuManager::loadProject();
-    return;
 #endif
 
     Input::applyControls();
@@ -100,20 +119,40 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0 RC3", 0, 0, "gfx/menu/Ubuntu-Bold");
+    std::string versionStr;
+    switch (SE_VERSION_TYPE) {
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
+    }
+    versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
-    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+    if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
@@ -144,13 +183,16 @@ void MainMenu::render() {
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        static bool menuMusicFailed = false;
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
-            } else
+                menuMusicFailed = true;
+            } else {
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            }
         }
 #endif
     }
@@ -171,6 +213,7 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
+
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
@@ -188,6 +231,9 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
+    if (!isInitialized) return;
+    isInitialized = false;
+
     if (!settings.empty()) {
         settings.clear();
     }
@@ -208,5 +254,6 @@ void MainMenu::cleanup() {
         delete mainMenuControl;
         mainMenuControl = nullptr;
     }
-    isInitialized = false;
+    versionNumber.reset();
+    splashText.reset();
 }

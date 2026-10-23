@@ -107,12 +107,6 @@ steps in advance to help us fix any potential bug as fast as possible.
 
 #### How Do I Submit a Good Bug Report?
 
-> [!IMPORTANT]
-> You must never report security related issues, vulnerabilities or bugs
-> including sensitive information to the issue tracker, or elsewhere in public.
-> Sensitive bugs must be sent by email to <se-security@grady.link> or DMed on
-> Discord to either Grady Link or NateXS.
-
 We use GitHub issues to track bugs and errors. If you run into an issue with the
 project:
 

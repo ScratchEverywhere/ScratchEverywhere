@@ -1,0 +1,233 @@
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/CMakeLists.txt /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/CMakeLists.txt
+--- a/CMakeLists.txt	2024-10-14 06:30:02.914891500 -0400
++++ b/CMakeLists.txt	2026-10-16 20:43:15.739135182 -0400
+@@ -62,7 +62,7 @@
+ # Set the project root directory.
+ set(MBEDTLS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+ 
+-option(ENABLE_PROGRAMS "Build Mbed TLS programs." ON)
++option(ENABLE_PROGRAMS "Build Mbed TLS programs." OFF)
+ 
+ option(UNSAFE_BUILD "Allow unsafe builds. These builds ARE NOT SECURE." OFF)
+ option(MBEDTLS_FATAL_WARNINGS "Compiler warnings treated as errors" ON)
+@@ -78,7 +78,7 @@
+ option(DISABLE_PACKAGE_CONFIG_AND_INSTALL "Disable package configuration, target export and installation" ${MBEDTLS_AS_SUBPROJECT})
+ 
+ if (CMAKE_C_SIMULATE_ID)
+-    set(COMPILER_ID ${CMAKE_C_SIMULATE_ID})
++    set(COMPILER_ID ${CMAKE_C_COMPILER_ID})
+ else()
+     set(COMPILER_ID ${CMAKE_C_COMPILER_ID})
+ endif(CMAKE_C_SIMULATE_ID)
+@@ -92,7 +92,7 @@
+ if(CMAKE_COMPILER_IS_MSVC)
+     option(ENABLE_TESTING "Build Mbed TLS tests." OFF)
+ else()
+-    option(ENABLE_TESTING "Build Mbed TLS tests." ON)
++    option(ENABLE_TESTING "Build Mbed TLS tests." OFF)
+ endif()
+ 
+ # Warning string - created as a list for compatibility with CMake 2.8
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/include/mbedtls/mbedtls_config.h /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/include/mbedtls/mbedtls_config.h
+--- a/include/mbedtls/mbedtls_config.h	2024-10-11 12:27:06.582069600 -0400
++++ b/include/mbedtls/mbedtls_config.h	2026-10-16 20:43:15.739135182 -0400
+@@ -2267,7 +2267,9 @@
+  *
+  * This modules adds support for the AES-NI instructions on x86.
+  */
++#if !defined(__XBOX__) && !defined(NXDK)
+ #define MBEDTLS_AESNI_C
++#endif
+ 
+ /**
+  * \def MBEDTLS_AESCE_C
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/library/CMakeLists.txt /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/library/CMakeLists.txt
+--- a/library/CMakeLists.txt	2024-10-14 06:29:58.970881000 -0400
++++ b/library/CMakeLists.txt	2026-10-16 20:43:15.739135182 -0400
+@@ -216,9 +216,9 @@
+     endif()
+ endif()
+ 
+-if(WIN32)
++if(WIN32 AND NOT XBOX)
+     set(libs ${libs} ws2_32 bcrypt)
+-endif(WIN32)
++endif(WIN32 AND NOT XBOX)
+ 
+ if(CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+     set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/library/net_sockets.c /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/library/net_sockets.c
+--- a/library/net_sockets.c	2024-10-11 11:53:06.233864500 -0400
++++ b/library/net_sockets.c	2026-10-16 20:43:15.739135182 -0400
+@@ -33,7 +33,7 @@
+ #include <string.h>
+ 
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ #define IS_EINTR(ret) ((ret) == WSAEINTR)
+ 
+@@ -75,6 +75,12 @@
+ #define IS_EINTR(ret) ((ret) == EINTR)
+ #define SOCKET int
+ 
++#if defined(__XBOX__) || defined(NXDK)
++#define read(fd, buf, len)        lwip_read(fd, buf, len)
++#define write(fd, buf, len)       lwip_write(fd, buf, len)
++#define close(fd)                 lwip_close(fd)
++#endif
++
+ #endif /* ( _WIN32 || _WIN32_WCE ) && !EFIX64 && !EFI32 */
+ 
+ /* Some MS functions want int and MSVC warns if we pass size_t,
+@@ -99,7 +105,7 @@
+ static int net_prepare(void)
+ {
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     WSADATA wsaData;
+ 
+     if (wsa_init_done == 0) {
+@@ -110,7 +116,7 @@
+         wsa_init_done = 1;
+     }
+ #else
+-#if !defined(EFIX64) && !defined(EFI32)
++#if !defined(EFIX64) && !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     signal(SIGPIPE, SIG_IGN);
+ #endif
+ #endif
+@@ -129,7 +135,7 @@
+     }
+ 
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     (void) for_select;
+ #else
+     /* A limitation of select() is that it only works with file descriptors
+@@ -269,7 +275,7 @@
+ }
+ 
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+ /*
+  * Check if the requested operation would be blocking on a non-blocking socket
+  * and thus 'failed' with a negative return value.
+@@ -351,7 +357,7 @@
+         ret = (int) recvfrom(bind_ctx->fd, buf, sizeof(buf), MSG_PEEK,
+                              (struct sockaddr *) &client_addr, &n);
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+         if (ret == SOCKET_ERROR &&
+             WSAGetLastError() == WSAEMSGSIZE) {
+             /* We know buf is too small, thanks, just peeking here */
+@@ -427,7 +433,7 @@
+ int mbedtls_net_set_block(mbedtls_net_context *ctx)
+ {
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     u_long n = 0;
+     return ioctlsocket(ctx->fd, FIONBIO, &n);
+ #else
+@@ -438,7 +444,7 @@
+ int mbedtls_net_set_nonblock(mbedtls_net_context *ctx)
+ {
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-    !defined(EFI32)
++    !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     u_long n = 1;
+     return ioctlsocket(ctx->fd, FIONBIO, &n);
+ #else
+@@ -519,7 +525,7 @@
+  */
+ void mbedtls_net_usleep(unsigned long usec)
+ {
+-#if defined(_WIN32)
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+     Sleep((usec + 999) / 1000);
+ #else
+     struct timeval tv;
+@@ -555,7 +561,7 @@
+         }
+ 
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-        !defined(EFI32)
++        !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+         if (WSAGetLastError() == WSAECONNRESET) {
+             return MBEDTLS_ERR_NET_CONN_RESET;
+         }
+@@ -606,7 +612,7 @@
+ 
+     if (ret < 0) {
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-        !defined(EFI32)
++        !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+         if (WSAGetLastError() == WSAEINTR) {
+             return MBEDTLS_ERR_SSL_WANT_READ;
+         }
+@@ -644,7 +650,7 @@
+         }
+ 
+ #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
+-        !defined(EFI32)
++        !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+         if (WSAGetLastError() == WSAECONNRESET) {
+             return MBEDTLS_ERR_NET_CONN_RESET;
+         }
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/library/psa_its_file.c /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/library/psa_its_file.c
+--- a/library/psa_its_file.c	2024-10-11 12:27:06.614069700 -0400
++++ b/library/psa_its_file.c	2026-10-16 20:43:15.739135182 -0400
+@@ -12,7 +12,7 @@
+ 
+ #include "mbedtls/platform.h"
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ #include <windows.h>
+ #endif
+ 
+@@ -46,7 +46,7 @@
+ /* As rename fails on Windows if the new filepath already exists,
+  * use MoveFileExA with the MOVEFILE_REPLACE_EXISTING flag instead.
+  * Returns 0 on success, nonzero on failure. */
+-#if defined(_WIN32)
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ #define rename_replace_existing(oldpath, newpath) \
+     (!MoveFileExA(oldpath, newpath, MOVEFILE_REPLACE_EXISTING))
+ #else
+diff -Naur /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_clean/mbedtls-3.6.2/library/x509_crt.c /home/mikedev/.gemini/antigravity-ide/brain/2fc245c7-68a5-4f6f-9ddb-29004176b470/scratch/mbedtls_mod/mbedtls-3.6.2/library/x509_crt.c
+--- a/library/x509_crt.c	2024-10-11 12:27:06.622069600 -0400
++++ b/library/x509_crt.c	2026-10-16 20:43:15.739135182 -0400
+@@ -47,7 +47,7 @@
+ #endif
+ 
+ #if defined(MBEDTLS_HAVE_TIME)
+-#if defined(_WIN32) && !defined(EFIX64) && !defined(EFI32)
++#if defined(_WIN32) && !defined(EFIX64) && !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+ #ifndef WIN32_LEAN_AND_MEAN
+ #define WIN32_LEAN_AND_MEAN
+ #endif
+@@ -59,7 +59,7 @@
+ 
+ #if defined(MBEDTLS_FS_IO)
+ #include <stdio.h>
+-#if !defined(_WIN32) || defined(EFIX64) || defined(EFI32)
++#if !defined(_WIN32) || defined(EFIX64) || defined(EFI32) || defined(__XBOX__) || defined(NXDK)
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #if defined(__MBED__)
+@@ -1525,7 +1525,7 @@
+ int mbedtls_x509_crt_parse_path(mbedtls_x509_crt *chain, const char *path)
+ {
+     int ret = 0;
+-#if defined(_WIN32) && !defined(EFIX64) && !defined(EFI32)
++#if defined(_WIN32) && !defined(EFIX64) && !defined(EFI32) && !defined(__XBOX__) && !defined(NXDK)
+     int w_ret;
+     WCHAR szDir[MAX_PATH];
+     char filename[MAX_PATH];

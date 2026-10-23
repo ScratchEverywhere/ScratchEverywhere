@@ -1,0 +1,118 @@
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(GLFW_EXPOSE_NATIVE_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
+#define GLFW_EXPOSE_NATIVE_COCOA
+#endif
+#include "window_glfw.hpp"
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <GLFW/glfw3native.h>
+#include <libdlgmod/libdlgmod.h>
+#endif
+#include "input_glfw.hpp"
+#include <algorithm>
+#include <input.hpp>
+#include <iostream>
+#include <log.hpp>
+#include <math.hpp>
+#include <renderer.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
+#include <text.hpp>
+
+static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+    Render::getGlobalRenderer()->window->resize(width, height);
+    glViewport(0, 0, width, height);
+}
+
+static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    static double accumulated = 0.0;
+    accumulated += yoffset;
+    const int ticks = static_cast<int>(accumulated);
+    if (ticks != 0) {
+        Input::mouseScrollDelta += ticks;
+        accumulated -= ticks;
+    }
+}
+
+WindowGLFW::WindowGLFW(int w, int h, const std::string &title) {
+    Input::setGlobalInputDevice(new InputDevice_GLFW);
+    if (!glfwInit()) {
+        error = "Failed to initialize GLFW";
+        return;
+    }
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+    glfwWindowHint(GLFW_ALPHA_BITS, 8);
+    glfwWindowHint(GLFW_SAMPLES, WindowSE::msaaSamples);
+
+    if (Render::currentRenderer == Renderers::OpenGL) {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    } else if (Render::currentRenderer == Renderers::OpenGLCore) {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    }
+
+    window = glfwCreateWindow(w, h, title.c_str(), NULL, NULL);
+    if (!window) {
+        glfwTerminate();
+        error = "Failed to create GLFW window";
+        return;
+    }
+
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
+    glfwGetFramebufferSize(window, &width, &height);
+
+#if defined(_WIN32) || defined(_WIN64)
+    widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
+#elif defined(__APPLE__)
+    widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
+#endif
+}
+
+void WindowGLFW::cleanup() {
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}
+
+bool WindowGLFW::shouldClose() {
+    return glfwWindowShouldClose(window);
+}
+
+void WindowGLFW::pollEvents() {
+    glfwPollEvents();
+}
+
+void WindowGLFW::swapBuffers() {
+    glfwSwapBuffers(window);
+}
+
+void WindowGLFW::resize(int width, int height) {
+    this->width = width;
+    this->height = height;
+
+    Render::setRenderScale();
+    Render::resizeSVGs();
+}
+
+int WindowGLFW::getWidth() const {
+    return width;
+}
+
+int WindowGLFW::getHeight() const {
+    return height;
+}
+
+float WindowGLFW::getPixelDensity() const {
+    return 1.0f;
+}
+
+void *WindowGLFW::getHandle() {
+    return window;
+}

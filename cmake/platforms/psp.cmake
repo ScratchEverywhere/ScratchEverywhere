@@ -5,9 +5,9 @@ set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
 set(SE_CACHING_DEFAULT OFF)
-set(SE_CMAKERC_DEFAULT ON)
+set(SE_BUNDLE_DEFAULT ON)
 
-set(SE_ALLOW_CMAKERC ON)
+set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
@@ -24,9 +24,9 @@ macro(package_platform)
     create_pbp_file(
         TARGET scratch-everywhere
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
-        BACKGROUND_PATH NULL
-        PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
+        BACKGROUND_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
+        PREVIEW_PATH NULL
+        TITLE ${SE_APP_NAME}
 		VERSION "${SE_APP_VERSION}"
     )
 	# package the EBOOT.pbp

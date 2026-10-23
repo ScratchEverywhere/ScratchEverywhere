@@ -24,6 +24,9 @@
   "ui.settings.cache": "Limpiar caché",
   "ui.settings.language": "Idioma",
   "ui.settings.dectalk": "Usar DECtalk",
+  "ui.settings.renderer": "Renderizador",
+  "ui.settings.windowing": "Backend de ventana",
+  "ui.settings.audioEngine": "Backend de audio",
   "ui.unpack.wait": "Espere un momento",
   "ui.unpack.warning": "No apague su dispositivo",
   "ui.pause.exit": "Salir del proyecto",
@@ -37,8 +40,10 @@
   "ui.loading.extensions": "Cargando extensiones",
   "ui.loading.finish": "¡Terminado!",
   "ui.popup.extensions": "¡Cuidado! Este proyecto tiene extensiones nativas, estas tienen acesso completo a tu dispositivo",
-  "version.prefix.beta": "Build Beta",
+  "version.prefix.beta": "Versión Beta",
+  "version.prefix.alpha": "Versión Alpha",
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Candidato de Lanzamiento",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "version.prefix.dev": "Versión de desarrollo"
 }

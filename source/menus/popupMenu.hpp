@@ -2,12 +2,13 @@
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
 #include "text.hpp"
+#include <se_export.hpp>
 
 enum class PopupType : uint8_t {
     ACCEPT_OR_CANCEL,
 };
 
-class PopupMenu : public Menu {
+class SE_EXPORT PopupMenu : public Menu {
   private:
     PopupType type;
     std::string text;

@@ -5,8 +5,8 @@
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -15,15 +15,19 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <iostream>
 #include <log.hpp>
 #include <math.h>
 #include <memory>
 #include <os.hpp>
-#include <render.hpp>
+#include <parser.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #ifdef ENABLE_MENU
@@ -62,7 +66,7 @@ BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
 
-float Scratch::tempo = 60;
+double Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -97,22 +101,28 @@ bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+static std::set<std::string> failedCostumeImages;
 
 bool Scratch::initializeRuntime() {
     if (!OS::init()) {
         return false;
     }
+#ifndef __XBOX__
+    // Logging is already cleared on boot in OS::init on the Xbox.
     Log::deleteLogFile();
+#endif
     TranslationManager::loadLanguage();
-    if (!Render::Init()) {
+#ifndef LIBRETRO
+    if (!Render::init()) {
         return false;
     }
+#endif
 #ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
     if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
+        Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
 #endif
@@ -137,10 +147,11 @@ void Scratch::initializeScratchProject() {
 
     Scratch::tempo = 60;
 
-#ifdef RENDERER_CITRO2D
-    // Render first before running any blocks, otherwise 3DS rendering may get weird
-    Render::renderSprites();
-#endif
+    if (Render::currentRenderer == Renderers::Citro2D) {
+        // Render first before running any blocks, otherwise 3DS rendering may get weird
+        Render::renderSprites();
+    }
+
     Render::setRenderScale();
 
     Scratch::greenFlagClicked();
@@ -169,7 +180,19 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
     }
 #endif
 
-    const bool checkFPS = Render::checkFramerate();
+    bool forcedStep = false;
+#ifdef ENABLE_INSPECTOR
+    if (Inspector::paused) {
+        Inspector::processCommands();
+        if (Inspector::stepsRemaining <= 0) {
+            return std::make_pair(true, false);
+        }
+        Inspector::stepsRemaining--;
+        forcedStep = true;
+    }
+#endif
+
+    const bool checkFPS = forcedStep || Render::checkFramerate();
     if (Scratch::turbo) forceRedraw = false;
 
     if (!forceRedraw || checkFPS) {
@@ -185,12 +208,31 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef __XBOX__
+        // Bypasses the NXDK's broken std::to_string(double) implementation
+        auto formatMs = [](double timeMs) -> std::string {
+            int ms = static_cast<int>(timeMs);
+            int us = static_cast<int>((timeMs - ms) * 1000.0);
+            std::string usStr = std::to_string(std::abs(us));
+            if (usStr.length() == 1) usStr = "00" + usStr;
+            else if (usStr.length() == 2) usStr = "0" + usStr;
+            return std::to_string(ms) + "." + usStr + " ms";
+        };
+#endif
+
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 #endif
 
-        if (checkFPS) Input::getInput();
+        if (checkFPS) {
+            Input::getInput();
+            BlockExecutor::executeWhenGreaterThanHats();
+        }
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_INSPECTOR
+        if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
+#endif
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::POST_UPDATE);
@@ -200,7 +242,11 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Inspector::processCommands();
 #endif
 
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(formatMs(scriptTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
+#endif
 
         Timer renderTimer(false);
         if (debugVars) renderTimer.start();
@@ -250,7 +296,12 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             shouldStop = false;
             return std::make_pair(false, true);
         }
+
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(formatMs(renderTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
+#endif
     }
 
     return std::make_pair(true, false);
@@ -296,26 +347,32 @@ void Scratch::cleanupScratchProject() {
     extensions::cleanup();
 #endif
 
-    Scratch::cleanupSprites();
-    costumeImages.clear();
-    Mixer::cleanupAudio();
-    Render::monitorTexts.clear();
-    Render::listMonitors.clear();
-
-    TextObject::cleanupText();
-    Render::monitors.clear();
-    Render::penClear();
+    Input::draggingSprite = nullptr;
 
     if (Render::getSpeechManager())
         Render::destroySpeechManager();
 
-    // Clean up ZIP archive if it was initialized
-    if (projectType != ProjectType::UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
-        Unzip::zipBuffer.clear();
-        Unzip::zipBuffer.shrink_to_fit();
-        memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
-    }
+    Scratch::cleanupSprites();
+    costumeImages.clear();
+    failedCostumeImages.clear();
+    Mixer::cleanupAudio();
+    Render::monitorTexts.clear();
+    Render::listMonitors.clear();
+    Render::monitors.clear();
+
+    TextObject::cleanupText();
+    Render::penClear();
+    Render::cleanupPen();
+
+#ifdef ENABLE_CLOUDVARS
+    Parser::cleanupMist();
+#endif
+
+    // Clean up ZIP archive and loader unconditionally
+    Unzip::zipArchive.reset();
+    Unzip::zipBuffer.clear();
+    Unzip::zipBuffer.shrink_to_fit();
+    Unzip::loader.reset();
 
     DownloadManager::deinit();
 
@@ -337,6 +394,7 @@ void Scratch::cleanupScratchProject() {
             Pools::states.pop_back();
             if (deletedStates.insert(state).second) {
                 state->clear();
+                if (state->myBlockThread != nullptr) delete state->myBlockThread;
                 delete state;
             }
         }
@@ -351,10 +409,17 @@ void Scratch::cleanupScratchProject() {
         }
     }
 
+    Pools::states.clear();
+    Pools::states.shrink_to_fit();
+    Pools::threads.clear();
+    Pools::threads.shrink_to_fit();
+
     for (Block *block : blocks) {
         delete block;
     }
     blocks.clear();
+    blocks.shrink_to_fit();
+    sprites.shrink_to_fit();
     stageSprite = nullptr;
     answer.clear();
     customUsername.clear();
@@ -372,84 +437,304 @@ void Scratch::cleanupScratchProject() {
     shouldStop = false;
     forceRedraw = false;
     useCustomUsername = false;
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+    sb3InRam = false;
+#else
     sb3InRam = true;
+#endif
     warpTimer = true;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::UnpackedInSD = false;
+    Unzip::filePath.clear();
 
     Log::log("Cleaned up Scratch project.");
 }
 
-bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
-    if (block->inputs.find(inputName) == block->inputs.end()) {
-        if (block->fields.find(inputName) != block->fields.end()) {
-            outValue = Value(block->fields[inputName].value);
-            return true;
+static inline void materializeInputCache(ParsedInput &input) {
+    switch (input.cacheKind) {
+    case ParsedInput::CacheKind::Double:
+        input.value = Value(input.cachedDouble);
+        break;
+    case ParsedInput::CacheKind::Bool:
+        input.value = Value(input.cachedBool);
+        break;
+    case ParsedInput::CacheKind::Value:
+        break;
+    }
+    input.cacheKind = ParsedInput::CacheKind::Value;
+}
+
+static inline double sanitizeNumber(double d) {
+    return std::isnan(d) ? 0.0 : d;
+}
+
+bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
+    const auto &input = block->inputMap.find(inputName);
+
+    if (input == block->inputMap.end()) {
+        const auto &field = block->fieldMap.find(inputName);
+
+        if (field != block->fieldMap.end()) {
+            outValue = Value(field->second->value);
         }
         return true;
     }
-    ParsedInput &input = block->inputs.at(inputName);
-    switch (input.inputType) {
+
+    if (block->recalculateInputs) {
+        input->second->calculated = false;
+    }
+
+    switch (input->second->inputType) {
     case ParsedInput::InputType::VALUE:
-        outValue = input.value;
+        outValue = input->second->value;
         return true;
     case ParsedInput::InputType::VARIABLE:
-        if (input.calculated) {
-            outValue = input.value;
+        if (input->second->calculated) {
+            outValue = input->second->value;
             return true;
         }
 
-        input.calculated = true;
+        input->second->calculated = true;
 #ifdef ENABLE_CACHING
-        if (input.variable != nullptr) input.value = input.variable->value;
-        else {
-            if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
-            else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        if (input->second->variable != nullptr) {
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variable);
+        } else if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
         }
 #else
-        if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
-        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+        if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
+        }
 #endif
-        outValue = input.value;
+        outValue = input->second->value;
         return true;
     case ParsedInput::InputType::BLOCK: {
-        if (input.calculated) {
-            outValue = input.value;
-            return true;
-        };
-        if (input.block == nullptr) {
+        if (input->second->calculated) {
+            materializeInputCache(*input->second);
+            outValue = input->second->value;
             return true;
         }
-        Block *targetBlock = input.block;
-        input.value = Value();
+        if (input->second->block == nullptr) {
+            return true;
+        }
 
-        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input.value));
+        Block *targetBlock = input->second->block;
+
+        if (block->recalculateInputs) targetBlock->recalculateInputs = true;
+
+        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
+        input->second->cacheKind = ParsedInput::CacheKind::Value;
+
+        targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
-            input.calculated = true;
-            outValue = input.value;
+            input->second->calculated = true;
+            outValue = input->second->value;
             return true;
         }
         return false;
+    }
+    }
+
+    return true;
+}
+
+template <typename T>
+bool Scratch::getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
+    const auto &input = block->inputMap.find(inputName);
+
+    if (input == block->inputMap.end()) {
+        const auto &field = block->fieldMap.find(inputName);
+
+        if (field != block->fieldMap.end()) {
+            if constexpr (std::is_same_v<T, std::string>) {
+                outValue = field->second->value;
+            } else if constexpr (std::is_same_v<T, double>) {
+                outValue = Value(field->second->value).asDouble();
+            } else if constexpr (std::is_same_v<T, bool>) {
+                outValue = Value(field->second->value).asBoolean();
+            } else if constexpr (std::is_same_v<T, Color>) {
+                outValue = Value(field->second->value).asColor();
+            } else {
+                outValue = Value(field->second->value);
+            }
+        }
+        return true;
+    }
+
+    ParsedInput &in = *input->second;
+
+    if (block->recalculateInputs) {
+        in.calculated = false;
+    }
+
+    const auto readValue = [&outValue, &in]() {
+        if constexpr (std::is_same_v<T, Value>) {
+            outValue = in.value;
+        } else {
+            outValue = in.value.get<T>();
+        }
+    };
+
+    switch (in.inputType) {
+    case ParsedInput::InputType::VALUE:
+        readValue();
+        return true;
+    case ParsedInput::InputType::VARIABLE:
+#ifdef ENABLE_CACHING
+        if (in.variable != nullptr) {
+            outValue = BlockExecutor::getVariableValueAs<T>(in.variable);
+            return true;
+        }
+#endif
+        if (!in.calculated) {
+            in.calculated = true;
+            if (in.list) {
+                in.value = BlockExecutor::getListValue(in.variableId, sprite);
+            } else {
+                outValue = BlockExecutor::getVariableValueAs<T>(in.variableId, sprite);
+                return true;
+            }
+        }
+        readValue();
+        return true;
+    case ParsedInput::InputType::BLOCK: {
+        if (in.calculated) {
+            if (in.cacheKind == ParsedInput::CacheKind::Double) {
+                if constexpr (std::is_same_v<T, double>) {
+                    outValue = sanitizeNumber(in.cachedDouble);
+                    return true;
+                }
+            } else if (in.cacheKind == ParsedInput::CacheKind::Bool) {
+                if constexpr (std::is_same_v<T, bool>) {
+                    outValue = in.cachedBool;
+                    return true;
+                }
+            }
+            materializeInputCache(in);
+            readValue();
+            return true;
+        }
+        if (in.block == nullptr) {
+            return true;
+        }
+
+        Block *targetBlock = in.block;
+
+        if (block->recalculateInputs) targetBlock->recalculateInputs = true;
+
+        BlockResult res;
+        bool done = false;
+        switch (targetBlock->blockFunction.type) {
+        case Type::Value: {
+            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &in.value);
+            in.cacheKind = ParsedInput::CacheKind::Value;
+            break;
+        }
+        case Type::Number: {
+            double d = 0.0;
+            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &d);
+            if (res != BlockResult::REPEAT) {
+                in.cachedDouble = d;
+                in.cacheKind = ParsedInput::CacheKind::Double;
+                if constexpr (std::is_same_v<T, double>) {
+                    outValue = sanitizeNumber(d);
+                    done = true;
+                } else {
+                    materializeInputCache(in);
+                }
+            }
+            break;
+        }
+        case Type::Boolean: {
+            bool b = false;
+            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &b);
+            if (res != BlockResult::REPEAT) {
+                in.cachedBool = b;
+                in.cacheKind = ParsedInput::CacheKind::Bool;
+                if constexpr (std::is_same_v<T, bool>) {
+                    outValue = b;
+                    done = true;
+                } else {
+                    materializeInputCache(in);
+                }
+            }
+            break;
+        }
+        case Type::String: {
+            std::string str;
+            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &str);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, std::string>) {
+                    outValue = str;
+                    done = true;
+                }
+                in.value = Value(std::move(str));
+                in.cacheKind = ParsedInput::CacheKind::Value;
+            }
+            break;
+        }
+        case Type::Color: {
+            Color color{};
+            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &color);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, Color>) {
+                    outValue = color;
+                    done = true;
+                }
+                in.value = Value(color);
+                in.cacheKind = ParsedInput::CacheKind::Value;
+            }
+            break;
+        }
+        }
+
+        targetBlock->recalculateInputs = false;
+        if (res == BlockResult::REPEAT) return false;
+
+        in.calculated = true;
+        if (!done) readValue();
         return true;
     }
     }
 
     return true;
-};
+}
 
-void Scratch::resetInput(Block *block, std::string inputName) {
+#define GET_INPUT_VALUE_AS_TEMPLATE(T) \
+    template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+
+GET_INPUT_VALUE_AS_TEMPLATE(Value);
+GET_INPUT_VALUE_AS_TEMPLATE(double);
+GET_INPUT_VALUE_AS_TEMPLATE(std::string);
+GET_INPUT_VALUE_AS_TEMPLATE(bool);
+GET_INPUT_VALUE_AS_TEMPLATE(Color);
+
+ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
+    const auto &input = block->inputMap.find(inputName);
+    if (input != block->inputMap.end()) return input->second;
+
+    return nullptr;
+}
+
+void Scratch::resetInput(Block *block, const std::string &inputName) {
     if (inputName.empty()) {
-        for (auto &[name, input] : block->inputs) {
+        /*for (auto &[name, input] : block->inputs) {
             input.calculated = false;
             if (input.inputType == ParsedInput::InputType::BLOCK && input.block != nullptr) {
                 Scratch::resetInput(input.block, "");
             }
-        }
+        }*/
+        block->recalculateInputs = true;
         return;
     }
-    if (block->inputs.find(inputName) == block->inputs.end()) return;
-    ParsedInput &input = block->inputs.at(inputName);
-    input.calculated = false;
+
+    const auto &input = block->inputMap.find(inputName);
+    if (input != block->inputMap.end()) input->second->calculated = false;
 }
 
 void Scratch::greenFlagClicked() {
@@ -457,6 +742,7 @@ void Scratch::greenFlagClicked() {
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
+    BlockExecutor::resetWhenGreaterThanHats();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 
@@ -505,13 +791,11 @@ void Scratch::stopClicked() {
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-#ifdef RENDERER_CITRO2D
-    if (Render::renderMode == Render::BOTH_SCREENS) {
+    if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
         // 3DS res with both screens combined
         windowWidth = 400;
         windowHeight = 480;
     }
-#endif
 
     float screenAspect = static_cast<float>(windowWidth) / windowHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -545,11 +829,9 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
         float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
         scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
         scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
-#ifdef RENDERER_CITRO2D
-        if (Render::renderMode == Render::BOTH_SCREENS) {
+        if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
             scratchY -= 120;
         }
-#endif
     }
 
     return std::make_pair(scratchX, scratchY);
@@ -568,7 +850,7 @@ void Scratch::cleanupSprites() {
     Scratch::sprites.clear();
 }
 
-bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
+bool Scratch::isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite, const std::string &targetName) {
     if (collisionType == "mouse") {
         if (accurateCollision) return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
         else return collision::pointInSpriteFast(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
@@ -663,6 +945,12 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
+#ifdef __XBOX__
+    if (costumeImages.size() >= (sprites.size() + 2)) {
+        freeUnusedCostumeImages();
+    }
+#endif
+
     loadCurrentCostumeImage(sprite);
 
     if (sprite->visible) Scratch::forceRedraw = true;
@@ -682,61 +970,161 @@ void Scratch::sortSprites() {
 }
 
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
-    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    Costume &costume = sprite->costumes[sprite->currentCostume];
+    const std::string &costumeName = costume.fullName;
+
+    const int screenWidth = Render::getWidth();
+    const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
     auto it = costumeImages.find(costumeName);
     if (it != costumeImages.end()) {
+        float cachedScale = (sprite->size / 100);
+        cachedScale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
+
+        const float oldScale = it->second->getScale();
+
+        auto potentialError = it->second->resizeSVG(cachedScale);
+        if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
+
         sprite->spriteWidth = it->second->getWidth();
         sprite->spriteHeight = it->second->getHeight();
+
+        if (it->second->getScale() != oldScale) {
+            costume.collisionMask = nullptr;
+        }
+        return;
+    }
+
+    if (failedCostumeImages.count(costumeName) != 0) {
+        const std::string missingName = "SE__Missingno";
+        const auto missingIt = costumeImages.find(missingName);
+        if (missingIt != costumeImages.end()) {
+            costumeImages[costumeName] = missingIt->second;
+            sprite->spriteWidth = missingIt->second->getWidth();
+            sprite->spriteHeight = missingIt->second->getHeight();
+        }
         return;
     }
 
     std::shared_ptr<Image> image;
 
-    auto onErr = [&](std::string error) {
-        static std::set<std::string> failedImages;
-        if (failedImages.count(costumeName) == 0) {
+#ifdef __XBOX__
+    if (costumeImages.size() >= (sprites.size() + 2)) {
+        freeUnusedCostumeImages();
+    }
+#endif
+
+    auto onErr = [&](std::string error) -> bool {
+        const std::string missingName = "SE__Missingno";
+        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
+        if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
-            freeUnusedCostumeImages();
-            failedImages.insert(costumeName);
+            if (!transient) failedCostumeImages.insert(costumeName);
         }
+
+        const auto missingIt = costumeImages.find(missingName);
+        if (missingIt != costumeImages.end()) {
+            image = missingIt->second;
+            return true;
+        }
+
+        freeUnusedCostumeImages();
+        auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (img.has_value()) {
+            costumeImages[missingName] = img.value();
+            image = img.value();
+            return true;
+        } else {
+            Log::logWarning("Failed to load missing image texture: " + img.error());
+        }
+
         sprite->spriteWidth = 0;
         sprite->spriteHeight = 0;
+        return false;
     };
 
     float scale = (sprite->size / 100);
-    if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-    const bool shouldDownscale = bitmapHalfQuality;
+    scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
+    const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
+#ifdef __XBOX__
         if (!imageOrErr.has_value()) {
-            onErr(imageOrErr.error());
-            return;
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
         }
-        image = imageOrErr.value();
+#endif
+        if (!imageOrErr.has_value()) {
+            if (!onErr(imageOrErr.error()))
+                return;
+        } else
+            image = imageOrErr.value();
     } else {
-        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
+#ifdef __XBOX__
+        auto imageOrErr = createImageFromZip(costumeName, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
-            onErr(imageOrErr.error());
-            return;
+            freeUnusedCostumeImages();
+            imageOrErr = createImageFromZip(costumeName, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
         }
-        image = imageOrErr.value();
+#else
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
+#endif
+        if (!imageOrErr.has_value()) {
+            if (!onErr(imageOrErr.error()))
+                return;
+        } else
+            image = imageOrErr.value();
     }
 
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
+
+        // if rotation center wasn't present in project.json, set a default one
+        if (costume.rotationCenterX == -6767.6767)
+            costume.rotationCenterX = sprite->spriteWidth / 2;
+        if (costume.rotationCenterY == -6767.6767)
+            costume.rotationCenterY = sprite->spriteHeight / 2;
+
         costumeImages[costumeName] = image;
+#ifdef __XBOX__
+        if (sprite->isStage) {
+            image->freePixels();
+        }
+#endif
     }
 }
 
 void Scratch::flushCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size() + 1);
+    activeCostumes.insert("SE__Missingno");
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
+        if (id == "SE__Missingno" || activeCostumes.count(id)) continue;
         img->freeTimer--;
         if (img->freeTimer <= 0) toDelete.push_back(id);
     }
+
+#ifdef __XBOX__
+    if (!toDelete.empty()) {
+        std::unordered_set<std::string> deletingSet(toDelete.begin(), toDelete.end());
+        for (Sprite *sprite : sprites) {
+            for (auto &costume : sprite->costumes) {
+                if (deletingSet.count(costume.fullName)) {
+                    costume.collisionMask = nullptr;
+                }
+            }
+        }
+    }
+#endif
 
     for (const std::string &id : toDelete) {
         costumeImages.erase(id);
@@ -744,9 +1132,31 @@ void Scratch::flushCostumeImages() {
 }
 
 void Scratch::freeUnusedCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size() + 1);
+    activeCostumes.insert("SE__Missingno");
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
+#ifdef __XBOX__
+    for (Sprite *sprite : sprites) {
+        for (auto &costume : sprite->costumes) {
+            if (!activeCostumes.count(costume.fullName)) {
+                costume.collisionMask = nullptr;
+            }
+        }
+    }
+#endif
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
-        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+        if (id == "SE__Missingno") continue;
+        if (!activeCostumes.count(id)) {
+            toDelete.push_back(id);
+        }
     }
 
     for (const std::string &id : toDelete) {
@@ -754,62 +1164,70 @@ void Scratch::freeUnusedCostumeImages() {
     }
 }
 
-std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.fields.find(fieldName);
-    if (fieldFind == block.fields.end()) {
-        return "";
-    }
-    return fieldFind->second.value;
+ParsedField *Scratch::getField(Block &block, const std::string &fieldName) {
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second;
+
+    return nullptr;
 }
 
-std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.fields.find(fieldName);
-    if (fieldFind == block.fields.end()) {
-        return "";
-    }
-    return fieldFind->second.id;
+std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second->value;
+
+    return "";
+}
+
+const std::string &Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    static const std::string empty;
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second->id;
+
+    return empty;
 }
 
 std::string Scratch::getListName(Block &block) {
-    auto fieldFind = block.fields.find("LIST");
-    if (fieldFind == block.fields.end()) {
-        return "";
-    }
-    return fieldFind->second.value;
+    const auto &field = block.fieldMap.find("LIST");
+    if (field != block.fieldMap.end()) return field->second->value;
+
+    return "";
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-    std::string listId = Scratch::getFieldId(block, "LIST");
-    Sprite *targetSprite = nullptr;
-    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
-    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
-    if (!targetSprite) {
-        for (const auto &[id, list] : stageSprite->lists) {
+    const std::string &listId = Scratch::getFieldId(block, "LIST");
+
+    List *targetList = nullptr;
+    if (sprite != nullptr) {
+        auto it = sprite->lists.find(listId);
+        if (it != sprite->lists.end()) targetList = &it->second;
+    }
+    {
+        auto it = stageSprite->lists.find(listId);
+        if (it != stageSprite->lists.end()) targetList = &it->second;
+    }
+    if (!targetList) {
+        for (auto &[id, list] : stageSprite->lists) {
             if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = stageSprite;
+                targetList = &list;
                 break;
             }
         }
-        if (sprite != nullptr) {
-            for (const auto &[id, list] : sprite->lists) {
+        if (!targetList && sprite != nullptr) {
+            for (auto &[id, list] : sprite->lists) {
                 if (list.name == getListName(block)) {
-                    listId = list.id;
-                    targetSprite = sprite;
+                    targetList = &list;
                     break;
                 }
             }
         }
     }
-    if (!targetSprite && sprite) {
-        List newList;
+    if (!targetList && sprite) {
+        List &newList = sprite->lists[listId];
         newList.id = listId;
         newList.name = getListName(block);
-        newList.items = {};
-        sprite->lists[listId] = newList;
-        targetSprite = sprite;
+        targetList = &newList;
     }
-    return &targetSprite->lists[listId].items;
+    return targetList ? &targetList->items : nullptr;
 }
 
 void Scratch::createDebugMonitor(const std::string &name, int x, int y) {

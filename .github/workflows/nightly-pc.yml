@@ -13,18 +13,30 @@ on:
       - cmake/audio/sdl1.cmake
       - cmake/renderers/opengl.cmake
       - cmake/windowing/glfw.cmake
+      - cmake/rendering/gdi.cmake
+      - cmake/rendering/d3d9.cmake
+      - cmake/windowing/win32.cmake
+      - cmake/audio/winmm.cmake
+      - cmake/audio/libpulse.cmake
       - cmake/deps/*
       - source/runtime/**
       - source/platforms/
       - source/platforms/pc/**
+      - source/renderers/gdi/**
+      - source/windowing/win32/**
+      - source/audio/winmm/**
       - source/renderers/sdl1/**
       - source/windowing/sdl1/**
       - source/audio/sdl1/**
       - source/renderers/sdl2/**
       - source/windowing/sdl2/**
+      - source/renderers/sdl3/**
+      - source/windowing/sdl3/**
       - source/audio/sdl2/**
       - source/audio/sdl3/**
       - source/renderers/opengl/**
+      - source/renderers/opengl_core/**
+      - source/renderers/d3d9/**
       - source/windowing/glfw/**
       - source/renderers/headless/**
       - source/audio/headless/**
@@ -32,6 +44,7 @@ on:
       - source/*
       - source/menus/**
       - gfx/menu/**
+      - gfx/linux/**
       - include/**
       - .github/workflows/nightly-pc.yml
       - docker/Dockerfile.linux
@@ -44,178 +57,150 @@ on:
 
 jobs:
   linux:
-    name: Linux x86_64 SDL2
+    name: Linux x86_64 ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Headless Library
+            artifact: Scratch Everywhere! Linux Headless Library Nightly
+            build-args: |
+              RENDERER=headless
+              WINDOWING=headless
+              AUDIO_ENGINE=headless
+              LIBRARY_MODE=TRUE
+          - name: All
+            artifact: Scratch Everywhere! Linux Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
+          - name: SDL2
+            artifact: Scratch Everywhere! Linux SDL2 Nightly
+            build-args: |
+              RENDERER=sdl2
+              WINDOWING=sdl2
+              AUDIO_ENGINE=sdl2
+          - name: SDL3
+            artifact: Scratch Everywhere! Linux SDL3 Nightly
+            build-args: |
+              RENDERER=sdl3
+              WINDOWING=sdl3
+              AUDIO_ENGINE=sdl3
+          - name: SDL1
+            artifact: Scratch Everywhere! Linux SDL1 Nightly
+            build-args: |
+              RENDERER=sdl1
+              WINDOWING=sdl1
+              AUDIO_ENGINE=sdl1
+          - name: Headless
+            artifact: Scratch Everywhere! Linux Headless Nightly
+            build-args: |
+              RENDERER=headless
+              WINDOWING=headless
+              AUDIO_ENGINE=headless
+          - name: OpenGL
+            artifact: Scratch Everywhere! Linux OpenGL Nightly
+            build-args: |
+              RENDERER=opengl
+              WINDOWING=glfw
+              AUDIO_ENGINE=libpulse
+          - name: OpenGL Core
+            artifact: Scratch Everywhere! Linux OpenGL Core Nightly
+            build-args: |
+              RENDERER=opengl_core
+              WINDOWING=glfw
+              AUDIO_ENGINE=libpulse
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.linux
           target: exporter
           outputs: type=local,dest=.
+          build-args: ${{ matrix.build-args }}
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: Scratch Everywhere! Linux Nightly
-          path: scratch-pc
-  linux-sdl3:
-    name: Linux x86_64 SDL3
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Export
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.linux
-          target: exporter
-          outputs: type=local,dest=.
-          build-args: |
-            RENDERER=sdl3
-            WINDOWING=sdl3
-            AUDIO_ENGINE=sdl3
-
-      - name: Upload Artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Scratch Everywhere! Linux SDL3 Nightly
-          path: scratch-pc
-  linux-sdl1:
-    name: Linux x86_64 SDL1
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Export
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.linux
-          target: exporter
-          outputs: type=local,dest=.
-          build-args: |
-            RENDERER=sdl1
-            WINDOWING=sdl1
-            AUDIO_ENGINE=sdl1
-
-      - name: Upload Artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Scratch Everywhere! Linux SDL1 Nightly
-          path: scratch-pc
-  linux-headless:
-    name: Linux x86_64 Headless
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Export
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.linux
-          target: exporter
-          outputs: type=local,dest=.
-          build-args: |
-            RENDERER=headless
-            WINDOWING=headless
-            AUDIO_ENGINE=headless
-
-      - name: Upload Artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Scratch Everywhere! Linux Headless Nightly
-          path: scratch-pc
-  linux-opengl:
-    name: Linux x86_64 OpenGL
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Export
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.linux
-          target: exporter
-          outputs: type=local,dest=.
-          build-args: |
-            RENDERER=opengl
-            WINDOWING=glfw
-            AUDIO_ENGINE=sdl3
-            EXT_ARGS=-DSDL_WAYLAND=OFF
-
-      - name: Upload Artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Scratch Everywhere! Linux OpenGL Nightly
+          name: ${{ matrix.artifact }}
           path: scratch-pc
   windows:
-    name: Windows x86_64
+    name: Windows x86_64 ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: All
+            artifact: Scratch Everywhere! Windows Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
+          - name: OpenGL Core
+            artifact: Scratch Everywhere! Windows OpenGL Core Nightly
+            build-args: |
+              RENDERER=opengl_core
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
+          - name: Direct3D 9
+            artifact: Scratch Everywhere! Windows OpenGL Direct3D 9
+            build-args: |
+              RENDERER=d3d9
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
+          - name: GDI
+            artifact: Scratch Everywhere! Windows GDI Nightly
+            build-args: |
+              RENDERER=gdi
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.windows
           target: exporter
           outputs: type=local,dest=.
+          build-args: ${{ matrix.build-args }}
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: Scratch Everywhere! Windows Nightly
-          path: scratch-pc.exe
+          name: ${{ matrix.artifact }}
+          path: |
+            scratch-pc.exe
+            scratch-pc-installer.exe
   macos-intel:
     name: macOS x86_64
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.macos
@@ -224,7 +209,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
           path: scratch-pc
@@ -233,13 +218,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.macos
@@ -249,7 +234,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
           path: scratch-pc
@@ -260,12 +245,12 @@ jobs:
     needs: [macos-arm, macos-intel]
     steps:
       - name: Download Intel Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
           path: intel-build
       - name: Download ARM Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
           path: arm-build
@@ -277,7 +262,7 @@ jobs:
         run: ./lipo -output scratch-pc -create arm-build/scratch-pc intel-build/scratch-pc
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS Universal Nightly
           path: scratch-pc

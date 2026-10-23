@@ -1,6 +1,6 @@
 --- a/lib/cf-socket.c
 +++ b/lib/cf-socket.c
-@@ -175,6 +175,7 @@ static void
+@@ -178,6 +178,7 @@
  tcpkeepalive(struct Curl_easy *data,
               curl_socket_t sockfd)
  {
@@ -8,7 +8,7 @@
    int optval = data->set.tcp_keepalive ? 1 : 0;
  
    /* only set IDLE and INTVL if setting KEEPALIVE is successful */
-@@ -298,6 +299,7 @@ tcpkeepalive(struct Curl_easy *data,
+@@ -301,6 +302,7 @@
  #endif
  #endif
    }
@@ -16,7 +16,7 @@
  }
  
  /**
-@@ -575,6 +577,10 @@ CURLcode Curl_parse_interface(const char *input,
+@@ -564,6 +566,10 @@
  static CURLcode bindlocal(struct Curl_easy *data, struct connectdata *conn,
                            curl_socket_t sockfd, int af, unsigned int scope)
  {
@@ -29,7 +29,7 @@
    curl_socklen_t sizeof_sa = 0; /* size of the data sock points to */
 --- a/lib/curl_addrinfo.c
 +++ b/lib/curl_addrinfo.c
-@@ -142,9 +142,11 @@ Curl_getaddrinfo_ex(const char *nodename,
+@@ -142,9 +142,11 @@
      if(!ai->ai_addr || !(ai->ai_addrlen > 0))
        continue;
  
@@ -41,9 +41,95 @@
  
      ca = malloc(sizeof(struct Curl_addrinfo) + ss_size + namelen);
      if(!ca) {
+--- a/lib/curl_setup.h
++++ b/lib/curl_setup.h
+@@ -495,7 +495,7 @@
+ #    endif
+ #    define LSEEK_ERROR                  (long)-1
+ #  endif
+-#  ifndef UNDER_CE
++#  if !defined(UNDER_CE) && !defined(__XBOX__) && !defined(NXDK)
+      int curlx_win32_stat(const char *path, struct_stat *buffer);
+      int curlx_win32_open(const char *filename, int oflag, ...);
+      FILE *curlx_win32_fopen(const char *filename, const char *mode);
+--- a/lib/curlx/multibyte.c
++++ b/lib/curlx/multibyte.c
+@@ -32,7 +32,7 @@
+ 
+ #include "../curl_setup.h"
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ #include "multibyte.h"
+ 
+--- a/lib/curlx/version_win32.c
++++ b/lib/curlx/version_win32.c
+@@ -24,7 +24,7 @@
+ 
+ #include "../curl_setup.h"
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ #include <curl/curl.h>
+ #include "version_win32.h"
+--- a/lib/curlx/version_win32.h
++++ b/lib/curlx/version_win32.h
+@@ -26,7 +26,7 @@
+ 
+ #include "../curl_setup.h"
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ /* Version condition */
+ typedef enum {
+@@ -51,6 +51,8 @@
+                                   const PlatformIdentifier platform,
+                                   const VersionCondition condition);
+ 
++#elif defined(__XBOX__) || defined(NXDK)
++#define curlx_verify_windows_version(...) false
+ #endif /* _WIN32 */
+ 
+ #endif /* HEADER_CURL_VERSION_WIN32_H */
+--- a/lib/curlx/winapi.c
++++ b/lib/curlx/winapi.c
+@@ -27,7 +27,7 @@
+  * curlx_winapi_strerror:
+  * Variant of Curl_strerror if the error code is definitely Windows API.
+  */
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ #include "winapi.h"
+ 
+ #ifdef BUILDING_LIBCURL
+--- a/lib/functypes.h
++++ b/lib/functypes.h
+@@ -38,7 +38,7 @@
+    2. For systems with config-*.h files, define them there.
+ */
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(USE_LWIPSOCK)
+ /* int recv(SOCKET, char *, int, int) */
+ #define RECV_TYPE_ARG1 SOCKET
+ #define RECV_TYPE_ARG2 char *
+--- a/lib/getenv.c
++++ b/lib/getenv.c
+@@ -32,7 +32,7 @@
+ static char *GetEnv(const char *variable)
+ {
+ #if defined(CURL_WINDOWS_UWP) || defined(UNDER_CE) || \
+-  defined(__ORBIS__) || defined(__PROSPERO__) /* PlayStation 4 and 5 */
++  defined(__ORBIS__) || defined(__PROSPERO__) || defined(__XBOX__) || defined(NXDK)
+   (void)variable;
+   return NULL;
+ #elif defined(_WIN32)
 --- a/lib/mime.c
 +++ b/lib/mime.c
-@@ -222,7 +222,7 @@ static FILE * vmsfopenread(const char *file, const char *mode)
+@@ -222,7 +222,7 @@
  #endif
  
  
@@ -52,3 +138,150 @@
  /*
    (Quote from The Open Group Base Specifications Issue 6 IEEE Std 1003.1, 2004
    Edition)
+--- a/lib/rename.c
++++ b/lib/rename.c
+@@ -40,7 +40,7 @@
+ /* return 0 on success, 1 on error */
+ int Curl_rename(const char *oldpath, const char *newpath)
+ {
+-#if defined(_WIN32) && !defined(UNDER_CE)
++#if defined(_WIN32) && !defined(UNDER_CE) && !defined(__XBOX__) && !defined(NXDK)
+   /* rename() on Windows does not overwrite, so we cannot use it here.
+      MoveFileEx() will overwrite and is usually atomic, however it fails
+      when there are open handles to the file. */
+--- a/lib/setup-win32.h
++++ b/lib/setup-win32.h
+@@ -41,7 +41,10 @@
+ /* ---------------------------------------------------------------- */
+ /*               BSD-style lwIP TCP/IP stack SPECIFIC               */
+ /* ---------------------------------------------------------------- */
+-#elif defined(USE_LWIPSOCK)
++#elif defined(USE_LWIPSOCK) || defined(__XBOX__) || defined(NXDK)
++#  ifndef USE_LWIPSOCK
++#    define USE_LWIPSOCK 1
++#  endif
+   /* Define to use BSD-style lwIP TCP/IP stack. */
+   /* #define USE_LWIPSOCK 1 */
+ #  undef HAVE_GETHOSTNAME
+@@ -57,6 +60,22 @@
+ #  define RECV_TYPE_ARG3 size_t
+ #  define SEND_TYPE_ARG1 int
+ #  define SEND_TYPE_ARG3 size_t
++#  define HAVE_RECV 1
++#  define RECV_TYPE_ARG2 void *
++#  define RECV_TYPE_ARG4 int
++#  define RECV_TYPE_RETV ssize_t
++#  define HAVE_SEND 1
++#  define SEND_QUAL_ARG2 const
++#  define SEND_TYPE_ARG2 void *
++#  define SEND_TYPE_ARG4 int
++#  define SEND_TYPE_RETV ssize_t
++#  define HAVE_STRUCT_TIMEVAL 1
++#  define HAVE_SELECT 1
++#  define HAVE_SOCKET 1
++#  define HAVE_IOCTLSOCKET 1
++#  define HAVE_IOCTLSOCKET_FIONBIO 1
++#  define HAVE_SYS_SELECT_H 1
++#  include <sys/time.h>
+ #elif defined(_WIN32)
+ #  define USE_WINSOCK 2
+ #endif
+@@ -77,8 +95,10 @@
+ #  if defined(_UNICODE) && !defined(UNICODE)
+ #    error "_UNICODE is defined but UNICODE is not defined"
+ #  endif
+-#  include <winsock2.h>
+-#  include <ws2tcpip.h>
++#  ifndef USE_LWIPSOCK
++#    include <winsock2.h>
++#    include <ws2tcpip.h>
++#  endif
+ #  include <windows.h>
+ #  include <winerror.h>
+ #  include <tchar.h>
+--- a/lib/strerror.c
++++ b/lib/strerror.c
+@@ -771,7 +771,7 @@
+  */
+ const char *Curl_strerror(int err, char *buf, size_t buflen)
+ {
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+   DWORD old_win_err = GetLastError();
+ #endif
+   int old_errno = errno;
+@@ -780,13 +780,13 @@
+   if(!buflen)
+     return NULL;
+ 
+-#ifndef _WIN32
++#if !defined(_WIN32) || defined(__XBOX__) || defined(NXDK)
+   DEBUGASSERT(err >= 0);
+ #endif
+ 
+   *buf = '\0';
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ #ifndef UNDER_CE
+   /* 'sys_nerr' is the maximum errno number, it is not widely portable */
+   if(err >= 0 && err < sys_nerr)
+@@ -851,7 +851,7 @@
+   if(errno != old_errno)
+     CURL_SETERRNO(old_errno);
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+   if(old_win_err != GetLastError())
+     SetLastError(old_win_err);
+ #endif
+--- a/lib/system_win32.c
++++ b/lib/system_win32.c
+@@ -24,7 +24,7 @@
+ 
+ #include "curl_setup.h"
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ #include <curl/curl.h>
+ #include "system_win32.h"
+--- a/lib/system_win32.h
++++ b/lib/system_win32.h
+@@ -26,7 +26,7 @@
+ 
+ #include "curl_setup.h"
+ 
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
+ 
+ #include <curl/curl.h>
+ 
+@@ -35,7 +35,6 @@
+ 
+ CURLcode Curl_win32_init(long flags);
+ void Curl_win32_cleanup(long init_flags);
+-
+ #ifndef HAVE_IF_NAMETOINDEX
+ /* We use our own typedef here since some headers might lack this */
+ typedef unsigned int(WINAPI *IF_NAMETOINDEX_FN)(const char *);
+@@ -45,6 +44,7 @@
+ #endif
+ #else  /* _WIN32 */
+ #define Curl_win32_init(x) CURLE_OK
++#define Curl_win32_cleanup(x) do {} while(0)
+ #endif /* !_WIN32 */
+ 
+ #endif /* HEADER_CURL_SYSTEM_WIN32_H */
+--- a/lib/vtls/vtls_scache.c
++++ b/lib/vtls/vtls_scache.c
+@@ -382,7 +382,7 @@
+      * valid when used in another process with different CWD. However,
+      * when a path does not exist, this does not work. Then, we add
+      * the path as is. */
+-#ifdef UNDER_CE
++#if defined(UNDER_CE) || defined(__XBOX__) || defined(NXDK)
+     (void)is_local;
+     return curlx_dyn_addf(buf, ":%s-%s", name, path);
+ #elif defined(_WIN32)
+

@@ -6,7 +6,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
 set(SE_CACHING_DEFAULT OFF)
 
-set(SE_ALLOW_CMAKERC OFF)
+set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
@@ -21,11 +21,20 @@ set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
 macro(package_platform)
-	nds_create_rom(scratch-everywhere
-		NAME "${SE_APP_NAME}"
-		SUBTITLE "${SE_APP_DESCRIPTION}"
-		AUTHOR "${SE_APP_AUTHOR}"
-		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
-		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
-	)
+	if(SE_BUNDLE)
+		nds_create_rom(scratch-everywhere
+			NAME "${SE_APP_NAME}"
+			SUBTITLE "${SE_APP_DESCRIPTION}"
+			AUTHOR "${SE_APP_AUTHOR}"
+			ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
+		)
+	else()
+		nds_create_rom(scratch-everywhere
+			NAME "${SE_APP_NAME}"
+			SUBTITLE "${SE_APP_DESCRIPTION}"
+			AUTHOR "${SE_APP_AUTHOR}"
+			ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
+			NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
+		)
+	endif()
 endmacro()

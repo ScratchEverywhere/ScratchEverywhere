@@ -1,6 +1,20 @@
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
+
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include "hasdeps.hpp"
+#include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <sstream>
+#include <sys/stat.h>
+#endif
+
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
@@ -8,7 +22,7 @@
 #include <cstdlib>
 #include <inspector.hpp>
 #include <menus/mainMenu.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -27,6 +41,9 @@
 #endif
 
 static void exitApp() {
+#ifdef ENABLE_AUDIO
+    SoundPlayer::deinit();
+#endif
     Render::deInit();
     OS::deinit();
 }
@@ -37,8 +54,9 @@ static bool initApp() {
 
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
+    Unzip::filePath = "";
     MainMenu *menu = new MainMenu();
-    if (Unzip::filePath.empty()) MenuManager::changeMenu(menu);
+    MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {
         MenuManager::render();
@@ -62,22 +80,27 @@ bool activateMainMenu() {
 
 void mainLoop() {
     Scratch::startScratchProject();
+
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
-        if (!Unzip::load()) {
-            if (Unzip::projectOpened == -3) { // main menu
-                if (!activateMainMenu()) {
-                    exitApp();
-                    exit(0);
-                }
-            } else {
-                exitApp();
-                exit(0);
-            }
+        if (Unzip::load()) {
+            goto skipCheck;
         }
 
+        if (Unzip::projectOpened != -3) { // main menu
+            exitApp();
+            exit(0);
+        }
+
+        if (!activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
+
+    skipCheck:
         return;
     }
+
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
@@ -87,6 +110,11 @@ void mainLoop() {
     }
 }
 
+bool in_path = true;
+bool hasdeps() {
+    return in_path;
+}
+
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
 
@@ -94,24 +122,144 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
-    if (!initApp()) {
-        exitApp();
-        return 1;
-    }
+#if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+    in_path = false;
+    bool is_qt = false;
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
 
-    srand(time(NULL));
+        const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+        std::string str = ((ptr) ? ptr : "");
+
+        if (!str.empty()) {
+            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos ||
+                     str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos ||
+                     str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos ||
+                     str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos ||
+                     str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+        }
+
+        if (is_qt) {
+            struct stat st;
+            std::string buf;
+
+            std::string cpp_path(path);
+            std::stringstream ss(cpp_path);
+
+            char resolved_path[PATH_MAX];
+            std::string cmd = "kdialog";
+
+            while (std::getline(ss, buf, ':')) {
+                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    // Expected dialog CLI executable exists in path!
+                    widget_set_system("KDialog");
+                    in_path = true;
+                    break;
+                }
+            }
+            if (!in_path) {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "zenity";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("Zenity");
+                        in_path = true;
+                        break;
+                    }
+                }
+            }
+        } else {
+            struct stat st;
+            std::string buf;
+
+            std::string cpp_path(path);
+            std::stringstream ss(cpp_path);
+
+            char resolved_path[PATH_MAX];
+            std::string cmd = "zenity";
+
+            while (std::getline(ss, buf, ':')) {
+                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    // Expected dialog CLI executable exists in path!
+                    widget_set_system("Zenity");
+                    in_path = true;
+                    break;
+                }
+            }
+            if (!in_path) {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "kdialog";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("KDialog");
+                        in_path = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+#endif
 
     bool enableInspector = false;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--inspector") {
             enableInspector = true;
+        } else if (arg == "--glcore") {
+            Render::currentRenderer = Renderers::OpenGLCore;
+        } else if (arg == "--opengl") {
+            Render::currentRenderer = Renderers::OpenGL;
+        } else if (arg == "--d3d9") {
+            Render::currentRenderer = Renderers::D3D9;
+        } else if (arg == "--gdi") {
+            Render::currentRenderer = Renderers::GDI;
+        } else if (arg == "--headless") {
+            Render::currentRenderer = Renderers::Headless;
+        } else if (arg == "--sdl1") {
+            Render::currentRenderer = Renderers::SDL1;
+        } else if (arg == "--sdl2") {
+            Render::currentRenderer = Renderers::SDL2;
+        } else if (arg == "--sdl3") {
+            Render::currentRenderer = Renderers::SDL3;
+        } else if (arg == "--xbox") {
+            Render::currentRenderer = Renderers::Xbox;
+        }
+        // these will never ever be used but like consistency i guess
+        else if (arg == "--c2d") {
+            Render::currentRenderer = Renderers::Citro2D;
+        } else if (arg == "--gl2d") {
+            Render::currentRenderer = Renderers::GL2D;
         } else if (Unzip::filePath.empty()) {
 #if defined(__PC__)
             Unzip::filePath = arg;
 #endif
         }
     }
+
+    if (!initApp()) {
+        exitApp();
+        return 1;
+    }
+
+    srand(time(NULL));
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
@@ -133,7 +281,7 @@ int main(int argc, char **argv) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
-            emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
+            emscripten_browser_file::upload(".sb3,.sb2,.sb", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
                 if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);

@@ -24,6 +24,9 @@
   "ui.settings.cache": "キャッシュを削除する",
   "ui.settings.language": "言語",
   "ui.settings.dectalk": "DECtalkを使用する",
+  "ui.settings.renderer": "レンダラー",
+  "ui.settings.windowing": "ウィンドウ表示方法",
+  "ui.settings.audioEngine": "オーディオ出力",
   "ui.unpack.wait": "少し待ってください",
   "ui.unpack.warning": "デバイスの電源を切らないでください",
   "ui.pause.exit": "プロジェクトを終了する",
@@ -35,10 +38,13 @@
   "ui.loading.unzipping": "Scratchのプロジェクトを展開しています",
   "ui.loading.sprites": "スプライトを読み込んでいます",
   "ui.loading.extensions": "拡張機能を読み込んでいます",
+  "ui.loading.caching": "画像をキャッシュ中",
   "ui.loading.finish": "最後の一歩!",
   "ui.popup.extensions": "警告! このプロジェクトはネイティブ拡張機能を含んでいます。ネイティブ拡張機能はあなたのデバイスにフルアクセスを持ちます.",
+  "version.prefix.alpha": "アルファビルド",
   "version.prefix.beta": "ベータビルド",
   "version.prefix.release": "リリース",
   "version.prefix.releaseCanidate": "リリース候補",
-  "version.prefix.nightly": "ナイトリー"
+  "version.prefix.nightly": "ナイトリー",
+  "version.prefix.dev": "開発者向けビルド"
 }

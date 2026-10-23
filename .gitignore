@@ -11,6 +11,7 @@ scratch-everywhere/
 # CMake
 cmake/CPM.cmake
 cmake/*cache*/
+cmake/deps/*/
 
 # legacy makefiles
 make/Makefile_vita
@@ -82,6 +83,10 @@ scratch-wasm/
 scratch-ds/
 scratch-wii.zip
 scratch-everywhere
+scratch-pc
+
+# Dumps
+*.dmp
 
 # Stored Files
 cloud-username.txt

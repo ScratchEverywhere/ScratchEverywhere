@@ -1,5 +1,8 @@
 #include "input.hpp"
+#include <algorithm>
 #include <log.hpp>
+
+InputDevice *globalInputDevice = nullptr;
 
 std::pair<float, float> Input::leftJoystick = {0, 0};
 std::pair<float, float> Input::rightJoystick = {0, 0};
@@ -12,6 +15,83 @@ std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<Block *> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
+int Input::mouseScrollDelta = 0;
+
+int Input::inputViewportX = 0;
+int Input::inputViewportY = 0;
+int Input::inputViewportW = 0;
+int Input::inputViewportH = 0;
+
+InputDevice *Input::getGlobalInputDevice() {
+    return globalInputDevice;
+}
+
+void Input::setGlobalInputDevice(InputDevice *device) {
+    globalInputDevice = device;
+}
+
+void Input::destroyGlobalInputDevice() {
+    if (globalInputDevice) delete globalInputDevice;
+}
+
+std::array<int, 2> Input::getTouchPosition() {
+    if (globalInputDevice) return globalInputDevice->getTouchPosition();
+    return {0, 0};
+}
+
+void Input::getInput() {
+    if (globalInputDevice) globalInputDevice->getInput();
+}
+
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
+    return "";
+}
+
+void Input::setClipboardText(const std::string &text) {
+    if (globalInputDevice) globalInputDevice->setClipboardText(text);
+}
+
+void Input::setInputViewport(int x, int y, int w, int h) {
+    inputViewportX = x;
+    inputViewportY = y;
+    inputViewportW = w;
+    inputViewportH = h;
+}
+
+void Input::clearInputViewport() {
+    inputViewportW = 0;
+    inputViewportH = 0;
+}
+
+bool Input::hasInputViewport() {
+    return inputViewportW > 0 && inputViewportH > 0;
+}
+
+void Input::applyInputViewportOffset(int &x, int &y) {
+    if (!hasInputViewport()) return;
+    x -= inputViewportX;
+    y -= inputViewportY;
+}
+
+void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int renderHeight) {
+    if (!hasInputViewport()) return;
+    x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
+    y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+
+    x = std::clamp(x, 0, renderWidth);
+    y = std::clamp(y, 0, renderHeight);
+}
+
+void *Input::inputWindowHandleOverride = nullptr;
+
+void Input::setInputWindowHandle(void *handle) {
+    inputWindowHandleOverride = handle;
+}
+
+void Input::clearInputWindowHandle() {
+    inputWindowHandleOverride = nullptr;
+}
 
 void Input::applyControls(std::string controlsFilePath) {
     Input::inputControls.clear();
@@ -43,30 +123,13 @@ void Input::applyControls(std::string controlsFilePath) {
     }
 
     // default controls
-    Input::inputControls["dpadUp"] = "u";
-    Input::inputControls["dpadDown"] = "h";
-    Input::inputControls["dpadLeft"] = "g";
-    Input::inputControls["dpadRight"] = "j";
-    Input::inputControls["A"] = "a";
-    Input::inputControls["B"] = "b";
-    Input::inputControls["X"] = "x";
-    Input::inputControls["Y"] = "y";
-    Input::inputControls["shoulderL"] = "l";
-    Input::inputControls["shoulderR"] = "r";
-    Input::inputControls["start"] = "1";
-    Input::inputControls["back"] = "0";
-    Input::inputControls["LeftStickRight"] = "right arrow";
-    Input::inputControls["LeftStickLeft"] = "left arrow";
-    Input::inputControls["LeftStickDown"] = "down arrow";
-    Input::inputControls["LeftStickUp"] = "up arrow";
-    Input::inputControls["LeftStickPressed"] = "c";
-    Input::inputControls["RightStickRight"] = "5";
-    Input::inputControls["RightStickLeft"] = "4";
-    Input::inputControls["RightStickDown"] = "3";
-    Input::inputControls["RightStickUp"] = "2";
-    Input::inputControls["RightStickPressed"] = "v";
-    Input::inputControls["LT"] = "z";
-    Input::inputControls["RT"] = "f";
+    size_t arr_size = sizeof(SCRATCH_CONTROLS) / sizeof(SCRATCH_CONTROLS[0]);
+
+    // for ()
+
+    for (size_t i = 0; i < static_cast<int>(SCRATCH_KEY_INDEX::COUNT); i++) {
+        Input::inputControls[CONTROLLER_STRINGS[i]] = SCRATCH_CONTROLS[i];
+    }
 }
 
 void Input::buttonPress(std::string button) {
@@ -78,22 +141,31 @@ void Input::buttonPress(std::string button) {
 
 std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     if (keyName.isDouble()) {
-        if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
-            return std::string(1, std::tolower(static_cast<char>(static_cast<int>(keyName.asDouble()))));
-        } else if (keyName.asDouble() == 32.0) {
-            return "space";
-        } else if (keyName.asDouble() == 37.0) {
-            return "left arrow";
-        } else if (keyName.asDouble() == 38.0) {
-            return "up arrow";
-        } else if (keyName.asDouble() == 39.0) {
-            return "right arrow";
-        } else if (keyName.asDouble() == 50.0) {
-            return "down arrow";
+        const double key = keyName.get<double>();
+        if (key >= 48 && key <= 90) {
+            return std::string(1, std::tolower(static_cast<char>(static_cast<int>(key))));
         }
+
+        switch (static_cast<int>(key)) {
+        case 32:
+            return "space";
+            break;
+        case 37:
+            return "left arrow";
+            break;
+        case 38:
+            return "up arrow";
+            break;
+        case 39:
+            return "right arrow";
+            break;
+        case 40:
+            return "down arrow";
+            break;
+        };
     }
 
-    std::string key = keyName.asString();
+    std::string key = keyName.get<std::string>();
 
     if (uppercaseKeys) {
         if (key == "SPACE") return "space";

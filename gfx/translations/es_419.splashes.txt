@@ -43,7 +43,7 @@ Tengo picazón en todos lados, que debería- ah, sí...
 ¡Port de GameCube por NateXS!
 ¡Creación de mucha gente!
 ¡Port de Wii U por Grady Link!
-¡Port de Switch by Grady Link!
+¡Port de Switch por Grady Link!
 ¡Port Web por Grady Link!
 ¡Port de PS Vita por Dogo6647!
 ¡Port de webOS por Dogo6647!
@@ -51,6 +51,7 @@ Tengo picazón en todos lados, que debería- ah, sí...
 ¡Port de SDL1 por Leap!
 ¡Port de OpenGL por Leap!
 ¡Port de libretro por Nishi!
+¡Port de Xbox por MikeDEV!
 ¡Música del menú compuesta por Dogo6647!
 ¡Desde 2025!
 ¡C++!
@@ -59,7 +60,7 @@ Tengo picazón en todos lados, que debería- ah, sí...
 ¡SDL!
 ¡Funciona! (casi siempre...)
 Wow.
-¡Beta!
+¡Lanzado!
 ¡Déjà vu!
 ¡Juguemos, {UserName}!
 ¡Woo, TurboWarp!

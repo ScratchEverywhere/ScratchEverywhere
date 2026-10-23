@@ -53,6 +53,7 @@ Android port by PwLDev!
 SDL1 port by Leap!
 OpenGL port by Leap!
 libretro port by Nishi!
+Xbox port by MikeDEV!
 Menu music by Dogo6647!
 Since 2025!
 C++!
@@ -63,7 +64,7 @@ SDL!
 It works! (most of the time...)
 Woah.
 Are wii gonna have a problem?
-Beta!
+Released!
 Deja vu!
 Let's play, {UserName}!
 Woo, TurboWarp!

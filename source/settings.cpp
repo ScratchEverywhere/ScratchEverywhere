@@ -7,7 +7,7 @@
 void SettingsManager::migrate() {
     auto potentialError = FileSystem::createDirectory(OS::getConfigFolderLocation());
     if (!potentialError.has_value()) {
-        Log::logError("Could not make config directory: " + potentialError.error());
+        Log::logCritical("Could not make config directory: " + potentialError.error(), false);
         return;
     }
 
@@ -23,7 +23,12 @@ nlohmann::json SettingsManager::getConfigSettings() {
 
     std::ifstream file(OS::getConfigFolderLocation() + "Settings.json");
     if (!file.good()) {
+#if defined(__XBOX__)
+        Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json, creating default.");
+        saveConfigSettings(json);
+#else
         Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json");
+#endif
         return json;
     }
 

@@ -1,9 +1,10 @@
 FROM skylyrac/blocksds:slim-latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 COPY . .
 
-RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config
+RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config patch
 
 RUN cmake -B build-nds -DCMAKE_TOOLCHAIN_FILE=$BLOCKSDS/cmake/BlocksDS.cmake -DCMAKE_BUILD_TYPE=Release -DSE_AUDIO=OFF && cmake --build build-nds -j 2
 

@@ -2,13 +2,13 @@
 #include "blockExecutor.hpp"
 #include "color.hpp"
 #include "files.hpp"
-#include "input.hpp"
+#include "input_extension.hpp"
 #include "json.hpp"
 #include "log.hpp"
 #include "meta.hpp"
-#include "runtime.hpp"
-#include "sprite.hpp"
+#include "runtime_extension.hpp"
 #include "timer.hpp"
+#include "types.hpp"
 #include "value.hpp"
 #include <os.hpp>
 #include <runtime.hpp>
@@ -165,12 +165,12 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
         &readData);
 
     if (!loadResult.valid()) {
-        Log::logError("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what());
+        Log::logCritical("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what(), false);
         return;
     }
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
-    if (!result.valid()) Log::logError("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logCritical("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what(), false);
 }
 
 Value extensions::objectToValue(sol::object object) {
@@ -186,10 +186,10 @@ Value extensions::objectToValue(sol::object object) {
 
 sol::object extensions::valueToObject(sol::state_view luaState, Value val) {
     if (val.isUndefined()) return sol::lua_nil;
-    if (val.isString()) return sol::make_object(luaState, val.asString());
-    if (val.isDouble()) return sol::make_object(luaState, val.asDouble());
-    if (val.isBoolean()) return sol::make_object(luaState, val.asBoolean());
-    if (val.isColor()) return sol::make_object(luaState, val.asColor());
+    if (val.isString()) return sol::make_object(luaState, val.get<std::string>());
+    if (val.isDouble()) return sol::make_object(luaState, val.get<double>());
+    if (val.isBoolean()) return sol::make_object(luaState, val.get<bool>());
+    if (val.isColor()) return sol::make_object(luaState, val.get<Color>());
     return sol::lua_nil;
 }
 
@@ -201,9 +201,9 @@ sol::table extensions::getBlockArgs(Extension *extension, Block *block, ScriptTh
         Value value;
         if (input.second.inputType == ParsedInput::BLOCK && input.second.block->opcode.size() > menuPrefix.size() && input.second.block->opcode.substr(0, menuPrefix.size()) == menuPrefix) {
             const std::string argName = input.second.block->opcode.substr(menuPrefix.size());
-            if (!Scratch::getInput(input.second.block, argName, thread, sprite, value)) continue;
+            if (!Scratch::getInputValue(input.second.block, argName, thread, sprite, value)) continue;
         } else {
-            if (!Scratch::getInput(block, input.first, thread, sprite, value)) continue;
+            if (!Scratch::getInputValue(block, input.first, thread, sprite, value)) continue;
         }
         table[input.first] = valueToObject(extension->luaState, value);
     }
@@ -218,7 +218,7 @@ void extensions::registerHandlers(Extension *extension) {
         if (extension->core) blockId = extensionBlock.first;
         else blockId = extension->id + "_" + extensionBlock.first;
 
-        BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
+        BlockExecutor::getHandlers()[blockId] = BlockFunc([extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
             runtime::setThread(thread);
             runtime::setSprite(sprite);
             runtime::setBlock(block);
@@ -226,7 +226,7 @@ void extensions::registerHandlers(Extension *extension) {
             sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
             sol::protected_function_result result = func(extensions::getBlockArgs(extension, block, thread, sprite));
             if (!result.valid()) {
-                Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
+                Log::logCritical("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what(), false);
                 runtime::clearData();
                 return BlockResult::CONTINUE;
             }
@@ -241,7 +241,7 @@ void extensions::registerHandlers(Extension *extension) {
             case ExtensionBlockType::HAT:
             case ExtensionBlockType::EVENT:
                 if (!resultObj.is<bool>()) {
-                    Log::logError("Extension block '" + block->opcode + "' returned an invalid type.");
+                    Log::logCritical("Extension block '" + block->opcode + "' returned an invalid type.", false);
                     runtime::clearData();
                     return BlockResult::RETURN;
                 }
@@ -251,7 +251,7 @@ void extensions::registerHandlers(Extension *extension) {
             }
             runtime::clearData();
             return BlockResult::CONTINUE;
-        };
+        });
     }
 }
 
@@ -272,7 +272,7 @@ void extensions::runUpdateFunction(Extension *extension, ExtensionUpdateFunction
     const sol::object updateFn = extension->luaState["update"][updateFunctionString(type)];
     if (!updateFn.is<sol::function>()) return;
     sol::protected_function_result result = updateFn.as<sol::protected_function>()();
-    if (!result.valid()) Log::logError("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logCritical("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what(), false);
 }
 
 void extensions::cleanup() {

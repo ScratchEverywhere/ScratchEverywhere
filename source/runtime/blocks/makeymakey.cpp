@@ -1,10 +1,10 @@
 #include "blockUtils.hpp"
 #include <input.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 
 SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
     Value keyValue;
-    if (!Scratch::getInput(block, "KEY", thread, sprite, keyValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "KEY", thread, sprite, keyValue)) return BlockResult::REPEAT;
 
     std::string key = Input::convertToKey(keyValue, true);
     if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0) {
@@ -15,10 +15,9 @@ SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
 
 SCRATCH_BLOCK(makeymakey, whenCodePressed) {
     if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
-    Value sequence;
-    if (!Scratch::getInput(block, "SEQUENCE", thread, sprite, sequence)) return BlockResult::REPEAT;
+    std::string input;
+    if (!Scratch::getInputValueAs(block, "SEQUENCE", thread, sprite, input)) return BlockResult::REPEAT;
 
-    std::string input = sequence.asString();
     std::vector<std::string> keySequence;
     size_t start = 0;
     size_t end = input.find(' ');

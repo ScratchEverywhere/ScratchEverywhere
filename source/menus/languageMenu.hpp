@@ -1,8 +1,9 @@
 #pragma once
 #include "mainMenu.hpp"
+#include <se_export.hpp>
 #include <vector>
 
-class LanguageMenu : public Menu {
+class SE_EXPORT LanguageMenu : public Menu {
   private:
   public:
     ControlObject *control = nullptr;

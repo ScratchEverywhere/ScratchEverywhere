@@ -1,10 +1,11 @@
 #pragma once
 #include <image.hpp>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
+#include <se_export.hpp>
 #include <text.hpp>
 
-class MenuObject {
+class SE_EXPORT MenuObject {
   public:
     double x = 0;
     double y = 0;
@@ -16,7 +17,7 @@ class MenuObject {
     std::vector<double> getScaledPosition(double xPos, double yPos);
 };
 
-class JollySnow {
+class SE_EXPORT JollySnow {
   private:
     typedef struct {
         float x, y;
@@ -29,50 +30,50 @@ class JollySnow {
   public:
     std::shared_ptr<Image> image;
     JollySnow() {
-#ifndef RENDERER_HEADLESS
-        oldWindowWidth = Render::getWidth();
-        oldWindowHeight = Render::getHeight();
+        if (Render::currentRenderer != Renderers::Headless) {
+            oldWindowWidth = Render::getWidth();
+            oldWindowHeight = Render::getHeight();
 
-        for (size_t i = 0; i < 30; i++) {
-            SnowFall ball = {
-                .x = (float)(rand() % Render::getWidth()),
-                .y = (float)(rand() % Render::getHeight()),
-                .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
-            snow.push_back(std::move(ball));
+            for (size_t i = 0; i < 30; i++) {
+                SnowFall ball = {
+                    .x = (float)(rand() % Render::getWidth()),
+                    .y = (float)(rand() % Render::getHeight()),
+                    .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
+                snow.push_back(std::move(ball));
+            }
         }
-#endif
     }
 
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
-#ifndef RENDERER_HEADLESS
-        for (auto &ball : snow) {
-
-            ImageRenderParams params;
-            params.x = ball.x + xOffset;
-            params.y = ball.y + yOffset;
-            params.centered = true;
-
-            image->render(params);
-            ball.y += ball.fallSpeed;
-            if (ball.y > Render::getHeight() + 20 - yOffset) {
-                ball.y = -20 - yOffset;
-                ball.x = (float)(rand() % Render::getWidth());
-            }
-        }
-
-        if (oldWindowWidth != Render::getWidth() || oldWindowHeight != Render::getHeight()) {
-            oldWindowWidth = Render::getWidth();
-            oldWindowHeight = Render::getHeight();
+        if (Render::currentRenderer != Renderers::Headless) {
             for (auto &ball : snow) {
-                ball.x = (float)(rand() % Render::getWidth());
-                ball.y = (float)(rand() % Render::getHeight());
+
+                ImageRenderParams params;
+                params.x = ball.x + xOffset;
+                params.y = ball.y + yOffset;
+                params.centered = true;
+
+                image->render(params);
+                ball.y += ball.fallSpeed;
+                if (ball.y > Render::getHeight() + 20 - yOffset) {
+                    ball.y = -20 - yOffset;
+                    ball.x = (float)(rand() % Render::getWidth());
+                }
+            }
+
+            if (oldWindowWidth != Render::getWidth() || oldWindowHeight != Render::getHeight()) {
+                oldWindowWidth = Render::getWidth();
+                oldWindowHeight = Render::getHeight();
+                for (auto &ball : snow) {
+                    ball.x = (float)(rand() % Render::getWidth());
+                    ball.y = (float)(rand() % Render::getHeight());
+                }
             }
         }
-#endif
     }
 };
 
-class MenuImage : public MenuObject {
+class SE_EXPORT MenuImage : public MenuObject {
   public:
     std::shared_ptr<Image> image;
     void render(double xPos = 0, double yPos = 0) override;
@@ -87,14 +88,14 @@ class MenuImage : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = true);
+    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = false);
     virtual ~MenuImage();
 
     double renderX;
     double renderY;
 };
 
-class MenuText : public MenuObject {
+class SE_EXPORT MenuText : public MenuObject {
   private:
     std::string originalText;
 
@@ -116,10 +117,10 @@ class MenuText : public MenuObject {
     double renderY;
 };
 
-class ButtonObject : public MenuObject {
+class SE_EXPORT ButtonObject : public MenuObject {
   private:
     bool pressedLastFrame = false;
-    std::vector<int> lastFrameTouchPos;
+    std::array<int, 2> lastFrameTouchPos;
 
   public:
     std::unique_ptr<TextObject> text;
@@ -152,11 +153,11 @@ class ButtonObject : public MenuObject {
     virtual ~ButtonObject();
 };
 
-class ControlObject : public MenuObject {
+class SE_EXPORT ControlObject : public MenuObject {
   private:
     Timer animationTimer;
     int minY, maxY;
-    std::vector<int> lastFrameTouchPos;
+    std::array<int, 2> lastFrameTouchPos;
     bool mousePriority = false;
 
   public:

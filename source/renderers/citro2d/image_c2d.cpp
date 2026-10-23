@@ -290,7 +290,7 @@ Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapH
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_C2D::Image_C2D(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
     const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
 

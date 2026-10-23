@@ -38,7 +38,9 @@
   "ui.loading.finish": "Finishing up!",
   "ui.popup.extensions": "Warning! This project contains Native Extensions. Native Extensions have full access to your device.",
   "version.prefix.beta": "Beta Build",
+  "version.prefix.alpha": "Alpha Build",
   "version.prefix.release": "Release",
   "version.prefix.releaseCanidate": "Release Candidate",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "version.prefix.dev": "Dev Build"
 }

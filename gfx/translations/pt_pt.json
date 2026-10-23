@@ -23,6 +23,9 @@
   "ui.settings.music": "Música do Menu",
   "ui.settings.cache": "Limpar Cache",
   "ui.settings.language": "Língua",
+  "ui.settings.renderer": "Renderizador",
+  "ui.settings.windowing": "Backend de Janela",
+  "ui.settings.audioEngine": "Backend de Áudio",
   "ui.unpack.wait": "Aguarde",
   "ui.unpack.warning": "Não desligues o dispositivo",
   "ui.pause.exit": "Saír do projeto",
@@ -36,8 +39,10 @@
   "ui.loading.extensions": "A carregar Extenções",
   "ui.loading.finish": "Finalizando!",
   "ui.popup.extensions": "Aviso! Este projeto contém Extenções Nativas. As Extensões Nativas têm acesso total ao seu dispositivo!",
+  "version.prefix.alpha": "Versão Alpha",
   "version.prefix.beta": "Construção Beta",
   "version.prefix.release": "Lançamento",
   "version.prefix.releaseCanidate": "Candidato a Lançamento",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "version.prefix.dev": "Versão em Desenvolvimento"
 }

@@ -7,15 +7,14 @@
 #include "runtime.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 #ifdef __ANDROID__
 #include <SDL_rwops.h>
 #endif
 
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -39,7 +38,6 @@ bool SoundStream::loadAsWAV() {
     }
 
     this->type = SoundStreamWAV;
-
     this->rate = this->wav.sampleRate;
     this->channels = this->wav.channels;
     return true;
@@ -56,7 +54,6 @@ bool SoundStream::loadAsMP3() {
     }
 
     this->type = SoundStreamMP3;
-
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
     return true;
@@ -77,9 +74,7 @@ bool SoundStream::loadAsVorbis() {
     }
 
     info = stb_vorbis_get_info(this->vorbis);
-
     this->type = SoundStreamVorbis;
-
     this->rate = info.sample_rate;
     this->channels = info.channels;
     return true;
@@ -95,13 +90,10 @@ void SoundStream::commonInit() {
     this->no_lock = false;
 
     Mixer::mutex.lock();
-
     auto e = Mixer::configs.find(this->name);
-
     if (e != Mixer::configs.end()) {
         this->config = e->second;
     }
-
     Mixer::mutex.unlock();
 #endif
 }
@@ -111,7 +103,7 @@ bool SoundStream::loadFromBuffer() {
     this->type = SoundStreamUnknown;
 
     if (this->buffer == nullptr || this->buffer_size <= 0) {
-        Log::logError("Audio buffer is null.");
+        Log::logCritical("Audio buffer is null.", false);
         return false;
     }
     bool success = false;
@@ -128,91 +120,170 @@ bool SoundStream::loadFromBuffer() {
         success = loadAsVorbis();
 #endif
     } else {
-        Log::logError("Unkown audio format.");
+        Log::logError("Unknown audio format.");
         return false;
     }
 
     return success;
 #endif
+    return false;
+}
+
+bool SoundStream::loadFromFile(const std::string &path) {
+#ifdef ENABLE_AUDIO
+    this->type = SoundStreamUnknown;
+
+    FILE *f = fopen(path.c_str(), "rb");
+    if (!f) {
+        Log::logError("Could not open file for header check: " + path);
+        return false;
+    }
+    unsigned char header[4] = {0};
+    fread(header, 1, 4, f);
+    fclose(f);
+
+    bool success = false;
+    if (memcmp(header, "RIFF", 4) == 0) {
+        if (drwav_init_file(&this->wav, path.c_str(), nullptr)) {
+            this->type = SoundStreamWAV;
+            this->rate = this->wav.sampleRate;
+            this->channels = this->wav.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream WAV file.");
+        }
+#if !defined(NO_MP3)
+    } else if ((memcmp(header, "ID3", 3) == 0) || (header[0] == 0xff && (header[1] == 0xfb || header[1] == 0xf3 || header[1] == 0xf2))) {
+        if (drmp3_init_file(&this->mp3, path.c_str(), nullptr)) {
+            this->type = SoundStreamMP3;
+            this->rate = this->mp3.sampleRate;
+            this->channels = this->mp3.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream MP3 file.");
+        }
+#endif
+#if !defined(NO_VORBIS)
+    } else if (memcmp(header, "OggS", 4) == 0) {
+        int err;
+        if ((this->vorbis = stb_vorbis_open_filename(path.c_str(), &err, nullptr)) != nullptr) {
+            stb_vorbis_info info = stb_vorbis_get_info(this->vorbis);
+            this->type = SoundStreamVorbis;
+            this->rate = info.sample_rate;
+            this->channels = info.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream OGG file.");
+        }
+#endif
+    } else {
+        Log::logError("Unknown audio format.");
+    }
+
+    return success;
+#endif
+    return false;
 }
 
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
+    this->buffer = nullptr;
+    this->buffer_size = 0;
+
+    bool isSystemAsset = (path.rfind("gfx/", 0) == 0);
     std::string prefix = "";
-    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
-    else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
+    bool useProjectBundle = false;
 
-    if (!Unzip::filePath.empty()) prefix += "project/";
-
-#if defined(USE_CMAKERC) || defined(__ANDROID__)
-    if (cached || Unzip::UnpackedInSD || on_disk) {
-#endif
-        std::ifstream ifs(prefix + path, std::ios::binary);
-
-        ifs.seekg(0, std::ios::end);
-        this->buffer_size = ifs.tellg();
-        ifs.seekg(0);
-
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file.");
-
-        this->buffer = (unsigned char *)malloc(this->buffer_size);
-        ifs.read((char *)this->buffer, this->buffer_size);
-
-        ifs.close();
-#if defined(USE_CMAKERC)
+    if (isSystemAsset) {
+        prefix = OS::getRomFSLocation();
+        useProjectBundle = false;
     } else {
-        auto fs = cmrc::romfs::get_filesystem();
-        if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
-        const auto &file = fs.open(prefix + path);
+        if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
+        else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-        this->buffer_size = file.size();
-
-        this->buffer = (unsigned char *)malloc(this->buffer_size);
-        memcpy(this->buffer, file.begin(), this->buffer_size);
+        if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) {
+            prefix += "project/";
+            useProjectBundle = true;
+        }
     }
-#elif defined(__ANDROID__)
-    } else {
-        SDL_RWops *rw = SDL_RWFromFile((prefix + path).c_str(), "rb");
-        if (!rw) return nonstd::make_unexpected("Audio file not found.");
 
-        int64_t size = SDL_RWsize(rw);
-        std::vector<char> file(size);
-
-        SDL_RWread(rw, file.data(), 1, size);
-        SDL_RWclose(rw);
-
-        this->buffer_size = size;
-        this->buffer = (unsigned char *)malloc(this->buffer_size);
-        memcpy(this->buffer, file.data(), this->buffer_size);
-    }
+#if defined(__XBOX__)
+    std::string fullAudioPath = OS::normalizePath(prefix + path);
+#else
+    std::string fullAudioPath = prefix + path;
 #endif
 
-    this->name = path;
-    commonInit();
+#ifdef USE_BUNDLE
+    bool loadFromDisk = !isSystemAsset && (cached || Unzip::UnpackedInSD || on_disk);
+    if (loadFromDisk) {
+#endif
 
-    if (!loadFromBuffer()) {
-        return nonstd::make_unexpected("Failed to load sound.");
+        this->name = path;
+        commonInit();
+
+        // Stream directly from the disk file instead of loading to heap
+        if (!loadFromFile(fullAudioPath)) {
+            return nonstd::make_unexpected("Failed to stream sound from disk: " + fullAudioPath);
+        }
+
+        Mixer::mutex.lock();
+        Mixer::streams[path] = this;
+        Mixer::mutex.unlock();
+        return {};
+
+#ifdef USE_BUNDLE
+    } else {
+        auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
+        auto entry = archive.find(prefix + path);
+
+        this->name = path;
+        commonInit();
+
+        if (!entry) {
+            // Fallback to disk if not in bundle archive (Streams from file)
+            if (loadFromFile(fullAudioPath)) {
+                Mixer::mutex.lock();
+                Mixer::streams[path] = this;
+                Mixer::mutex.unlock();
+                return {};
+            }
+            return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+        } else {
+            // Bundle assets must remain loaded via memory buffer
+            this->buffer_size = entry->size();
+            this->buffer = (unsigned char *)malloc(this->buffer_size);
+            if (bundle_read_all(&entry->raw(), this->buffer, this->buffer_size) < 0) {
+                free(this->buffer);
+                this->buffer = nullptr;
+                return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+            }
+
+            if (!loadFromBuffer()) {
+                return nonstd::make_unexpected("Failed to load bundled sound.");
+            }
+
+            Mixer::mutex.lock();
+            Mixer::streams[path] = this;
+            Mixer::mutex.unlock();
+            return {};
+        }
     }
-
-    Mixer::mutex.lock();
-    Mixer::streams[path] = this;
-    Mixer::mutex.unlock();
-    return {};
+#endif
 #endif
     return nonstd::make_unexpected("Audio not enabled.");
 }
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+    this->buffer = nullptr;
     auto potentialError = init(path, cached, on_disk);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
+    this->buffer = nullptr;
     this->name = name;
-
     this->channels = channels;
     this->rate = rate;
-
     this->type = SoundStreamStream;
     this->callback = callback;
 
@@ -223,17 +294,16 @@ SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, fl
     Mixer::mutex.unlock();
 }
 
-nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::string path) {
-
+nonstd::expected<void, std::string> SoundStream::init(ZipArchive *zip, std::string path) {
 #ifdef ENABLE_AUDIO
-    if (zip != nullptr) {
-        int file_index = mz_zip_reader_locate_file(zip, path.c_str(), nullptr, 0);
+    this->buffer = nullptr;
+    this->buffer_size = 0;
 
-        if (file_index < 0) {
+    if (zip != nullptr) {
+        this->buffer = (unsigned char *)zip->extractToHeap(path, &this->buffer_size);
+        if (!this->buffer) {
             return nonstd::make_unexpected("Audio not found in zip");
         }
-
-        this->buffer = (unsigned char *)mz_zip_reader_extract_to_heap(zip, file_index, &this->buffer_size, 0);
     } else {
         this->buffer = (unsigned char *)Unzip::getFileInSB3(path, &this->buffer_size);
     }
@@ -242,7 +312,7 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
     commonInit();
 
     if (!loadFromBuffer()) {
-        return nonstd::make_unexpected("Failed to load sound.");
+        return nonstd::make_unexpected("Failed to load sound from zip.");
     }
 
     Mixer::mutex.lock();
@@ -253,15 +323,14 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
     return nonstd::make_unexpected("Audio not enabled.");
 }
 
-SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
+SoundStream::SoundStream(ZipArchive *zip, std::string path) {
+    this->buffer = nullptr;
     auto potentialError = init(zip, path);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::~SoundStream() {
 #ifdef ENABLE_AUDIO
-    int i;
-
     if (!this->no_lock) Mixer::mutex.lock();
     for (auto it = Mixer::streams.begin(); it != Mixer::streams.end();) {
         if (it->second == this) {
@@ -284,7 +353,10 @@ SoundStream::~SoundStream() {
 #endif
     }
 
-    if (this->type != SoundStreamStream && this->buffer != nullptr) free(this->buffer);
+    if (this->type != SoundStreamStream && this->buffer != nullptr) {
+        free(this->buffer);
+        this->buffer = nullptr;
+    }
 #endif
 }
 
@@ -326,15 +398,24 @@ void Mixer::initMusic() {
     std::string path = prefix + "gfx/ingame/scratch.sf2";
     size_t size;
 
-#ifdef USE_CMAKERC
-    auto fs = cmrc::romfs::get_filesystem();
-    if (fs.exists(path)) {
-        const auto &file = fs.open(path);
-
-        size = file.size();
+#ifdef USE_BUNDLE
+    if (auto entry = Bundle::assets().find(path)) {
+        size = entry->size();
+        Mixer::sf2_buffer = malloc(size);
+        bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);
+    }
+#else
+#if defined(__XBOX__)
+    std::string fullSF2Path = OS::normalizePath(path);
+    FILE *f = fopen(fullSF2Path.c_str(), "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        size = ftell(f);
+        fseek(f, 0, SEEK_SET);
 
         Mixer::sf2_buffer = malloc(size);
-        memcpy(Mixer::sf2_buffer, file.begin(), size);
+        fread(Mixer::sf2_buffer, 1, size, f);
+        fclose(f);
     }
 #else
     std::ifstream ifs(path, std::ios::binary);
@@ -345,11 +426,10 @@ void Mixer::initMusic() {
 
     if (ifs.good()) {
         Mixer::sf2_buffer = malloc(size);
-
         ifs.read((char *)Mixer::sf2_buffer, size);
-
         ifs.close();
     }
+#endif
 #endif
 
     if (Mixer::sf2_buffer) {
@@ -391,10 +471,12 @@ void Mixer::requestSound(short *output, int frames) {
     for (auto it = streams.begin(); it != streams.end();) {
         SoundStream *s = it->second;
         if (s->paused) {
-            it++;
             if (s->auto_clean) {
+                it = streams.erase(it);
                 s->no_lock = true;
                 delete s;
+            } else {
+                it++;
             }
             continue;
         }
@@ -404,7 +486,15 @@ void Mixer::requestSound(short *output, int frames) {
         const float step = (float)s->rate * pitch / (float)Mixer::rate;
         int maxFramesNeeded = (int)(frames * step) + 2;
 
+#if defined(__XBOX__)
+        static std::vector<float> decodeBuffer;
+        if (decodeBuffer.size() < static_cast<size_t>(maxFramesNeeded * s->channels)) {
+            decodeBuffer.resize(maxFramesNeeded * s->channels);
+        }
+        std::fill(decodeBuffer.begin(), decodeBuffer.begin() + (maxFramesNeeded * s->channels), 0.0f);
+#else
         std::vector<float> decodeBuffer(maxFramesNeeded * s->channels, 0.0f);
+#endif
 
         int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
         if (decoded <= 0) {
@@ -465,14 +555,16 @@ void Mixer::requestSound(short *output, int frames) {
 
 void Mixer::cleanupAudio() {
 #ifdef ENABLE_AUDIO
-    std::vector<SoundStream *> streams;
-    int i;
+    Mixer::mutex.lock();
 
-    for (auto e : Mixer::streams) {
+    std::vector<SoundStream *> streams;
+    for (auto &e : Mixer::streams) {
+        e.second->no_lock = true;
         streams.push_back(e.second);
     }
+    Mixer::streams.clear();
 
-    for (i = 0; i < streams.size(); i++)
+    for (size_t i = 0; i < streams.size(); i++)
         delete streams[i];
 
     Mixer::notes.clear();
@@ -488,6 +580,8 @@ void Mixer::cleanupAudio() {
     }
     Mixer::musicInitialized = false;
 #endif
+
+    Mixer::mutex.unlock();
 #endif
 }
 
@@ -522,9 +616,7 @@ void Mixer::cleanupAudio() {
 void Mixer::stopSound(std::string name) {
 #ifdef ENABLE_AUDIO
     FIND({});
-
     e->second->paused = true;
-
     END;
 #endif
 }
@@ -532,13 +624,9 @@ void Mixer::stopSound(std::string name) {
 bool Mixer::isSoundPlaying(std::string name) {
 #ifdef ENABLE_AUDIO
     bool b = false;
-
     FIND({});
-
     b = !e->second->paused;
-
     END;
-
     return b;
 #endif
     return false;
@@ -547,11 +635,8 @@ bool Mixer::isSoundPlaying(std::string name) {
 void Mixer::setPitch(std::string name, float pitch) {
 #ifdef ENABLE_AUDIO
     pitch = pow(2, pitch / 120.0);
-
     FIND(PRESERVE(pitch));
-
     e->second->config.pitch = pitch;
-
     END;
 #endif
 }
@@ -559,9 +644,7 @@ void Mixer::setPitch(std::string name, float pitch) {
 void Mixer::setPan(std::string name, float pan) {
 #ifdef ENABLE_AUDIO
     FIND(PRESERVE(pan));
-
     e->second->config.pan = pan;
-
     END;
 #endif
 }
@@ -569,9 +652,7 @@ void Mixer::setPan(std::string name, float pan) {
 void Mixer::setSoundVolume(std::string name, float volume) {
 #ifdef ENABLE_AUDIO
     FIND(PRESERVE(volume));
-
     e->second->config.volume = volume;
-
     END;
 #endif
 }
@@ -579,13 +660,9 @@ void Mixer::setSoundVolume(std::string name, float volume) {
 float Mixer::getSoundVolume(std::string name) {
 #ifdef ENABLE_AUDIO
     float v;
-
     FIND({});
-
     v = e->second->config.volume;
-
     END;
-
     return v;
 #endif
     return 0.0f;
@@ -594,9 +671,7 @@ float Mixer::getSoundVolume(std::string name) {
 void Mixer::setAutoClean(std::string name, bool toggle) {
 #ifdef ENABLE_AUDIO
     FIND({});
-
     e->second->auto_clean = toggle;
-
     END;
 #endif
 }
@@ -632,24 +707,17 @@ static constexpr int instrument_lut[] = {
 int Mixer::note(int instrument, int note, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
-
     if (!Mixer::hTsf) return -1;
-
     instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0])));
-
     if (instrument_lut[instrument] == -1) return -1;
 
     Mixer::mutex.lock();
-
     n = Mixer::sf2_seq++;
     tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument_lut[instrument]);
     tsf_channel_set_volume(Mixer::hTsf, n, volume);
     tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
-
     Mixer::notes[n] = Mixer::beatsToSec(beats);
-
     Mixer::mutex.unlock();
-
     return n;
 #endif
     return -1;
@@ -679,24 +747,17 @@ static constexpr int drum_lut[] = {
 int Mixer::drum(int drum, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
-
     if (!Mixer::hTsf) return -1;
-
     drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0])));
-
     if (drum_lut[drum] == -1) return -1;
 
     Mixer::mutex.lock();
-
     n = Mixer::sf2_seq++;
     tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
     tsf_channel_set_volume(Mixer::hTsf, n, volume);
     tsf_channel_note_on(Mixer::hTsf, n, drum_lut[drum], 1.0);
-
     Mixer::notes[n] = Mixer::beatsToSec(beats);
-
     Mixer::mutex.unlock();
-
     return n;
 #endif
     return -1;
@@ -705,15 +766,10 @@ int Mixer::drum(int drum, float volume, float beats) {
 bool Mixer::isInstrumentPlaying(int channel) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     bool v = false;
-
     if (!Mixer::hTsf) return 0;
-
     Mixer::mutex.lock();
-
     if (Mixer::notes.find(channel) != Mixer::notes.end() && Mixer::notes[channel]) v = true;
-
     Mixer::mutex.unlock();
-
     return v;
 #endif
     return 0;

@@ -1,11 +1,17 @@
 #include "image.hpp"
 #include "nonstd/expected.hpp"
 #include "os.hpp"
+#include "renderer.hpp"
+#include <cstdlib>
+#include <log.hpp>
+#ifdef __XBOX__
+#include <runtime.hpp>
+#endif
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
 #ifdef ENABLE_BITMAP
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__XBOX__)
 #define STBI_NO_THREAD_LOCALS
 #endif
 #define STB_IMAGE_IMPLEMENTATION
@@ -18,24 +24,40 @@
 
 #if defined(RENDERER_SDL1)
 #include <image_sdl1.hpp>
-#elif defined(RENDERER_SDL2)
+#endif
+#if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
-#elif defined(RENDERER_SDL3)
+#endif
+#if defined(RENDERER_XBOX)
+#include <image_xbox.hpp>
+#endif
+#if defined(RENDERER_SDL3)
 #include <image_sdl3.hpp>
-#elif defined(RENDERER_OPENGL)
+#endif
+#if defined(RENDERER_OPENGL)
 #include <image_gl.hpp>
-#elif defined(RENDERER_CITRO2D)
+#endif
+#if defined(RENDERER_CITRO2D)
 #include <image_c2d.hpp>
-#elif defined(RENDERER_GL2D)
+#endif
+#if defined(RENDERER_GL2D)
 #include <image_gl2d.hpp>
-#elif defined(RENDERER_HEADLESS)
+#endif
+#if defined(RENDERER_OPENGL_CORE)
+#include <image_gl_core.hpp>
+#endif
+#if defined(RENDERER_GDI)
+#include <image_gdi.hpp>
+#endif
+#if defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
 #endif
+#if defined(RENDERER_D3D9)
+#include <image_d3d9.hpp>
+#endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
@@ -55,48 +77,23 @@ constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to 
 bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
-    if (it == loadedFonts.end()) return false;
+    if (it == loadedFonts.end()) {
+        return false;
+    }
     if (it->second.isLoaded) return true;
 
     const std::string &path = it->second.path;
 
-#ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
-    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
-#elif defined(__ANDROID__)
-    SDL_RWops *rw = SDL_RWFromFile((OS::getRomFSLocation() + path + ".ttf").c_str(), "rb");
-    if (!rw) return false;
-
-    int64_t size = SDL_RWsize(rw);
-    void *file = malloc(size);
-
-    if (SDL_RWread(rw, file, 1, size) != size) {
-        SDL_RWclose(rw);
-        free(file);
-        return false;
-    };
-
-    SDL_RWclose(rw);
-    bool loaded = lunasvg_add_font_face_from_data(
-        family.c_str(),
-        false,
-        false,
-        file,
-        size,
-        [](void* closure) {
-            free(closure);
-        },
-        file
-    );
-
-    if (!loaded) {
-        free(file);
-        return false;
-    };
+#ifdef USE_BUNDLE
+    auto entry = Bundle::assets().find(OS::getRomFSLocation() + path + ".ttf");
+    if (!entry) return false;
+    size_t fontSize = 0;
+    void *fontData = bundle_load(&entry->raw(), &fontSize);
+    if (!fontData) return false;
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) return false;
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
-
     it->second.isLoaded = true;
     return true;
 #endif
@@ -113,25 +110,72 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         }
     }
 
-#if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
-#else
-#error "Image backend not defined."
-#endif
+    Image *rawImg = nullptr;
 
-    if (rawImg->error.has_value()) {
+    switch (Render::currentRenderer) {
+#if defined(RENDERER_SDL1)
+    case Renderers::SDL1:
+        rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL2)
+    case Renderers::SDL2:
+        rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_XBOX)
+    case Renderers::Xbox:
+        rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL3)
+    case Renderers::SDL3:
+        rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_CITRO2D)
+    case Renderers::Citro2D:
+        rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL)
+    case Renderers::OpenGL:
+        rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GL2D)
+    case Renderers::GL2D:
+        rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL_CORE)
+    case Renderers::OpenGLCore:
+        rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GDI)
+    case Renderers::GDI:
+        rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_D3D9)
+    case Renderers::D3D9:
+        rawImg = new Image_D3D9(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_HEADLESS)
+    case Renderers::Headless:
+        rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+    default: {
+        Log::logCritical("You forgot to add this renderer to createImageFromFile :grin: :grin:", true);
+        break;
+    }
+    }
+    if (rawImg == nullptr) {
+        return nonstd::make_unexpected("Failed to create image.");
+    } else if (rawImg->error.has_value()) {
         const std::string errMessage = rawImg->error.value();
         delete rawImg;
         return nonstd::make_unexpected(errMessage);
@@ -146,7 +190,7 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
     return img;
 }
 
-nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -156,25 +200,73 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
         }
     }
 
-#if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
-#elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
-#else
-#error "Image backend not defined."
-#endif
+    Image *rawImg = nullptr;
 
-    if (rawImg->error.has_value()) {
+    switch (Render::currentRenderer) {
+#if defined(RENDERER_SDL1)
+    case Renderers::SDL1:
+        rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL2)
+    case Renderers::SDL2:
+        rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_XBOX)
+    case Renderers::Xbox:
+        rawImg = new Image_Xbox(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_SDL3)
+    case Renderers::SDL3:
+        rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_CITRO2D)
+    case Renderers::Citro2D:
+        rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL)
+    case Renderers::OpenGL:
+        rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GL2D)
+    case Renderers::GL2D:
+        rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_OPENGL_CORE)
+    case Renderers::OpenGLCore:
+        rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GDI)
+    case Renderers::GDI:
+        rawImg = new Image_GDI(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_D3D9)
+    case Renderers::D3D9:
+        rawImg = new Image_D3D9(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_HEADLESS)
+    case Renderers::Headless:
+        rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+    default: {
+        Log::logCritical("You forgot to add this renderer to createImageFromZip :grin: :grin:", true);
+        break;
+    }
+    }
+
+    if (rawImg == nullptr) {
+        return nonstd::make_unexpected("Failed to create image.");
+    } else if (rawImg->error.has_value()) {
         const std::string errMessage = rawImg->error.value();
         delete rawImg;
         return nonstd::make_unexpected(errMessage);
@@ -190,14 +282,14 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 }
 
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
-        auto fs = cmrc::romfs::get_filesystem();
-        if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
-        auto file = fs.open(filePath);
-        std::vector<unsigned char> buffer(file.size() + 1);
-        std::copy(file.begin(), file.end(), buffer.begin());
-        buffer[file.size()] = '\0';
+        auto archive = fromScratchProject ? Bundle::project() : Bundle::assets();
+        auto entry = archive.find(filePath);
+        if (!entry) return nonstd::make_unexpected("File not found: " + filePath);
+        std::vector<unsigned char> buffer(entry->size() + 1);
+        if (bundle_read_all(&entry->raw(), buffer.data(), entry->size()) < 0) return nonstd::make_unexpected("Failed to decompress file: " + filePath);
+        buffer[entry->size()] = '\0';
         return buffer;
     }
 #elif defined(__ANDROID__)
@@ -291,11 +383,56 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
+#if defined(__XBOX__)
+    std::string svgData(data, size);
+    size_t endPos = svgData.rfind("</svg>");
+    if (endPos == std::string::npos) {
+        endPos = svgData.rfind("</SVG>");
+    }
+    if (endPos != std::string::npos) {
+        svgData.resize(endPos + 6);
+    }
+
+    svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
+    if (!svgDocument) {
+        return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    }
+
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
+
+    const float targetWidth = docW * scale;
+    const float targetHeight = docH * scale;
+#else
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
 
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
+
     const float targetWidth = svgDocument->width() * scale;
     const float targetHeight = svgDocument->height() * scale;
+#endif
 
     const auto [maxWidth, maxHeight] = maxTextureSize;
     float finalScale = scale;
@@ -307,21 +444,48 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
+#if defined(__XBOX__)
+    width = std::max(1, (int)(docW * finalScale));
+    height = std::max(1, (int)(docH * finalScale));
+    imgData.scale = finalScale;
+
+    auto bitmap = svgDocument->renderToBitmap(width, height);
+    if (!bitmap.valid()) {
+        svgDocument.reset();
+        return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+    }
+#else
     width = std::max(1, (int)(svgDocument->width() * finalScale));
     height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+#endif
 
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
-    if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(pixelsSize);
+    }
+#endif
+    if (!dst) {
+#ifdef __XBOX__
+        svgDocument.reset();
+#endif
+        return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+    }
 
     reorderPixels(src, dst, pixelsSize);
 
     imgData.pitch = width * 4;
+
+#if defined(__XBOX__)
+    svgDocument.reset();
+#endif
 
     return dst;
 #endif
@@ -339,6 +503,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
         if (scale > maxScale) scale = maxScale;
 
     if (!svgDocument || scale <= imgData.scale) return {};
+    if (svgDocument->width() <= 0.0f || svgDocument->height() <= 0.0f) return {};
 
     // TODO: De-duplicate code.
 
@@ -368,6 +533,12 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(pixelsSize);
+    }
+#endif
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     reorderPixels(src, dst, pixelsSize);
@@ -384,6 +555,8 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
+    if (srcW <= 0 || srcH <= 0 || !srcPixels) return nullptr;
+
     outW = srcW >> 1;
     outH = srcH >> 1;
 
@@ -391,9 +564,17 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     if (outH <= 0) outH = 1;
 
     unsigned char *dst = (unsigned char *)malloc(outW * outH * 4);
+#ifdef __XBOX__
+    if (!dst) {
+        Scratch::freeUnusedCostumeImages();
+        dst = (unsigned char *)malloc(outW * outH * 4);
+    }
+#endif
 
     const int srcStride = srcW * 4;
     const int dstStride = outW * 4;
+
+    if (!dst) return nullptr;
 
     for (int y = 0; y < outH; ++y) {
         const unsigned char *srcRow = srcPixels + (y << 1) * srcStride;
@@ -415,27 +596,70 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
+#if defined(__XBOX__)
+    if (!pixels) {
+        Scratch::freeUnusedCostumeImages();
+        pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
+    }
+    if (!pixels || width <= 0 || height <= 0) {
+        if (pixels) stbi_image_free(pixels);
+        const char *reason = stbi_failure_reason();
+        return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
+    }
+#else
     if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
+#endif
     imgData.pitch = width * 4;
 
 #ifdef __OGC__ // may break getPixels()
     stbi__vertical_flip(pixels, width, height, 4);
 #endif
 
+    unsigned char *resultPixels = pixels;
     if (bitmapHalfQuality) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(pixels, width, height, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        if (!resizedPixels) {
+            stbi_image_free(resultPixels);
+            return nonstd::make_unexpected("Failed to allocate resized raster buffer");
+        }
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
         height = resizedH;
 
-        stbi_image_free(pixels);
-
-        return resizedPixels;
-    } else {
-        return pixels;
+        stbi_image_free(resultPixels);
+        resultPixels = resizedPixels;
     }
+
+#if defined(__XBOX__)
+    // Large images are split into tiles by Image_Xbox, so only cap the decoded size.
+    while (width > 2048 || height > 2048) {
+        int resizedW, resizedH;
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        if (!resizedPixels) {
+            if (resultPixels == pixels) {
+                stbi_image_free(resultPixels);
+            } else {
+                free(resultPixels);
+            }
+            return nonstd::make_unexpected("Failed to allocate downscaled raster buffer");
+        }
+
+        imgData.pitch = resizedW * 4;
+        width = resizedW;
+        height = resizedH;
+
+        if (resultPixels == pixels) {
+            stbi_image_free(resultPixels);
+        } else {
+            free(resultPixels);
+        }
+        resultPixels = resizedPixels;
+    }
+#endif
+
+    return resultPixels;
 #endif
     width = 0;
     height = 0;
@@ -447,7 +671,7 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image::Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     auto potentialError = init(filePath, zip, bitmapHalfQuality, scale);
     if (!potentialError.has_value()) error = potentialError.error();
 }
@@ -455,7 +679,11 @@ Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, 
 nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
+#if defined(__XBOX__)
+        else filePath = OS::getScratchFolderLocation() + "project/" + filePath;
+#else
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
+#endif
     } else filePath = OS::getRomFSLocation() + filePath;
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
@@ -478,19 +706,43 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     return {};
 }
 
-nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
-    std::unique_ptr<void, decltype(&mz_free)> file_data(nullptr, mz_free);
-    size_t file_size;
+nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    void *raw_data = nullptr;
+    size_t file_size = 0;
     if (zip != nullptr) {
-        int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
-        if (file_index < 0) return nonstd::make_unexpected("Image not found in SB3: " + filePath);
-
-        file_data.reset(mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0));
+        raw_data = zip->extractToHeap(filePath, &file_size);
+#if defined(__XBOX__)
+        if (!raw_data) {
+            Scratch::freeUnusedCostumeImages();
+            raw_data = zip->extractToHeap(filePath, &file_size);
+        }
+#endif
     } else {
-        file_data.reset(Unzip::getFileInSB3(filePath, &file_size));
+        raw_data = Unzip::getFileInSB3(filePath, &file_size);
+#if defined(__XBOX__)
+        if (!raw_data) {
+            Scratch::freeUnusedCostumeImages();
+            raw_data = Unzip::getFileInSB3(filePath, &file_size);
+        }
+#endif
     }
 
-    if (!file_data || file_data == nullptr) return nonstd::make_unexpected("Failed to extract: " + filePath);
+    if (!raw_data || file_size == 0) {
+        if (raw_data) {
+            if (zip) zip->freeHeap(raw_data);
+            else free(raw_data);
+        }
+        return nonstd::make_unexpected("Failed to extract: " + filePath);
+    }
+
+    struct ZipHeapGuard {
+        ZipArchive *zip;
+        void *ptr;
+        ~ZipHeapGuard() {
+            if (zip) zip->freeHeap(ptr);
+            else free(ptr);
+        }
+    } file_data{zip, raw_data};
 
     bool isSVG = filePath.size() >= 4 &&
                  (filePath.substr(filePath.size() - 4) == ".svg" ||
@@ -498,14 +750,14 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_arc
 
     if (isSVG) {
         std::vector<unsigned char> buffer(file_size + 1);
-        memcpy(buffer.data(), file_data.get(), file_size);
+        memcpy(buffer.data(), raw_data, file_size);
         buffer[file_size] = '\0';
 
         auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
-        auto pixels = loadRasterFromMemory((unsigned char *)file_data.get(), file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory((unsigned char *)raw_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     }

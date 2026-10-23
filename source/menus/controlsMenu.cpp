@@ -1,5 +1,7 @@
 #include "controlsMenu.hpp"
 #include "translation.hpp"
+#include "types.hpp"
+#include "unpackMenu.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 
@@ -13,10 +15,16 @@ ControlsMenu::~ControlsMenu() {
 }
 
 void ControlsMenu::init() {
-
-    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+    }
     if (!Unzip::load()) {
-        Log::logError("Failed to load project for ControlsMenu.");
+        Log::logCritical("Failed to load project for ControlsMenu.", false);
         OS::toExit = true;
         return;
     }
@@ -27,25 +35,34 @@ void ControlsMenu::init() {
 
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
-        if (block->opcode == "sensing_keyoptions") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
+        if (block->opcode == "sensing_keypressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
         } else if (block->opcode == "event_whenkeypressed") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
-        } else if (block->opcode == "makeymakey_menu_KEY") {
-            buttonCheck = block->fields["KEY"].value;
-        } else if (block->opcode == "makeymakey_menu_SEQUENCE") {
-            std::string input = block->fields["SEQUENCE"].value;
+            buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
+            if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
+
+            std::string inputSequence = input->value.get<std::string>();
             size_t start = 0;
             size_t end;
-            while ((end = input.find(' ', start)) != std::string::npos) {
-                buttonCheck = input.substr(start, end - start);
+            while ((end = inputSequence.find(' ', start)) != std::string::npos) {
+                buttonCheck = inputSequence.substr(start, end - start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
                 }
                 start = end + 1;
             }
-            buttonCheck = input.substr(start);
+            buttonCheck = inputSequence.substr(start);
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
                 controls.push_back(buttonCheck);
@@ -59,6 +76,13 @@ void ControlsMenu::init() {
     }
 
     Scratch::cleanupScratchProject();
+
+    if (controls.empty()) {
+        Log::logWarning("No controls found in project");
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
+    }
+
     Render::renderMode = Render::BOTH_SCREENS;
 
     settingsControl = new ControlObject();
@@ -69,12 +93,6 @@ void ControlsMenu::init() {
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-
-    if (controls.empty()) {
-        Log::logWarning("No controls found in project");
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
 
     double yPosition = 100;
     for (auto &control : controls) {
