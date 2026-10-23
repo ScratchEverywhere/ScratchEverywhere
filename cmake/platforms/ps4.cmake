@@ -28,17 +28,16 @@ macro(package_platform)
 	target_link_libraries(se-interface INTERFACE
 		SceNet SceNetCtl SceSystemService SceUserService)
 
-	set(MODULE_COMMANDS "")
-	set(PKG_CONTENT_ID "IV0001-${SE_APP_TITLEID}_00-SCRATCHPS4000000")
-
 	# Convert Mesa dynamic libraries into prx
 	set(SCE_MODULE "")
 	set(MESA_LIBS "libEGL.so.1;libGLESv2.so.2;libvulkan.so.1;libgallium-26.2.0.so")
 	file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/sce_module")
 	foreach(MESA_LIB IN LISTS MESA_LIBS)
-		list(APPEND MODULE_COMMANDS COMMAND ${ELF2SELF}
-			"${PS4_HOMEBREW_SDK}/target/usr/lib/${MESA_LIB}"
-			"${CMAKE_CURRENT_BINARY_DIR}/sce_module/${MESA_LIB}"
+		add_custom_command(TARGET scratch-everywhere POST_BUILD
+			COMMAND ${ELF2SELF} "${PS4_HOMEBREW_SDK}/target/usr/lib/${MESA_LIB}"
+				"${CMAKE_CURRENT_BINARY_DIR}/sce_module/${MESA_LIB}"
+			COMMENT "Converting ${MESA_LIB} to prx"
+			VERBATIM
 		)
 		list(APPEND SCE_MODULE "sce_module/${MESA_LIB}")
 	endforeach()
@@ -60,6 +59,7 @@ macro(package_platform)
 	endif()
 
 	# More info about param.sfo at https://github.com/red-prig/fpPS4/wiki/PARAM.SFO
+	set(PKG_CONTENT_ID "IV0001-${SE_APP_TITLEID}_00-SCRATCHPS4000000")
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		# Copy ps4 gfx to sce_sys
 		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ps4"
@@ -76,18 +76,13 @@ macro(package_platform)
 			-s12 TITLE_ID=${SE_APP_TITLEID} -s8 APP_VER=${SE_APP_VERSION}
 			-s8 VERSION=${SE_APP_VERSION} -s48 CONTENT_ID=${PKG_CONTENT_ID}
 			-i ATTRIBUTE=16384 -i DOWNLOAD_DATA_SIZE=0 -i SYSTEM_VER=0
-		# Mesa module commands
-		${MODULE_COMMANDS}
 		# Generate .gp4 with/without romfs
 		COMMAND ${MKGP4} -c ${PKG_CONTENT_ID}
 			-o "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.gp4"
 			eboot.bin sce_sys/param.sfo ${SCE_SYS} ${SCE_MODULE} ${ROMFS_FILES}
 		# Package content
-		COMMAND ${MKPKG} "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.gp4"
-		# Rename output
-		COMMAND ${CMAKE_COMMAND} -E rename
-			"${CMAKE_CURRENT_BINARY_DIR}/${PKG_CONTENT_ID}.pkg"
-			"${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.pkg"
+		COMMAND ${MKPKG} -o "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.pkg"
+			"${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.gp4"
 		COMMENT "Packaging ${SE_OUTPUT_NAME}.pkg..."
 		VERBATIM
 	)
