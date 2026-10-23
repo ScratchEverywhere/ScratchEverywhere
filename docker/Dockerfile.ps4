@@ -17,7 +17,8 @@ RUN git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git
 
 COPY . .
 
-RUN /opt/ps4-homebrew-sdk/bin/orbis-cmake -B build-ps4 -DCMAKE_BUILD_TYPE=Release && cmake --build build-ps4 -j2
+RUN /opt/ps4-homebrew-sdk/bin/orbis-cmake -B build-ps4 -DCMAKE_VERBOSE_MAKEFILE=OFF -DCMAKE_BUILD_TYPE=Release && \
+	cmake --build build-ps4 -j2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-ps4/scratch-ps4.pkg /
