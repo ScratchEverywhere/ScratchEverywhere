@@ -1,11 +1,12 @@
-#include <SDL.h>
 #include <log.hpp>
 #include <os.hpp>
 
+#include <SDL.h>
+
 namespace OS {
-bool toExit = false;
-bool loadedSettings = false;
-std::string *customProjectsPath = nullptr;
+    bool toExit = false;
+    bool loadedSettings = false;
+    std::string *customProjectsPath = nullptr;
 } // namespace OS
 
 bool OS::init() {
