@@ -683,7 +683,7 @@ cl_add_dep(se-interface expected-lite)
 if(NOT XBOX)
     cl_add_dep(se-interface __getexecname)
 endif()
-if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO AND NOT XBOX)
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO AND NOT XBOX AND NOT PS4)
     cl_add_dep(se-interface libdlgmod)
 endif()
 
