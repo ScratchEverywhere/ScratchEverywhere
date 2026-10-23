@@ -208,6 +208,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef __XBOX__
+        // Bypasses the NXDK's broken std::to_string(double) implementation
+        auto formatMs = [](double timeMs) -> std::string {
+            int ms = static_cast<int>(timeMs);
+            int us = static_cast<int>((timeMs - ms) * 1000.0);
+            std::string usStr = std::to_string(std::abs(us));
+            if (usStr.length() == 1) usStr = "00" + usStr;
+            else if (usStr.length() == 2) usStr = "0" + usStr;
+            return std::to_string(ms) + "." + usStr + " ms";
+        };
+#endif
+
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 #endif
@@ -230,7 +242,11 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Inspector::processCommands();
 #endif
 
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(formatMs(scriptTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
+#endif
 
         Timer renderTimer(false);
         if (debugVars) renderTimer.start();
@@ -274,7 +290,12 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             shouldStop = false;
             return std::make_pair(false, true);
         }
+
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(formatMs(renderTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
+#endif
     }
 
     return std::make_pair(true, false);
