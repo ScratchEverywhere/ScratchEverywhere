@@ -11,4 +11,5 @@ set(CATALOG_RECIPES
     nxdk:nxdk.cmake
     mbedtls:mbedtls.cmake
     lwmem:lwmem.cmake
+    cafeglsl:cafeglsl.cmake
 )
