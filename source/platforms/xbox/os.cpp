@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include <windows.h>
 
+#ifndef NXDK_CUSTOM_PATCHES_APPLIED
+#error "CRITICAL: NXDK was built without the required custom patches!"
+#endif
+
 extern "C" {
 extern struct netif *g_pnetif;
 #if defined(SE_USE_LWMEM)
