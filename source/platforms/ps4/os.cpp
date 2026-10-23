@@ -8,7 +8,6 @@
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
 
-#include <filesystem.hpp>
 #include <os.hpp>
 
 namespace OS {
@@ -57,7 +56,7 @@ std::string OS::getRomFSLocation() {
 bool OS::isOnline() {
     // TODO: Add an actual way to check if online
 #if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
-
+    return true;
 #endif
     return false;
 }
