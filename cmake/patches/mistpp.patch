@@ -1,8 +1,9 @@
-diff --git a/src/mist.cpp b/src/mist.cpp
-index fe316d5..57e9eec 100644
 --- a/src/mist.cpp
 +++ b/src/mist.cpp
-@@ -37,13 +37,13 @@ bool MistConnection::connect(bool secure) {
+@@ -34,15 +34,15 @@
+   }
+ 
+   curl_version_info_data *versionInfo = curl_version_info(CURLVERSION_NOW);
 -  if (!(versionInfo->features & CURL_VERSION_SSL)) {
 +  if (secure && !(versionInfo->features & CURL_VERSION_SSL)) {
      std::cerr << "[ERROR] This version of CURL does not support SSL." << std::endl;
@@ -18,8 +19,15 @@ index fe316d5..57e9eec 100644
        supportsWebsockets = true;
        break;
      }
-   }
-@@ -90,12 +90,16 @@ bool MistConnection::connect(bool secure) {
+@@ -62,6 +62,7 @@
+ 
+   curl_easy_setopt(curl_easy_, CURLOPT_URL, ws_url_.c_str());
+   curl_easy_setopt(curl_easy_, CURLOPT_CONNECT_ONLY, 2L);
++  curl_easy_setopt(curl_easy_, CURLOPT_WS_OPTIONS, (long)CURLWS_NOAUTOPONG);
+   curl_easy_setopt(curl_easy_, CURLOPT_USERAGENT, ("Mist++/0.3.8 " + user_agent_contact_info_).c_str());
+   if (!secure) {
+     curl_easy_setopt(curl_easy_, CURLOPT_SSL_VERIFYPEER, 0L);
+@@ -90,12 +91,16 @@
  
    running_ = true;
    curl_thread_ = std::thread([this]() {
@@ -36,34 +44,259 @@ index fe316d5..57e9eec 100644
    });
  
    return true;
-@@ -279,6 +283,7 @@ void MistConnection::handle_recv_message(const char *data, size_t len) {
-   std::string line;
+@@ -108,13 +113,13 @@
+ void MistConnection::disconnect() {
+   if (!running_ && !curl_thread_.joinable()) return;
+   running_ = false;
++  connected_ = false;
  
-   while (std::getline(stream, line)) {
-+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
-     try {
-       nlohmann::json json_msg = nlohmann::json::parse(line);
- 
-@@ -299,5 +304,22 @@ void MistConnection::handle_recv_message(const char *data, size_t len) {
-     } catch (const std::exception &e) {
-       std::cerr << "[ERROR] Error processing message: " << e.what() << " Raw message: " << std::string(data, len) << std::endl;
+   {
+     std::lock_guard<std::mutex> lock(curl_mutex_);
+-    if (connected_) {
++    if (curl_easy_) {
+       size_t sent;
+-      CURLcode res = curl_ws_send(curl_easy_, "", 0, &sent, 0, CURLWS_CLOSE);
+-      if (res != CURLE_OK) std::cerr << "[ERROR] Error sending WebSocket close frame: " << curl_easy_strerror(res) << std::endl;
++      curl_ws_send(curl_easy_, "", 0, &sent, 0, CURLWS_CLOSE);
      }
-+#else
-+    auto json_msg = nlohmann::json::parse(line, nullptr, false);
-+    if (!json_msg.is_discarded()) {
-+      if (json_msg.contains("method") && json_msg["method"] == "set") {
-+        std::string name = json_msg["name"].get<std::string>();
+   }
+ 
+@@ -131,26 +136,35 @@
+     curl_multi_cleanup(curl_multi_);
+     curl_multi_ = nullptr;
+   }
+-
+-  connected_ = false;
+-  if (conn_status_callback_) conn_status_callback_(false, "Disconnected by client request.");
+ }
+ 
+ bool MistConnection::set(const std::string &name, const std::string &value) {
++  if (!connected_ || !running_) {
++    return false;
++  }
 +
-+        std::string value;
-+        if (json_msg["value"].is_string()) value = json_msg["value"].get<std::string>();
-+        else value = std::to_string(json_msg["value"].get<double>());
++  {
++    std::lock_guard<std::mutex> var_lock(variables_mutex_);
++    auto it = cloud_variables_.find(name);
++    if (it != cloud_variables_.end() && it->second == value) {
++      return true;
++    }
++    cloud_variables_[name] = value;
++  }
 +
+   std::lock_guard<std::mutex> lock(curl_mutex_);
+-  if (!connected_) {
+-    std::cerr << "[ERROR] Not connected to send variables." << std::endl;
++  if (!connected_ || !running_) {
+     return false;
+   }
+ 
+   nlohmann::json msg;
+   msg["method"] = "set";
++  msg["user"] = username_;
++  msg["project_id"] = project_id_;
+   msg["name"] = name;
+   msg["value"] = value;
+ 
+   send_json_message(msg);
+-  std::lock_guard<std::mutex> var_lock(variables_mutex_);
+-  cloud_variables_[name] = value;
+   return true;
+ }
+ 
+@@ -180,6 +194,7 @@
+ void MistConnection::processMessages() {
+   int still_running = 0;
+   char buffer[4096];
++  std::string recv_buffer;
+ 
+   while (running_) {
+     {
+@@ -227,22 +242,65 @@
+       if (!running_) break;
+ 
+       if (connected_) {
+-        size_t rlen;
+-        const struct curl_ws_frame *ws_meta;
+-        CURLcode recv_res = curl_ws_recv(curl_easy_, buffer, sizeof(buffer), &rlen, &ws_meta);
+-
+-        if (recv_res == CURLE_OK) {
+-          if (ws_meta->flags & CURLWS_TEXT) handle_recv_message(buffer, rlen);
+-          else if (ws_meta->flags & CURLWS_CLOSE) {
++        while (running_) {
++          size_t rlen = 0;
++          const struct curl_ws_frame *ws_meta = nullptr;
++          CURLcode recv_res = curl_ws_recv(curl_easy_, buffer, sizeof(buffer), &rlen, &ws_meta);
++
++          if (recv_res == CURLE_OK) {
++            if (ws_meta && (ws_meta->flags & CURLWS_TEXT)) {
++              if (rlen > 0) {
++                recv_buffer.append(buffer, rlen);
++              }
++              size_t pos;
++              while ((pos = recv_buffer.find('\n')) != std::string::npos) {
++                std::string line = recv_buffer.substr(0, pos);
++                recv_buffer.erase(0, pos + 1);
++                if (!line.empty() && line.back() == '\r') line.pop_back();
++                if (!line.empty()) {
++                  handle_recv_message(line.c_str(), line.length());
++                }
++              }
++              if (ws_meta->bytesleft == 0 && !recv_buffer.empty()) {
++                if (recv_buffer.front() == '{' && recv_buffer.back() == '}') {
++                  handle_recv_message(recv_buffer.c_str(), recv_buffer.length());
++                  recv_buffer.clear();
++                }
++              }
++            } else if (ws_meta && (ws_meta->flags & CURLWS_PING)) {
++              if (conn_status_callback_) conn_status_callback_(true, "Ping received, sending Pong.");
++              size_t pong_sent = 0;
++              for (int retry = 0; retry < 10 && running_ && connected_; ++retry) {
++                CURLcode pong_res = curl_ws_send(curl_easy_, buffer, rlen, &pong_sent, 0, CURLWS_PONG);
++                if (pong_res == CURLE_OK) {
++                  if (conn_status_callback_) conn_status_callback_(true, "Pong sent successfully.");
++                  break;
++                } else if (pong_res == CURLE_AGAIN) {
++                  std::this_thread::sleep_for(std::chrono::milliseconds(5));
++                  continue;
++                } else {
++                  std::cerr << "[ERROR] Error sending WebSocket PONG: " << curl_easy_strerror(pong_res) << std::endl;
++                  if (conn_status_callback_) conn_status_callback_(true, "Failed to send Pong: " + std::string(curl_easy_strerror(pong_res)));
++                  break;
++                }
++              }
++            } else if (ws_meta && (ws_meta->flags & CURLWS_PONG)) {
++              if (conn_status_callback_) conn_status_callback_(true, "Pong frame received from server.");
++            } else if (ws_meta && (ws_meta->flags & CURLWS_CLOSE)) {
++              running_ = false;
++              connected_ = false;
++              if (conn_status_callback_) conn_status_callback_(false, "Server closed connection.");
++              break;
++            }
++          } else if (recv_res == CURLE_AGAIN) {
++            break;
++          } else {
++            std::cerr << "[ERROR] curl_ws_recv failed: " << curl_easy_strerror(recv_res) << std::endl;
+             running_ = false;
+             connected_ = false;
+-            if (conn_status_callback_) conn_status_callback_(false, "Server closed connection.");
++            if (conn_status_callback_) conn_status_callback_(false, "Receive error: " + std::string(curl_easy_strerror(recv_res)));
++            break;
+           }
+-        } else if (recv_res != CURLE_AGAIN) {
+-          std::cerr << "[ERROR] curl_ws_recv failed: " << curl_easy_strerror(recv_res) << std::endl;
+-          running_ = false;
+-          connected_ = false;
+-          if (conn_status_callback_) conn_status_callback_(false, "Receive error: " + std::string(curl_easy_strerror(recv_res)));
+         }
+       }
+     }
+@@ -255,49 +313,82 @@
+       curl_multi_timeout(curl_multi_, &curl_timeout_ms);
+     }
+ 
+-    if (still_running == 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
++    if (still_running == 0) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+     else if (curl_timeout_ms < 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+-    else if (curl_timeout_ms != 0) std::this_thread::sleep_for(std::chrono::milliseconds(curl_timeout_ms));
++    else if (curl_timeout_ms != 0) {
++      if (curl_timeout_ms > 50) curl_timeout_ms = 50;
++      std::this_thread::sleep_for(std::chrono::milliseconds(curl_timeout_ms));
++    }
+   }
+ }
+ 
+ void MistConnection::send_json_message(const nlohmann::json &json_msg) {
+-  if (!curl_easy_ || !connected_) {
+-    std::cerr << "[ERROR] Cannot send message: Not connected or CURL handle not initialized." << std::endl;
++  if (!curl_easy_ || !connected_ || !running_) {
+     return;
+   }
+ 
+-  std::string payload = json_msg.dump();
+-  size_t sent;
+-  CURLcode res = curl_ws_send(curl_easy_, payload.c_str(), payload.length(), &sent, 0, CURLWS_TEXT);
+-
+-  if (res != CURLE_OK) std::cerr << "[ERROR] Error sending WebSocket message: " << curl_easy_strerror(res) << std::endl;
++  std::string payload = json_msg.dump() + "\n";
++  size_t sent = 0;
++  for (int retries = 0; retries < 100 && running_ && connected_; ++retries) {
++    CURLcode res = curl_ws_send(curl_easy_, payload.c_str(), payload.length(), &sent, 0, CURLWS_TEXT);
++    if (res == CURLE_OK) {
++      break;
++    }
++    if (res == CURLE_AGAIN) {
++      std::this_thread::sleep_for(std::chrono::milliseconds(5));
++      continue;
++    }
++    std::cerr << "[ERROR] Error sending WebSocket message: " << curl_easy_strerror(res) << std::endl;
++    connected_ = false;
++    running_ = false;
++    break;
++  }
+ }
+ 
+ void MistConnection::handle_recv_message(const char *data, size_t len) {
+-  std::istringstream stream(std::string(data, len));
+-  std::string line;
++  std::string line(data, len);
++#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
++  try {
++    nlohmann::json json_msg = nlohmann::json::parse(line);
++
++    if (json_msg.contains("method") && json_msg["method"] == "set") {
++      std::string name = json_msg["name"].get<std::string>();
++
++      std::string value;
++      if (json_msg["value"].is_string()) value = json_msg["value"].get<std::string>();
++      else value = json_msg["value"].dump();
+ 
+-  while (std::getline(stream, line)) {
+-    try {
+-      nlohmann::json json_msg = nlohmann::json::parse(line);
+-
+-      if (json_msg.contains("method") && json_msg["method"] == "set") {
+-        std::string name = json_msg["name"].get<std::string>();
++      {
 +        std::lock_guard<std::mutex> lock(variables_mutex_);
 +        cloud_variables_[name] = value;
-+
-+        if (var_update_callback_) var_update_callback_(name, value);
 +      }
+ 
+-        std::string value;
+-        if (json_msg["value"].is_string()) value = json_msg["value"].get<std::string>();
+-        else value = std::to_string(json_msg["value"].get<double>());
++      if (var_update_callback_) var_update_callback_(name, value);
 +    }
-+#endif
++  } catch (const nlohmann::json::exception &e) {
++    std::cerr << "[ERROR] JSON parsing error: " << e.what() << " Raw message: " << line << std::endl;
++  } catch (const std::exception &e) {
++    std::cerr << "[ERROR] Error processing message: " << e.what() << " Raw message: " << line << std::endl;
++  }
++#else
++  auto json_msg = nlohmann::json::parse(line, nullptr, false);
++  if (!json_msg.is_discarded()) {
++    if (json_msg.contains("method") && json_msg["method"] == "set") {
++      std::string name = json_msg["name"].get<std::string>();
++
++      std::string value;
++      if (json_msg["value"].is_string()) value = json_msg["value"].get<std::string>();
++      else value = json_msg["value"].dump();
+ 
++      {
+         std::lock_guard<std::mutex> lock(variables_mutex_);
+         cloud_variables_[name] = value;
+-
+-        if (var_update_callback_) var_update_callback_(name, value);
+       }
+-    } catch (const nlohmann::json::exception &e) {
+-      std::cerr << "[ERROR] JSON parsing error: " << e.what() << " Raw message: " << std::string(data, len) << std::endl;
+-    } catch (const std::exception &e) {
+-      std::cerr << "[ERROR] Error processing message: " << e.what() << " Raw message: " << std::string(data, len) << std::endl;
++
++      if (var_update_callback_) var_update_callback_(name, value);
+     }
++  } else {
++    std::cerr << "[ERROR] Discarded invalid JSON: " << line << std::endl;
    }
++#endif
  }

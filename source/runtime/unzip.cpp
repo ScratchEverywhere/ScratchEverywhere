@@ -59,7 +59,11 @@ std::string Unzip::getLoadingState() {
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
+#ifdef __XBOX__
+std::vector<char, DefaultInitAllocator<char>> Unzip::zipBuffer;
+#else
 std::vector<char> Unzip::zipBuffer;
+#endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
 bool Unzip::UnpackedInSD = false;
@@ -277,14 +281,7 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
-#ifdef __XBOX__
-    // 64 MB consoles: render 2x bitmaps at native Scratch size. Must be set before the project is
-    // parsed, since parsing may adjust costume rotation centers based on this flag.
-    if (!OS::isEnhancedPlatform()) Scratch::bitmapHalfQuality = true;
-    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
-#else
     loadingState = TranslationManager::getTranslation("ui.loading.opening");
-#endif
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 

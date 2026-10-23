@@ -95,6 +95,8 @@ void Log::deleteLogFile() {
 }
 #elif defined(__XBOX__)
 static CRITICAL_SECTION log_cs;
+static std::string lastLogWarning;
+static std::string lastLogError;
 static bool log_cs_inited = false;
 
 static void xbox_append_log(const char *prefix, const std::string &msg) {
@@ -139,14 +141,22 @@ void Log::log(std::string message) {
 }
 
 void Log::logWarning(std::string message) {
+    if (lastLogWarning == message) return;
+    lastLogWarning = message;
     xbox_append_log("<WARN>", message);
 }
 
 void Log::logError(std::string message) {
+    if (lastLogError == message) return;
+    lastLogError = message;
     xbox_append_log("<ERR>", message);
 }
 
 void Log::logCritical(std::string message, bool fatal) {
+    if (!fatal && lastLogWarning == message) return;
+    if (lastLogError == message) return;
+    if (!fatal) lastLogWarning = message;
+    else lastLogError = message;
     xbox_append_log(fatal ? "<FATAL>" : "<CRIT>", message);
 }
 

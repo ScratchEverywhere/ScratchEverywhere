@@ -85,10 +85,6 @@ bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
 
-#ifdef __XBOX__
-bool Scratch::bitmapHalfQuality = false;
-#endif
-
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU
@@ -111,7 +107,10 @@ bool Scratch::initializeRuntime() {
     if (!OS::init()) {
         return false;
     }
+#ifndef __XBOX__
+    // Logging is already cleared on boot in OS::init on the Xbox.
     Log::deleteLogFile();
+#endif
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
     if (!Render::init()) {
@@ -209,6 +208,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef __XBOX__
+        // Bypasses the NXDK's broken std::to_string(double) implementation
+        auto formatMs = [](double timeMs) -> std::string {
+            int ms = static_cast<int>(timeMs);
+            int us = static_cast<int>((timeMs - ms) * 1000.0);
+            std::string usStr = std::to_string(std::abs(us));
+            if (usStr.length() == 1) usStr = "00" + usStr;
+            else if (usStr.length() == 2) usStr = "0" + usStr;
+            return std::to_string(ms) + "." + usStr + " ms";
+        };
+#endif
+
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 #endif
@@ -231,7 +242,11 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Inspector::processCommands();
 #endif
 
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(formatMs(scriptTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
+#endif
 
         Timer renderTimer(false);
         if (debugVars) renderTimer.start();
@@ -275,7 +290,12 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             shouldStop = false;
             return std::make_pair(false, true);
         }
+
+#ifdef __XBOX__
+        if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(formatMs(renderTimer.getTimeMsDouble()));
+#else
         if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
+#endif
     }
 
     return std::make_pair(true, false);
@@ -990,7 +1010,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     auto onErr = [&](std::string error) -> bool {
         const std::string missingName = "SE__Missingno";
-const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
+        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
             if (!transient) failedCostumeImages.insert(costumeName);
