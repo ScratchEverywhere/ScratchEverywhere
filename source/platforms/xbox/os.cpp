@@ -58,7 +58,7 @@ bool OS::init() {
     if (!nxIsDriveMounted('D')) {
         Log::logError("D: mount failure!\n");
         Sleep(5000);
-        return 1;
+        return false;
     }
 
     // Mount C:
@@ -67,7 +67,7 @@ bool OS::init() {
         if (!ret) {
             Log::logError("C: mount failure!\n");
             Sleep(5000);
-            return 1;
+            return false;
         }
     }
 
@@ -77,7 +77,7 @@ bool OS::init() {
         if (!ret) {
             Log::logError("E: mount failure!\n");
             Sleep(5000);
-            return 1;
+            return false;
         }
     }
 
