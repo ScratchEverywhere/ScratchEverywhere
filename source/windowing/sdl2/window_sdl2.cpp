@@ -120,7 +120,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         resize(dw, dh);
     } else {
         int dw, dh;
-#if defined(__PS4__) || defined(WEBOS)
+#if defined(WEBOS)
         SDL_GetWindowSize(window, &dw, &dh);
 #else
         SDL_GetWindowSizeInPixels(window, &dw, &dh);
@@ -173,7 +173,7 @@ void WindowSDL2::pollEvents() {
                 if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore)
                     SDL_GL_GetDrawableSize(window, &w, &h);
                 else {
-#if defined(__PS4__) || defined(WEBOS)
+#if defined(WEBOS)
                     SDL_GetWindowSize(window, &w, &h);
 #else
                     SDL_GetWindowSizeInPixels(window, &w, &h);
