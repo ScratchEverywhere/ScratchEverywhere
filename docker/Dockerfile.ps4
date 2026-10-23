@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	build-essential ca-certificates cmake clang lld llvm git pkg-config python3 tar wget
 
 # Download, install and cleanup prebuilt toolchain
-RUN wget -O /tmp/sdk.tar.gz "https://github.com/ps4-homebrew-dev/pacbrew/releases/download/v0.4.1/ps4-homebrew-dev.tar.gz" && \
+RUN wget -qO /tmp/sdk.tar.gz "https://github.com/ps4-homebrew-dev/pacbrew/releases/download/v0.4.1/ps4-homebrew-dev.tar.gz" && \
 	tar -xzf /tmp/sdk.tar.gz -C / && rm -f /tmp/sdk.tar.gz
 
 # Fetch and install only the Orbis headers
