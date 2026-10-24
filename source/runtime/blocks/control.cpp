@@ -4,6 +4,7 @@
 #include "runtime/blockExecutor.hpp"
 #include <audio.hpp>
 #include <blockExecutor.hpp>
+#include <bytecode_executor.hpp>
 #include <iostream>
 #include <math.hpp>
 #include <os.hpp>
@@ -191,6 +192,9 @@ SCRATCH_BLOCK(control, stop) {
                 if (t->sprite->isClone) t->finished = true;
             }
         }
+        for (BytecodeThread *t : BytecodeExecutor::threads) {
+            if (t->sprite->isClone) t->finished = true;
+        }
         return BlockResult::RETURN;
     };
     if (stopType == "this script") {
@@ -200,6 +204,10 @@ SCRATCH_BLOCK(control, stop) {
     if (stopType == "other scripts in sprite") {
         for (ScriptThread *t : BlockExecutor::threads) {
             if (thread == t || thread->parentThread == t || t->sprite != sprite) continue;
+            t->finished = true;
+        }
+        for (BytecodeThread *t : BytecodeExecutor::threads) {
+            if (t->sprite != sprite || t->legacyThreadId == thread->id) continue;
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)

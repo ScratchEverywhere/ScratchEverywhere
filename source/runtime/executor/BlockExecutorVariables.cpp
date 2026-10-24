@@ -91,6 +91,8 @@ T BlockExecutor::getVariableValueAs(Variable *var) {
             else return Value(arg);
         } else if constexpr (std::is_same_v<T, std::string> && std::is_same_v<VarT, std::shared_ptr<const std::string>>) {
             return *arg;
+        } else if constexpr (std::is_same_v<VarT, T> && std::is_same_v<T, double>) {
+            return std::isnan(arg) ? 0.0 : arg;
         } else if constexpr (std::is_same_v<VarT, T>) {
             return arg;
         } else if constexpr (std::is_same_v<VarT, Value>) {

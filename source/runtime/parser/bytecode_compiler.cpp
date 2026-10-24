@@ -334,10 +334,10 @@ bool tryCompileArgumentReporter(BytecodeCompiler &compiler, Block *block, Byteco
 
     std::string argName = Scratch::getFieldValue(*block, "VALUE");
     const auto &names = *compiler.currentArgumentNames();
-    auto it = std::find(names.begin(), names.end(), argName);
-    if (it == names.end()) return false;
+    auto it = std::find(names.rbegin(), names.rend(), argName);
+    if (it == names.rend()) return false;
 
-    BytecodeIndex argSlot = static_cast<BytecodeIndex>(std::distance(names.begin(), it));
+    BytecodeIndex argSlot = static_cast<BytecodeIndex>(names.size() - 1 - std::distance(names.rbegin(), it));
     compiler.emit(BytecodeOp::PushArg, argSlot);
     compiler.convertIfNeeded(BytecodeStackKind::Value, wanted);
     return true;

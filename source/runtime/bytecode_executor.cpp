@@ -835,6 +835,21 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
                 const BytecodeProcedure &proc = thread.chunk->procedures[procIndex];
 
+                if (!thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh && thread.pendingRecursiveCallPc != thread.pc) {
+                    bool isRecursiveCall = false;
+                    for (const BytecodeCallFrame &existing : thread.callStack) {
+                        if (existing.procedureIndex == procIndex) {
+                            isRecursiveCall = true;
+                            break;
+                        }
+                    }
+                    if (isRecursiveCall) {
+                        thread.pendingRecursiveCallPc = thread.pc;
+                        goto done;
+                    }
+                }
+                thread.pendingRecursiveCallPc = invalidBytecodeIndex;
+
                 BytecodeCallFrame frame;
                 frame.procedureIndex = procIndex;
                 frame.returnInstruction = thread.pc + 1;
@@ -1011,16 +1026,24 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 double op1 = thread.numberStack.back();
                 thread.numberStack.pop_back();
                 bool result;
-                switch (static_cast<BytecodeCompareKind>(instr.b)) {
-                case BytecodeCompareKind::Equals:
-                    result = op1 == op2;
-                    break;
-                case BytecodeCompareKind::Less:
-                    result = op1 < op2;
-                    break;
-                default:
-                    result = op1 > op2;
-                    break;
+                const BytecodeCompareKind kind = static_cast<BytecodeCompareKind>(instr.b);
+                const bool nan1 = std::isnan(op1), nan2 = std::isnan(op2);
+                if (nan1 || nan2) {
+                    result = kind == BytecodeCompareKind::Equals ? (nan1 && nan2)
+                             : kind == BytecodeCompareKind::Less ? (nan2 && !nan1)
+                                                                 : (nan1 && !nan2);
+                } else {
+                    switch (kind) {
+                    case BytecodeCompareKind::Equals:
+                        result = op1 == op2;
+                        break;
+                    case BytecodeCompareKind::Less:
+                        result = op1 < op2;
+                        break;
+                    default:
+                        result = op1 > op2;
+                        break;
+                    }
                 }
                 const bool shouldJump = (instr.op == BytecodeOp::JumpIfNumCompareTrue) ? result : !result;
                 thread.pc = shouldJump ? instr.a : thread.pc + 1;
@@ -1048,13 +1071,14 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     SE_NEXT();
                 }
                 const double bound = thread.valueStack[thread.valueStack.size() - 2].get<double>();
-                const double counter = thread.valueStack.back().get<double>() + 1.0;
-                if (counter > bound) {
+                const double preCounter = thread.valueStack.back().get<double>();
+                if (preCounter >= bound) {
                     thread.valueStack.pop_back();
                     thread.valueStack.pop_back();
                     thread.pc = instr.a;
                     SE_NEXT();
                 }
+                const double counter = preCounter + 1.0;
                 thread.valueStack.back() = Value(counter);
                 Variable *var = variableAt(thread, instr.b);
                 if (var) var->value = counter;
@@ -1240,9 +1264,17 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.numberStack.pop_back();
                 double op1 = thread.numberStack.back();
                 thread.numberStack.pop_back();
-                bool result = instr.op == BytecodeOp::NumEquals ? op1 == op2
-                              : instr.op == BytecodeOp::NumLess ? op1 < op2
-                                                                : op1 > op2;
+                bool result;
+                const bool nan1 = std::isnan(op1), nan2 = std::isnan(op2);
+                if (nan1 || nan2) {
+                    result = instr.op == BytecodeOp::NumEquals ? (nan1 && nan2)
+                             : instr.op == BytecodeOp::NumLess ? (nan2 && !nan1)
+                                                               : (nan1 && !nan2);
+                } else {
+                    result = instr.op == BytecodeOp::NumEquals ? op1 == op2
+                             : instr.op == BytecodeOp::NumLess ? op1 < op2
+                                                               : op1 > op2;
+                }
                 thread.boolStack.push_back(result);
                 thread.pc++;
                 SE_NEXT();

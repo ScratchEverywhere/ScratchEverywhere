@@ -348,6 +348,7 @@ struct SE_EXPORT BytecodeThread {
     std::vector<Value> valueStack;
 
     std::vector<BytecodeCallFrame> callStack;
+    BytecodeIndex pendingRecursiveCallPc = invalidBytecodeIndex;
 
     Timer waitTimer;
     double sleepTimer = 0.0;
