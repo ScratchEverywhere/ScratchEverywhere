@@ -17,7 +17,12 @@ bool BlockExecutor::isThreadRunning(uint64_t id) {
         if (t->id == id) return !t->finished;
     }
     for (BytecodeThread *t : BytecodeExecutor::threads) {
-        if (t->id == id) return t->escapedToLegacy ? (t->legacyThread != nullptr && !t->legacyThread->finished) : !t->finished;
+        if (t->id != id) continue;
+        if (!t->escapedToLegacy) return !t->finished;
+        for (ScriptThread *legacy : threads) {
+            if (legacy->id == t->legacyThreadId) return !legacy->finished;
+        }
+        return false;
     }
     return false;
 }
@@ -148,8 +153,6 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
     unsigned int blocksSinceTimeCheck = 0;
     constexpr unsigned int timeCheckInterval = 64;
     do {
-        fprintf(stderr, "[LEGACY] sprite=%s opcode=%s\n", sprite.name.c_str(), thread.nextBlock->opcode.c_str());
-
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 

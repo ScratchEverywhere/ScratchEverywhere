@@ -181,6 +181,22 @@ void releaseScriptThread(ScriptThread *t) {
     Pools::threads.push_back(t);
 }
 
+bool legacyThreadFinished(uint64_t legacyId) {
+    for (ScriptThread *t : BlockExecutor::threads) {
+        if (t->id == legacyId) return t->finished;
+    }
+    return true;
+}
+
+void killLegacyThread(uint64_t legacyId) {
+    for (ScriptThread *t : BlockExecutor::threads) {
+        if (t->id == legacyId) {
+            t->finished = true;
+            return;
+        }
+    }
+}
+
 void fillBridgeBlock(Block &block, BytecodeThread &thread, BytecodeIndex opSlot) {
     const BytecodeIndex start = thread.chunk->paramKindsStart[opSlot];
     const BytecodeIndex count = thread.chunk->paramKindsCount[opSlot];
@@ -909,6 +925,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 }
 
                 thread.legacyThread = newThread;
+                thread.legacyThreadId = newThread->id;
                 thread.escapedToLegacy = true;
                 thread.finished = true;
                 goto done;
@@ -1434,10 +1451,11 @@ bool BytecodeExecutor::isRunning(Sprite *sprite, Block *hat) {
 void BytecodeExecutor::stopThread(Sprite *sprite, Block *hat) {
     for (size_t i = 0; i < threads.size(); i++) {
         BytecodeThread *t = threads[i];
-        const bool threadDone = t->escapedToLegacy ? (t->legacyThread == nullptr || t->legacyThread->finished) : t->finished;
+        const bool threadDone = t->escapedToLegacy ? legacyThreadFinished(t->legacyThreadId) : t->finished;
         if (!threadDone && t->sprite == sprite && t->hatBlock == hat) {
             t->finished = true;
-            if (t->escapedToLegacy && t->legacyThread) t->legacyThread->finished = true;
+            t->killed = true;
+            if (t->escapedToLegacy) killLegacyThread(t->legacyThreadId);
             return;
         }
     }
@@ -1458,7 +1476,7 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
 
     size_t restartIndex = static_cast<size_t>(-1);
     for (size_t i = 0; i < threads.size(); i++) {
-        const bool threadDone = threads[i]->escapedToLegacy ? (threads[i]->legacyThread == nullptr || threads[i]->legacyThread->finished) : threads[i]->finished;
+        const bool threadDone = threads[i]->escapedToLegacy ? legacyThreadFinished(threads[i]->legacyThreadId) : threads[i]->finished;
         if (!threadDone && threads[i]->sprite == sprite && threads[i]->hatBlock == hat) {
             if (shouldRestart) {
                 restartIndex = i;
@@ -1488,7 +1506,8 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
     if (restartIndex != static_cast<size_t>(-1)) {
         BytecodeThread *old = threads[restartIndex];
         old->finished = true;
-        if (old->escapedToLegacy && old->legacyThread) old->legacyThread->finished = true;
+        old->killed = true;
+        if (old->escapedToLegacy) killLegacyThread(old->legacyThreadId);
     }
     threads.push_back(newThread);
 
@@ -1500,8 +1519,33 @@ void BytecodeExecutor::runThreads() {
     while (i < threads.size()) {
         BytecodeThread *thread = threads[i];
 
-        bool done = thread->escapedToLegacy ? (thread->legacyThread == nullptr || thread->legacyThread->finished) : thread->finished;
-        if (done) {
+        if (thread->escapedToLegacy) {
+            if (!legacyThreadFinished(thread->legacyThreadId)) {
+                i++;
+                continue;
+            }
+
+            thread->legacyThread = nullptr;
+            thread->escapedToLegacy = false;
+
+            if (thread->killed || thread->callStack.empty()) {
+                thread->finished = true;
+            } else {
+                const BytecodeCallFrame frame = thread->callStack.back();
+                thread->callStack.pop_back();
+
+                if (frame.wantsValue) thread->valueStack.push_back(Value());
+
+                thread->withoutScreenRefresh = frame.previousWarp;
+                const size_t base = frame.stackBase >= frame.argCount ? static_cast<size_t>(frame.stackBase - frame.argCount) : 0;
+                if (thread->valueStack.size() > base) thread->valueStack.resize(base);
+
+                thread->pc = frame.returnInstruction;
+                thread->finished = false;
+            }
+        }
+
+        if (thread->finished) {
             if (thread->bridgeThread) releaseScriptThread(thread->bridgeThread);
             delete thread;
             threads.erase(threads.begin() + i);

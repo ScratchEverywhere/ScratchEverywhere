@@ -77,11 +77,6 @@ enum class BytecodeOp : uint8_t {
     CallNativeBoolean,
     CallNativeColor,
     CallNativeValue,
-    /**
-     * Calls a native block handler that takes more than one frame to finish (it returns REPEAT until done).
-     * The arguments are popped once into a persistent bridge Block kept in the frame, and the handler is
-     * re-invoked on it every frame. CallNativeBlockingValue also pushes the handler's result as a Value.
-     */
     CallNativeBlocking,
     CallNativeBlockingValue,
 
@@ -366,7 +361,9 @@ struct SE_EXPORT BytecodeThread {
     std::shared_ptr<Block> blockingBlock;
 
     ScriptThread *legacyThread = nullptr;
+    uint64_t legacyThreadId = 0;
     bool escapedToLegacy = false;
+    bool killed = false;
 
     ScriptThread *bridgeThread = nullptr;
 };
