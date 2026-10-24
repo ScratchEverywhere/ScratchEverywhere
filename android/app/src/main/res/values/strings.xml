@@ -5,6 +5,6 @@
 	<string name="import_bulk">Finished project bulk import: %1d successful, %2d failed</string>
 	<string name="import_exists">This project was already imported. Would you like to overwrite it?</string>
 	<string name="error_file_not_found">The requested file was not found in the filesystem</string>
-	<string name="error_file_io">Oops! An internal error occurred while reading the file, shouldn't happen, try again</string>
+	<string name="error_file_io">Oops! An internal error occurred while reading the file, shouldn\'t happen, try again</string>
 	<string name="error_import_title">Project Import Error</string>
 </resources>
