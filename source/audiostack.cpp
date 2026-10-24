@@ -10,9 +10,6 @@
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
-#ifdef __ANDROID__
-#include <SDL_rwops.h>
-#endif
 
 #include <cstdio>
 #include <cstdlib>
@@ -218,18 +215,18 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (loadFromDisk) {
 #endif
 
-        this->name = path;
-        commonInit();
+    this->name = path;
+    commonInit();
 
-        // Stream directly from the disk file instead of loading to heap
-        if (!loadFromFile(fullAudioPath)) {
-            return nonstd::make_unexpected("Failed to stream sound from disk: " + fullAudioPath);
-        }
+    // Stream directly from the disk file instead of loading to heap
+    if (!loadFromFile(fullAudioPath)) {
+        return nonstd::make_unexpected("Failed to stream sound from disk: " + fullAudioPath);
+    }
 
-        Mixer::mutex.lock();
-        Mixer::streams[path] = this;
-        Mixer::mutex.unlock();
-        return {};
+    Mixer::mutex.lock();
+    Mixer::streams[path] = this;
+    Mixer::mutex.unlock();
+    return {};
 
 #ifdef USE_BUNDLE
     } else {
@@ -616,7 +613,7 @@ void Mixer::cleanupAudio() {
 void Mixer::stopSound(std::string name) {
 #ifdef ENABLE_AUDIO
     FIND({});
-    e->second->paused = true;
+        e->second->paused = true;
     END;
 #endif
 }
@@ -625,7 +622,7 @@ bool Mixer::isSoundPlaying(std::string name) {
 #ifdef ENABLE_AUDIO
     bool b = false;
     FIND({});
-    b = !e->second->paused;
+        b = !e->second->paused;
     END;
     return b;
 #endif
@@ -636,7 +633,7 @@ void Mixer::setPitch(std::string name, float pitch) {
 #ifdef ENABLE_AUDIO
     pitch = pow(2, pitch / 120.0);
     FIND(PRESERVE(pitch));
-    e->second->config.pitch = pitch;
+        e->second->config.pitch = pitch;
     END;
 #endif
 }
@@ -644,7 +641,7 @@ void Mixer::setPitch(std::string name, float pitch) {
 void Mixer::setPan(std::string name, float pan) {
 #ifdef ENABLE_AUDIO
     FIND(PRESERVE(pan));
-    e->second->config.pan = pan;
+        e->second->config.pan = pan;
     END;
 #endif
 }
@@ -652,7 +649,7 @@ void Mixer::setPan(std::string name, float pan) {
 void Mixer::setSoundVolume(std::string name, float volume) {
 #ifdef ENABLE_AUDIO
     FIND(PRESERVE(volume));
-    e->second->config.volume = volume;
+        e->second->config.volume = volume;
     END;
 #endif
 }
@@ -661,7 +658,7 @@ float Mixer::getSoundVolume(std::string name) {
 #ifdef ENABLE_AUDIO
     float v;
     FIND({});
-    v = e->second->config.volume;
+        v = e->second->config.volume;
     END;
     return v;
 #endif
@@ -671,7 +668,7 @@ float Mixer::getSoundVolume(std::string name) {
 void Mixer::setAutoClean(std::string name, bool toggle) {
 #ifdef ENABLE_AUDIO
     FIND({});
-    e->second->auto_clean = toggle;
+        e->second->auto_clean = toggle;
     END;
 #endif
 }
@@ -681,27 +678,27 @@ float Mixer::beatsToSec(float v) {
 }
 
 static constexpr int instrument_lut[] = {
-    0,   /* Piano -> Acoustic Grand */
-    4,   /* Electric Piano -> Electric Piano 1 */
-    19,  /* Organ -> Church Organ */
-    24,  /* Guitar -> Steel String Guitar */
-    27,  /* Electric Guitar -> Electric Clean Guitar */
-    32,  /* Bass -> Acoustic Bass */
-    45,  /* Pizzicato -> Pizzicato Strings */
-    42,  /* Cello -> Cello */
-    57,  /* Trombone -> Trombone */
-    71,  /* Clarinet -> Clarinet */
-    64,  /* Saxophone -> Soprano Sax */
-    73,  /* Flute -> Flute */
-    75,  /* Wooden Flute -> Pan Flute */
-    70,  /* Bassoon -> Bassoon */
-    52,  /* Choir -> Choir Aahs */
-    11,  /* Vibraphone -> Vibraphone */
-    10,  /* Music Box -> Music Box */
-    114, /* Steel Drum -> Steel Drums */
-    12,  /* Marimba -> Marimba */
-    80,  /* Synth Lead -> Lead 1 (square) */
-    89   /* Synth Pad -> Pad 2 (warm) */
+        0,   /* Piano -> Acoustic Grand */
+        4,   /* Electric Piano -> Electric Piano 1 */
+        19,  /* Organ -> Church Organ */
+        24,  /* Guitar -> Steel String Guitar */
+        27,  /* Electric Guitar -> Electric Clean Guitar */
+        32,  /* Bass -> Acoustic Bass */
+        45,  /* Pizzicato -> Pizzicato Strings */
+        42,  /* Cello -> Cello */
+        57,  /* Trombone -> Trombone */
+        71,  /* Clarinet -> Clarinet */
+        64,  /* Saxophone -> Soprano Sax */
+        73,  /* Flute -> Flute */
+        75,  /* Wooden Flute -> Pan Flute */
+        70,  /* Bassoon -> Bassoon */
+        52,  /* Choir -> Choir Aahs */
+        11,  /* Vibraphone -> Vibraphone */
+        10,  /* Music Box -> Music Box */
+        114, /* Steel Drum -> Steel Drums */
+        12,  /* Marimba -> Marimba */
+        80,  /* Synth Lead -> Lead 1 (square) */
+        89   /* Synth Pad -> Pad 2 (warm) */
 };
 
 int Mixer::note(int instrument, int note, float volume, float beats) {
@@ -724,24 +721,24 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 }
 
 static constexpr int drum_lut[] = {
-    38, /* Snare -> Acoustic Snare */
-    36, /* Bass Drum -> Bass Drum 1 */
-    37, /* Side Stick -> Side Stick */
-    49, /* Crash Cymbal -> Crash Cymbal 1 */
-    46, /* Open Hi Hat -> Open Hi-Hat */
-    42, /* Closed Hi Hat -> Closed Hi Hat */
-    54, /* Tambourine -> Tambourine */
-    39, /* Hand Clap -> Hand Clap */
-    75, /* Claves -> Claves */
-    76, /* Wood Block -> Hi Wood Block */
-    56, /* Cowbell -> Cowbell */
-    81, /* Triangle -> Open Triangle */
-    60, /* Bongo -> Hi Bongo */
-    63, /* Conga -> Open Hi Conga */
-    69, /* Cabasa -> Cabasa */
-    74, /* Guiro -> Long Guiro */
-    58, /* Vibraslap -> Vibraslap */
-    79  /* Cuica -> Open Cuica */
+        38, /* Snare -> Acoustic Snare */
+        36, /* Bass Drum -> Bass Drum 1 */
+        37, /* Side Stick -> Side Stick */
+        49, /* Crash Cymbal -> Crash Cymbal 1 */
+        46, /* Open Hi Hat -> Open Hi-Hat */
+        42, /* Closed Hi Hat -> Closed Hi Hat */
+        54, /* Tambourine -> Tambourine */
+        39, /* Hand Clap -> Hand Clap */
+        75, /* Claves -> Claves */
+        76, /* Wood Block -> Hi Wood Block */
+        56, /* Cowbell -> Cowbell */
+        81, /* Triangle -> Open Triangle */
+        60, /* Bongo -> Hi Bongo */
+        63, /* Conga -> Open Hi Conga */
+        69, /* Cabasa -> Cabasa */
+        74, /* Guiro -> Long Guiro */
+        58, /* Vibraslap -> Vibraslap */
+        79  /* Cuica -> Open Cuica */
 };
 
 int Mixer::drum(int drum, float volume, float beats) {

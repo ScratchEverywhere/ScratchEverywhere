@@ -1,8 +1,6 @@
 #include <log.hpp>
 #include <os.hpp>
 
-#include <SDL.h>
-
 namespace OS {
     bool toExit = false;
     bool loadedSettings = false;

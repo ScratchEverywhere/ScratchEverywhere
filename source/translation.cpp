@@ -10,9 +10,6 @@
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
-#ifdef __ANDROID__
-#include <SDL_rwops.h>
-#endif
 
 static nlohmann::json translationKeys = nullptr;
 static std::vector<std::string> splashTexts;
@@ -59,31 +56,6 @@ void TranslationManager::loadLanguage(std::string language) {
     translationKeys = nlohmann::json::parse(assets.load_text(assets.find(path).value()));
 
     std::istringstream stream(assets.load_text(assets.find(splashPath).value()));
-
-    std::string line;
-    while (std::getline(stream, line)) {
-        if (!line.empty()) {
-            splashTexts.push_back(line);
-        }
-    }
-#elif defined(__ANDROID__)
-    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
-    int64_t size = SDL_RWsize(rw);
-    std::vector<char> file(size);
-
-    SDL_RWread(rw, file.data(), 1, size);
-    SDL_RWclose(rw);
-    translationKeys = nlohmann::json::parse(file.begin(), file.begin() + size);
-
-    rw = SDL_RWFromFile(splashPath.c_str(), "rb");
-    size = SDL_RWsize(rw);
-    std::vector<char> splashFile(size);
-
-    SDL_RWread(rw, splashFile.data(), 1, size);
-    SDL_RWclose(rw);
-
-    std::string_view sv(splashFile.data(), size);
-    std::istringstream stream{std::string(sv)};
 
     std::string line;
     while (std::getline(stream, line)) {

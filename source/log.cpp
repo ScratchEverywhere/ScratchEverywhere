@@ -168,14 +168,8 @@ void Log::deleteLogFile() {
     remove("E:\\ScratchEverywhere\\debug.txt");
 }
 
-void Log::logError(std::string message) {
-    if (lastLog == message) return;
-    lastLog = message;
-
-    __android_log_print(ANDROID_LOG_ERROR, LOGCAT_TAG, "Error: %s", message.c_str());
-    writeToFile("<Error> " + message);
-}
 #else
+static std::string lastLog;
 void Log::log(std::string message) {
     if (lastLog == message) return;
     lastLog = message;
@@ -196,7 +190,6 @@ void Log::logError(std::string message) {
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
     writeToFile("<Error> " + message);
 }
-#endif
 
 /**
  * logCritical is a graphical error message
@@ -264,9 +257,5 @@ void Log::deleteLogFile() {
     if (std::remove(filePath.c_str()) != 0) {
         Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
-<<<<<<< HEAD
-}
-=======
 }
 #endif
->>>>>>> main

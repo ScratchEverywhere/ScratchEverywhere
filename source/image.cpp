@@ -292,22 +292,6 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
         buffer[entry->size()] = '\0';
         return buffer;
     }
-#elif defined(__ANDROID__)
-    std::string path = filePath;
-
-    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
-    if (!rw) throw std::runtime_error("Failed to open file: " + path);
-
-    Sint64 size = SDL_RWsize(rw);
-    std::vector<unsigned char> buffer(size);
-
-    if (!SDL_RWread(rw, buffer.data(), 1, size)) {
-        SDL_RWclose(rw);
-        throw std::runtime_error("Failed to read file: " + path);
-    }
-
-    SDL_RWclose(rw);
-    return buffer;
 #else
 
     std::string path = filePath;
