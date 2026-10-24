@@ -42,7 +42,8 @@ enum class ExtensionPlatform {
     PLATFORM_PS4,
     PLATFORM_PSP,
     PLATFORM_WEBOS,
-    PLATFORM_WASM
+    PLATFORM_WASM,
+    PLATFORM_XBOX
 };
 
 inline std::string permissionToString(extensions::ExtensionPermission perm) {
@@ -98,6 +99,8 @@ inline std::string platformToString(extensions::ExtensionPlatform plat) {
         return "webos";
     case extensions::ExtensionPlatform::PLATFORM_WASM:
         return "wasm";
+    case extensions::ExtensionPlatform::PLATFORM_XBOX:
+        return "xbox";
     default:
         return "unknown";
     }
