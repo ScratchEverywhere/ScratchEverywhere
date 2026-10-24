@@ -22,8 +22,18 @@ function(_recipe_nxdk_source)
         set(_nxdk "${CL_SOURCE_DIR}")
     endif()
 
+    # Ensure custom patches are applied to NXDK directory
+    if(NOT EXISTS "${_nxdk}/nxdk_patch_status.cmake")
+        message(STATUS "Applying custom NXDK patches to ${_nxdk}...")
+        execute_process(
+            COMMAND patch -p1 -N -i "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk.patch"
+            WORKING_DIRECTORY "${_nxdk}"
+            RESULT_VARIABLE _patch_res
+        )
+    endif()
+
     # Attempt to include the patch status file
-    include("${NXDK_DIR}/nxdk_patch_status.cmake" OPTIONAL)
+    include("${_nxdk}/nxdk_patch_status.cmake" OPTIONAL)
 
     # Abort immediately if the patch wasn't applied
     if(NOT NXDK_CUSTOM_PATCHES_APPLIED)
