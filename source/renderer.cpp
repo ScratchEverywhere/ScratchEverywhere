@@ -78,6 +78,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_XBOX
     add(Renderers::Xbox);
 #endif
+#ifdef RENDERER_GX2
+    add(Renderers::GX2);
+#endif
 #ifdef RENDERER_SDL3
     add(Renderers::SDL3);
 #endif
