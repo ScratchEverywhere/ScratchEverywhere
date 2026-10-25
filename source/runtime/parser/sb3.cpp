@@ -913,6 +913,9 @@ static void clearBlockOpcodes(Block *startBlock, Block *stopBlock = nullptr) {
     Block *current = startBlock;
 
     while (current != nullptr && current != stopBlock) {
+        bool isIf = (current->opcode == "control_if" || current->opcode == "control_if_else" ||
+                     current->opcode == "control_all_at_once");
+
         for (const std::string &stackName : {"SUBSTACK", "SUBSTACK2"}) {
             Block *firstSubBlock = nullptr;
             for (auto &[name, input] : current->inputs) {
@@ -921,7 +924,7 @@ static void clearBlockOpcodes(Block *startBlock, Block *stopBlock = nullptr) {
                     break;
                 }
             }
-            if (firstSubBlock != nullptr) clearBlockOpcodes(firstSubBlock, current);
+            if (firstSubBlock != nullptr) clearBlockOpcodes(firstSubBlock, isIf ? current->nextBlock : current);
         }
 
         bool wasEndBlock = current->isEndBlock;
