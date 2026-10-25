@@ -10,9 +10,21 @@ patches in `cmake/patches`. The SDK revision matches `docker/Dockerfile.xbox`.
 
 ## Native build
 
-Install Git, CMake, Make, LLVM (including LLD), Bison and Flex. On macOS use
-Homebrew LLVM rather than Apple's compiler. Dependencies may have additional
-host requirements; see the configure output for any missing tools.
+Install Git, CMake, Make, LLVM (including LLD), Bison, Flex and Rust/Cargo.
+Cargo builds the `dsp56300-asm` host tool used by Xbox audio. On macOS use
+Homebrew LLVM rather than Apple's compiler.
+
+If Rust is not already installed, an isolated official rustup installation can
+be created without changing your shell profile:
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/se-rustup-init.sh
+CARGO_HOME="$PWD/.cache/toolchains/cargo" \
+RUSTUP_HOME="$PWD/.cache/toolchains/rustup" \
+  sh /tmp/se-rustup-init.sh -y --profile minimal --default-toolchain stable --no-modify-path
+```
+
+The helper automatically uses that local installation. Then build:
 
 ```sh
 bash scripts/build-xbox.sh

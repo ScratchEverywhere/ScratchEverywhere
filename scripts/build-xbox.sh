@@ -4,6 +4,17 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+# Pick up the optional project-local Rust installation described in the notes.
+if [[ -x "$root/.cache/toolchains/cargo/bin/cargo" ]]; then
+    export CARGO_HOME="$root/.cache/toolchains/cargo"
+    export RUSTUP_HOME="$root/.cache/toolchains/rustup"
+    export PATH="$CARGO_HOME/bin:$PATH"
+fi
+if ! command -v cargo >/dev/null; then
+    echo "Rust/Cargo is required by the Xbox audio DSP assembler; see docs/xbox-fork-build.md." >&2
+    exit 1
+fi
+
 # Use a project-local SDK: SE applies patches that other NXDK projects may not need.
 export NXDK_DIR="$root/.cache/toolchains/nxdk"
 nxdk_ref=14d5ee97e73347c973f1f57b68b79ec08c9e77f2
