@@ -40,6 +40,18 @@ Expected outputs are `build-xbox/default.xbe` for a modded Xbox and
 `build-xbox/scratch-xbox.iso` for xemu. Producing these files does not establish
 that a build boots or works on hardware; test separately.
 
+### First successful local build
+
+On October 25, 2026, `bash scripts/build-xbox.sh` completed on macOS with
+Homebrew Clang 23.1.2 and Rust 1.99.1, using the default Xbox options. The XBE
+header begins with `XBEH`; packaging added that XBE to the XISO successfully.
+No emulator or hardware boot test has been performed.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `default.xbe` | 9437184 | `f983cf5b0d3f77a4129a45a9f5a7aaa1ee72bcd910ac6ab3438bc374f7dceb36` |
+| `scratch-xbox.iso` | 10027008 | `141ac60ccff104b5422f95714be05de96e90f4f4f6dce0973f4d9708a00ab32c` |
+
 ## Upstream container build
 
 With Docker running, use the existing upstream image definition:
