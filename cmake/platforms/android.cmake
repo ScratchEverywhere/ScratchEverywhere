@@ -1,5 +1,4 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch") # libscratch.so
-set(SE_LIBRARY ON)
 
 set(SE_RENDERER_VALID_OPTIONS "opengl_core" "sdl2" "sdl3")
 set(SE_WINDOWING_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
@@ -22,8 +21,8 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD TRUE)
 set(SE_HAS_CONTROLLER TRUE)
 
-set(SE_PLATFORM_DEFINITIONS "__ANDROID__")
 set(SE_PLATFORM "android")
+set(SE_LIBRARY ON)
 
 macro(package_platform)
     # Link against logging library

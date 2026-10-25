@@ -84,6 +84,8 @@ elseif(NINTENDO_WIIU)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wiiu.cmake")
 elseif(WEBOS)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
+elseif(ANDROID)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/android.cmake")
 elseif(XBOX)
     # I give up, putting this here seems to be the only fix for it to properly patch on builds
     cl_add_dep(nxdk)

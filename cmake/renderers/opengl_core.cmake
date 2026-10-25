@@ -23,7 +23,13 @@ if(NINTENDO_SWITCH OR PS4 OR EMSCRIPTEN)
 
 	if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
 		set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
-	endif()
+    endif()
+elseif(ANDROID)
+    set(SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl3")
+
+    if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
+        set(SE_AUDIO_ENGINE_DEFAULT "sdl2" "sdl3")
+    endif()
 elseif(NOT LIBRETRO)
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl1" "sdl3" "glfw")
 
