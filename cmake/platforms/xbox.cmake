@@ -39,6 +39,11 @@ set(SE_LWMEM_GPU_RESERVE_MB 32 CACHE STRING "Size in MB reserved for GPU and sys
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
+option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
+if(SE_XBOX_FORCE_480P)
+    add_compile_definitions(SE_XBOX_FORCE_480P)
+endif()
+
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
 include_directories(
     ${NXDK_DIR}/lib/net/lwip/src/include

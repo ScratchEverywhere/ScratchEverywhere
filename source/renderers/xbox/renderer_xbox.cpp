@@ -254,6 +254,9 @@ void Renderer_Xbox::initVideo() {
         }
     }
 
+#ifdef SE_XBOX_FORCE_480P
+    can720p = false;
+#endif
     xboxVideoSettings.width = can720p ? 1280 : 640;
     xboxVideoSettings.height = can720p ? 720 : 480;
     xboxVideoSettings.bpp = 32;
@@ -476,6 +479,15 @@ Renderer_Xbox::Renderer_Xbox() {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
     }
+    int outputWidth = 0;
+    int outputHeight = 0;
+    if (SDL_GetRenderOutputSize(Sdlrenderer, &outputWidth, &outputHeight)) {
+        Log::log("Xbox renderer output: " + std::to_string(outputWidth) + "x" + std::to_string(outputHeight));
+    }
+#ifdef __XBOX__
+    VIDEO_MODE actualMode = XVideoGetMode();
+    Log::log("Xbox active video mode: " + std::to_string(actualMode.width) + "x" + std::to_string(actualMode.height));
+#endif
     applyVideoSettings();
 }
 
