@@ -210,3 +210,31 @@ Use D-pad Up/Down to select a game and A to launch. Hold Start for approximately
 three seconds in a game, release it, then press A on Exit Project to return to
 the game list. The pause menu also supplies Click Green Flag for restarting
 external projects such as Ultra Bird.
+
+### Upstream synchronization and direct-browser hardware acceptance
+
+Merged upstream `main` through `c6ac49dd` without conflicts, including
+`3982a765` (Xbox compiler flags), `50105c8a` (loading-block centering) and the
+3DS pen-rendering fix. The existing Xbox changes were retained. The NXDK
+browser build compiled and packaged successfully; the unsupported
+`-falign-jumps` flag is absent from its generated application flags.
+
+The synchronized code at `a7a23d49` was deployed to
+`F:\scratch-browser-sync-20261025\default.xbe` with matching FTP readback:
+`eef60dba16bb9168e33300c7b99030b148fad4de30be189dd9a8fb9d942b8834`.
+On the real Xbox, this exact build:
+
+- Booted directly to the installed project list.
+- Launched Hopper Heros and displayed its title.
+- Opened the runtime pause menu with held Start and exited directly to the list.
+- Selected and launched Ultra Bird in the same process.
+- Opened its pause menu and exited directly to the list again.
+
+No reboot was needed between games. The console was left at the game list,
+with neutral controller reports and KVM control released. Local captures:
+`browser-sync-boot.jpg`, `browser-sync-hopper.jpg`,
+`browser-sync-return-hopper.jpg`, `browser-sync-ultrabird.jpg` and
+`browser-sync-final-list.jpg` under `build-xbox/hardware`.
+This is a launcher/launch/exit acceptance pass, not a measured performance
+comparison or renewed scoring/audio qualification. Animated loading remained
+disabled, so the centering change was merged but not visually exercised here.
