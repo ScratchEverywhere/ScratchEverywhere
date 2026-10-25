@@ -27,8 +27,8 @@
 #endif
 
 #ifdef ENABLE_CLOUDVARS
-#include <mist/mist.hpp>
 #include <ctime>
+#include <mist/mist.hpp>
 #include <random>
 #include <sstream>
 
@@ -247,6 +247,15 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
 #ifdef USE_BUNDLE
         bool fromBundle = false;
 
+#ifdef __XBOX__
+        // Try unpacked project folder first (from scratch location) on Xbox
+        const std::string scratchExtensionsPath = OS::getScratchFolderLocation() + "project/extensions/" + targetID + ".see";
+        if (Scratch::projectType == ProjectType::UNZIPPED && FileSystem::fileExists(scratchExtensionsPath)) {
+            std::ifstream luaFileStream(scratchExtensionsPath, std::ios::binary | std::ios::in);
+            extensions::parseMetadata(luaFileStream);
+        }
+#endif
+        // Try ROMFS bundle path
         std::unique_ptr<bundle::istream> bundleStream = nullptr;
         auto assets = Bundle::assets();
         if (auto entry = assets.find(romFSPath)) {

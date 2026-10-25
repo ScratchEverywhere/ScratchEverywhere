@@ -57,6 +57,7 @@ class SE_EXPORT SoundStream {
     bool loadAsMP3();
     bool loadAsVorbis();
     bool loadFromBuffer();
+    bool loadFromFile(const std::string &path);
     void commonInit();
 
   public:

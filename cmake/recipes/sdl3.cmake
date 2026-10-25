@@ -59,6 +59,7 @@ endfunction()
 function(_recipe_SDL3_source)
     if(XBOX)
         set(NXDK_SDL3_REPO "https://github.com/Ryzee119/nxdk-sdl3.git")
+        set(NXDK_SDL3_REF "ea09abc9164d8142414d482af011c4904cc61b53")
         if(DEFINED ENV{NXDK_SDL3_DIR} AND EXISTS "$ENV{NXDK_SDL3_DIR}")
             set(NXDK_SDL3_REPO "$ENV{NXDK_SDL3_DIR}")
         endif()
@@ -66,7 +67,7 @@ function(_recipe_SDL3_source)
         cl_import_source(
             NAME SDL3
             REPO "${NXDK_SDL3_REPO}"
-            REF "nxaudio"
+            REF "${NXDK_SDL3_REF}"
             PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch"
         )
         return()

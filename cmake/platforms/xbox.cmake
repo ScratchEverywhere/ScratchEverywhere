@@ -11,9 +11,9 @@ set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
-set(SE_BUNDLE_DEFAULT ON)
+set(SE_BUNDLE_DEFAULT ON) # DO NOT TOUCH; Xbox relies on using bundle entirely.
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_CLOUDVARS OFF) # TODO: Revisit cloud vars once Mist++ is integrated into SE!
 set(SE_ALLOW_DOWNLOAD ON)
 
 set(SE_HAS_TOUCH FALSE)
@@ -23,13 +23,18 @@ set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_HAS_THREADS ON)
 
+# While the runtime already adds any compatible project.sb/sb2/sb3 file into the executable,
+# you can set this flag to ON if you want to place whatever projects you have in the romfs
+# folder into the ISO image. This is helpful if you have a buggy Xemu FTP implementation.
+set(COPY_PROJECTS_TO_XBOX OFF)
+
 # - On 64MB retail consoles, SE_LWMEM_HEAP_SIZE_MB sets the baseline heap size.
 # - On 128MB expanded consoles, the runtime dynamically scales the heap to
 #   prioritize the runtime over the GPU.
-# - Right now, this is an experimental feature, so this will need refinement.
+# - It is recommended to leave this enabled for the Xbox.
 set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 16 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 40 CACHE STRING "Size in MB reserved for GPU and system buffers")
+set(SE_LWMEM_HEAP_SIZE_MB 32 CACHE STRING "Baseline size in MB of the lwmem heap")
+set(SE_LWMEM_GPU_RESERVE_MB 32 CACHE STRING "Size in MB reserved for GPU and system buffers")
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -83,7 +88,46 @@ add_compile_options(
     -Dfseeko=fseek
     -DUNLEN=256
     -fms-extensions
+
+    # Miscellaneous Xbox performance tuning
+    -O1                  # Baseline optimizations, further ones are below
+    -fomit-frame-pointer # Frees up the EBP register
+    -msse                # Enable SSE instructions
+    -mfpmath=sse         # Use SSE for floating point math instead of x87 FPU
+    -fno-math-errno      # Tells the compiler math functions won't set errno (allows better vectorization)
+
+    # Aligning loops and functions to the CPU's cache line boundary
+    -falign-functions=16
+    -falign-loops=16
+    -falign-jumps=16
 )
+
+# Optimize the filesystem, components of the runtime, renderers, and windowing to run with -O3 optimizations.
+file(GLOB_RECURSE SE_MAX_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/filesystem.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blockExecutor.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/math.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/time.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/value.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/*.cpp")
+set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3;-ffast-math;-fno-finite-math-only")
+
+# Optimize menus to run with -O2 optimizations.
+file(GLOB_RECURSE SE_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.cpp")
+set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+
+# Everything else gets -O1 optimizations except for collisions.
+file(GLOB_RECURSE SE_NO_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/collision.cpp")
+file(GLOB_RECURSE SE_BASIC_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
+list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES} ${SE_NO_OPTIMIZE_SOURCES})
+set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
+
+# Collisions can only work accurately with tweaks and no other optimization flags
+set_source_files_properties(${SE_NO_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O0;-ffp-contract=off;-fno-strict-aliasing")
 
 # HACK: Force CMake to skip failing network checks for libcurl on Xbox
 set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")
@@ -117,16 +161,18 @@ set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
 
 # FIXME: Force mistpp to resolve via source on Xbox and apply the compatibility patch;
 # remove when mistpp gets updated to support this target without patches
-set(CL_mistpp_STAGES source)
-set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
+#set(CL_mistpp_STAGES source)
+#set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
 
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
         ${NXDK_DIR}/lib/libnxdk_net.lib
     )
-    target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
-    target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
+    target_link_options(scratch-everywhere PRIVATE 
+        "-safeseh:no"                  # REQUIRED FOR BUNDLE
+        "-include:_automount_d_drive"  # TODO: Do we even need D: anymore if automount is on?
+    )
 
     find_program(CXBE_BIN cxbe PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/cxbe" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/cxbe")
     if(NOT CXBE_BIN)
@@ -143,11 +189,25 @@ macro(package_platform)
 
     find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/extract-xiso/build" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/extract-xiso/build")
     if(EXTRACT_XISO_BIN)
-        add_custom_command(TARGET scratch-everywhere POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/iso_root
-            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/default.xbe ${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe
-            COMMAND ${EXTRACT_XISO_BIN} -c ${CMAKE_CURRENT_BINARY_DIR}/iso_root ${CMAKE_CURRENT_BINARY_DIR}/SE.iso
-            COMMENT "Building SE.iso"
-        )
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/default.xbe" "${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe"
+        COMMENT "Preparing ISO root directory..."
+    )
+    if(COPY_PROJECTS_TO_XBOX)
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*.sb*" "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMENT "Copying projects in romfs to ISO..."
+    )
     endif()
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${EXTRACT_XISO_BIN}" -c "${CMAKE_CURRENT_BINARY_DIR}/iso_root" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.iso"
+        COMMENT "Building scratch-xbox.iso"
+    )
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+        COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.exe"
+        COMMENT "Cleaning up"
+    )
+endif()
 endmacro()

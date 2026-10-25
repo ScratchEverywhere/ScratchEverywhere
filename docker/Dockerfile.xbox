@@ -2,17 +2,27 @@ FROM debian:trixie AS main_builder
 ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
+# I'm brute-forcing this to use the exact same dependencies that my local machine uses.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
-    clang \
-    lld \
-    llvm \
+    clang-19 \
+    lld-19 \
+    llvm-19 \
     bison \
     flex \
     git \
     curl \
     ca-certificates && \
+    ln -sf /usr/bin/clang-19 /usr/bin/clang && \
+    ln -sf /usr/bin/clang++-19 /usr/bin/clang++ && \
+    ln -sf /usr/bin/lld-19 /usr/bin/lld && \
+    ln -sf /usr/bin/ld.lld-19 /usr/bin/ld.lld && \
+    ln -sf /usr/bin/llvm-dlltool-19 /usr/bin/llvm-dlltool && \
+    ln -sf /usr/bin/llvm-lib-19 /usr/bin/llvm-lib && \
+    ln -sf /usr/bin/llvm-ar-19 /usr/bin/llvm-ar && \
+    ln -sf /usr/bin/llvm-objcopy-19 /usr/bin/llvm-objcopy && \
+    ln -sf /usr/bin/llvm-strip-19 /usr/bin/llvm-strip && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal && \
     rm -rf /var/lib/apt/lists/*
 
@@ -22,23 +32,35 @@ ENV NXDK_SDL3_DIR=/app/nxdk-sdl3
 ENV PATH="/app/nxdk/bin:/root/.cargo/bin:$PATH"
 
 # Clone the github.com/xboxDev/nxdk repository
-RUN git clone --recursive --depth 1 -b master https://github.com/xboxDev/nxdk.git /app/nxdk
+RUN git clone https://github.com/xboxDev/nxdk.git /app/nxdk && \
+    cd /app/nxdk && \
+    git checkout 14d5ee97e73347c973f1f57b68b79ec08c9e77f2 && \
+    git submodule update --init --recursive
 
 # Clone the github.com/Ryzee119/nxdk-sdl3 repository
-RUN git clone --recursive --depth 1 -b nxaudio https://github.com/Ryzee119/nxdk-sdl3.git /app/nxdk-sdl3
+RUN git clone https://github.com/Ryzee119/nxdk-sdl3.git /app/nxdk-sdl3 && \
+    cd /app/nxdk-sdl3 && \
+    git checkout ea09abc9164d8142414d482af011c4904cc61b53 && \
+    git submodule update --init --recursive
 
 COPY . .
 
 # Ensure nxdk and nxdk-sdl3 have patches applied
-RUN git -C /app/nxdk apply /app/cmake/patches/nxdk.patch && \
-    git -C /app/nxdk-sdl3 apply /app/cmake/patches/nxdk-sdl3.patch
+RUN cd /app/nxdk && patch -p1 < /app/cmake/patches/nxdk.patch && \
+    cd /app/nxdk-sdl3 && patch -p1 < /app/cmake/patches/nxdk-sdl3.patch
 
 # Create a build-xbox directory and run the necessary cmake commands
 RUN mkdir build-xbox && cd build-xbox && \
-    cmake .. -DCMAKE_TOOLCHAIN_FILE="$NXDK_DIR/share/toolchain-nxdk.cmake" -DXBOX=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_TOOLCHAIN_FILE="$NXDK_DIR/share/toolchain-nxdk.cmake" \
+    -DXBOX=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DHAVE_LONGLONG=1 \
+    -DSIZEOF_LONG_LONG=8 \
+    -DSIZEOF_CURL_OFF_T=8 \
+    -DCURL_SIZEOF_CURL_OFF_T=8 && \
     cmake --build . -j$(nproc)
 
 # Export the iso_root folder's contents as well as SE.iso
 FROM scratch AS exporter
-COPY --from=main_builder /app/build-xbox/SE.iso /
+COPY --from=main_builder /app/build-xbox/scratch-xbox.iso /
 COPY --from=main_builder /app/build-xbox/default.xbe /

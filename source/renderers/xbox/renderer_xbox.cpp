@@ -28,9 +28,48 @@ static SDL_Texture *penTexture = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
-static void flushPenVertsBatch(SDL_Renderer *renderer, SDL_Texture *penTex, SDL_Texture *mainTarget) {
-    if (penVerts.empty() || !penTex) return;
-    SDL_SetRenderTarget(renderer, penTex);
+// Flush pending pen geometry once this many vertices have accumulated.
+static constexpr size_t PEN_FLUSH_THRESHOLD = 6144;
+
+// Stamps queued since SDL's command queue was last flushed.
+static constexpr unsigned PEN_STAMP_FLUSH_INTERVAL = 16;
+static unsigned stampsSinceFlush = 0;
+
+// Pen texture metrics, cached when the texture is (re)created instead of queried on every pen call.
+static float penTexW = 640.0f;
+static float penTexH = 480.0f;
+static double penScaleY = 1.0;
+
+static void refreshPenMetrics() {
+    if (!penTexture) return;
+    SDL_GetTextureSize(penTexture, &penTexW, &penTexH);
+    penScaleY = penTexH / static_cast<double>(Scratch::projectHeight);
+}
+
+// Render target handling.
+// Switching SDL render targets flushes SDL's command queue and makes the GPU wait for idle, so it is
+// expensive. The pen texture therefore stays the active target across consecutive pen operations
+// (lines, dots, stamps) and the main target is restored lazily, before anything else draws.
+static bool penTargetActive = false;
+
+static void ensurePenTarget(SDL_Renderer *renderer) {
+    if (penTargetActive || !penTexture) return;
+    SDL_SetRenderTarget(renderer, penTexture);
+    penTargetActive = true;
+    stampsSinceFlush = 0; // switching targets flushes the queue
+}
+
+static void ensureMainTarget(SDL_Renderer *renderer) {
+    if (!penTargetActive) return;
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    penTargetActive = false;
+    stampsSinceFlush = 0;
+}
+
+// Draws any queued pen geometry into the pen texture. Leaves the pen texture as the active target.
+static void flushPenVerts(SDL_Renderer *renderer) {
+    if (penVerts.empty() || !penTexture) return;
+    ensurePenTarget(renderer);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     constexpr size_t BATCH_SIZE = 2048 * 3; // 6144 vertices
     for (size_t i = 0; i < penVerts.size(); i += BATCH_SIZE) {
@@ -39,8 +78,50 @@ static void flushPenVertsBatch(SDL_Renderer *renderer, SDL_Texture *penTex, SDL_
         SDL_FlushRenderer(renderer);
     }
     penVerts.clear();
-    SDL_SetRenderTarget(renderer, mainTarget);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    stampsSinceFlush = 0;
+}
+
+// Pen circle geometry. cos/sin of the circle points are computed once per segment count.
+struct CirclePoint {
+    float c, s;
+};
+
+static const CirclePoint *getCircleTable(unsigned int segments) {
+    static std::vector<std::vector<CirclePoint>> tables;
+    if (segments >= tables.size()) tables.resize(segments + 1);
+    std::vector<CirclePoint> &table = tables[segments];
+    if (table.empty()) {
+        table.resize(segments + 1);
+        const double step = 2.0 * M_PI / segments;
+        for (unsigned int i = 0; i <= segments; ++i) {
+            table[i] = {static_cast<float>(std::cos(i * step)), static_cast<float>(std::sin(i * step))};
+        }
+    }
+    return table.data();
+}
+
+static unsigned int circleSegmentsFor(double base, double penSize) {
+    const double wanted = std::max(8.0, base * (penSize / 150.0));
+    return std::min(static_cast<unsigned int>(wanted), 128u);
+}
+
+static void emitCircle(float cx, float cy, float radius, const SDL_FColor &color, const CirclePoint *table, unsigned int segments) {
+    for (unsigned int i = 0; i < segments; ++i) {
+        penVerts.push_back({{cx, cy}, color, {0.0f, 0.0f}});
+        penVerts.push_back({{cx + table[i].c * radius, cy + table[i].s * radius}, color, {0.0f, 0.0f}});
+        penVerts.push_back({{cx + table[i + 1].c * radius, cy + table[i + 1].s * radius}, color, {0.0f, 0.0f}});
+    }
+}
+
+// The end cap of the last accurate pen move. When the next move continues from the same point with the
+// same opaque color and size, its start cap would only repaint the same pixels, so it is skipped.
+static bool lastCapValid = false;
+static float lastCapX = 0.0f, lastCapY = 0.0f, lastCapRadius = 0.0f;
+static SDL_FColor lastCapColor = {0, 0, 0, 0};
+
+static inline bool sameColor(const SDL_FColor &a, const SDL_FColor &b) {
+    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
 }
 
 static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
@@ -48,7 +129,6 @@ static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHei
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
 
     if (screenAspect > projectAspect) {
-        // Vertical bars
         float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
         float scaledProjectWidth = Scratch::projectWidth * scale;
         float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
@@ -60,7 +140,6 @@ static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHei
         SDL_RenderFillRect(renderer, &leftBar);
         SDL_RenderFillRect(renderer, &rightBar);
     } else if (screenAspect < projectAspect) {
-        // Horizontal bars
         float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
         float scaledProjectHeight = Scratch::projectHeight * scale;
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
@@ -97,7 +176,11 @@ Renderer_Xbox::~Renderer_Xbox() {
         delete speechManager;
         speechManager = nullptr;
     }
-    if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
+    if (penTexture != nullptr) {
+        ensureMainTarget(Sdlrenderer);
+        SDL_DestroyTexture(penTexture);
+        penTexture = nullptr;
+    }
 
     TextObject::cleanupText();
     SDL_DestroyRenderer(Sdlrenderer);
@@ -116,12 +199,14 @@ void Renderer_Xbox::setRenderTarget(void *renderTarget, int width, int height) {
     overrideWidth = width;
     overrideHeight = height;
     hasOverrideTarget = true;
+    penTargetActive = false; // the line below makes the main target current
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
 void Renderer_Xbox::clearRenderTarget() {
     mainRenderTarget = nullptr;
     hasOverrideTarget = false;
+    penTargetActive = false;
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
@@ -190,6 +275,12 @@ bool Renderer_Xbox::initPen() {
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
     SDL_RenderClear(Sdlrenderer);
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+    penTargetActive = false;
+
+    refreshPenMetrics();
+    lastCapValid = false;
+    penVerts.clear();
+    penVerts.reserve(PEN_FLUSH_THRESHOLD + 1024);
 
     return true;
 }
@@ -199,16 +290,12 @@ void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, 
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
-    float penWidth = 640.0f;
-    float penHeight = 480.0f;
-    SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
+    const double scale = penScaleY;
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-
-    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
-    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
-    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
-    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+    const float sx1 = static_cast<float>(x1 * scale + penTexW / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penTexH / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penTexW / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penTexH / 2.0);
 
     const double dx = sx2 - sx1;
     const double dy = sy2 - sy1;
@@ -240,57 +327,37 @@ void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, 
         penVerts.push_back(v2);
     }
 
-    const unsigned int circleSegments = std::max(8.0, 8.0f * (sprite->penData.size / 150.0f));
-    const double angleStep = 2.0 * M_PI / circleSegments;
+    const unsigned int circleSegments = circleSegmentsFor(8.0, sprite->penData.size);
+    const CirclePoint *table = getCircleTable(circleSegments);
+    const float radius = static_cast<float>(drawWidth);
 
-    for (int i = 0; i < circleSegments; ++i) {
-        const double angle1 = i * angleStep;
-        const double angle2 = (i + 1) * angleStep;
+    // Skip the start cap when this move continues the previous one (opaque pens only).
+    const bool continuesChain = alpha >= 1.0f && lastCapValid && lastCapX == sx1 && lastCapY == sy1 &&
+                                lastCapRadius == radius && sameColor(lastCapColor, sdlColor);
+    if (!continuesChain) emitCircle(sx1, sy1, radius, sdlColor, table, circleSegments);
+    emitCircle(sx2, sy2, radius, sdlColor, table, circleSegments);
 
-        float x1_c = sx1 + static_cast<float>(cos(angle1) * drawWidth);
-        float y1_c = sy1 + static_cast<float>(sin(angle1) * drawWidth);
-        float x2_c = sx1 + static_cast<float>(cos(angle2) * drawWidth);
-        float y2_c = sy1 + static_cast<float>(sin(angle2) * drawWidth);
+    lastCapValid = true;
+    lastCapX = sx2;
+    lastCapY = sy2;
+    lastCapRadius = radius;
+    lastCapColor = sdlColor;
 
-        const SDL_Vertex cv0 = {{sx1, sy1}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex cv1 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex cv2 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
-
-        penVerts.push_back(cv0);
-        penVerts.push_back(cv1);
-        penVerts.push_back(cv2);
-
-        x1_c = sx2 + static_cast<float>(cos(angle1) * drawWidth);
-        y1_c = sy2 + static_cast<float>(sin(angle1) * drawWidth);
-        x2_c = sx2 + static_cast<float>(cos(angle2) * drawWidth);
-        y2_c = sy2 + static_cast<float>(sin(angle2) * drawWidth);
-
-        const SDL_Vertex cv3 = {{sx2, sy2}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex cv4 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex cv5 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
-
-        penVerts.push_back(cv3);
-        penVerts.push_back(cv4);
-        penVerts.push_back(cv5);
-    }
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(Sdlrenderer);
     }
 }
 
 void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
     if (!penTexture) return;
+    lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
-    float penWidth = 640.0f;
-    float penHeight = 480.0f;
-    SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
+    const double scale = penScaleY;
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-
-    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+    const float sx = static_cast<float>(sprite->xPosition * scale + penTexW / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penTexH / 2.0);
 
     const float radius = static_cast<float>((sprite->penData.size / 2.0f) * scale);
 
@@ -300,46 +367,26 @@ void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
         rgbColor.b / 255.0f,
         alpha};
 
-    const unsigned int circleSegments = std::max(16.0, 16.0f * (sprite->penData.size / 150.0f));
-    const double angleStep = 2.0 * M_PI / circleSegments;
+    const unsigned int circleSegments = circleSegmentsFor(16.0, sprite->penData.size);
+    emitCircle(sx, sy, radius, sdlColor, getCircleTable(circleSegments), circleSegments);
 
-    for (int i = 0; i < circleSegments; ++i) {
-        const double angle1 = i * angleStep;
-        const double angle2 = (i + 1) * angleStep;
-
-        const float x1 = sx + static_cast<float>(cos(angle1) * radius);
-        const float y1 = sy + static_cast<float>(sin(angle1) * radius);
-        const float x2 = sx + static_cast<float>(cos(angle2) * radius);
-        const float y2 = sy + static_cast<float>(sin(angle2) * radius);
-
-        const SDL_Vertex v0 = {{sx, sy}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex v1 = {{x1, y1}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex v2 = {{x2, y2}, sdlColor, {0.0f, 0.0f}};
-
-        penVerts.push_back(v0);
-        penVerts.push_back(v1);
-        penVerts.push_back(v2);
-    }
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(Sdlrenderer);
     }
 }
 
 void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (!penTexture) return;
+    lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
-    float penWidth = 640;
-    float penHeight = 480;
-    SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
+    const double scale = penScaleY;
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-
-    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
-    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
-    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
-    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+    const float sx1 = static_cast<float>(x1 * scale + penTexW / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penTexH / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penTexW / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penTexH / 2.0);
 
     const double dx = sx2 - sx1;
     const double dy = sy2 - sy1;
@@ -358,12 +405,11 @@ void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Spri
         static_cast<float>(rgbColor.b / 255.0f),
         static_cast<float>(alpha)};
 
-    const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}}; // top left
-    const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom left
-    const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}}; // top right
-    const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom right
+    const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}};
 
-    // squarey
     penVerts.push_back(v0);
     penVerts.push_back(v1);
     penVerts.push_back(v2);
@@ -371,24 +417,22 @@ void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Spri
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+
+    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(Sdlrenderer);
     }
 }
 
 void Renderer_Xbox::penDotFast(Sprite *sprite) {
     if (!penTexture) return;
+    lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
-    float penWidth = 640;
-    float penHeight = 480;
-    SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
+    const double scale = penScaleY;
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-
-    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+    const float sx = static_cast<float>(sprite->xPosition * scale + penTexW / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penTexH / 2.0);
 
     const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
 
@@ -398,12 +442,11 @@ void Renderer_Xbox::penDotFast(Sprite *sprite) {
         static_cast<float>(rgbColor.b / 255.0f),
         alpha};
 
-    const SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top left
-    const SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom left
-    const SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top right
-    const SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom right
+    const SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}};
+    const SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}};
 
-    // squarey
     penVerts.push_back(v0);
     penVerts.push_back(v1);
     penVerts.push_back(v2);
@@ -411,14 +454,19 @@ void Renderer_Xbox::penDotFast(Sprite *sprite) {
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-    if (penVerts.size() >= 6144) {
-        flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+
+    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(Sdlrenderer);
     }
 }
 
 void Renderer_Xbox::penStamp(Sprite *sprite) {
     if (!penTexture) return;
-    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    lastCapValid = false;
+
+    // Queued lines must be drawn first so the stamp lands on top of them.
+    flushPenVerts(Sdlrenderer);
+
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -427,9 +475,10 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     const Costume &costume = sprite->costumes[sprite->currentCostume];
 
+    //  The NV2A Xbox GPU corrupts the texture cache if multiple different
+    // textures are stamped into a render target without unbinding it. We must explicitly
+    // bind, draw, and immediately unbind back to the main target for EVERY stamp.
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
-
-    // clear line draw queue so stamp can be rendered on top
 
     Image_Xbox *image = reinterpret_cast<Image_Xbox *>(imgFind->second.get());
 
@@ -438,16 +487,12 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     // Pen mapping stuff
     const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    int penX = cords.first + Scratch::projectWidth / 2;
-    int penY = -cords.second + Scratch::projectHeight / 2;
+    float penX = cords.first + Scratch::projectWidth / 2.0f;
+    float penY = -cords.second + Scratch::projectHeight / 2.0f;
 
     float penScale;
     if (Scratch::hqpen) {
-        float penWidth;
-        float penHeight;
-        SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
-        const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-
+        const double scale = penScaleY;
         penX *= scale;
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
@@ -470,29 +515,41 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
     image->render(params);
 
+    // Force the Xbox GPU to resolve the render target immediately
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+    penTargetActive = false;
+    stampsSinceFlush = 0;
 }
 
 void Renderer_Xbox::penClear() {
-    if (!penTexture || penTexture == nullptr) return;
+    if (!penTexture) return;
+    penVerts.clear(); // pending lines would be erased by the clear anyway
+    lastCapValid = false;
+
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
     SDL_RenderClear(Sdlrenderer);
+
+    // Force the Xbox GPU to resolve the render target immediately
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-    penVerts.clear();
+    penTargetActive = false;
 }
 
 void Renderer_Xbox::cleanupPen() {
     if (penTexture != nullptr) {
+        ensureMainTarget(Sdlrenderer);
         SDL_DestroyTexture(penTexture);
         penTexture = nullptr;
     }
+    penTargetActive = false;
+    lastCapValid = false;
     penVerts.clear();
     penVerts.shrink_to_fit();
 }
 
 void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
+        ensureMainTarget(Sdlrenderer);
         SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, 255);
         SDL_RenderClear(Sdlrenderer);
         hasFrameBegan = true;
@@ -500,12 +557,14 @@ void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Renderer_Xbox::endFrame(bool shouldFlush) {
+    ensureMainTarget(Sdlrenderer);
     SDL_RenderPresent(Sdlrenderer);
     SDL_Delay(16);
     hasFrameBegan = false;
 }
 
 void Renderer_Xbox::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    ensureMainTarget(Sdlrenderer);
     SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, colorA);
     SDL_FRect rect = {x - (w / 2.0f), y - (h / 2.0f), static_cast<float>(w), static_cast<float>(h)};
     SDL_RenderFillRect(Sdlrenderer, &rect);
@@ -517,6 +576,8 @@ void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
         drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
         return;
     }
+
+    ensureMainTarget(Sdlrenderer);
 
     const SDL_FColor col = {colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, colorA / 255.0f};
     const float left = x - w / 2.0f, right = x + w / 2.0f;
@@ -551,6 +612,9 @@ void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 }
 
 void Renderer_Xbox::renderSprites() {
+    // Everything below draws to the main target; pen operations may have left the pen texture active.
+    ensureMainTarget(Sdlrenderer);
+
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
 
@@ -605,7 +669,8 @@ void Renderer_Xbox::renderSprites() {
 
 void Renderer_Xbox::renderPenLayer() {
     if (!penTexture) return;
-    flushPenVertsBatch(Sdlrenderer, penTexture, mainRenderTarget);
+    flushPenVerts(Sdlrenderer);
+    ensureMainTarget(Sdlrenderer);
 
     SDL_FRect renderRect = {0, 0, 0, 0};
 
@@ -625,6 +690,9 @@ void Renderer_Xbox::renderPenLayer() {
 bool Renderer_Xbox::appShouldRun() {
     if (OS::toExit) return false;
     if (window) {
+        // Make sure nothing outside the pen code draws into the pen texture.
+        ensureMainTarget(Sdlrenderer);
+
         window->pollEvents();
 
         static int lastW = 0, lastH = 0;

@@ -94,10 +94,6 @@ bool Scratch::useBytecode = true;
 #endif
 bool Scratch::bytecodeCacheTooNew = false;
 
-#ifdef __XBOX__
-bool Scratch::bitmapHalfQuality = false;
-#endif
-
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU
@@ -120,7 +116,10 @@ bool Scratch::initializeRuntime() {
     if (!OS::init()) {
         return false;
     }
+#ifndef __XBOX__
+    // Logging is already cleared on boot in OS::init on the Xbox.
     Log::deleteLogFile();
+#endif
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
     if (!Render::init()) {

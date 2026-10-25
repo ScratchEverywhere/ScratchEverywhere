@@ -662,7 +662,11 @@ Image::Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, floa
 nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
+#if defined(__XBOX__)
+        else filePath = OS::getScratchFolderLocation() + "project/" + filePath;
+#else
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
+#endif
     } else filePath = OS::getRomFSLocation() + filePath;
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");

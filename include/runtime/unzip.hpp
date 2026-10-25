@@ -15,6 +15,33 @@
 extern std::string projectJSON;
 #endif
 
+#ifdef __XBOX__
+#include <type_traits>
+#include <utility>
+
+// Allocator whose default construction leaves trivial types uninitialized, so vector::resize()
+// doesn't zero-fill memory that is about to be overwritten by a file read.
+template <typename T, typename A = std::allocator<T>>
+class DefaultInitAllocator : public A {
+    using traits = std::allocator_traits<A>;
+
+  public:
+    template <typename U>
+    struct rebind {
+        using other = DefaultInitAllocator<U, typename traits::template rebind_alloc<U>>;
+    };
+    using A::A;
+    template <typename U>
+    void construct(U *ptr) noexcept(std::is_nothrow_default_constructible<U>::value) {
+        ::new (static_cast<void *>(ptr)) U;
+    }
+    template <typename U, typename... Args>
+    void construct(U *ptr, Args &&...args) {
+        traits::construct(static_cast<A &>(*this), ptr, std::forward<Args>(args)...);
+    }
+};
+#endif
+
 class SE_EXPORT Unzip {
   public:
     static volatile int projectOpened;
@@ -30,7 +57,12 @@ class SE_EXPORT Unzip {
     static std::string filePath;
     static bool UnpackedInSD;
     static std::unique_ptr<ZipArchive> zipArchive;
-    static std::vector<char> zipBuffer;
+#ifdef __XBOX__
+    using ZipBuffer = std::vector<char, DefaultInitAllocator<char>>;
+#else
+    using ZipBuffer = std::vector<char>;
+#endif
+    static ZipBuffer zipBuffer;
     static std::unique_ptr<ProjectLoader> loader;
 
     static std::optional<ProjectFormat> unpackedFormatHint;
