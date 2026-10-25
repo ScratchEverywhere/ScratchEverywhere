@@ -32,7 +32,11 @@ nlohmann::json SettingsManager::getConfigSettings() {
         return json;
     }
 
-    file >> json;
+    json = nlohmann::json::parse(file, nullptr, false);
+    if (json.is_discarded() || !json.is_object()) {
+        Log::logWarning("Invalid Settings.json; using default settings.");
+        return nlohmann::json::object();
+    }
     file.close();
     return json;
 }

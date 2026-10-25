@@ -490,6 +490,8 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
         if (field != block->fieldMap.end()) {
             outValue = Value(field->second->value);
+        } else {
+            outValue = Value();
         }
         return true;
     }
@@ -533,6 +535,7 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
             return true;
         }
         if (input->second->block == nullptr) {
+            outValue = Value();
             return true;
         }
 
@@ -575,6 +578,10 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
             } else {
                 outValue = Value(field->second->value);
             }
+        } else {
+            // An empty Scratch socket is false/zero/empty, not the caller's
+            // previous stack value. Appel uses an empty if to disable setup.
+            outValue = T{};
         }
         return true;
     }
@@ -633,6 +640,7 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
             return true;
         }
         if (in.block == nullptr) {
+            outValue = T{};
             return true;
         }
 

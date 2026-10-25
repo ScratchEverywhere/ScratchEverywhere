@@ -18,7 +18,7 @@ neutralize all reports afterwards.
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
 | Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
-| Appel v1.4 (griffpatch) | Native allocator + expanded-RAM XBE + complete maps loads level 1; movement/jump; pause responds | Empty-world state after jumping; lwmem loading; scoring/loss/replay/exit/audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 4 apples; pause/exit | Full level; lwmem loading; loss/replay/audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
@@ -183,8 +183,42 @@ Evidence: `appel-native-expanded.log`, `appel-fullmap-level1.jpg`,
 
 The corresponding lwmem build with the XBE cap removed remained on the browser
 image after selecting Appel, including a second 600ms confirm attempt. The
-Player One reset combo did not recover dashboard FTP. Its startup log still
-needs retrieval before deciding whether the upper heap allocation succeeded.
+Player One reset combo did not recover dashboard FTP. Its retrieved startup log confirms the heap stayed at 32MB despite reporting
+128MB physical RAM; the expanded contiguous allocation did not grow the heap.
 `SE_XBOX_TRACE_GAME_STATE=ON` enables an optional stage-variable snapshot when
 opening pause, to distinguish gameplay state from rendering problems. It is
 off by default.
+
+
+The native state build (`3374be03d989f103bde13b93300b9d98d02f7cace8064848ac1e9f98f321ac7c`)
+launched Appel again. Pause snapshots confirmed APPLES increased from 0 to 2
+and GAME STATE changed from BEGIN to PLAY. The authored LEVEL # was 2; the
+earlier description of the scene as level 1 was not verified. A subsequent
+terrain trace confirmed MAP and MAP R remain 6,400 entries during play, but
+there were no Foreground clones and the runtime had reached its 300-clone
+limit. Clone population is being investigated. This does not yet establish
+the cause of missing terrain. The terrain diagnostic exited to the browser
+and the Player One reset combo returned to dashboard FTP. Evidence:
+`appel-state-native.log`, `appel-terrain-native.log`,
+`appel-native-exit-browser.jpg`.
+
+
+## Appel clone and GPU fixes verified on hardware
+
+GDB traced the clone overflow to an absent Boolean CONDITION returning without
+initializing its output. That ran a deliberately disabled setup script in the
+Levels sprite. Defaulting missing inputs to false/zero/empty restores the
+expected menu population of 156, including 63 Foreground and 63 Background.
+The 300-clone limit is unchanged.
+
+The full-project Xbox test then exposed GPU allocations outside pbkit's DMA
+range on expanded RAM. Constraining SDL XGU textures and the vertex arena to
+MAXRAM restored visible browser/game rendering. The fixed native build
+`01565e87aa3b86b0cb41ed2aac82e8140552b97b564f253f26b050c986996423`
+ran Appel from the browser, entered the level labeled LEVEL 1, moved/jumped
+across raised platforms and collected four apples with terrain intact.
+The gameplay log confirms 168 live clones, including 63 Foreground; MAP/MAP R
+were 16,384 entries after level setup. Pause and exit to the game list worked.
+The empty-input regression also passed on Xbox (3 passes, 0 errors, sum 7).
+See [the GDB investigation](appel-clone-debugging.md) for cause, controls,
+artifact paths and remaining qualification work.

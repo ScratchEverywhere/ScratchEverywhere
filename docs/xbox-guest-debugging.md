@@ -86,8 +86,17 @@ Release optimization can hide locals. The system-level stub exposes the CPU,
 not an Xbox thread-aware debugger; interrupting in the kernel idle loop did not
 produce an application backtrace. Set an application breakpoint instead.
 NAT was necessary here: the disconnected default network hub left startup
-waiting in network initialization. Gameplay reproduction in xemu remains a
-separate check from the verified debugger attachment.
+waiting in network initialization. Subsequent Appel work caught an additional
+startup abort in malformed Settings.json and added a default-settings fallback.
+See [the Appel clone investigation](appel-clone-debugging.md) for the first
+script-level use of this workflow.
+
+Do not infer guest-usable RAM from `--memory 128` alone. This BIOS reported
+only 64MB through `MmQueryStatistics`, although QMP confirmed 128MB of emulated
+RAM. Appel's GDB diagnostic omitted audio payloads while retaining byte-identical
+project JSON; the full game is tested separately on the actual 128MB Xbox.
+Release DWARF also reported a misleading value for one optimized Boolean local;
+checking the actual compare instruction and its stack byte resolved it.
 
 References: [xemu guest debugging](https://xemu.app/docs/dev/debug/guest/),
 [xemu command-line options](https://xemu.app/docs/cli/), and

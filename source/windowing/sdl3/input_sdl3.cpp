@@ -184,7 +184,10 @@ void InputDevice_SDL3::getInput() {
     static bool previousStart = false;
     const bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
     if (startPressed && !previousStart && Scratch::stageSprite != nullptr &&
-        Scratch::pauseMenu == nullptr && BlockExecutor::stopClicked) {
+#ifdef ENABLE_MENU
+        Scratch::pauseMenu == nullptr &&
+#endif
+        BlockExecutor::stopClicked) {
         Scratch::greenFlagClicked();
         Log::log("Xbox Start: restarted stopped project.");
     }

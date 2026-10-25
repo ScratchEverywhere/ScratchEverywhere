@@ -28,6 +28,18 @@ void PauseMenu::init() {
         for (const auto &[id, variable] : Scratch::stageSprite->variables) {
             Log::log(variable.name + "=" + BlockExecutor::getVariableValue(id, Scratch::stageSprite).asString());
         }
+        Log::log("Runtime clones=" + std::to_string(Scratch::cloneCount) +
+                 " threads=" + std::to_string(BlockExecutor::threads.size()));
+        for (const auto &[id, list] : Scratch::stageSprite->lists) {
+            Log::log("List " + list.name + " size=" + std::to_string(list.items.size()));
+        }
+        std::unordered_map<std::string, unsigned> cloneCounts;
+        for (const auto *sprite : Scratch::sprites) {
+            if (sprite->isClone) ++cloneCounts[sprite->name];
+        }
+        for (const auto &[name, count] : cloneCounts) {
+            Log::log("Clone population " + name + "=" + std::to_string(count));
+        }
     }
 #endif
 #ifdef __XBOX__

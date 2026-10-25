@@ -72,10 +72,17 @@ index db1494a..3ac858a 100644
      return true;
  }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..f7c5556 100644
+index df82129..4138f55 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
-@@ -18,7 +18,7 @@
+@@ -14,11 +14,14 @@
+
+ #define nxdk_RenderDriver GPU_RenderDriver
+
++// GPU allocations must stay inside pbkit's DMA context range (MAXRAM),
++// even when the CPU can use expanded RAM above 64MB.
++
+ // Note: To avoid stalls this vertex buffer must be sufficient to
  // hold three frames (pbkit is tripple buffered) worth of vertices. This is to allow for
  // both the back buffers being rendered, and the active front buffer being calculated.
  #ifndef SDL_XGU_VERTEX_BUFFER_SIZE
@@ -84,7 +91,7 @@ index df82129..f7c5556 100644
  #endif
  
  #ifndef SDL_XGU_VERTEX_ALIGNMENT
-@@ -33,6 +33,18 @@
+@@ -33,6 +36,18 @@
  // We offset by half a pixel so that (0,0) is exactly the top-left corner of the pixel for lines and dots
  #define SDL_XGU_PIXEL_BIAS (0.5f)
  
@@ -103,7 +110,7 @@ index df82129..f7c5556 100644
  #define SDL_XGU_MAYBE_UNUSED __attribute__((unused))
  
  // pbkit does not provide a way to see how many buffers are available, however it is currently
-@@ -142,7 +154,8 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
+@@ -142,7 +157,8 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
      }
  
      // If static target we swizzle it because it has better performance is should not need updating often
@@ -113,7 +120,7 @@ index df82129..f7c5556 100644
          xgu_texture->swizzled = 1;
      }
  
-@@ -154,6 +167,28 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
+@@ -154,6 +170,28 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
  
      xgu_texture->tex_width = texture->w;
      xgu_texture->tex_height = texture->h;
@@ -127,7 +134,7 @@ index df82129..f7c5556 100644
 +        xgu_texture->pitch = SDL_max(64, ((xgu_texture->data_width + 3) / 4) * XGU_DXT_BLOCK_BYTES(texture->format));
 +
 +        const SIZE_T allocation_size = ((xgu_texture->data_height + 3) / 4) * xgu_texture->pitch;
-+        xgu_texture->data = MmAllocateContiguousMemoryEx(allocation_size, 0, 0x07FFFFFF, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
++        xgu_texture->data = MmAllocateContiguousMemoryEx(allocation_size, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
 +        if (xgu_texture->data == NULL) {
 +            SDL_free(xgu_texture);
 +            return SDL_OutOfMemory();
@@ -142,7 +149,16 @@ index df82129..f7c5556 100644
      xgu_texture->data_width = texture->w;
      xgu_texture->data_height = texture->h;
  
-@@ -208,6 +243,10 @@ static void XBOX_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -188,7 +226,7 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
+     xgu_texture->pitch = xgu_texture->data_width * xgu_texture->bytes_per_pixel;
+
+     const SIZE_T allocation_size = xgu_texture->data_height * xgu_texture->pitch;
+-    xgu_texture->data = MmAllocateContiguousMemoryEx(allocation_size, 0, SDL_MAX_UINT32, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
++    xgu_texture->data = MmAllocateContiguousMemoryEx(allocation_size, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
+     if (xgu_texture->data == NULL) {
+         SDL_free(xgu_texture);
+         return SDL_OutOfMemory();
+@@ -208,6 +246,10 @@ static void XBOX_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
          return;
      }
  
@@ -153,7 +169,7 @@ index df82129..f7c5556 100644
      MmFreeContiguousMemory(xgu_texture->data);
      SDL_free(xgu_texture);
      texture->internal = NULL;
-@@ -231,6 +270,7 @@ static void XBOX_UnlockTexture(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -231,6 +273,7 @@ static void XBOX_UnlockTexture(SDL_Renderer *renderer, SDL_Texture *texture)
  {
      (void)renderer;
      (void)texture;
@@ -161,7 +177,7 @@ index df82129..f7c5556 100644
      return;
  }
  
-@@ -241,6 +281,18 @@ static bool XBOX_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
+@@ -241,6 +284,18 @@ static bool XBOX_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
      xgu_texture_t *xgu_texture = (xgu_texture_t *)texture->internal;
      const Uint8 *src = pixels;
  
@@ -180,7 +196,7 @@ index df82129..f7c5556 100644
      if (xgu_texture->swizzled) {
          // If we are updating the entire texture, we can swizzle it entirely
          if (rect->x == 0 && rect->y == 0 &&
-@@ -277,6 +329,7 @@ static bool XBOX_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
+@@ -277,6 +332,7 @@ static bool XBOX_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            texture->format, dst, xgu_texture->pitch);
      }
  
@@ -188,7 +204,7 @@ index df82129..f7c5556 100644
      return true;
  }
  
-@@ -319,6 +372,59 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -319,6 +375,59 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
          format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
      }
  
@@ -248,7 +264,7 @@ index df82129..f7c5556 100644
      format |= XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
                XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH);
  
-@@ -334,7 +440,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -334,7 +443,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
      p = pb_push1(p, NV097_SET_SURFACE_PITCH,
                   XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pitch) |
                       XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, zpitch));
@@ -258,7 +274,7 @@ index df82129..f7c5556 100644
      p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
                   XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, clip_width) |
                       XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
-@@ -342,6 +450,8 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+@@ -342,6 +453,8 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
                   XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, clip_height) |
                       XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
      p = pb_push1(p, NV097_SET_SURFACE_FORMAT, format);
@@ -267,7 +283,7 @@ index df82129..f7c5556 100644
  
      pb_end(p);
  
-@@ -566,7 +676,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -566,7 +679,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
      if (cmd->data.draw.texture) {
          xgu_texture_t *xgu_texture = (xgu_texture_t *)cmd->data.draw.texture->internal;
  
@@ -276,7 +292,7 @@ index df82129..f7c5556 100644
              p = pb_begin();
              texture_combiner_apply();
              pb_end(p);
-@@ -588,9 +698,9 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -588,9 +701,9 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
              p = pb_begin();
              p = xgu_set_texture_offset(p, texture_index, xgu_texture->data_physical_address);
              p = xgu_set_texture_format(p, texture_index, 2, false, XGU_SOURCE_COLOR, 2, xgu_texture->format, 1,
@@ -288,7 +304,7 @@ index df82129..f7c5556 100644
              p = xgu_set_texture_image_rect(p, texture_index, xgu_texture->tex_width, xgu_texture->tex_height);
              pb_end(p);
              render_data->active_texture = xgu_texture;
-@@ -632,7 +742,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
+@@ -632,7 +745,7 @@ static bool XBOX_RenderGeometry(SDL_Renderer *renderer, void *vertices, SDL_Rend
          xgux_draw_arrays(XGU_TRIANGLES, 0, count);
      } else {
  
@@ -297,7 +313,7 @@ index df82129..f7c5556 100644
              p = pb_begin();
              unlit_combiner_apply();
              pb_end(p);
-@@ -694,6 +804,7 @@ static bool XBOX_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
+@@ -694,6 +807,7 @@ static bool XBOX_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
  {
      SDL_XGU_MAYBE_UNUSED xgu_render_data_t *render_data = (xgu_render_data_t *)renderer->internal;
      (void)vertsize;
@@ -305,7 +321,7 @@ index df82129..f7c5556 100644
      while (cmd) {
          switch (cmd->command) {
          case SDL_RENDERCMD_SETVIEWPORT:
-@@ -819,6 +930,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
+@@ -819,6 +933,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
      calculate_fps(FPS_STAGE_RESET);
      pb_reset();
      pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
@@ -314,7 +330,7 @@ index df82129..f7c5556 100644
      return true;
  }
  
-@@ -923,6 +1036,17 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -923,6 +1039,17 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
      pb_end(p);
  
@@ -332,7 +348,7 @@ index df82129..f7c5556 100644
      const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
      pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
      pb_bind_channel(&render_data->render_target_dma_ctx);
-@@ -970,7 +1094,9 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -970,7 +1097,9 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);
@@ -343,7 +359,7 @@ index df82129..f7c5556 100644
  
      // This hint makes SDL use the driver line API.
      SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
-@@ -1019,6 +1145,14 @@ static bool sdl_to_xgu_surface_format(SDL_PixelFormat sdl_format, int *xgu_surfa
+@@ -1019,6 +1148,14 @@ static bool sdl_to_xgu_surface_format(SDL_PixelFormat sdl_format, int *xgu_surfa
  static bool sdl_to_xgu_texture_format(SDL_PixelFormat fmt, int *xgu_format, int *bytes_per_pixel, bool swizzled)
  {
      switch (fmt) {
@@ -358,7 +374,16 @@ index df82129..f7c5556 100644
      case SDL_PIXELFORMAT_ARGB1555:
          *xgu_format = (swizzled) ? XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED : XGU_TEXTURE_FORMAT_A1R5G5B5;
          *bytes_per_pixel = 2;
-@@ -1080,21 +1214,29 @@ static void *arena_allocate(SDL_Renderer *renderer, size_t size, size_t *vertex_
+@@ -1059,7 +1196,7 @@ static bool sdl_to_xgu_texture_format(SDL_PixelFormat fmt, int *xgu_format, int
+ static bool arena_init(SDL_Renderer *renderer)
+ {
+     xgu_render_data_t *render_data = (xgu_render_data_t *)renderer->internal;
+-    render_data->vertex_data = MmAllocateContiguousMemoryEx(SDL_XGU_VERTEX_BUFFER_SIZE, 0, 0xFFFFFFFF, 0,
++    render_data->vertex_data = MmAllocateContiguousMemoryEx(SDL_XGU_VERTEX_BUFFER_SIZE, 0, MAXRAM, 0,
+                                                             PAGE_WRITECOMBINE | PAGE_READWRITE);
+     if (render_data->vertex_data == NULL) {
+         SDL_SetError("Failed to allocate XGU arena");
+@@ -1080,21 +1217,29 @@ static void *arena_allocate(SDL_Renderer *renderer, size_t size, size_t *vertex_
      // Ensure alignment. If every allocation is aligned, we know every pointer will be aligned.
      size = (size + SDL_XGU_VERTEX_ALIGNMENT - 1) & ~(SDL_XGU_VERTEX_ALIGNMENT - 1);
  
