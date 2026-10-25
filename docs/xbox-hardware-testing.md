@@ -238,3 +238,37 @@ with neutral controller reports and KVM control released. Local captures:
 This is a launcher/launch/exit acceptance pass, not a measured performance
 comparison or renewed scoring/audio qualification. Animated loading remained
 disabled, so the centering change was merged but not visually exercised here.
+
+## Three additional games: selection and launch smoke tests
+
+The following public projects were downloaded with original assets, packaged,
+and FTP readback verified in `E:\ScratchEverywhere`. SB2 numeric asset IDs
+were assigned during packaging; game scripts were unchanged. Author assets
+and binaries are local-only in `build-xbox/more-games`, with source URLs and
+SHA-256 hashes in `installed.json`.
+
+- Catch Apples by superd_1, Scratch project 124652800:
+  `Catch-Apples-superd1.sb2`.
+- Maze Starter by Scratchteam, project 10128431:
+  `Maze-Starter-Scratchteam.sb3`.
+- Snake by NemoNaturally, project 511466864:
+  `Snake-NemoNaturally.sb3`.
+
+Using the unchanged synchronized browser XBE, each appeared in the game list,
+was selected and launched, and exposed the runtime pause menu. Catch Apples
+showed its timer counting down, the left stick moved the bowl horizontally,
+and the visible score reached 2. Maze rendered its walls, goal and character;
+left-stick input moved the character down the starting corridor. A full maze
+completion and wall-collision acceptance were not attempted.
+
+Snake rendered the playfield, small snake head, collectible items and game-over
+score display. Green Flag restart was exercised, and captures showed horizontal
+head movement and steering. Vertical steering, fruit collection/scoring and
+sustained play were not established, so Snake is a launch pass with provisional
+gameplay compatibility rather than a full pass. No audio acceptance is claimed
+for these games.
+
+Local captures include `new-games-list-snake-selected.jpg`,
+`catch-test-moved-score2.jpg`, `maze-test-moved.jpg`, `snake-test-*.jpg` and
+`new-games-final-list.jpg` under `build-xbox/hardware`. Controller reports were
+neutralized after each bounded test; the console was returned to the game list.
