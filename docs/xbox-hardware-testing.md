@@ -107,3 +107,25 @@ The Discord game is not vendored in Git. To reproduce the direct build, obtain
 the author's Hopper Heros SB3, place it at `romfs/project.sb3`, and run
 `bash scripts/build-xbox.sh -DSE_XBOX_FORCE_480P=ON`. Remove that local file to
 return to a generic runtime build.
+
+## Ultra Bird direct-start test
+
+The original Discord SB3 was embedded with the same archive lifetime fix and
+480p option. The NXDK build passed and FTP readback matched
+`210c31c1be2c60447b8c204be2fbd3ed2f69cf1ffa0dde0b808cfa9c46135353`.
+Installed at `F:\scratch-ultrabird-20261025\default.xbe`, it displayed the bird,
+pipe obstacles, scrolling/background artwork and score counter on the Xbox.
+
+The bird's input script is `event_whenkeypressed` with `KEY_OPTION=any`.
+Bounded A presses and two short repeated-tap sequences were sent through the
+port-3 route with neutral/release afterward. Adapter status confirmed A and
+Xbox USB completions. Captures showed the playfield changing after input, but
+the bird remained near the floor and score stayed 0 in the saved samples.
+Successful flapping, scoring and sustained flight were not established. This
+is a boot/render pass with unresolved input/gameplay behavior, not a full pass.
+Audio and the bitmap scaling issue mentioned by the author were not qualified.
+
+Local evidence: `ultrabird-running.jpg`, `ultrabird-flap-*.jpg`, and
+`ultrabird-deploy.json` under `build-xbox/hardware`. The original game was not
+modified or added to Git. The direct-start build remains running for local
+inspection, with all agent button states released.
