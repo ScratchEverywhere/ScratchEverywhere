@@ -1493,14 +1493,59 @@ void BytecodeExecutor::stopThread(Sprite *sprite, Block *hat) {
     }
 }
 
+void BytecodeExecutor::stopAllThreads() {
+    for (BytecodeThread *t : threads) {
+        if (t->bridgeThread) releaseScriptThread(t->bridgeThread);
+        delete t;
+    }
+    threads.clear();
+}
+
+void BytecodeExecutor::buildCloneLinkTable(Sprite *clone, Sprite *original) {
+    if (original == nullptr || !original->bytecode || !original->bytecodeLink) return;
+    const BytecodeChunk &chunk = *original->bytecode;
+
+    auto cloneLink = std::make_unique<BytecodeLinkTable>();
+    cloneLink->opcodes = original->bytecodeLink->opcodes;
+    cloneLink->positional = original->bytecodeLink->positional;
+    cloneLink->escapeBlocks = original->bytecodeLink->escapeBlocks;
+    cloneLink->scriptBlocks = original->bytecodeLink->scriptBlocks;
+
+    cloneLink->variables.resize(chunk.variableSlots.size(), nullptr);
+    for (size_t i = 0; i < chunk.variableSlots.size(); i++) {
+        const BytecodeIndex strIdx = chunk.variableSlots[i];
+        if (strIdx >= chunk.strings.size()) continue;
+        cloneLink->variables[i] = BlockExecutor::getVariable(chunk.strings[strIdx], clone);
+    }
+
+    cloneLink->lists.resize(chunk.listSlots.size(), nullptr);
+    for (size_t i = 0; i < chunk.listSlots.size(); i++) {
+        const BytecodeIndex strIdx = chunk.listSlots[i];
+        if (strIdx >= chunk.strings.size()) continue;
+        const std::string &listId = chunk.strings[strIdx];
+
+        auto listIt = clone->lists.find(listId);
+        if (listIt != clone->lists.end()) {
+            cloneLink->lists[i] = &listIt->second;
+        } else if (Scratch::stageSprite != nullptr) {
+            auto globalIt = Scratch::stageSprite->lists.find(listId);
+            if (globalIt != Scratch::stageSprite->lists.end()) cloneLink->lists[i] = &globalIt->second;
+        }
+    }
+
+    clone->bytecodeLink = std::move(cloneLink);
+}
+
 BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool shouldRestart) {
-    if (sprite->bytecode == nullptr || sprite->bytecodeLink == nullptr) return nullptr;
+    const BytecodeChunk *chunk = sprite->bytecodeChunk();
+    const BytecodeLinkTable *link = sprite->bytecodeLink.get();
+    if (chunk == nullptr || link == nullptr) return nullptr;
 
     BytecodeIndex entry = invalidBytecodeIndex;
-    const auto &scriptBlocks = sprite->bytecodeLink->scriptBlocks;
-    for (size_t i = 0; i < sprite->bytecode->scripts.size() && i < scriptBlocks.size(); i++) {
+    const auto &scriptBlocks = link->scriptBlocks;
+    for (size_t i = 0; i < chunk->scripts.size() && i < scriptBlocks.size(); i++) {
         if (scriptBlocks[i] == hat) {
-            entry = sprite->bytecode->scripts[i].entryInstruction;
+            entry = chunk->scripts[i].entryInstruction;
             break;
         }
     }
@@ -1528,8 +1573,8 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
     BytecodeThread *newThread = new BytecodeThread();
     newThread->id = BlockExecutor::nextThreadId();
     newThread->sprite = sprite;
-    newThread->chunk = sprite->bytecode.get();
-    newThread->link = sprite->bytecodeLink.get();
+    newThread->chunk = chunk;
+    newThread->link = link;
     newThread->pc = entry;
     newThread->hatInstruction = entry;
     newThread->hatBlock = hat;

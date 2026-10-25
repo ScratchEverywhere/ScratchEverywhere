@@ -142,6 +142,10 @@ SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
     spriteToClone->broadcasts = original->broadcasts;
     spriteToClone->renderInfo.forceUpdate = true;
     spriteToClone->hats = original->hats;
+
+    Sprite *trueOriginal = original->isClone ? original->cloneOriginal : original;
+    spriteToClone->cloneOriginal = trueOriginal;
+    BytecodeExecutor::buildCloneLinkTable(spriteToClone, trueOriginal);
 #ifdef ENABLE_CACHING
     BlockExecutor::linkPointers(spriteToClone);
 #endif
@@ -174,6 +178,9 @@ SCRATCH_BLOCK(control, delete_this_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
     sprite->toDelete = true;
     for (ScriptThread *t : BlockExecutor::threads) {
+        if (t->sprite == sprite) t->finished = true;
+    }
+    for (BytecodeThread *t : BytecodeExecutor::threads) {
         if (t->sprite == sprite) t->finished = true;
     }
     Scratch::cloneCount--;

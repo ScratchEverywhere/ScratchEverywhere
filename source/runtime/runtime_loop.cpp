@@ -1,8 +1,8 @@
-#include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
 #include "parser/parser.hpp"
+#include "runtime.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
 #include <algorithm>
@@ -139,18 +139,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             speechManager->update();
         }
         if (checkFPS) {
-            #ifdef ENABLE_CUSTOM_EXTENSIONS
+#ifdef ENABLE_CUSTOM_EXTENSIONS
             extensions::runUpdateFunctions(extensions::PRE_RENDER);
-            #endif
+#endif
 
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
 
-            #ifdef ENABLE_CUSTOM_EXTENSIONS
+#ifdef ENABLE_CUSTOM_EXTENSIONS
             extensions::runUpdateFunctions(extensions::POST_RENDER);
-            #endif
+#endif
         }
 #ifdef ENABLE_MENU
 
@@ -196,6 +196,7 @@ void Scratch::stopClicked() {
         Pools::threads.push_back(thread);
     }
     BlockExecutor::threads.clear();
+    BytecodeExecutor::stopAllThreads();
     for (Sprite *currentSprite : sprites) {
         if (Render::getSpeechManager()) {
             Render::getSpeechManager()->clearSpeech(currentSprite);

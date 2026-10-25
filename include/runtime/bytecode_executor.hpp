@@ -11,9 +11,13 @@ class SE_EXPORT BytecodeExecutor {
 
     static BytecodeThread *startThread(Sprite *sprite, Block *hat, bool shouldRestart = true);
 
+    static void buildCloneLinkTable(Sprite *clone, Sprite *original);
+
     static bool isRunning(Sprite *sprite, Block *hat);
 
     static void stopThread(Sprite *sprite, Block *hat);
+
+    static void stopAllThreads();
 
     static void runThreads();
 

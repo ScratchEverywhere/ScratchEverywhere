@@ -494,6 +494,12 @@ class SE_EXPORT Sprite {
     std::unique_ptr<BytecodeChunk> bytecode;
     std::unique_ptr<BytecodeLinkTable> bytecodeLink;
 
+    Sprite *cloneOriginal = nullptr;
+
+    const BytecodeChunk *bytecodeChunk() const {
+        return bytecode ? bytecode.get() : (cloneOriginal ? cloneOriginal->bytecode.get() : nullptr);
+    }
+
     ~Sprite() {
         for (auto const &[proccode, blockPtr] : customHatBlock) {
             delete blockPtr;

@@ -123,6 +123,11 @@ void BlockExecutor::runThreads() {
                                        thread->finished = true;
                                    }
                                }
+                               for (auto &thread : BytecodeExecutor::threads) {
+                                   if (thread->sprite == s) {
+                                       thread->finished = true;
+                                   }
+                               }
                                SpeechManager *speechManager = Render::getSpeechManager();
                                if (speechManager) speechManager->clearSpeech(s);
                                sortSprites = true;
