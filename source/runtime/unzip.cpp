@@ -307,6 +307,7 @@ void Unzip::openScratchProject(void *arg) {
     Unzip::loader = createProjectLoader(format);
     bool loaded = Unzip::loader->load(file);
     delete file;
+    file = nullptr;
     if (!loaded) {
         Log::logCritical("Failed to load Scratch project.", false);
         Unzip::projectOpened = -2;

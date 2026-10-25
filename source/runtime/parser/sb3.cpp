@@ -159,6 +159,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
                 }
                 if (data.contains("md5ext")) {
                     newCostume.fullName = data["md5ext"];
+                } else if (!newCostume.id.empty() && data.contains("dataFormat")) {
+                    newCostume.fullName = newCostume.id + "." + data["dataFormat"].get<std::string>();
                 }
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
