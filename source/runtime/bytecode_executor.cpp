@@ -902,6 +902,8 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     thread.bridgeThread = acquireScriptThread();
                     thread.bridgeThread->sprite = thread.sprite;
                 }
+                thread.bridgeThread->id = thread.id;
+                thread.bridgeThread->blockHat = thread.hatBlock;
 
                 Value outValue;
                 BlockResult result = reporterBlock->blockFunction(reporterBlock, thread.bridgeThread, thread.sprite, &outValue);
@@ -910,6 +912,58 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 }
                 Scratch::resetInput(reporterBlock);
                 thread.valueStack.push_back(outValue);
+                thread.pc++;
+                SE_NEXT();
+            }
+
+            SE_CASE(CallLegacyStatement) {
+                BytecodeIndex slot = instr.a;
+                Block *stmtBlock = (thread.link && slot < thread.link->escapeBlocks.size()) ? thread.link->escapeBlocks[slot] : nullptr;
+                if (stmtBlock == nullptr) {
+                    thread.pc++;
+                    SE_NEXT();
+                }
+
+                if (thread.bridgeThread == nullptr) {
+                    thread.bridgeThread = acquireScriptThread();
+                    thread.bridgeThread->sprite = thread.sprite;
+                }
+                thread.bridgeThread->id = thread.id;
+                thread.bridgeThread->blockHat = thread.hatBlock;
+                thread.bridgeThread->nextBlock = nullptr;
+
+                Value outValue;
+                BlockResult result = stmtBlock->blockFunction(stmtBlock, thread.bridgeThread, thread.sprite, &outValue);
+                if (result == BlockResult::REPEAT) {
+                    goto done;
+                }
+                Scratch::resetInput(stmtBlock);
+
+                if (result == BlockResult::RETURN) {
+                    thread.finished = true;
+                    goto done;
+                }
+
+                if (result == BlockResult::CONTINUE_IMMEDIATELY) {
+                    Block *resumeAt = thread.bridgeThread->nextBlock;
+                    if (resumeAt == nullptr) {
+                        thread.finished = true;
+                        goto done;
+                    }
+                    ScriptThread *newThread = BlockExecutor::startThread(thread.sprite, resumeAt, true);
+                    if (newThread == nullptr) {
+                        thread.finished = true;
+                        goto done;
+                    }
+                    newThread->nextBlock = resumeAt;
+                    newThread->withoutScreenRefresh = thread.withoutScreenRefresh;
+                    thread.legacyThread = newThread;
+                    thread.legacyThreadId = newThread->id;
+                    thread.escapedToLegacy = true;
+                    thread.finished = true;
+                    goto done;
+                }
+
                 thread.pc++;
                 SE_NEXT();
             }

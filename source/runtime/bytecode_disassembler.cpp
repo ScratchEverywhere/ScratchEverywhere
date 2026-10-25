@@ -163,6 +163,8 @@ const char *mnemonic(BytecodeOp op) {
         return "Return";
     case BytecodeOp::CallLegacyReporter:
         return "CallLegacyReporter";
+    case BytecodeOp::CallLegacyStatement:
+        return "CallLegacyStatement";
     case BytecodeOp::EscapeToLegacyThread:
         return "EscapeToLegacyThread";
     case BytecodeOp::ConvertNumberToValue:
@@ -352,6 +354,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         return;
 
     case BytecodeOp::CallLegacyReporter:
+    case BytecodeOp::CallLegacyStatement:
     case BytecodeOp::EscapeToLegacyThread:
         out << "  ; " << escapeTargetForSlot(link, instr.a);
         return;
@@ -446,7 +449,7 @@ std::string disassemble(const BytecodeChunk &chunk, const BytecodeLinkTable *lin
 
     size_t escapeCount = 0;
     for (const auto &instr : chunk.instructions) {
-        if (instr.op == BytecodeOp::CallLegacyReporter || instr.op == BytecodeOp::EscapeToLegacyThread) escapeCount++;
+        if (instr.op == BytecodeOp::CallLegacyReporter || instr.op == BytecodeOp::CallLegacyStatement || instr.op == BytecodeOp::EscapeToLegacyThread) escapeCount++;
     }
 
     out << "BytecodeChunk: " << chunk.instructions.size() << " instructions, "

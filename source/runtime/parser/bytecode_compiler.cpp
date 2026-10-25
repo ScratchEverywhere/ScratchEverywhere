@@ -490,10 +490,10 @@ bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, Bytecod
         auto sigIt = signatures.find(block->opcode);
         if (sigIt == signatures.end()) {
             BytecodeIndex slot = escapeSlot(block);
-            BytecodeIndex idx = emit(BytecodeOp::EscapeToLegacyThread, slot);
+            BytecodeIndex idx = emit(BytecodeOp::CallLegacyStatement, slot);
             if (firstInstruction == invalidBytecodeIndex) firstInstruction = idx;
-            outFirstInstr = firstInstruction;
-            return false;
+            block = block->nextBlock;
+            continue;
         }
 
         const BytecodeIndex blockStart = here();

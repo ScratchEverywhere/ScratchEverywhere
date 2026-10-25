@@ -85,6 +85,7 @@ enum class BytecodeOp : uint8_t {
     Return,
 
     CallLegacyReporter,
+    CallLegacyStatement,
 
     EscapeToLegacyThread,
 
