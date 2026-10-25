@@ -108,8 +108,20 @@ void Input::applyControls(std::string controlsFilePath) {
             if (controlsJson.contains("controls")) {
                 for (auto &[key, value] : controlsJson["controls"].items()) {
                     if (key.empty() || value.empty()) continue;
-                    Input::inputControls[value.get<std::string>()] = key;
-                    Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    // A key can be bound to several physical inputs, e.g. both
+                    // D-pad Up and left-stick Up for arrow-only Scratch games.
+                    auto bind = [&](const nlohmann::json &button) {
+                        if (!button.is_string()) return;
+                        const auto name = button.get<std::string>();
+                        if (name.empty()) return;
+                        Input::inputControls[name] = key;
+                        Log::log("Loaded control: " + key + " -> " + name);
+                    };
+                    if (value.is_array()) {
+                        for (const auto &button : value) bind(button);
+                    } else {
+                        bind(value);
+                    }
                 }
                 file.close();
                 return;

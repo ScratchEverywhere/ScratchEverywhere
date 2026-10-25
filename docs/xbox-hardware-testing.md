@@ -272,3 +272,31 @@ Local captures include `new-games-list-snake-selected.jpg`,
 `catch-test-moved-score2.jpg`, `maze-test-moved.jpg`, `snake-test-*.jpg` and
 `new-games-final-list.jpg` under `build-xbox/hardware`. Controller reports were
 neutralized after each bounded test; the console was returned to the game list.
+
+
+## Xbox reset shortcut and Snake input diagnosis
+
+The SDL3 Xbox event loop now recognizes LT + RT + Back + Start on the active
+controller. Both triggers must exceed 75 percent and all four inputs must stay
+held for 750 ms. Releasing any part cancels the hold. The handler runs outside
+Scratch project key mappings in both the launcher and games and invokes NXDK
+`XReboot()`, which boots the console's configured dashboard.
+
+On hardware, a 300 ms chord did not reboot. A held chord returned to XBMC, and
+FTP became available without operator intervention. The retrieved log contained
+`Xbox reset combo: rebooting to the configured dashboard.` The same shortcut
+was then used to collect the Snake-specific log.
+
+That bounded trace established correct vertical stick delivery and actual
+Snake movement: SDL Y=-32768 generated `up arrow`, Snake Direction became Up,
+and Snake Y rose to 48 and 96. SDL Y=32766 generated `down arrow`, Direction
+became Down, and Y subsequently fell to 24. Left/right also changed direction
+and X. Thus no missing vertical-input or Snake movement-runtime defect was
+established; prior still captures did not reliably demonstrate the movement.
+
+The usability mismatch is that default D-pad mappings are letters, whereas
+Snake expects arrow keys or WASD. `examples/snake-xbox-controls.json` supplies
+D-pad arrows plus left-stick WASD without changing game scripts. The profile
+was installed at `E:\ScratchEverywhere\Snake-NemoNaturally.sb3.json` and
+verified by FTP readback. Temporary stick and position traces were removed
+from the clean source/build.

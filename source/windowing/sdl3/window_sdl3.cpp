@@ -10,6 +10,8 @@
 #if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #endif
+#include <algorithm>
+#include <vector>
 #include <cstdlib>
 #include <input.hpp>
 #include <log.hpp>
@@ -21,6 +23,29 @@
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Gamepad *controller = nullptr;
+#ifdef __XBOX__
+static std::vector<SDL_Gamepad *> xboxControllers;
+
+static void openXboxController(SDL_JoystickID id) {
+    for (auto *pad : xboxControllers) {
+        if (SDL_GetGamepadID(pad) == id) return;
+    }
+    if (auto *pad = SDL_OpenGamepad(id)) {
+        xboxControllers.push_back(pad);
+        if (!controller) controller = pad;
+    }
+}
+
+static void selectXboxController(SDL_JoystickID id) {
+    for (auto *pad : xboxControllers) {
+        if (SDL_GetGamepadID(pad) == id && controller != pad) {
+            controller = pad;
+            Log::log("Xbox active controller: " + std::to_string(id));
+            return;
+        }
+    }
+}
+#endif
 #endif
 
 #ifdef PLATFORM_HAS_TOUCH
@@ -29,6 +54,7 @@ SDL_Point touchPosition;
 #endif
 
 #ifdef __XBOX__
+#include <hal/xbox.h>
 #include <os.hpp>
 #if defined(RENDERER_XBOX)
 #include <renderers/xbox/renderer_xbox.hpp>
@@ -114,9 +140,13 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 #ifdef PLATFORM_HAS_CONTROLLER
     int numGamepads;
     SDL_JoystickID *gamepads = SDL_GetGamepads(&numGamepads);
+#ifdef __XBOX__
+    for (int i = 0; i < numGamepads; ++i) openXboxController(gamepads[i]);
+#else
     if (numGamepads > 0) {
         controller = SDL_OpenGamepad(gamepads[0]);
     }
+#endif
     SDL_free(gamepads);
 #endif
 
@@ -139,7 +169,13 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 
 void WindowSDL3::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
+#ifdef __XBOX__
+    for (auto *pad : xboxControllers) SDL_CloseGamepad(pad);
+    xboxControllers.clear();
+    controller = nullptr;
+#else
     if (controller) SDL_CloseGamepad(controller);
+#endif
 #endif
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore)
         SDL_GL_DestroyContext(context);
@@ -165,14 +201,45 @@ void WindowSDL3::pollEvents() {
         } break;
 #ifdef PLATFORM_HAS_CONTROLLER
         case SDL_EVENT_GAMEPAD_ADDED:
+#ifdef __XBOX__
+            openXboxController(event.gdevice.which);
+#else
             if (!controller) controller = SDL_OpenGamepad(event.gdevice.which);
+#endif
             break;
         case SDL_EVENT_GAMEPAD_REMOVED:
+#ifdef __XBOX__
+            for (auto it = xboxControllers.begin(); it != xboxControllers.end(); ++it) {
+                if (SDL_GetGamepadID(*it) != event.gdevice.which) continue;
+                if (controller == *it) controller = nullptr;
+                SDL_CloseGamepad(*it);
+                xboxControllers.erase(it);
+                break;
+            }
+            if (!controller && !xboxControllers.empty()) controller = xboxControllers.front();
+#else
             if (controller && event.gdevice.which == SDL_GetGamepadID(controller)) {
                 SDL_CloseGamepad(controller);
                 controller = nullptr;
             }
+#endif
             break;
+#ifdef __XBOX__
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+            selectXboxController(event.gbutton.which);
+            break;
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
+            // Ignore neutral reports and stick drift from other connected pads.
+            const bool trigger = event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+            const int threshold = trigger ? 24575 :
+                ((event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY) ? 18000 : 10000);
+            if ((trigger && event.gaxis.value > threshold) ||
+                (!trigger && (event.gaxis.value > threshold || event.gaxis.value < -threshold))) {
+                selectXboxController(event.gaxis.which);
+            }
+            break;
+        }
+#endif
 #endif
 #ifdef PLATFORM_HAS_TOUCH
         case SDL_EVENT_FINGER_DOWN:
@@ -197,6 +264,26 @@ void WindowSDL3::pollEvents() {
 #endif
         }
     }
+#if defined(__XBOX__) && defined(PLATFORM_HAS_CONTROLLER)
+    // Handle the reset chord outside project key mappings, in menus and games.
+    // A hold prevents the Start/Back buttons from triggering an accidental reset.
+    static bool resetHeld = false;
+    static Uint64 resetHeldSince = 0;
+    const bool resetChord = controller &&
+        SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_START) &&
+        SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_BACK) &&
+        SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 24575 &&
+        SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 24575;
+    if (!resetChord) {
+        resetHeld = false;
+    } else if (!resetHeld) {
+        resetHeld = true;
+        resetHeldSince = SDL_GetTicks();
+    } else if (SDL_GetTicks() - resetHeldSince >= 750) {
+        Log::log("Xbox reset combo: rebooting to the configured dashboard.");
+        XReboot();
+    }
+#endif
 }
 
 void WindowSDL3::swapBuffers() {

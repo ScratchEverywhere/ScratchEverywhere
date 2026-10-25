@@ -179,14 +179,14 @@ void InputDevice_SDL3::getInput() {
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
 
 #ifdef __XBOX__
-    // Bundled projects have no editor green flag or project-browser pause menu.
-    // Start supplies that action after a game has ended with "stop all".
+    // Supply an accessible replay action after a game ends with "stop all".
+    // Browser projects retain the long-press pause menu while running.
     static bool previousStart = false;
     const bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
     if (startPressed && !previousStart && Scratch::stageSprite != nullptr &&
-        Scratch::projectType == ProjectType::EMBEDDED && BlockExecutor::stopClicked) {
+        Scratch::pauseMenu == nullptr && BlockExecutor::stopClicked) {
         Scratch::greenFlagClicked();
-        Log::log("Xbox Start: restarted embedded project.");
+        Log::log("Xbox Start: restarted stopped project.");
     }
     previousStart = startPressed;
 #endif
