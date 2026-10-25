@@ -18,8 +18,10 @@
 #endif
 #include <algorithm>
 #include <windows.h>
+#endif
 
 namespace {
+#if defined(__XBOX__)
 // Reads a whole file straight into `dst` in large chunks.
 // std::ifstream goes through the C stdio layer and its small buffer, which turns a 30+ MB read into
 // tens of thousands of tiny kernel reads. Large direct reads let the file system stream the data.
