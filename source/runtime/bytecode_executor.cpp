@@ -15,8 +15,8 @@ std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
 namespace {
 
-thread_local uint64_t randState0 = 0;
-thread_local uint64_t randState1 = 0;
+uint64_t randState0 = 0;
+uint64_t randState1 = 0;
 
 uint64_t fastRandomNext() {
     if (randState0 == 0 && randState1 == 0) {
