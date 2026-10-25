@@ -17,6 +17,9 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+#ifdef __XBOX__
+    awaitingConfirmRelease = true;
+#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -133,6 +136,15 @@ void ProjectMenu::init() {
 void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
+#ifdef __XBOX__
+    // A may still be held after confirming Exit Project, and remapping the
+    // game controls back to UI controls makes it look like a new key press.
+    if (Input::keyHeldDuration["a"] == 0 && Input::keyHeldDuration["x"] == 0)
+        awaitingConfirmRelease = false;
+    const bool acceptReady = !awaitingConfirmRelease;
+#else
+    const bool acceptReady = true;
+#endif
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
@@ -159,7 +171,7 @@ void ProjectMenu::render() {
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed()) {
+        if (acceptReady && projectControl->selectedObject->isPressed()) {
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 std::string name = projectControl->selectedObject->text->getText();
@@ -201,7 +213,7 @@ void ProjectMenu::render() {
         //     return;
         // }
     } else {
-        if (noProjectsButton->isPressed({"a"})) {
+        if (acceptReady && noProjectsButton->isPressed({"a"})) {
             // A browser opened directly at startup has no previous menu yet.
             Menu *destination = MenuManager::previousMenu;
             if (destination == nullptr) destination = new MainMenu();

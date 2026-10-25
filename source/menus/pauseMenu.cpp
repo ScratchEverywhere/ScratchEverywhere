@@ -3,6 +3,7 @@
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
+#include <utility>
 
 PauseMenu::PauseMenu() {
     init();
@@ -17,6 +18,10 @@ static std::string getTurboString() {
 }
 
 void PauseMenu::init() {
+#ifdef __XBOX__
+    gameControls = Input::inputControls;
+    Input::applyControls();
+#endif
     constexpr int buttons = 4;
     constexpr int space = (180 - 60) / buttons;
 
@@ -101,6 +106,9 @@ void PauseMenu::render() {
 void PauseMenu::cleanup() {
     if (!isInitialized) return;
     isInitialized = false;
+#ifdef __XBOX__
+    Input::inputControls = std::move(gameControls);
+#endif
 
     if (backButton != nullptr) {
         delete backButton;

@@ -271,8 +271,27 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #endif
         }
 #ifdef ENABLE_MENU
-
-        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+        const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
+#ifdef __XBOX__
+        // Count wall time, not game frames: slow projects must remain escapable.
+        static Timer pauseHoldTimer(false);
+        static bool holdingPauseStart = false;
+        bool pauseRequested = false;
+        const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+        if (browserProject && startHeld) {
+            if (!holdingPauseStart) {
+                pauseHoldTimer.start();
+                holdingPauseStart = true;
+            }
+            pauseRequested = pauseHoldTimer.hasElapsed(3000);
+        } else {
+            holdingPauseStart = false;
+        }
+        if (pauseRequested) holdingPauseStart = false;
+#else
+        const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
+        if (pauseRequested) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);
             return std::make_pair(true, false);

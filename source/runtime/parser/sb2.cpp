@@ -4,6 +4,7 @@
 #include "zip_project_loader.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <input.hpp>
 #include <log.hpp>
 #include <memory>
 #include <renderer.hpp>
@@ -581,6 +582,9 @@ void Parser::loadSpritesSb2(const nlohmann::json &json) {
 
     for (const auto &watcher : watcherObjects)
         parseSb2Monitor(watcher);
+
+    // SB2 games need the same per-project controller profiles as SB3 games.
+    Input::applyControls(Unzip::filePath + ".json");
 }
 
 namespace {
