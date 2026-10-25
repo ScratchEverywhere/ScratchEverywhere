@@ -305,6 +305,7 @@ void Unzip::openScratchProject(void *arg) {
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
 #endif
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
     file = nullptr;
@@ -316,7 +317,9 @@ void Unzip::openScratchProject(void *arg) {
     }
 
 #ifdef __XBOX__
+    Log::log("Precaching project textures...");
     Image_Xbox::precacheProjectTextures();
+    Log::log("Project texture precache finished.");
 #endif
 
     Unzip::projectOpened = 1;

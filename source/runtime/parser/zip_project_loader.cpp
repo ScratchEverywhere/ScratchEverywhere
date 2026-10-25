@@ -161,6 +161,11 @@ bool ZipProjectLoader::load(std::istream *file) {
         }
 
 #if defined(__XBOX__)
+        // The caller destroys `file` after load(). An embedded archive cannot
+        // retain it through openStream(), since costume reads happen later.
+        const bool embeddedArchive = Scratch::projectType == ProjectType::EMBEDDED;
+        if (embeddedArchive) keepInRam = true;
+
         // Keeping the archive in RAM only makes sense when it fits comfortably. Larger projects fall back
         // to the file-backed archive instead of exhausting the heap.
         std::streamoff xboxProjectSize = 0;
@@ -173,6 +178,10 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             const std::streamoff budget = OS::isEnhancedPlatform() ? 24 * 1024 * 1024 : 6 * 1024 * 1024;
             if (xboxProjectSize <= 0 || xboxProjectSize > budget) {
+                if (embeddedArchive) {
+                    Log::logCritical("Embedded project does not fit the Xbox in-RAM archive budget; load it from disk instead.", false);
+                    return false;
+                }
                 Log::logWarning("sb3InRam disabled: project is " + std::to_string(xboxProjectSize / 1024) +
                                 " KB, over the " + std::to_string(budget / 1024) + " KB in-RAM budget.");
                 keepInRam = false;
@@ -236,6 +245,7 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
+            Log::log("Project JSON parsed from in-RAM archive.");
 #else
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
@@ -348,8 +358,10 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
+    Log::log("Loading project extensions and sprites...");
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
+    Log::log("Project sprites loaded.");
     project_json.clear();
     return true;
 }
