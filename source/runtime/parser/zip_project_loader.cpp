@@ -42,7 +42,7 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
 }
 #endif
 
-#if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
 static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
     std::string result;
     result.reserve(raw.size());
@@ -126,11 +126,23 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
 
 static nlohmann::json parseProjectJson(const std::string &rawJson) {
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+#if defined(__XBOX__)
+    // Lists contain authored game data (Appel's maps have 6400 cells). Silently
+    // cutting them to 1000 entries changes the game rather than saving it.
+    if (rawJson.find("Infinity") == std::string::npos) {
+        Log::log("Parsing full project JSON: " + std::to_string(rawJson.size()) + " bytes");
+        auto parsed = nlohmann::json::parse(rawJson);
+        Log::log("Full project JSON parsed.");
+        return parsed;
+    }
+    std::string sanitized = rawJson;
+#else
     std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");
     }
+#endif
     size_t inf_pos;
     while ((inf_pos = sanitized.find("Infinity")) != std::string::npos) {
         sanitized.replace(inf_pos, 8, "1e9");

@@ -4,6 +4,10 @@
 #include <runtime.hpp>
 #include <speech_manager.hpp>
 #include <utility>
+#ifdef SE_XBOX_TRACE_GAME_STATE
+#include <blockExecutor.hpp>
+#include <log.hpp>
+#endif
 
 PauseMenu::PauseMenu() {
     init();
@@ -18,6 +22,14 @@ static std::string getTurboString() {
 }
 
 void PauseMenu::init() {
+#ifdef SE_XBOX_TRACE_GAME_STATE
+    if (Scratch::stageSprite) {
+        Log::log("Pause state snapshot:");
+        for (const auto &[id, variable] : Scratch::stageSprite->variables) {
+            Log::log(variable.name + "=" + BlockExecutor::getVariableValue(id, Scratch::stageSprite).asString());
+        }
+    }
+#endif
 #ifdef __XBOX__
     gameControls = Input::inputControls;
     Input::applyControls();

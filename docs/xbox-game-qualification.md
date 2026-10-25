@@ -18,7 +18,7 @@ neutralize all reports afterwards.
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
 | Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
-| Appel v1.4 (griffpatch) | Uploaded; unintended launch reached JSON preprocessing then became unresponsive | Diagnose loading/memory failure; all gameplay checks |
+| Appel v1.4 (griffpatch) | Native allocator + expanded-RAM XBE + complete maps loads level 1; movement/jump; pause responds | Empty-world state after jumping; lwmem loading; scoring/loss/replay/exit/audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
@@ -158,3 +158,33 @@ after reset/retry. Preserve that separate startup issue for diagnosis. Appel's
 2,995,120-byte archived JSON uniquely matches the accidental-load log. Its
 loading failure remains unresolved; replacing it with a simpler game would not
 satisfy the current ten-game qualification plan.
+
+## Appel memory investigation
+
+NXDK's CXBE tool sets the XBE initialization flag `bLimit64MB` (bit 2 at
+header offset 0x124). Physical-memory detection still reports 128MB with that
+flag, but the native allocator had only 53MB available at startup. Clearing
+that flag raised startup availability to 117MB on this console. The packaging
+step now clears only that bit, before producing the ISO; it can be disabled
+with `SE_XBOX_ALLOW_EXPANDED_RAM=OFF`. Other header bytes were verified
+unchanged, and the patched XBE was found byte-for-byte in the generated ISO.
+
+Appel's authored MAP and MAPR lists each contain 6,400 entries. The constrained
+JSON loader silently truncated them to 1,000. Xbox now parses complete lists
+and avoids an additional JSON string copy when no Infinity sanitization is
+needed. The native allocator build in `F:\native-expanded-fullmap-20261025`
+(SHA-256 `d4a1c33318da7d93f28085102a9dbb71d2e34e8efcdf08e2178b5a3bf6b11274`)
+parsed all 2,995,120 JSON bytes, cached textures and rendered level 1. Right
+movement and A+Right jumping worked. After a longer jump test, the scene
+became mostly empty sky; the runtime pause menu still responded. Do not count
+this as a gameplay pass or assume that map loading resolves all defects.
+Evidence: `appel-native-expanded.log`, `appel-fullmap-level1.jpg`,
+`appel-jump-test.jpg`, `appel-after-jump.jpg`, `appel-pause-check.jpg`.
+
+The corresponding lwmem build with the XBE cap removed remained on the browser
+image after selecting Appel, including a second 600ms confirm attempt. The
+Player One reset combo did not recover dashboard FTP. Its startup log still
+needs retrieval before deciding whether the upper heap allocation succeeded.
+`SE_XBOX_TRACE_GAME_STATE=ON` enables an optional stage-variable snapshot when
+opening pause, to distinguish gameplay state from rendering problems. It is
+off by default.

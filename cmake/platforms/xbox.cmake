@@ -40,6 +40,12 @@ set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
+option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
+option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
+if(SE_XBOX_TRACE_GAME_STATE)
+    set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp" APPEND PROPERTY
+        COMPILE_DEFINITIONS SE_XBOX_TRACE_GAME_STATE)
+endif()
 if(SE_XBOX_FORCE_480P)
     add_compile_definitions(SE_XBOX_FORCE_480P)
 endif()
@@ -190,6 +196,15 @@ macro(package_platform)
         $<TARGET_FILE:scratch-everywhere>
         COMMENT "Making default.xbe"
     )
+
+    if(SE_XBOX_ALLOW_EXPANDED_RAM)
+        find_program(SE_XBOX_PYTHON NAMES python3 python REQUIRED)
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${SE_XBOX_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/configure-xbox-memory.py"
+                "${CMAKE_CURRENT_BINARY_DIR}/default.xbe"
+            COMMENT "Allowing expanded Xbox RAM"
+        )
+    endif()
 
     find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/extract-xiso/build" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/extract-xiso/build")
     if(EXTRACT_XISO_BIN)

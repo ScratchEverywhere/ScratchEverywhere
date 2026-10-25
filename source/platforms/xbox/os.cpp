@@ -9,6 +9,7 @@
 #include <os.hpp>
 #include <stdio.h>
 #include <windows.h>
+#include <xboxkrnl/xboxkrnl.h>
 
 #ifndef NXDK_CUSTOM_PATCHES_APPLIED
 #error "CRITICAL: NXDK was built without the required custom patches!"
@@ -108,6 +109,15 @@ bool OS::init() {
                  (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
     }
     Log::log(memMsg);
+#else
+    // Expanded-RAM detection must not depend on the optional heap override.
+    MM_STATISTICS stats = {};
+    stats.Length = sizeof(stats);
+    if (NT_SUCCESS(MmQueryStatistics(&stats))) {
+        isExpanded = stats.TotalPhysicalPages > (64u * 1024u * 1024u / 4096u);
+        Log::log("NXDK native allocator; physical RAM: " + std::to_string(stats.TotalPhysicalPages / 256u) +
+                 " MB; available: " + std::to_string(stats.AvailablePages / 256u) + " MB");
+    }
 #endif
     initNetworking();
     return true;

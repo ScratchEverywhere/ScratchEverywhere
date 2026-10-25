@@ -69,3 +69,24 @@ dispatch. Forks may require enabling GitHub Actions first.
 
 Put Scratch projects in `E:\ScratchEverywhere` on the console or emulated HDD.
 See <https://scratcheverywhere.github.io/install> for current installation details.
+
+## Expanded-memory hardware tests
+
+Xbox packaging clears the XBE's 64MB limit by default
+(`SE_XBOX_ALLOW_EXPANDED_RAM=ON`). This permits an expanded console to use its
+additional RAM; it does not add RAM to a retail console. Python 3 is required
+for this packaging step. Set the option to `OFF` to retain CXBE's original
+memory-limit flag for comparison.
+
+The 128MB hardware test loaded Appel with complete map lists using NXDK's
+native allocator. Reproduce that configuration with:
+
+```sh
+bash scripts/build-xbox.sh -DSE_XBOX_FORCE_480P=ON -DSE_MENU=ON \
+  -DSE_LOADSCREEN=OFF -DSE_USE_LWMEM=OFF
+```
+
+The default lwmem configuration remains available and needs a separate Appel
+loading investigation. For diagnostics only, `SE_XBOX_TRACE_GAME_STATE=ON`
+logs stage variables when the runtime pause menu opens. It defaults to `OFF`.
+See `xbox-game-qualification.md` for the test limitations and outstanding bugs.
