@@ -54,8 +54,6 @@ bool initNetworking() {
 }
 
 bool OS::init() {
-    // TODO: add support for automatic resolution detection
-    // TODO 2: add support for overscan compensation
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
 
     // Verify D: is mounted
