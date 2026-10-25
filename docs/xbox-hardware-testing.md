@@ -158,3 +158,18 @@ The clean NXDK build was uploaded with FTP readback verification to
 `F:\ultrabird-controls-20261025\default.xbe`, SHA-256
 `3ae489c855273d02f91bf4fa3b4a8522091021ee2e158d26dbb510f93d4e5790`.
 Controls: A flaps; after game over, release and press Start to restart.
+
+## Ultra Bird scored gameplay
+
+A later play session on the unchanged clean controls build reached a visible
+score of 2 in one run on the Xbox. The saved capture is
+`build-xbox/hardware/ultrabird-score-2.jpg` (local evidence, excluded from Git).
+This confirms scored gameplay in addition to restart and flap delivery; it is
+not a claim of complete game compatibility. Controller reports were neutralized
+and KVM control released after each bounded attempt.
+
+For reliable capture, keep a live video viewer active: the current KVM's JPEG
+snapshot API can return the last published frame after a bounded continuous
+viewer expires. Input timing based on those stale snapshots is unsuitable for
+playing this game. A continuous viewer plus current-frame observation was used
+for the scoring captures.
