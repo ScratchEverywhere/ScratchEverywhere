@@ -129,3 +129,32 @@ Local evidence: `ultrabird-running.jpg`, `ultrabird-flap-*.jpg`, and
 `ultrabird-deploy.json` under `build-xbox/hardware`. The original game was not
 modified or added to Git. The direct-start build remains running for local
 inspection, with all agent button states released.
+
+## Ultra Bird Xbox restart and flap verification
+
+Bounded input traces confirmed that Xbox A reaches the bird's `any` key hat
+and sets its upward velocity. The original apparently unresponsive tests were
+after Ultra Bird's `Lost` broadcast had executed `stop all`, removing its
+movement threads. Embedded projects have no project-browser pause menu or
+editor green flag, so the Xbox input backend now treats a fresh Start press
+as green flag restart when an embedded project is stopped. While a project is
+running, Start retains its existing Scratch key mapping.
+
+Hardware Start logging confirmed embedded project type 1, stopped state 1,
+and execution of `greenFlagClicked()`. A subsequent position/velocity trace
+showed restart clearing the stop state and recreating seven threads. With A
+inputs, the bird rose through y=42, 53, 61 and 76. At y=103, the game's own
+stop-all condition fired again. This explains the later bird disappearance:
+repeated flaps carried it above the visible stage before game over. It was
+not a missing input or a stuck movement thread during active play.
+
+The temporary per-frame and input diagnostic logs were removed from source.
+Local evidence includes `bird-motion-check.log` and
+`ultrabird-flap-confirmed.jpg` in `build-xbox/hardware`. The original author's
+SB3 is unchanged. Scoring, sustained successful play, audio and bitmap
+scaling remain unqualified.
+
+The clean NXDK build was uploaded with FTP readback verification to
+`F:\ultrabird-controls-20261025\default.xbe`, SHA-256
+`3ae489c855273d02f91bf4fa3b4a8522091021ee2e158d26dbb510f93d4e5790`.
+Controls: A flaps; after game over, release and press Start to restart.

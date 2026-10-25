@@ -12,6 +12,9 @@
 #include <string>
 #include <types.hpp>
 #include <vector>
+#ifdef __XBOX__
+#include <log.hpp>
+#endif
 
 #ifdef __SWITCH__
 extern char nickname[0x21];
@@ -174,6 +177,19 @@ void InputDevice_SDL3::getInput() {
 #endif
 
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
+
+#ifdef __XBOX__
+    // Bundled projects have no editor green flag or project-browser pause menu.
+    // Start supplies that action after a game has ended with "stop all".
+    static bool previousStart = false;
+    const bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+    if (startPressed && !previousStart && Scratch::stageSprite != nullptr &&
+        Scratch::projectType == ProjectType::EMBEDDED && BlockExecutor::stopClicked) {
+        Scratch::greenFlagClicked();
+        Log::log("Xbox Start: restarted embedded project.");
+    }
+    previousStart = startPressed;
+#endif
 
     BlockExecutor::executeKeyHats();
 
