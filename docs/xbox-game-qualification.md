@@ -18,7 +18,7 @@ neutralize all reports afterwards.
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
 | Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 4 apples; pause/exit | Full level; lwmem loading; loss/replay/audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 4 apples; pause/exit; fresh relaunch | Full level; lwmem loading; loss/replay/audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
@@ -222,3 +222,7 @@ were 16,384 entries after level setup. Pause and exit to the game list worked.
 The empty-input regression also passed on Xbox (3 passes, 0 errors, sum 7).
 See [the GDB investigation](appel-clone-debugging.md) for cause, controls,
 artifact paths and remaining qualification work.
+
+After returning to XBMC with the controller reset combo, the same fixed XBE
+booted a visible browser again and launched the full Appel title screen.
+Evidence: `appel-fixed-repeat-title.jpg`. The console was left on that title.
