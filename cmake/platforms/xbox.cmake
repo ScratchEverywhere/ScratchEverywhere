@@ -42,6 +42,7 @@ set(SE_PLATFORM "xbox")
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
+option(SE_XBOX_DEBUG_SYMBOLS "Keep DWARF symbols for xemu guest debugging" OFF)
 if(SE_XBOX_TRACE_GAME_STATE)
     set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp" APPEND PROPERTY
         COMPILE_DEFINITIONS SE_XBOX_TRACE_GAME_STATE)
@@ -175,6 +176,19 @@ set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
 #set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
 
 macro(package_platform)
+    if(SE_XBOX_DEBUG_SYMBOLS)
+        target_compile_options(scratch-everywhere PRIVATE -g -gdwarf-4)
+        target_link_options(scratch-everywhere PRIVATE -debug:dwarf -opt:ref -opt:icf)
+        find_program(SE_XBOX_OBJCOPY NAMES i386-elf-objcopy i686-elf-objcopy
+            x86_64-elf-objcopy gobjcopy objcopy
+            HINTS /opt/homebrew/opt/binutils/bin /usr/local/opt/binutils/bin REQUIRED)
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${SE_XBOX_OBJCOPY}" -O elf32-i386
+                "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox-symbols.elf"
+            COMMAND "${SE_XBOX_OBJCOPY}" --strip-debug "$<TARGET_FILE:scratch-everywhere>"
+            COMMENT "Saving xemu/GDB guest symbols"
+        )
+    endif()
     target_link_libraries(scratch-everywhere PUBLIC
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
         ${NXDK_DIR}/lib/libnxdk_net.lib
