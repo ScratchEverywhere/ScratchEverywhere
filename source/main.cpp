@@ -18,6 +18,9 @@
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
+#ifdef __XBOX__
+#include <menus/projectMenu.hpp>
+#endif
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
@@ -55,7 +58,16 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+#ifdef __XBOX__
+    // The console launcher should present installed games on boot and after exit.
+    // Reset any per-project mappings before navigating the browser again.
+    Input::applyControls();
+    Render::renderMode = Render::BOTH_SCREENS;
+    ProjectMenu *menu = new ProjectMenu();
+    Log::log("Xbox project browser activated.");
+#else
     MainMenu *menu = new MainMenu();
+#endif
     MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {

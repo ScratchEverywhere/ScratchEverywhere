@@ -173,3 +173,40 @@ snapshot API can return the last published frame after a bounded continuous
 viewer expires. Input timing based on those stale snapshots is unsuitable for
 playing this game. A continuous viewer plus current-frame observation was used
 for the scoring captures.
+
+## Xbox project-browser launcher
+
+A generic 480p build with `SE_MENU=ON`, `SE_LOADSCREEN=OFF` and no embedded
+`romfs/project.sb3` displayed the main menu and all three installed projects.
+The build's FTP readback SHA-256 was
+`76a5994b4305c6f735bd3068aa9691526b7d8f91b07f7d6dee0c6ecbdf69a22f`.
+Hopper Heros was selected and reached its title. Holding Start opened the
+runtime pause menu; selecting Exit Project returned to the launcher. Ultra
+Bird was then selected, launched and exited in the same process without a
+console reboot. Local captures are `menu-check-main.jpg`,
+`menu-check-browser.jpg`, `menu-check-hopper.jpg`, `menu-check-ultrabird.jpg`
+and `menu-check-pause.jpg` under `build-xbox/hardware`.
+
+The Xbox menu-enabled launcher now opens the installed project list directly
+at startup and after exiting a project. It restores default navigation
+controls before constructing the browser. Back still opens the existing main
+menu, so settings remain accessible. An empty browser with no previous menu
+now has a valid main-menu destination for A rather than clearing the active
+menu. Standalone embedded builds retain their existing direct-game behavior.
+
+This avoids making normal project selection depend on the introductory main
+menu. The old intermittent purple main-menu screen was not reproduced in the
+successful generic session above; its underlying cause has not been proven or
+claimed fixed. Temporary main-menu frame checkpoints were removed.
+
+Build the browser runtime with no embedded `romfs/project.sb3` or `romfs/project`
+directory, then:
+
+```sh
+bash scripts/build-xbox.sh -DSE_XBOX_FORCE_480P=ON -DSE_MENU=ON -DSE_LOADSCREEN=OFF
+```
+
+Use D-pad Up/Down to select a game and A to launch. Hold Start for approximately
+three seconds in a game, release it, then press A on Exit Project to return to
+the game list. The pause menu also supplies Click Green Flag for restarting
+external projects such as Ultra Bird.

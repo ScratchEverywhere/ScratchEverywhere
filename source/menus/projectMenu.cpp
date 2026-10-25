@@ -202,7 +202,10 @@ void ProjectMenu::render() {
         // }
     } else {
         if (noProjectsButton->isPressed({"a"})) {
-            MenuManager::changeMenu(MenuManager::previousMenu);
+            // A browser opened directly at startup has no previous menu yet.
+            Menu *destination = MenuManager::previousMenu;
+            if (destination == nullptr) destination = new MainMenu();
+            MenuManager::changeMenu(destination);
             return;
         }
     }
