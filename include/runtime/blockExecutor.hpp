@@ -1,9 +1,11 @@
 #pragma once
+#include "bytecode.hpp"
 #include "types.hpp"
 #include <functional>
 #include <os.hpp>
 #include <se_export.hpp>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace MonitorDisplayNames {
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4> SIMPLE_MONITORS{
@@ -56,6 +58,9 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 class SE_EXPORT BlockExecutor {
   public:
     static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
+    static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &getInputSignatures();
+    static std::unordered_map<std::string, BytecodePositionalFn> &getPositionalHandlers();
+    static std::unordered_set<std::string> &getBlockingBlocks();
 
     static void linkPointers(Sprite *sprite);
 
@@ -74,6 +79,17 @@ class SE_EXPORT BlockExecutor {
     static void runThreads();
     static BlockResult runThread(ScriptThread &thread, Sprite &sprite);
     static std::vector<ScriptThread *> threads;
+
+    static uint64_t nextThreadId();
+    static bool isThreadRunning(uint64_t id);
+
+    static uint64_t startHat(Sprite *sprite, Block *hat);
+
+    /**
+     * Starts every "when I receive" hat listening for the given broadcast (case-insensitive).
+     * @return the ids of the threads that were started.
+     */
+    static std::vector<uint64_t> startBroadcastHats(std::string broadcast);
 
     // If true, all sprites will be sorted at the end of the frame.
     static bool sortSprites;

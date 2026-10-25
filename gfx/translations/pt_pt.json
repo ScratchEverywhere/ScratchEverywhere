@@ -16,6 +16,7 @@
   "ui.settings.fps": "Mostrar FPS",
   "ui.settings.keepProjectInRam": "Manter Projeto em RAM",
   "ui.settings.warp": "Warp Timer",
+  "ui.settings.runtime": "Runtime de Bytecode",
   "ui.settings.username": "Nome de Utilizador",
   "ui.settings.name": "Nome",
   "ui.settings.path": "Caminho Personalizado",

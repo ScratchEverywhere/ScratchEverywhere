@@ -344,7 +344,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/runtime/parser" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
+set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
 
 if(SE_RENDERER STREQUAL "all")
     foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)

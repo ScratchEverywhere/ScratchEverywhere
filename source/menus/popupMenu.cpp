@@ -23,6 +23,9 @@ void PopupMenu::init() {
 
         buttons.push_back(acceptButton);
         buttons.push_back(cancelButton);
+    } else if (type == PopupType::ACKNOWLEDGE) {
+        ButtonObject *okButton = new ButtonObject("OK", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+        buttons.push_back(okButton);
     }
 
     control = new ControlObject();
@@ -54,6 +57,11 @@ void PopupMenu::render() {
         // cancel
         if (buttons[1]->isPressed()) {
             accepted = 0;
+            return;
+        }
+    } else if (type == PopupType::ACKNOWLEDGE) {
+        if (buttons[0]->isPressed()) {
+            accepted = 1;
             return;
         }
     }
