@@ -223,6 +223,7 @@ BlockResult invokeHandler(BytecodeThread &thread, const BlockFunc *handler, Bloc
 
     thread.bridgeThread->finished = false;
     thread.bridgeThread->blockHat = thread.hatBlock;
+    thread.bridgeThread->id = thread.id;
 
     return (*handler)(block, thread.bridgeThread, thread.sprite, outValue);
 }

@@ -214,7 +214,7 @@ SCRATCH_BLOCK(control, stop) {
             t->finished = true;
         }
         for (BytecodeThread *t : BytecodeExecutor::threads) {
-            if (t->sprite != sprite || t->legacyThreadId == thread->id) continue;
+            if (t->sprite != sprite || t->id == thread->id || t->legacyThreadId == thread->id) continue;
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)
