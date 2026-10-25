@@ -75,3 +75,8 @@ All Tetris pieces render red. The project uses color effects; the Xbox renderer
 currently does not forward/apply `Sprite::colorEffect` as the OpenGL core
 renderer does. Treat this as an unresolved compatibility defect, not a full
 game pass. No line-clear/scoring or audio acceptance is established yet.
+
+The retrieved `build-xbox/hardware/replay-controls.log` confirms both arrow
+bindings for every direction, `space -> A`, active-controller changes, two
+`Xbox Start: restarted stopped project.` entries, and the reset-combo entry.
+The final reset was sent from Player One and returned to dashboard FTP.
