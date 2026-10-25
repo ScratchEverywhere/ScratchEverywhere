@@ -459,9 +459,6 @@ void Renderer_C2D::renderSprites() {
     const float SLIDER_THRESHOLD = 0.0f;
     bool use_slider = (is_2ds != 0) && (slider > SLIDER_THRESHOLD);
 
-    const float pen_offset_x = OBJ_OFFSET(240.0f);
-    const float pen_offset_y = OBJ_OFFSET(40.0f);
-
     const float image_offset_x = OBJ_OFFSET(40.0f);
     const float image_offset_y = OBJ_OFFSET(120.0f);
 
@@ -469,6 +466,10 @@ void Renderer_C2D::renderSprites() {
     const float speech_offset_y = OBJ_OFFSET(240.0f);
 
     auto screen_rendering = [&](bool eye_side, bool is_top_screen) {
+        const bool dual = Render::renderMode == Render::BOTH_SCREENS && !is_top_screen;
+        float pen_offset_x = dual ? -40.0f : 0.0f;
+        float pen_offset_y = dual ? -240.0f : 0.0f;
+
         size_t i = 0;
         for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
             Sprite *currentSprite = *it;

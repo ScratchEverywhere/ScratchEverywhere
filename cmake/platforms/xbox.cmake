@@ -104,7 +104,6 @@ add_compile_options(
     # Aligning loops and functions to the CPU's cache line boundary
     -falign-functions=16
     -falign-loops=16
-    -falign-jumps=16
 )
 
 # Optimize the filesystem, components of the runtime, renderers, and windowing to run with -O3 optimizations.
@@ -121,7 +120,7 @@ set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTION
 # Optimize menus to run with -O2 optimizations.
 file(GLOB_RECURSE SE_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.cpp")
-set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2;-ffast-math;-fno-finite-math-only")
 
 # Everything else gets -O1 optimizations except for collisions.
 file(GLOB_RECURSE SE_NO_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
@@ -129,7 +128,7 @@ file(GLOB_RECURSE SE_NO_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
 file(GLOB_RECURSE SE_BASIC_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
 list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES} ${SE_NO_OPTIMIZE_SOURCES})
-set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
+set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-ffast-math;-fno-finite-math-only")
 
 # Collisions can only work accurately with tweaks and no other optimization flags
 set_source_files_properties(${SE_NO_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O0;-ffp-contract=off;-fno-strict-aliasing")
