@@ -26,9 +26,9 @@ neutralize all reports afterwards.
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
-| Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Space Invaders (RokCoder) | Hardware browser launch; D-pad left/right, A start/fire, Score 450, shield damage and life loss; A replay to 0/three lives; pause/exit, verified fresh launch and second exit; HDMI audio signal | Full wave; subjective/long-run audio |
 | Asteroids (Will_Wam) | Hardware browser launch, thrust/turn/fire, 9,200 points and game over; repaired SB2 ending text; pause Green Flag replay to 0; exit, fresh browser relaunch and second exit; captured HDMI audio | Subjective/long-run audio; further level progression |
-| Sokoban (Gammastr20) | Hardware completion of puzzles 1–3; four D-pad directions, crate/goal updates, Black/R puzzle restart; 7.995s HDMI audio; emulator pause/exit | Hardware exit/relaunch; later puzzles, including authored level-10 dead crate; subjective/long-run audio |
+| Sokoban (Gammastr20) | Hardware completion of puzzles 1–3; four D-pad directions, crate/goal updates, Black/R puzzle restart; 7.995s HDMI audio; hardware pause/exit on the new candidate | Repeat launch; later puzzles, including authored level-10 dead crate; subjective/long-run audio |
 | 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
@@ -585,3 +585,33 @@ zero-score round, and a second exit also succeeded. Evidence includes
 `scratch2-svg-asteroids-browser-return.jpg` and
 `scratch2-svg-asteroids-relaunch.jpg`; see `scratch2-svg-validation.json` and
 `scratch2-svg-deploy.json` for the artifact record.
+
+
+## Space Invaders hardware progression (October 26)
+
+On the SB2-text candidate (`dc10c078…`), Space Invaders was selected in the
+normal browser and launched. This is an SB3 project after an SB2 game; the
+playfield, title, score, shields and invaders rendered normally. A starts a
+round and fires, and the D-pad moved the base left and right. A firing sweep
+reached Score=450, with visible enemy removal, shield damage and life loss.
+A remained held across the first loss and the game had already started a new
+zero-score, three-life round by the next capture. In a subsequent round with
+neutral input, lives reached zero and the authored “Press SPACE to play”
+title returned. A then started another round at zero with three lives.
+
+Physical Start pause and Exit Project returned to the populated browser. A
+fresh launch was repeated with selection confirmed before A; the title and
+a fresh zero-score, three-life round both rendered, then a second exit
+succeeded. A preceding 350ms navigation sequence had landed on Sokoban and
+is excluded from the Space Invaders relaunch result. The repeated selection
+used 550ms presses and 350ms release gaps. The incidental Sokoban launch did
+render its level-one puzzle and successfully pause/exit on this candidate,
+but did not repeat its puzzle progression. Short virtual-controller presses
+still need separate input timing investigation before attributing misses to
+the game or runtime.
+
+The 7.990-second HDMI audio sample had peak 0.06738 and RMS 0.008795, with
+signal and no digital clipping. No full wave was cleared, and subjective or
+long-run audio acceptance remains outstanding. Evidence is in ignored
+`build-xbox/hardware/scratch2-svg-space-*.jpg`, `scratch2-svg-space-audio.json`
+and the `space_invaders` section of `scratch2-svg-validation.json`.
