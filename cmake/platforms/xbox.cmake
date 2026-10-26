@@ -1,8 +1,8 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 # Apparently setting these flags like this makes both xemu and real hardware work...
-set(SE_RENDERER_VALID_OPTIONS "xbox" "headless")
-set(SE_WINDOWING_VALID_OPTIONS "sdl3" "headless")
+set(SE_RENDERER_VALID_OPTIONS "nv2a" "xbox" "headless")
+set(SE_WINDOWING_VALID_OPTIONS "nv2a" "sdl3" "headless")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3" "headless")
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
