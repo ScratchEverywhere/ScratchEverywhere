@@ -12,6 +12,7 @@
 #include <gx2/state.h>
 #include <gx2/swap.h>
 #include <gx2/utils.h>
+#include <proc_ui/procui.h>
 #include <whb/gfx.h>
 
 #include <algorithm>
@@ -343,7 +344,7 @@ const char *init(int /*sceneWidth*/, int /*sceneHeight*/) {
 }
 
 void shutdown() {
-    if (g.initialised || g.context) GX2DrawDone();
+    if ((g.initialised || g.context) && ProcUIInForeground()) GX2DrawDone();
 
     flushDeferred();
 
@@ -531,6 +532,7 @@ void makeReadable(RenderTarget &target) {
 }
 
 void waitIdle() {
+    if (!ProcUIInForeground()) return;
     GX2Flush();
     GX2DrawDone();
 }
