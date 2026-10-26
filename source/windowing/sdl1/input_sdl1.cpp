@@ -42,6 +42,12 @@ std::array<int, 2> InputDevice_SDL1::getTouchPosition() {
     pos[1] = rawMouseY;
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
+#elif !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
 
     return pos;
@@ -137,7 +143,23 @@ void InputDevice_SDL1::getInput() {
         if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
         if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
-        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) {
+            Input::buttonPress("RT");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.isPressed = true;
+#endif
+        }
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_JoystickGetButton(controller, 4)) {
+            if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
+            if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
+            if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
+            if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::mousePointer.y += 3;
+        }
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+#endif
 
         Input::leftJoystick.first = joyLeftX / 32767.0f;
         Input::leftJoystick.second = joyLeftY / 32767.0f;
