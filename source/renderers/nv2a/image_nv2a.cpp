@@ -451,16 +451,476 @@ void Image_NV2A::renderTiled(ImageRenderParams &params) {
     }
 }
 
-void Image_NV2A::render(ImageRenderParams &params) {
-    if (!tiles.empty()) {
-        renderTiled(params);
+static void *extractProjectAsset(const std::string &assetName, size_t &outSize);
+static void freeProjectAsset(void *ptr);
+
+static inline void rgb2hsv(float r, float g, float b, float &h, float &s, float &v) {
+    float maxC = std::max({r, g, b});
+    float minC = std::min({r, g, b});
+    float d = maxC - minC;
+    v = maxC;
+    s = (maxC > 1e-6f) ? (d / maxC) : 0.0f;
+    if (d < 1e-6f) {
+        h = 0.0f;
+    } else if (maxC == r) {
+        float seg = (g - b) / d;
+        h = (seg < 0.0f ? seg + 6.0f : seg) / 6.0f;
+    } else if (maxC == g) {
+        h = ((b - r) / d + 2.0f) / 6.0f;
+    } else {
+        h = ((r - g) / d + 4.0f) / 6.0f;
+    }
+}
+
+static inline void hsv2rgb(float h, float s, float v, float &r, float &g, float &b) {
+    if (s <= 1e-6f) {
+        r = g = b = v;
         return;
     }
-    if (!texture) return;
+    h = h - std::floor(h);
+    float h6 = h * 6.0f;
+    int i = static_cast<int>(h6);
+    float f = h6 - static_cast<float>(i);
+    float p = v * (1.0f - s);
+    float q = v * (1.0f - s * f);
+    float t = v * (1.0f - s * (1.0f - f));
+    switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        default: r = v; g = p; b = q; break;
+    }
+}
+
+static void decodeDXT1Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch, int maxW, int maxH) {
+    uint16_t c0 = static_cast<uint16_t>(block[0] | (block[1] << 8));
+    uint16_t c1 = static_cast<uint16_t>(block[2] | (block[3] << 8));
+    int r0, g0, b0, r1, g1, b1;
+    unpackRGB565(c0, r0, g0, b0);
+    unpackRGB565(c1, r1, g1, b1);
+    uint8_t pal[4][4] = {
+        {static_cast<uint8_t>(r0), static_cast<uint8_t>(g0), static_cast<uint8_t>(b0), 255},
+        {static_cast<uint8_t>(r1), static_cast<uint8_t>(g1), static_cast<uint8_t>(b1), 255},
+        {0, 0, 0, 255},
+        {0, 0, 0, 255}
+    };
+    if (c0 > c1) {
+        pal[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
+        pal[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
+        pal[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
+        pal[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
+        pal[3][1] = static_cast<uint8_t>((g0 + 2 * r1) / 3);
+        pal[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
+    } else {
+        pal[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
+        pal[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
+        pal[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
+        pal[3][0] = 0; pal[3][1] = 0; pal[3][2] = 0; pal[3][3] = 0;
+    }
+    uint32_t indices = static_cast<uint32_t>(block[4] | (block[5] << 8) | (block[6] << 16) | (block[7] << 24));
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + y * dstPitch;
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            int idx = (indices >> ((y * 4 + x) * 2)) & 3;
+            memcpy(row + x * 4, pal[idx], 4);
+        }
+    }
+}
+
+static void decodeDXT5Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch, int maxW, int maxH) {
+    uint8_t a0 = block[0];
+    uint8_t a1 = block[1];
+    uint8_t aPal[8];
+    aPal[0] = a0;
+    aPal[1] = a1;
+    if (a0 > a1) {
+        for (int i = 1; i <= 6; ++i) {
+            aPal[1 + i] = static_cast<uint8_t>(((7 - i) * a0 + i * a1) / 7);
+        }
+    } else {
+        for (int i = 1; i <= 4; ++i) {
+            aPal[1 + i] = static_cast<uint8_t>(((5 - i) * a0 + i * a1) / 5);
+        }
+        aPal[6] = 0;
+        aPal[7] = 255;
+    }
+    uint64_t aIndices = 0;
+    for (int i = 0; i < 6; ++i) {
+        aIndices |= static_cast<uint64_t>(block[2 + i]) << (i * 8);
+    }
+
+    decodeDXT1Block(block + 8, dstRGBA, dstPitch, maxW, maxH);
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + y * dstPitch;
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            int shift = (y * 4 + x) * 3;
+            int aIdx = static_cast<int>((aIndices >> shift) & 7);
+            row[x * 4 + 3] = aPal[aIdx];
+        }
+    }
+}
+
+void Image_NV2A::releaseEffects() {
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
+    }
+    for (int i = 0; i < 2; ++i) {
+        if (effectSlots[i].texture) {
+            if (nv2aRenderer) {
+                nv2aRenderer->destroyTexture(effectSlots[i].texture);
+            }
+            effectSlots[i].texture = nullptr;
+        }
+        effectSlots[i].color = 0.0f;
+        effectSlots[i].fisheye = 0.0f;
+        effectSlots[i].whirl = 0.0f;
+        effectSlots[i].pixelate = 0.0f;
+        effectSlots[i].mosaic = 0.0f;
+        effectSlots[i].lastUsedFrame = 0;
+    }
+    effectSource.clear();
+    effectSource.shrink_to_fit();
+}
+
+const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
+    if (imgData.pixels) {
+        outPitch = imgData.pitch;
+        return static_cast<const uint8_t *>(imgData.pixels);
+    }
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+    if (!cachedAssetPath.empty()) {
+        size_t fileSize = 0;
+        void *fileData = extractProjectAsset(cachedAssetPath, fileSize);
+        if (fileData && fileSize > 0) {
+            int rawW = 0, rawH = 0, channels = 0;
+            unsigned char *pix = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
+            freeProjectAsset(fileData);
+            if (pix && rawW > 0 && rawH > 0) {
+                int curW = rawW, curH = rawH;
+                unsigned char *curPixels = pix;
+                while (curW > imgData.width * 2 && curH > imgData.height * 2) {
+                    int dw, dh;
+                    unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+                    if (!downscaled) break;
+                    if (curPixels == pix) stbi_image_free(curPixels);
+                    else free(curPixels);
+                    curPixels = downscaled;
+                    curW = dw;
+                    curH = dh;
+                }
+                if (curW == imgData.width && curH == imgData.height) {
+                    effectSource.assign(curPixels, curPixels + curW * curH * 4);
+                } else {
+                    effectSource.resize(static_cast<size_t>(imgData.width) * imgData.height * 4);
+                    for (int y = 0; y < imgData.height; ++y) {
+                        int sy = (y * curH) / imgData.height;
+                        const uint8_t *sRow = curPixels + sy * curW * 4;
+                        uint8_t *dRow = effectSource.data() + y * imgData.width * 4;
+                        for (int x = 0; x < imgData.width; ++x) {
+                            int sx = (x * curW) / imgData.width;
+                            memcpy(dRow + x * 4, sRow + sx * 4, 4);
+                        }
+                    }
+                }
+                if (curPixels == pix) stbi_image_free(curPixels);
+                else free(curPixels);
+            }
+        }
+    }
+    if (effectSource.empty() && texture && texture->data && texture->isDXT) {
+        effectSource.assign(static_cast<size_t>(imgData.width) * imgData.height * 4, 0);
+        int blockRows = (imgData.height + 3) / 4;
+        int blockCols = (imgData.width + 3) / 4;
+        bool isDXT5 = (texture->format == XGU_TEXTURE_FORMAT_DXT5);
+        int blockBytes = isDXT5 ? 16 : 8;
+        for (int by = 0; by < blockRows; ++by) {
+            for (int bx = 0; bx < blockCols; ++bx) {
+                const uint8_t *block = texture->data + (by * texture->pitch) + (bx * blockBytes);
+                uint8_t *dst = effectSource.data() + (by * 4 * imgData.width * 4) + (bx * 4 * 4);
+                int remW = imgData.width - bx * 4;
+                int remH = imgData.height - by * 4;
+                if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+            }
+        }
+    }
+    if (effectSource.empty() && !tiles.empty()) {
+        effectSource.assign(static_cast<size_t>(imgData.width) * imgData.height * 4, 0);
+        for (const auto &tile : tiles) {
+            if (tile.texture && tile.texture->data && tile.texture->isDXT) {
+                int blockRows = (tile.h + 3) / 4;
+                int blockCols = (tile.w + 3) / 4;
+                bool isDXT5 = (tile.texture->format == XGU_TEXTURE_FORMAT_DXT5);
+                int blockBytes = isDXT5 ? 16 : 8;
+                for (int by = 0; by < blockRows; ++by) {
+                    for (int bx = 0; bx < blockCols; ++bx) {
+                        const uint8_t *block = tile.texture->data + (by * tile.texture->pitch) + (bx * blockBytes);
+                        uint8_t *dst = effectSource.data() + ((tile.y + by * 4) * imgData.width * 4) + ((tile.x + bx * 4) * 4);
+                        int remW = tile.w - bx * 4;
+                        int remH = tile.h - by * 4;
+                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+                    }
+                }
+            }
+        }
+    }
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+    return nullptr;
+}
+
+NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
+    if (imgData.width <= 0 || imgData.height <= 0) return nullptr;
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) return nullptr;
+
+    const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
+
+    for (int i = 0; i < 2; ++i) {
+        if (effectSlots[i].texture && effectSlots[i].matches(params)) {
+            effectSlots[i].lastUsedFrame = currentFrame;
+            return effectSlots[i].texture;
+        }
+    }
+
+    int chosenSlot = 0;
+    if (effectSlots[0].lastUsedFrame != currentFrame) {
+        chosenSlot = 0;
+    } else if (effectSlots[1].lastUsedFrame != currentFrame) {
+        chosenSlot = 1;
+    } else {
+        chosenSlot = (effectSlots[0].lastUsedFrame <= effectSlots[1].lastUsedFrame) ? 0 : 1;
+    }
+
+    EffectCacheSlot &slot = effectSlots[chosenSlot];
+
+    int srcPitch = 0;
+    const uint8_t *src = getEffectSource(srcPitch);
+    if (!src) return texture;
+
+    int srcW = imgData.width;
+    int srcH = imgData.height;
+    int effW = std::min(srcW, 512);
+    int effH = std::min(srcH, 512);
+    if (effW <= 0) effW = 1;
+    if (effH <= 0) effH = 1;
+
+    if (!slot.texture || slot.texture->texWidth != effW || slot.texture->texHeight != effH) {
+        if (slot.texture) {
+            nv2aRenderer->destroyTexture(slot.texture);
+            slot.texture = nullptr;
+        }
+        slot.texture = nv2aRenderer->createTexture(effW, effH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        if (!slot.texture) {
+            return texture;
+        }
+    }
+
+    std::vector<uint8_t> scratch(static_cast<size_t>(effW) * effH * 4);
+
+    const float mosaic = params.mosaicEffect;
+    const float pixelate = params.pixelateEffect;
+    const float whirl = params.whirlEffect;
+    const float fisheye = params.fisheyeEffect;
+    const float color = params.colorEffect;
+
+    const bool hasMosaic = (std::abs(mosaic) > 0.001f);
+    const bool hasPixelate = (std::abs(pixelate) > 0.001f);
+    const bool hasWhirl = (std::abs(whirl) > 0.001f);
+    const bool hasFisheye = (std::abs(fisheye) > 0.001f);
+    const bool hasColor = (std::abs(color) > 0.001f);
+
+    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 512.0f) : 1.0f;
+    const float pixelateAmount = std::abs(pixelate) / 10.0f;
+    const float pixelTexelSizeX = static_cast<float>(effW) / std::max(pixelateAmount, 1e-3f);
+    const float pixelTexelSizeY = static_cast<float>(effH) / std::max(pixelateAmount, 1e-3f);
+    const float whirlRad = whirl * 3.141592653589793f / 180.0f;
+    const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
+    const float colorShift = color / 200.0f;
+
+    const int dstPitch = effW * 4;
+
+    if (hasColor && !hasMosaic && !hasPixelate && !hasWhirl && !hasFisheye && effW == srcW && effH == srcH) {
+        for (int y = 0; y < effH; ++y) {
+            const uint8_t *sRow = src + y * srcPitch;
+            uint8_t *dRow = scratch.data() + y * dstPitch;
+            for (int x = 0; x < effW; ++x) {
+                uint8_t a = sRow[x * 4 + 3];
+                if (a == 0) {
+                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
+                    continue;
+                }
+                float r = sRow[x * 4 + 0] * (1.0f / 255.0f);
+                float g = sRow[x * 4 + 1] * (1.0f / 255.0f);
+                float b = sRow[x * 4 + 2] * (1.0f / 255.0f);
+                float h, s, v;
+                rgb2hsv(r, g, b, h, s, v);
+                const float minLightness = 0.11f / 2.0f;
+                const float minSaturation = 0.09f;
+                if (v < minLightness) { h = 0.0f; s = 1.0f; v = minLightness; }
+                else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
+                h = h + colorShift;
+                h -= std::floor(h);
+                float ro, go, bo;
+                hsv2rgb(h, s, v, ro, go, bo);
+                dRow[x * 4 + 0] = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
+                dRow[x * 4 + 1] = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
+                dRow[x * 4 + 2] = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
+                dRow[x * 4 + 3] = a;
+            }
+        }
+    } else {
+        for (int y = 0; y < effH; ++y) {
+            float vNorm = (static_cast<float>(y) + 0.5f) / static_cast<float>(effH);
+            uint8_t *dRow = scratch.data() + y * dstPitch;
+            for (int x = 0; x < effW; ++x) {
+                float uNorm = (static_cast<float>(x) + 0.5f) / static_cast<float>(effW);
+                float u = uNorm;
+                float v = vNorm;
+
+                if (hasMosaic) {
+                    u = u * tiles;
+                    u -= std::floor(u);
+                    v = v * tiles;
+                    v -= std::floor(v);
+                }
+
+                if (hasPixelate) {
+                    u = (std::floor(u * pixelTexelSizeX) + 0.5f) / pixelTexelSizeX;
+                    v = (std::floor(v * pixelTexelSizeY) + 0.5f) / pixelTexelSizeY;
+                }
+
+                float cx = u - 0.5f;
+                float cy = v - 0.5f;
+
+                if (hasWhirl) {
+                    float dist = std::sqrt(cx * cx + cy * cy);
+                    float whirlFactor = std::max(1.0f - (dist / 0.5f), 0.0f);
+                    float whirlActual = whirlRad * whirlFactor * whirlFactor;
+                    float s = std::sin(whirlActual);
+                    float c = std::cos(whirlActual);
+                    float ncx = c * cx - s * cy;
+                    float ncy = s * cx + c * cy;
+                    cx = ncx;
+                    cy = ncy;
+                }
+
+                if (hasFisheye) {
+                    float vx = cx / 0.5f;
+                    float vy = cy / 0.5f;
+                    float vecLen = std::sqrt(vx * vx + vy * vy);
+                    if (vecLen > 0.0001f) {
+                        float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
+                        float invLen = 1.0f / vecLen;
+                        cx = r * (vx * invLen) * 0.5f;
+                        cy = r * (vy * invLen) * 0.5f;
+                    }
+                }
+
+                u = cx + 0.5f;
+                v = cy + 0.5f;
+
+                if (u < 0.0f || u >= 1.0f || v < 0.0f || v >= 1.0f) {
+                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
+                    continue;
+                }
+
+                int sx = static_cast<int>(u * srcW);
+                int sy = static_cast<int>(v * srcH);
+                if (sx < 0) sx = 0; else if (sx >= srcW) sx = srcW - 1;
+                if (sy < 0) sy = 0; else if (sy >= srcH) sy = srcH - 1;
+
+                const uint8_t *sPix = src + sy * srcPitch + sx * 4;
+                uint8_t a = sPix[3];
+                if (a == 0) {
+                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
+                    continue;
+                }
+
+                if (hasColor) {
+                    float r = sPix[0] * (1.0f / 255.0f);
+                    float g = sPix[1] * (1.0f / 255.0f);
+                    float b = sPix[2] * (1.0f / 255.0f);
+                    float h, s, val;
+                    rgb2hsv(r, g, b, h, s, val);
+                    const float minLightness = 0.11f / 2.0f;
+                    const float minSaturation = 0.09f;
+                    if (val < minLightness) { h = 0.0f; s = 1.0f; val = minLightness; }
+                    else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
+                    h = h + colorShift;
+                    h -= std::floor(h);
+                    float ro, go, bo;
+                    hsv2rgb(h, s, val, ro, go, bo);
+                    dRow[x * 4 + 0] = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
+                    dRow[x * 4 + 1] = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
+                    dRow[x * 4 + 2] = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
+                    dRow[x * 4 + 3] = a;
+                } else {
+                    memcpy(dRow + x * 4, sPix, 4);
+                }
+            }
+        }
+    }
+
+    nv2aRenderer->updateTexture(slot.texture, scratch.data(), dstPitch);
+
+    slot.color = params.colorEffect;
+    slot.fisheye = params.fisheyeEffect;
+    slot.whirl = params.whirlEffect;
+    slot.pixelate = params.pixelateEffect;
+    slot.mosaic = params.mosaicEffect;
+    slot.lastUsedFrame = currentFrame;
+
+    return slot.texture;
+}
+
+void Image_NV2A::render(ImageRenderParams &params) {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
     if (!nv2aRenderer) return;
+
+    bool hasEffects = (std::abs(params.colorEffect) > 0.001f ||
+                       std::abs(params.fisheyeEffect) > 0.001f ||
+                       std::abs(params.whirlEffect) > 0.001f ||
+                       std::abs(params.pixelateEffect) > 0.001f ||
+                       std::abs(params.mosaicEffect) > 0.001f);
+
+    if (!hasEffects) {
+        uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
+        if ((effectSlots[0].texture && currentFrame - effectSlots[0].lastUsedFrame > 60) ||
+            (effectSlots[1].texture && currentFrame - effectSlots[1].lastUsedFrame > 60)) {
+            releaseEffects();
+        }
+        if (!tiles.empty()) {
+            renderTiled(params);
+            return;
+        }
+    }
+
+    NV2ATexture *activeTex = texture;
+    if (hasEffects) {
+        NV2ATexture *effTex = acquireEffectTexture(params);
+        if (effTex) {
+            activeTex = effTex;
+        }
+    }
+    if (!activeTex) {
+        if (!tiles.empty()) {
+            renderTiled(params);
+        }
+        return;
+    }
 
     const float x = params.x;
     const float y = params.y;
@@ -488,10 +948,10 @@ void Image_NV2A::render(ImageRenderParams &params) {
     }
     if (subW <= 0 || subH <= 0) return;
 
-    float u0 = (subX / static_cast<float>(imgData.width)) * texture->uScale;
-    float v0 = (subY / static_cast<float>(imgData.height)) * texture->vScale;
-    float u1 = ((subX + subW) / static_cast<float>(imgData.width)) * texture->uScale;
-    float v1 = ((subY + subH) / static_cast<float>(imgData.height)) * texture->vScale;
+    float u0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float u1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
 
     if (params.flip) {
         std::swap(u0, u1);
@@ -522,7 +982,7 @@ void Image_NV2A::render(ImageRenderParams &params) {
             {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
             {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}
         };
-        nv2aRenderer->bindTexture(texture, true);
+        nv2aRenderer->bindTexture(activeTex, true);
         nv2aRenderer->setBlendMode(blendMode);
         nv2aRenderer->drawTriangles(verts, 6);
     };
@@ -1097,6 +1557,7 @@ void Image_NV2A::precacheProjectTextures() {
 }
 
 nonstd::expected<void, std::string> Image_NV2A::refreshTexture() {
+    releaseEffects();
     destroyTiles();
     if (texture && nv2aRenderer) nv2aRenderer->destroyTexture(texture);
     if (!cachedAssetPath.empty()) {
@@ -1149,6 +1610,7 @@ Image_NV2A::Image_NV2A(std::string filePath, bool fromScratchProject, bool bitma
 }
 
 Image_NV2A::~Image_NV2A() {
+    releaseEffects();
     destroyTiles();
     if (texture && nv2aRenderer) {
         nv2aRenderer->destroyTexture(texture);

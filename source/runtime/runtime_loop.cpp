@@ -228,6 +228,10 @@ void Scratch::stopClicked() {
         currentSprite->ghostEffect = 0.0f;
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
+        currentSprite->fisheyeEffect = 0.0f;
+        currentSprite->whirlEffect = 0.0f;
+        currentSprite->pixelateEffect = 0.0f;
+        currentSprite->mosaicEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
             Mixer::stopSound(sound.fullName);
     }

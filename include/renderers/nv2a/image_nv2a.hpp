@@ -6,6 +6,9 @@
 #include <string>
 #include <vector>
 
+#include <cmath>
+#include <algorithm>
+
 class SE_EXPORT Image_NV2A : public Image {
   public:
     struct Tile {
@@ -20,6 +23,30 @@ class SE_EXPORT Image_NV2A : public Image {
     nonstd::expected<void, std::string> buildTiles();
     void destroyTiles();
     void renderTiled(ImageRenderParams &params);
+
+    // Looks effects (color/fisheye/whirl/pixelate/mosaic) are evaluated on the CPU into cached textures.
+    struct EffectCacheSlot {
+        NV2ATexture *texture = nullptr;
+        float color = 0.0f;
+        float fisheye = 0.0f;
+        float whirl = 0.0f;
+        float pixelate = 0.0f;
+        float mosaic = 0.0f;
+        uint32_t lastUsedFrame = 0;
+
+        bool matches(const ImageRenderParams &p) const {
+            return std::abs(color - p.colorEffect) < 0.001f &&
+                   std::abs(fisheye - p.fisheyeEffect) < 0.001f &&
+                   std::abs(whirl - p.whirlEffect) < 0.001f &&
+                   std::abs(pixelate - p.pixelateEffect) < 0.001f &&
+                   std::abs(mosaic - p.mosaicEffect) < 0.001f;
+        }
+    };
+    EffectCacheSlot effectSlots[2];
+    std::vector<uint8_t> effectSource;
+    const uint8_t *getEffectSource(int &pitch);
+    NV2ATexture *acquireEffectTexture(const ImageRenderParams &params);
+    void releaseEffects();
 
   public:
     NV2ATexture *texture = nullptr;

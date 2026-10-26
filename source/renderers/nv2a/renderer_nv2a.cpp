@@ -684,6 +684,11 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
 }
 
 static const NV2ATexture *s_activeTexture = nullptr;
+static uint32_t s_frameCounter = 1;
+
+uint32_t Renderer_NV2A::getFrameCounter() {
+    return s_frameCounter;
+}
 static bool s_activeLinear = false;
 static NV2ABlendMode s_activeBlendMode = NV2ABlendMode::None;
 static int s_activeShader = -1; // 0 = unlit, 1 = texture
@@ -1072,6 +1077,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
     (void)screen;
     if (!hasFrameBegan) {
         ensureMainTarget();
+        ++s_frameCounter;
 
 #ifdef __XBOX__
         pb_wait_for_vbl();
@@ -1411,6 +1417,11 @@ void Renderer_NV2A::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
+    params.colorEffect = sprite->colorEffect;
+    params.fisheyeEffect = sprite->fisheyeEffect;
+    params.whirlEffect = sprite->whirlEffect;
+    params.pixelateEffect = sprite->pixelateEffect;
+    params.mosaicEffect = sprite->mosaicEffect;
 
     image->render(params);
 }
@@ -1536,6 +1547,11 @@ void Renderer_NV2A::renderSprites() {
             params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
+            params.colorEffect = currentSprite->colorEffect;
+            params.fisheyeEffect = currentSprite->fisheyeEffect;
+            params.whirlEffect = currentSprite->whirlEffect;
+            params.pixelateEffect = currentSprite->pixelateEffect;
+            params.mosaicEffect = currentSprite->mosaicEffect;
 
             image->render(params);
         }

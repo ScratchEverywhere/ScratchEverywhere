@@ -94,6 +94,9 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     void drawIndexedTriangles(const NV2AVertex *vertices, const uint16_t *indices, size_t count);
     void drawColorTriangles(const NV2AVertex *vertices, size_t count);
 
+    // Incremented once per beginFrame(); textures used during the current frame must not be overwritten.
+    static uint32_t getFrameCounter();
+
     // Renderer Interface
     bool initPen() override;
     void setRenderTarget(void *renderTarget, int width, int height) override;
