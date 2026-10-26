@@ -637,6 +637,11 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
         barOffsetY = (screenHeight - scaledProjectHeight) / 2.0f;
     }
 
+    static std::string draggingSliderId = "";
+    if (!Input::mousePointer.isPressed) {
+        draggingSliderId.clear();
+    }
+
     // FIXME: the text is slightly lower on OpenGL
     for (auto &[id, var] : monitors) {
         if (var.visible) {
@@ -682,6 +687,10 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                 const float maxStart = var.list.size() > itemsPerPage ? static_cast<float>(var.list.size() - itemsPerPage) : 0.0f;
 
                 std::array<int, 2> touchPos = Input::getTouchPosition();
+                if (Input::mousePointer.isMoving) {
+                    touchPos[0] = static_cast<int>((Input::mousePointer.x * scale) + (screenWidth * 0.5f));
+                    touchPos[1] = static_cast<int>((-Input::mousePointer.y * scale) + (screenHeight * 0.5f));
+                }
                 const bool hoveringMonitor = touchPos[0] > monitorX && touchPos[0] < monitorX + monitorW &&
                                              touchPos[1] > monitorY && touchPos[1] < monitorY + monitorH;
                 if (hoveringMonitor && Input::mouseScrollDelta != 0) {
@@ -911,6 +920,10 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                 monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
                 std::array<int, 2> touchPos = Input::getTouchPosition();
+                if (Input::mousePointer.isMoving) {
+                    touchPos[0] = static_cast<int>((Input::mousePointer.x * scale) + (screenWidth * 0.5f));
+                    touchPos[1] = static_cast<int>((-Input::mousePointer.y * scale) + (screenHeight * 0.5f));
+                }
 
                 // plus button
                 std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
@@ -1064,9 +1077,18 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                     var.hitboxH = nameBackgroundHeight + (16 * scale);
 
                     std::array<int, 2> touchPos = Input::getTouchPosition();
+                    if (Input::mousePointer.isMoving) {
+                        touchPos[0] = static_cast<int>((Input::mousePointer.x * scale) + (screenWidth * 0.5f));
+                        touchPos[1] = static_cast<int>((-Input::mousePointer.y * scale) + (screenHeight * 0.5f));
+                    }
 
-                    if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
-                        touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {
+                    const float sliderCenterY = nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2;
+                    bool isOverSlider = (touchPos[0] >= nameBackgroundX - 4 * scale && touchPos[0] <= nameBackgroundX + nameBackgroundWidth + 4 * scale) &&
+                                        ((std::abs(touchPos[1] - sliderCenterY) <= 12 * scale) ||
+                                         (touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3));
+
+                    if (Input::mousePointer.isPressed && (draggingSliderId == var.id || (draggingSliderId.empty() && isOverSlider))) {
+                        draggingSliderId = var.id;
 
                         const int clampedX = std::clamp(touchPos[0], minPos, maxPos);
 
@@ -1084,8 +1106,8 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                             newValue = sliderMax;
                         }
 
+                        var.value = Value(newValue);
                         if (var.opcode == "data_variable") {
-                            var.value = Value(newValue);
                             for (auto &spr : Scratch::sprites) {
                                 if (spr->variables.find(var.id) != spr->variables.end())
                                     BlockExecutor::setVariableValue(var.id, Value(newValue), spr);
@@ -1192,10 +1214,24 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                     drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
 
-                    std::array<int, 2> touchPos = Input::getTouchPosition();
+                    var.hitboxX = baseRenderX;
+                    var.hitboxY = baseRenderY;
+                    var.hitboxW = monitorWidth + valueWidth;
+                    var.hitboxH = nameBackgroundHeight + (16 * scale);
 
-                    if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
-                        touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {
+                    std::array<int, 2> touchPos = Input::getTouchPosition();
+                    if (Input::mousePointer.isMoving) {
+                        touchPos[0] = static_cast<int>((Input::mousePointer.x * scale) + (screenWidth * 0.5f));
+                        touchPos[1] = static_cast<int>((-Input::mousePointer.y * scale) + (screenHeight * 0.5f));
+                    }
+
+                    const float sliderCenterY = nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2;
+                    bool isOverSlider = (touchPos[0] >= nameBackgroundX - 4 * scale && touchPos[0] <= nameBackgroundX + nameBackgroundWidth + 4 * scale) &&
+                                        ((std::abs(touchPos[1] - sliderCenterY) <= 12 * scale) ||
+                                         (touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3));
+
+                    if (Input::mousePointer.isPressed && (draggingSliderId == var.id || (draggingSliderId.empty() && isOverSlider))) {
+                        draggingSliderId = var.id;
 
                         const int clampedX = std::clamp(touchPos[0], minPos, maxPos);
 
@@ -1214,9 +1250,8 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                             newValue = sliderMax;
                         }
 
-                        // not sure if any other monitor types can be sliders, but juuuust in case
+                        var.value = Value(newValue);
                         if (var.opcode == "data_variable") {
-                            var.value = Value(newValue);
                             for (auto &spr : Scratch::sprites) {
                                 if (spr->variables.find(var.id) != spr->variables.end())
                                     BlockExecutor::setVariableValue(var.id, Value(newValue), spr);

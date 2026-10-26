@@ -1,6 +1,7 @@
 #include "input.hpp"
 #include <algorithm>
 #include <log.hpp>
+#include <renderer.hpp>
 
 InputDevice *globalInputDevice = nullptr;
 
@@ -35,8 +36,15 @@ void Input::destroyGlobalInputDevice() {
 }
 
 std::array<int, 2> Input::getTouchPosition() {
-    if (globalInputDevice) return globalInputDevice->getTouchPosition();
-    return {0, 0};
+    std::array<int, 2> pos = {0, 0};
+    if (globalInputDevice) pos = globalInputDevice->getTouchPosition();
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (pos[0] == 0 && pos[1] == 0 && mousePointer.isMoving) {
+        pos[0] = static_cast<int>((mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+    }
+#endif
+    return pos;
 }
 
 void Input::getInput() {
