@@ -3,7 +3,9 @@ ENV PS3DEV=/usr/local/ps3dev
 ENV PSL1GHT=/usr/local/ps3dev
 ENV PATH=${PS3DEV}/bin:${PS3DEV}/ppu/bin:${PATH}
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends cmake && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/* && \
+    wget -qO /tmp/cmake.sh https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.sh && \
+    sh /tmp/cmake.sh --skip-license --prefix=/usr/local && rm -f /tmp/cmake.sh
 COPY . .
 RUN cmake -S . -B build-ps3 -DCMAKE_TOOLCHAIN_FILE=ppu.cmake -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build-ps3 -j$(nproc)
