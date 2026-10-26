@@ -330,25 +330,12 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
         auto it = sprite->lists.find(listId);
         if (it != sprite->lists.end()) targetList = &it->second;
     }
-    {
+    if (!targetList && stageSprite) {
         auto it = stageSprite->lists.find(listId);
         if (it != stageSprite->lists.end()) targetList = &it->second;
     }
     if (!targetList) {
-        for (auto &[id, list] : stageSprite->lists) {
-            if (list.name == getListName(block)) {
-                targetList = &list;
-                break;
-            }
-        }
-        if (!targetList && sprite != nullptr) {
-            for (auto &[id, list] : sprite->lists) {
-                if (list.name == getListName(block)) {
-                    targetList = &list;
-                    break;
-                }
-            }
-        }
+        if (auto items = getListItems(getListName(block), sprite)) return items;
     }
     if (!targetList && sprite) {
         List &newList = sprite->lists[listId];
@@ -357,4 +344,16 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
         targetList = &newList;
     }
     return targetList ? &targetList->items : nullptr;
+}
+
+std::vector<Value> *Scratch::getListItems(const std::string &name, Sprite *sprite) {
+    // Computed SB2 selectors contain names rather than SB3 IDs. A sprite's
+    // local list shadows a stage list with the same name.
+    for (Sprite *owner : {sprite, stageSprite}) {
+        if (!owner) continue;
+        for (auto &[id, list] : owner->lists) {
+            if (list.name == name) return &list.items;
+        }
+    }
+    return nullptr;
 }

@@ -166,7 +166,11 @@ void applySb2Args(Block &block, const nlohmann::json &sb2block, const std::vecto
         const Sb2ArgSpec &arg = argMap[i];
         size_t argIndex = startIndex + i;
         nlohmann::json providedArg = argIndex < sb2block.size() ? sb2block[argIndex] : nlohmann::json();
-        if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
+        // Scratch 2 projects can use reporter expressions in list selectors.
+        // Preserve those as inputs instead of silently creating an empty field.
+        if (arg.kind == Sb2ArgSpec::Kind::Field && arg.name == "LIST" && providedArg.is_array()) {
+            applySb2Input(block, {Sb2ArgSpec::Kind::Input, "LIST", "text", ""}, providedArg, sprite);
+        } else if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
         else applySb2Input(block, arg, providedArg, sprite);
     }
 }

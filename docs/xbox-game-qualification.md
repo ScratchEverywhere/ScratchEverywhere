@@ -35,7 +35,7 @@ neutralize all reports afterwards.
 | Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile; hardware startup fault reproduced in GDB and calendar reporter fixed; xemu movement/jump, block hit, Green Flag replay and browser exit | Hardware verification of calendar fix; first pipe/level completion, loss/recovery, repeat launch and audio |
 | Doodle Jump (xamuil2) | Hardware browser launch, left/right platform steering, at least 1,044 m; fall and automatic replay; pause/exit, fresh launch and second exit; HDMI audio signal | Edge wrapping, monsters, extended play and subjective audio |
 | Jumper (Depicklator) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile | All hardware gameplay checks |
+| Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile; computed-list loader fix passes 19 checks in both engines; xemu correct-height drops, both players' controls and vertical win | Authored initial color/turn state; win text obscured by mode monitor; replay/exit and all hardware checks |
 
 Sources, authors, instructions, packaging details and hashes for the additional
 five are in ignored `build-xbox/more-games/next-five-manifest.json`. Game scripts

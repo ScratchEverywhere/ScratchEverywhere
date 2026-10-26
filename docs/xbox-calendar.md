@@ -72,6 +72,6 @@ The regular production browser XBE is ready at ignored
 `build-xbox/mario-calendar-production/default.xbe` (9,678,848 bytes), SHA-256
 `e255c72414aeda4c0b66b7c1303892ecf287a56e5b5179bfa303f0ac7da93beb`.
 It contains neither the embedded fixture nor a network bypass. It has not yet
-been installed on the physical Xbox. `SE_XBOX_DEBUG_SYMBOLS` is restored to
-OFF; ISO packaging remains disabled in the local CMake cache while the user
+been installed on the physical Xbox. `SE_XBOX_DEBUG_SYMBOLS` was restored to
+OFF for that production build; ISO packaging remains disabled in the local CMake cache while the user
 emulator holds the original standard ISO open.
