@@ -22,12 +22,12 @@
 #endif
 #endif
 #include "nonstd/expected.hpp"
+#include <audio_resampler.hpp>
 #include <optional>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
 #include <zip_archive.hpp>
-#include <audio_resampler.hpp>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
