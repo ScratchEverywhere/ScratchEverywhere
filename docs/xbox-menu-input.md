@@ -106,3 +106,11 @@ sequences on the trace build. Both exits stayed in the browser. The saved
 and all bounded post-handoff polls on both returns; no unexpected browser
 acceptance was recorded. This still does not reproduce or resolve the earlier
 automatic 2048 launch.
+
+A subsequent [KVM delivery comparison](xbox-kvm-input-delivery.md) reproduced
+the unwanted reload on Players One and Four without direct adapter HTTP
+polling. In both failures, the Xbox trace observes neutral then A again during
+a continuous client A hold, with no logged active-controller switch. Player Four also
+records main-KVM routing send errors during the hold. This explains the menu's
+new-confirmation edge in those occurrences; the precise transport fault and
+direct physical-pad behavior remain unverified.

@@ -16,7 +16,7 @@ neutralize all reports afterwards.
 
 | Game | Evidence so far | Still needed |
 | --- | --- | --- |
-| Hopper Heros Everywhere | Browser launch/exit; movement and 6 points in earlier tests | Repeatable gameplay, loss/replay, audio |
+| [Hopper Heros Everywhere](xbox-hopper.md) | Normal-build browser launch; added missing D-pad/arrow profile without archive changes; D-pad/stick Left/Right and A jump; post-profile losses at 3 and 8 points, Start replay to zero, B to authored menu, browser returns and fresh-launch gameplay/movement; 8s non-clipping HDMI audio | One early short Start missed after relaunch; sustained progression and subjective/long-run audio; shared KVM handoff |
 | Ultra Bird | Flap, loss, embedded Start replay; browser launch/exit; 2 points | External replay shortcut, sustained play, audio |
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
