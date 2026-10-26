@@ -22,6 +22,10 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
                 }
             }
 
+            // A malformed or unsupported watcher target must not dereference
+            // a missing sprite or stop the rest of the game from updating.
+            if (!sprite) continue;
+
             if (var.opcode == "data_variable") {
                 var.value = BlockExecutor::getVariableValue(var.id, sprite);
 

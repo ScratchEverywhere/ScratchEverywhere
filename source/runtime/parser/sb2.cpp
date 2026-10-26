@@ -445,7 +445,7 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::warpTimer = warpTimer.is_null() || !warpTimer.is_boolean() || warpTimer.get<bool>();
 }
 
-void parseSb2Monitor(const nlohmann::json &watcher) {
+void parseSb2Monitor(const nlohmann::json &watcher, const std::string &stageName) {
     std::string cmd;
     std::string param;
 
@@ -481,7 +481,9 @@ void parseSb2Monitor(const nlohmann::json &watcher) {
     monitor.id = (cmd == "getVar:" || cmd == "contentsOfList:") ? param : block->opcode;
 
     std::string target = watcher.value("target", std::string());
-    monitor.spriteName = (target.empty() || target == "Stage") ? "" : target;
+    // SB2 stages can have localized/custom names. parseSb2Object normalizes
+    // the stage to "Stage", so its watcher targets need the same mapping.
+    monitor.spriteName = (target.empty() || target == "Stage" || target == stageName) ? "" : target;
 
     switch (watcher.value("mode", 1)) {
     case 2:
@@ -599,8 +601,9 @@ void Parser::loadSpritesSb2(const nlohmann::json &json) {
 
     Scratch::sortSprites();
 
+    const std::string stageName = json.value("objName", std::string("Stage"));
     for (const auto &watcher : watcherObjects)
-        parseSb2Monitor(watcher);
+        parseSb2Monitor(watcher, stageName);
 
     // SB2 games need the same per-project controller profiles as SB3 games.
     Input::applyControls(Unzip::filePath + ".json");

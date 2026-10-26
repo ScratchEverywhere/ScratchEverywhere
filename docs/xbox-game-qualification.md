@@ -24,7 +24,7 @@ neutralize all reports afterwards.
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
-| Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
+| Atari Breakout (LVRS) | Hardware startup crash reproduced in xemu; localized stage monitor fix restores emulator gameplay and Score 20 | Hardware retest after recovery; bitmap text layers; controller usability, loss/replay and audio |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
 | Space Invaders (RokCoder) | Hardware browser launch; D-pad left/right, A start/fire, Score 450, shield damage and life loss; A replay to 0/three lives; pause/exit, verified fresh launch and second exit; HDMI audio signal | Full wave; subjective/long-run audio |
 | Asteroids (Will_Wam) | Hardware browser launch, thrust/turn/fire, 9,200 points and game over; repaired SB2 ending text; pause Green Flag replay to 0; exit, fresh browser relaunch and second exit; captured HDMI audio | Subjective/long-run audio; further level progression |
@@ -692,3 +692,27 @@ red diagonal from column-one bottom to column-four row four, with “Red Wins!!!
 visible. Both D-pad red controls and right-stick yellow controls placed pieces
 correctly. This is a pen-stamp, dynamic-list and SB2-rendering regression pass.
 Evidence: `bounds-clean-connect-{launch,diagonal-win}.jpg`.
+
+On that clean build, Connect Four’s held-A Green Flag reset to an empty board,
+keyboard mode and red first; Exit returned to the browser. Asteroids then
+launched normally, accepted thrust/turn/fire and reached Score 2,700 before
+Game Over. Its complete ending text remained visible after the SVG bounds
+change (`bounds-clean-asteroids-game-over-2700.jpg`). The eight-second HDMI
+observation captured 7.990 seconds at 48kHz, peak 0.03418/RMS 0.00767, without
+clipping in that sample; it establishes signal rather than subjective or
+long-run audio quality.
+
+Asteroids’ Green Flag replay restored the ship and three-life display; the
+post-replay capture already shows Score 200 after gameplay resumed, so a
+zero-score framebuffer is not claimed. Exit returned to the browser.
+Evidence: `bounds-clean-asteroids-{replay,exit-browser}.jpg`.
+
+## Breakout startup fault
+
+The first hardware Breakout launch on `3ba0cfe9…` stopped at its background;
+ten-second Start and the dashboard combo did not recover it. xemu reproduced
+the failure. GDB recovered a null-sprite access in the Score monitor: the
+archive’s stage is named Bühne, while the runtime normalizes it to Stage.
+The [stage-monitor fix and fixture](xbox-sb2-stage-monitors.md) pass in the
+actual Xbox executable under xemu, and original Breakout reached Score 20
+with a visible paddle, ball and removed brick. Hardware retest is pending.
