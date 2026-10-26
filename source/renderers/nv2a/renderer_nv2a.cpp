@@ -1598,11 +1598,15 @@ void Renderer_NV2A::renderSprites() {
     drawBlackBarsNV2A(this, getWidth(), getHeight());
     Render::renderMonitors();
 
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         int mx = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (getWidth() * 0.5f));
         int my = static_cast<int>((Input::mousePointer.y * -1 * Render::renderScale) + (getHeight() * 0.5f));
         drawBox(6, 6, mx, my, 0, 120, 255, 255);
     }
+#endif
 
     endFrame(true);
 }

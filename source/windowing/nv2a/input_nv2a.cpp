@@ -89,7 +89,12 @@ InputDevice_NV2A::InputDevice_NV2A() {
 InputDevice_NV2A::~InputDevice_NV2A() = default;
 
 std::array<int, 2> InputDevice_NV2A::getTouchPosition() {
-    std::array<int, 2> pos = {Input::mousePointer.x, Input::mousePointer.y};
+    std::array<int, 2> pos = {0, 0};
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
     return pos;
 }
 
@@ -183,7 +188,12 @@ void InputDevice_NV2A::getInput() {
 
             // Analog Triggers
             if (triggerL > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
-            if (triggerR > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+            if (triggerR > CONTROLLER_DEADZONE_TRIGGER) {
+                Input::buttonPress("RT");
+                if (btnWhite > 30 && Input::mousePointer.isMoving) {
+                    Input::mousePointer.isPressed = true;
+                }
+            }
 
             // Left Thumbstick directions
             if (stickLX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
@@ -212,6 +222,9 @@ void InputDevice_NV2A::getInput() {
                     Input::mousePointer.y += static_cast<int>(stickLY / 8000);
                 }
             }
+
+            Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+            Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         }
     }
 #endif

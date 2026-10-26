@@ -85,7 +85,7 @@ void BlockExecutor::doSpriteClicking() {
         Input::mousePointer.heldFrames++;
 
         bool blockedByMonitor = false;
-#if defined(__PC__) // basically the only platform with mouse input and i don't want to waste perf on other platforms.
+#if defined(__PC__) || (!defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH))
         if (Input::draggingSprite == nullptr) {
             std::array<int, 2> touchPos = Input::getTouchPosition();
             blockedByMonitor = Render::isPointOverMonitor(touchPos[0], touchPos[1]);
