@@ -60,8 +60,8 @@ render-target outside, and alpha modulation. The diagnostic executable SHA-256
 is `fadb98f3ce2650656e4e2cc4e43c27e14f1ff021a77414ac557f16d3d4a80f73`;
 proof is `screen-space-probe-cycle-1.log`.
 
-The normal executable has both renderer and gameplay tracing disabled and is
-installed in XBMC's configured Games source at
+The first production executable had both renderer and gameplay tracing disabled
+and was installed in XBMC's configured Games source at
 `F:\Games\ScratchEverywhere\default.xbe`. Its complete FTP readback matched
 SHA-256 `3e68d3a127afdd2fe0ac99d74c54177ea5956e9b40ef59eaf7f6898d92b95fe1`
 (9,465,856 bytes). Production launch results are saved separately in
@@ -88,3 +88,38 @@ screenshots. Geometry experiments are in `geometry-cycle-3.log`; the successful
 same-boot program repair is in `transform-cycle-3.log`; cache invalidation's
 failure followed by program recovery is in `cache-cycle-6.log`; material-alpha
 controls are in `alpha-cycle-1.log`.
+
+## Combined-build startup recheck
+
+Later on October 25, the installed combined color-sensing/SB2-costume build was
+retrieved in full from `F:\Games\ScratchEverywhere\default.xbe`. Its SHA-256
+matched `60dc7891023a9c476d1f5f19dd943ade8e1abbdd551a91aa2dd34eb29a77df57`
+(9,469,952 bytes). This build retains the vertex-program fix and has both
+renderer and gameplay tracing disabled. The local work-in-progress color-effect
+executable was not deployed for these checks.
+
+**Four additional consecutive dashboard launches passed** on that installed
+build. The live HDMI feed had an active viewer and a frame age under one second
+before each accepted observation. Each visible browser persisted for at least
+6.2 seconds; captures occurred 14.4, 20.5, 20.5 and 31.9 seconds after monitoring
+began. All four screenshots were reviewed together. These remain warm launches
+on the 128MB console at 480p, not physical power-cycle tests.
+
+Evidence is in ignored `build-xbox/hardware/startup-recheck-results.json`,
+`startup-recheck-{1,2,3,4}.jpg`, `startup-recheck-contact-sheet.jpg`, the retrieved
+startup logs, and `startup-recheck-installed.json`. The retrieved executable is
+preserved as `startup-recheck-installed.xbe`.
+
+The follow-up Appel selection was visually confirmed, but its launch is **not
+accepted** in this recheck: capture showed horizontal colored stripes over
+black, including after a five-second Start hold. During this interval the KVM's
+frame/mode counters reset and its system information reported 145 seconds of
+uptime. After the controller reset attempt, Xbox FTP was unreachable
+(`Host is down`), so an Appel log could not be retrieved. This does not identify
+the striped image's cause or establish that it is the old clear-only vertex
+failure. Physical display/power confirmation is required before further
+hardware work. The misleadingly named `startup-recheck-appel-title.jpg` records
+the stripes, not a successful title; `startup-recheck-appel-loaded.jpg` and
+`startup-recheck-appel-pause-attempt.jpg` show the same result. KVM status and
+log snapshots are saved alongside them. No XBE or project was replaced during
+this recheck.

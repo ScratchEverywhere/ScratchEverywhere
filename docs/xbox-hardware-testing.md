@@ -1,5 +1,13 @@
 # Original Xbox startup investigation
 
+The intermittent purple-browser/black-game rendering fault described in the
+historical tests below was subsequently isolated and repaired. The SDL XGU
+backend now installs an explicit screen-space vertex program instead of relying
+on the unreliable fixed-function path. See
+[the startup repair and hardware verification](xbox-startup-rendering.md) for
+the controlled experiments, production launch results and remaining limits.
+The earlier 480p workaround alone did not fix this fault.
+
 ## October 25, 2026: first hardware launch
 
 The default build with upstream automatic video mode selection was deployed to
