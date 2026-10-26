@@ -17,6 +17,7 @@
 #include <memory>
 #include <os.hpp>
 #include <runtime.hpp>
+#include <sb2_bitmap_layers.hpp>
 #include <stb_image.h>
 #include <string>
 #include <translation.hpp>
@@ -1057,6 +1058,9 @@ std::string Image_Xbox::getTextureCacheDir() {
 
 std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
     if (assetName.empty()) return "";
+    // The disk precacher reads individual archive members. Layered SB2
+    // costumes are composed at load time and retain their own RAM cache key.
+    if (Sb2BitmapLayers::split(assetName)) return "";
     std::string base = assetName;
     size_t lastSlash = base.find_last_of("/\\");
     if (lastSlash != std::string::npos) {

@@ -39,6 +39,6 @@ The emulator used a GDB-only network initialization bypass. Physical recovery
 and testing of this candidate are pending; the older regular Games launcher
 has not been replaced.
 
-Breakout's separate bitmap text layers (life counts, logo subtitle and Game
-Over) are not yet merged by the image loader. The startup fix does not claim to
-repair those images or qualify controller usability, loss/replay or audio.
+The subsequent [bitmap text-layer fix](xbox-sb2-bitmap-layers.md) restores the
+life count, subtitle and Game Over text in xemu. Physical retesting and
+controller usability remain separate qualification checks.

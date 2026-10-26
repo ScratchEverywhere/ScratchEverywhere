@@ -10,6 +10,7 @@
 #include <memory>
 #include <renderer.hpp>
 #include <runtime.hpp>
+#include <sb2_bitmap_layers.hpp>
 #include <unzip.hpp>
 
 namespace {
@@ -284,6 +285,13 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
         costume.bitmapResolution = c.value("bitmapResolution", 1);
 
         costume.fullName = std::to_string(c.value("baseLayerID", 0)) + "." + ext;
+        const int textId = c.value("textLayerID", -1);
+        if (!costume.isSVG && textId >= 0) {
+            const std::string textMD5 = c.value("textLayerMD5", std::string());
+            const auto textDot = textMD5.find_last_of('.');
+            const std::string textExt = textDot == std::string::npos ? "png" : textMD5.substr(textDot + 1);
+            costume.fullName = Sb2BitmapLayers::key(costume.fullName, std::to_string(textId) + "." + textExt);
+        }
 
         if (isStage) {
 #ifdef __XBOX__
