@@ -163,7 +163,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
             keepInRam = false;
 #else
             keepInRam = true;
@@ -173,27 +173,23 @@ bool ZipProjectLoader::load(std::istream *file) {
         }
 
 #if defined(__XBOX__)
-        // The caller destroys `file` after load(). An embedded archive cannot
-        // retain it through openStream(), since costume reads happen later.
-        const bool embeddedArchive = Scratch::projectType == ProjectType::EMBEDDED;
-        if (embeddedArchive) keepInRam = true;
+        // Embedded projects have no backing file on disk and must always be kept in RAM.
+        if (Scratch::projectType == ProjectType::EMBEDDED) {
+            keepInRam = true;
+        }
 
         // Keeping the archive in RAM only makes sense when it fits comfortably. Larger projects fall back
         // to the file-backed archive instead of exhausting the heap.
         std::streamoff xboxProjectSize = 0;
-        if (keepInRam) {
-            file->clear();
-            file->seekg(0, std::ios::end);
-            xboxProjectSize = file->tellg();
-            file->clear();
-            file->seekg(0, std::ios::beg);
+        file->clear();
+        file->seekg(0, std::ios::end);
+        xboxProjectSize = file->tellg();
+        file->clear();
+        file->seekg(0, std::ios::beg);
 
+        if (keepInRam && Scratch::projectType != ProjectType::EMBEDDED) {
             const std::streamoff budget = OS::isEnhancedPlatform() ? 24 * 1024 * 1024 : 6 * 1024 * 1024;
             if (xboxProjectSize <= 0 || xboxProjectSize > budget) {
-                if (embeddedArchive) {
-                    Log::logCritical("Embedded project does not fit the Xbox in-RAM archive budget; load it from disk instead.", false);
-                    return false;
-                }
                 Log::logWarning("sb3InRam disabled: project is " + std::to_string(xboxProjectSize / 1024) +
                                 " KB, over the " + std::to_string(budget / 1024) + " KB in-RAM budget.");
                 keepInRam = false;
@@ -302,7 +298,10 @@ bool ZipProjectLoader::load(std::istream *file) {
                 uint64_t file_size = file->tellg();
                 file->clear();
                 file->seekg(0, std::ios::beg);
-                opened = Unzip::zipArchive->openStream(file, file_size);
+                Unzip::zipBuffer.resize(file_size);
+                file->read(Unzip::zipBuffer.data(), static_cast<std::streamsize>(file_size));
+                opened = (static_cast<size_t>(file->gcount()) == file_size) &&
+                         Unzip::zipArchive->openMemory(Unzip::zipBuffer.data(), Unzip::zipBuffer.size());
             }
 
             if (!opened) {
@@ -368,6 +367,17 @@ bool ZipProjectLoader::load(std::istream *file) {
     if (project_json.empty()) {
         Log::logCritical("Project.json is empty.", false);
         return false;
+    }
+
+    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    if (useBytecodeSetting.is_null()) {
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+        Scratch::useBytecode = false;
+#else
+        Scratch::useBytecode = true;
+#endif
+    } else {
+        Scratch::useBytecode = useBytecodeSetting.get<bool>();
     }
 
     Log::log("Loading project extensions and sprites...");

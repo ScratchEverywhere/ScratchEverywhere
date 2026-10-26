@@ -1,3 +1,4 @@
+#include "bytecode_cache.hpp"
 #include "parser.hpp"
 #include "sb2_specmap.hpp"
 #include "types.hpp"
@@ -192,6 +193,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
             else newBlock->blockFunction = BlockExecutor::getHandlers()["argument_reporter_string_number"];
         }
         newBlock->shadow = true;
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
         return newBlock;
     }
@@ -217,6 +219,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
             newBlock->argumentIDs.push_back(arg.name);
         applySb2Args(*newBlock, sb2block, argMap, sprite, 2);
 
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
         return newBlock;
     }
@@ -258,6 +261,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
     else if (oldOpcode == "backgroundIndex" || oldOpcode == "costumeIndex") addLiteralField(*newBlock, "NUMBER_NAME", "number");
     else if (oldOpcode == "sceneName" || oldOpcode == "costumeName") addLiteralField(*newBlock, "NUMBER_NAME", "name");
 
+    newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
     Scratch::blocks.push_back(newBlock);
     return newBlock;
 }
@@ -505,6 +509,8 @@ void parseSb2Monitor(const nlohmann::json &watcher) {
 void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
     if (!object.contains("scripts") || !object["scripts"].is_array()) return;
 
+    size_t blockOrdinalBase = Scratch::blocks.size();
+
     for (const auto &script : object["scripts"]) {
         if (!script.is_array() || script.size() < 3 || !script[2].is_array() || script[2].empty()) continue;
         const nlohmann::json &blockList = script[2];
@@ -553,10 +559,16 @@ void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
     }
 
     Parser::resolveVariableTypes(sprite);
+    if (Scratch::useBytecode) {
+        BytecodeCache::processSprite(sprite, static_cast<uint32_t>(blockOrdinalBase), static_cast<uint32_t>(Scratch::blocks.size()));
+    }
+    Parser::clearSpriteBlockOpcodes(sprite);
 }
 
 void Parser::loadSpritesSb2(const nlohmann::json &json) {
     Parser::log("Loading sprites (SB2):");
+
+    BytecodeCache::beginLoadSession();
 
     Sprite *stageSprite = parseSb2Object(json, true);
     Scratch::sprites.push_back(stageSprite);
@@ -578,6 +590,8 @@ void Parser::loadSpritesSb2(const nlohmann::json &json) {
             }
         }
     }
+
+    BytecodeCache::endLoadSession();
 
     Scratch::sortSprites();
 
