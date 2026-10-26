@@ -49,7 +49,7 @@ changing to its used state with a visible coin, Green Flag replay to the
 starting area, and pause/exit to the normal browser were observed. GDB observed
 month return value 10 during replay. A later apparently static pipe scene was
 not a VM hang: frames continued and Left moved Mario away from the pipe.
-The first pipe has not yet been crossed.
+The first pipe had not yet been crossed in that emulator run.
 
 Evidence is in ignored `build-xbox/mario-calendar/`: matching XBE, ISO and ELF,
 `gdb-session.log`, and native framebuffer captures `intro.png`,
@@ -63,10 +63,20 @@ The original user emulator and its mounted ISO were preserved. Builds used
 `-DEXTRACT_XISO_BIN=OFF` and manually packaged distinct private ISOs rather
 than overwriting the mounted `build-xbox/scratch-xbox.iso`.
 
-Hardware verification of this fix is pending recovery to XBMC. The failed
-physical launch's log is still to be retrieved. Mario still needs hardware
-gameplay, first-level completion, loss/recovery, repeat launch, and audio
-qualification; the emulator observations do not establish those passes.
+After dashboard recovery, the failed physical launch log was retrieved as
+`build-xbox/hardware/mario-before-calendar-fix.log`; it ends immediately after
+texture precaching. The combined calendar/list candidate was installed in
+`F:\scratch-calendar-20261026`, with complete FTP readback matching SHA-256
+`2f877e8c380bd1696f8facb0e2f51a0208ef02da26204b4425a8849b6614ebfb`.
+On the physical Xbox, Mario reached its controls/starting area, moved right,
+jumped, scrolled the terrain and crossed the first two pipes. A later jump
+near the third pipe returned the scene to the starting area; the cause has
+not been established, so this is not a verified death/recovery pass.
+Holding Start opened pause, and Exit Project returned to the populated browser.
+Live video had one viewer and an 8ms frame age at the initial browser check.
+Evidence is in `build-xbox/hardware/mario-calendar-hardware-*.jpg` and
+`calendar-list-deploy.json`. First-level completion, diagnosed loss/recovery,
+repeat launch and audio remain outstanding.
 
 The regular production browser XBE is ready at ignored
 `build-xbox/mario-calendar-production/default.xbe` (9,678,848 bytes), SHA-256

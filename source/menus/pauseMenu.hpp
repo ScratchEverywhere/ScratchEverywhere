@@ -8,6 +8,10 @@
 
 class SE_EXPORT PauseMenu : public Menu {
   private:
+    enum class Action { None, Resume, Exit, GreenFlag, Stop };
+    Action pendingAction = Action::None;
+    void requestAction(Action action);
+    void finishAction(Action action);
 #ifdef __XBOX__
     std::map<std::string, std::string> gameControls;
 #endif

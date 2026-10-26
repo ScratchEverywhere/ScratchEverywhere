@@ -19,6 +19,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 #ifdef __XBOX__
     awaitingConfirmRelease = true;
+    pendingProjectLoad = false;
 #endif
 
     projectControl = new ControlObject();
@@ -135,8 +136,15 @@ void ProjectMenu::init() {
 
 void ProjectMenu::render() {
     Input::getInput();
-    projectControl->input();
 #ifdef __XBOX__
+    if (pendingProjectLoad) {
+        // A small project can finish loading before A/X is released. Keep UI
+        // controls until release so launching cannot trigger a game key hat.
+        if (Input::keyHeldDuration["a"] != 0 || Input::keyHeldDuration["x"] != 0 || Input::mousePointer.isPressed) return;
+        pendingProjectLoad = false;
+        MenuManager::loadProject();
+        return;
+    }
     // A may still be held after confirming Exit Project, and remapping the
     // game controls back to UI controls makes it look like a new key press.
     if (Input::keyHeldDuration["a"] == 0 && Input::keyHeldDuration["x"] == 0)
@@ -145,6 +153,7 @@ void ProjectMenu::render() {
 #else
     const bool acceptReady = true;
 #endif
+    projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
@@ -177,14 +186,22 @@ void ProjectMenu::render() {
                 std::string name = projectControl->selectedObject->text->getText();
                 Unzip::filePath = OS::getScratchFolderLocation() + name;
                 Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", name);
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
                 std::string name = projectControl->selectedObject->text->getText();
                 ProjectFormat format;
                 std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + name, format);
                 Unzip::filePath = !resolved.empty() ? resolved : (OS::getScratchFolderLocation() + name + ".sb3");
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else {
                 // Settings button

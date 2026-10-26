@@ -7,6 +7,7 @@ class SE_EXPORT ProjectMenu : public Menu {
     bool hasProjects = false;
 #ifdef __XBOX__
     bool awaitingConfirmRelease = true;
+    bool pendingProjectLoad = false;
 #endif
     bool shouldGoBack = false;
 

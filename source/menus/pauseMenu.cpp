@@ -4,6 +4,7 @@
 #include <runtime.hpp>
 #include <speech_manager.hpp>
 #include <utility>
+#include <algorithm>
 #ifdef SE_XBOX_TRACE_GAME_STATE
 #include <blockExecutor.hpp>
 #include <log.hpp>
@@ -85,37 +86,65 @@ void PauseMenu::init() {
     isInitialized = true;
 }
 
+void PauseMenu::finishAction(Action action) {
+    pendingAction = Action::None;
+    if (action == Action::Exit) Scratch::shouldStop = true;
+    if (action == Action::GreenFlag) Scratch::greenFlagClicked();
+    if (action == Action::Stop) Scratch::stopClicked();
+    shouldUnpause = true;
+}
+
+void PauseMenu::requestAction(Action action) {
+#ifdef __XBOX__
+    // Keep UI controls installed until confirmation is released. Otherwise A
+    // becomes the game's Space key on the first frame after Green Flag/resume.
+    pendingAction = action;
+#else
+    finishAction(action);
+#endif
+}
+
 void PauseMenu::render() {
     Input::getInput();
-    pauseControl->input();
+#ifdef __XBOX__
+    if (pendingAction != Action::None) {
+        const auto held = [](const char *key) {
+            return std::find(Input::inputKeys.begin(), Input::inputKeys.end(), key) != Input::inputKeys.end();
+        };
+        if (!held("a") && !held("x") && !held("b") && !held("y") && !Input::mousePointer.isPressed) {
+            finishAction(pendingAction);
+            return;
+        }
+    } else
+#endif
+    {
+        pauseControl->input();
 
-    if (backButton->isPressed({"b", "y"})) {
-        shouldUnpause = true;
-        return;
-    }
+        if (backButton->isPressed({"b", "y"})) {
+            requestAction(Action::Resume);
+            return;
+        }
 
-    if (exitProjectButton->isPressed()) {
-        Scratch::shouldStop = true;
-        shouldUnpause = true;
-        return;
-    }
+        if (exitProjectButton->isPressed()) {
+            requestAction(Action::Exit);
+            return;
+        }
 
-    if (flagButton->isPressed()) {
-        Scratch::greenFlagClicked();
-        shouldUnpause = true;
-        return;
-    }
+        if (flagButton->isPressed()) {
+            requestAction(Action::GreenFlag);
+            return;
+        }
 
-    if (stopButton->isPressed()) {
-        Scratch::stopClicked();
-        shouldUnpause = true;
-        return;
-    }
+        if (stopButton->isPressed()) {
+            requestAction(Action::Stop);
+            return;
+        }
 
-    if (turboButton->isPressed()) {
-        Scratch::turbo = !Scratch::turbo;
-        turboButton->text->setText(getTurboString());
-        return;
+        if (turboButton->isPressed()) {
+            Scratch::turbo = !Scratch::turbo;
+            turboButton->text->setText(getTurboString());
+            return;
+        }
     }
 
     Render::beginFrame(0, 108, 100, 128);

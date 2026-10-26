@@ -70,8 +70,11 @@ The source project also initializes `space` to 0, while its turn/costume logic
 checks for the string `unpressed`. As a result, player remains 0 and both colors
 look red until Space toggles the mode. Toggling twice restored the red/yellow
 costumes and keyboard mode in this test. Its visible mode slider also overlaps
-the win text. These authored-project issues remain to be addressed separately;
-the runtime is not changing number/string comparisons to accommodate them.
+the win text. `scripts/prepare-connect-four.py ORIGINAL.sb2 NEW.sb2` now makes
+an explicitly prepared copy: it changes that initializer to `unpressed` and
+hides only the mode monitor. All other project data and archive assets are
+preserved. Game rules, credits and controls remain unchanged. The script refuses
+an existing output and verifies the expected original initializer/monitor.
 
 The regular browser XBE SHA-256 is
 `2f877e8c380bd1696f8facb0e2f51a0208ef02da26204b4425a8849b6614ebfb`
@@ -80,7 +83,18 @@ This build also contains the calendar reporter repair. Debug symbols remain
 enabled for ongoing emulator investigation; the XBE's debug sections are
 stripped by the normal packaging step, with symbols saved separately.
 
-Actual-game and physical Xbox qualification remain separate from the fixture.
-The physical Xbox still needs recovery to XBMC before the new build can be
-installed and its failed launch log retrieved. Replay, additional win
-directions, full-column handling and audio have not yet been qualified.
+After dashboard recovery, this build and the prepared game were installed with
+complete FTP readback. The prepared game SHA-256 is
+`ccc985b615feeec713b44080af297ee2e0a3ece74812169a424cdab3640a8fbc`;
+the original remains backed up beside it with `.original-backup` appended.
+On hardware, browser launch rendered the board. Held A leaked into the freshly
+loaded game and changed the mode; another A press restored keyboard mode.
+Then D-pad red and right-stick yellow inputs dropped/stacked both colors at the
+proper heights, and red's fourth piece produced a vertical win. The full win
+text is visible. Evidence: `build-xbox/hardware/connect-four-calendar-vertical-win.jpg`
+and `calendar-list-deploy.json`.
+
+The held-confirmation issue is addressed separately in the
+[menu input repair](xbox-menu-input.md), whose emulator game checks also cover
+clean replay, a full-column rejection and a horizontal win. Physical replay,
+the launch release gate, diagonal wins and audio remain to be checked.
