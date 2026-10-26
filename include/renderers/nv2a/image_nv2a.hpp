@@ -39,10 +39,7 @@ class SE_EXPORT Image_NV2A : public Image {
 
         bool matches(const ImageRenderParams &p) const {
             return std::abs(color - p.colorEffect) < 0.001f &&
-                   std::abs(fisheye - p.fisheyeEffect) < 0.001f &&
-                   std::abs(whirl - p.whirlEffect) < 0.001f &&
-                   std::abs(pixelate - p.pixelateEffect) < 0.001f &&
-                   std::abs(mosaic - p.mosaicEffect) < 0.001f;
+                   std::abs(pixelate - p.pixelateEffect) < 0.001f;
         }
     };
     EffectCacheSlot effectSlots[2];

@@ -409,7 +409,7 @@ uint32_t* xgu_no_operation(uint32_t* p, uint32_t param) {
 
 XGU_API
 uint32_t* xgu_wait_for_idle(uint32_t* p) {
-    return push_command(p, NV097_WAIT_FOR_IDLE, 0);
+    return push_command_parameter(p, NV097_WAIT_FOR_IDLE, 0);
 }
 
 XGU_API

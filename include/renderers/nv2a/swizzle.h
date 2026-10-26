@@ -37,6 +37,24 @@ void swizzle_box(
     unsigned int slice_pitch,
     unsigned int bytes_per_pixel);
 
+void swizzle_subrect(
+    const uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    unsigned int dst_width,
+    unsigned int dst_height,
+    uint8_t *dst_buf,
+    unsigned int row_pitch,
+    unsigned int bytes_per_pixel);
+
+void generate_swizzle_masks(
+    unsigned int width,
+    unsigned int height,
+    unsigned int depth,
+    uint32_t *mask_x,
+    uint32_t *mask_y,
+    uint32_t *mask_z);
+
 void unswizzle_box(
     const uint8_t *src_buf,
     unsigned int width,

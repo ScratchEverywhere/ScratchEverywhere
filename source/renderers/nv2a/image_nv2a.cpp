@@ -679,6 +679,42 @@ const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
     return nullptr;
 }
 
+static uint32_t s_colorLut[32768];
+static float s_lastColorShift = -9999.0f;
+static std::vector<uint8_t> s_scratch;
+
+static void updateColorLut(float colorShift) {
+    if (std::abs(colorShift - s_lastColorShift) < 0.0001f) {
+        return;
+    }
+    for (int r5 = 0; r5 < 32; ++r5) {
+        float r = (r5 * 255.0f / 31.0f) * (1.0f / 255.0f);
+        for (int g5 = 0; g5 < 32; ++g5) {
+            float g = (g5 * 255.0f / 31.0f) * (1.0f / 255.0f);
+            for (int b5 = 0; b5 < 32; ++b5) {
+                float b = (b5 * 255.0f / 31.0f) * (1.0f / 255.0f);
+                float h, s, v;
+                rgb2hsv(r, g, b, h, s, v);
+                const float minLightness = 0.11f / 2.0f;
+                const float minSaturation = 0.09f;
+                if (v < minLightness) { h = 0.0f; s = 1.0f; v = minLightness; }
+                else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
+                h = h + colorShift;
+                h -= std::floor(h);
+                float ro, go, bo;
+                hsv2rgb(h, s, v, ro, go, bo);
+                uint8_t outR = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
+                uint8_t outG = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
+                uint8_t outB = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
+                s_colorLut[(r5 << 10) | (g5 << 5) | b5] = static_cast<uint32_t>(outR) |
+                                                           (static_cast<uint32_t>(outG) << 8) |
+                                                           (static_cast<uint32_t>(outB) << 16);
+            }
+        }
+    }
+    s_lastColorShift = colorShift;
+}
+
 NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     if (imgData.width <= 0 || imgData.height <= 0) return nullptr;
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
@@ -726,8 +762,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         effW = std::clamp(static_cast<int>(srcW / std::max(pixelateAmount, 1.0f)), 2, 64);
         effH = std::clamp(static_cast<int>(srcH / std::max(pixelateAmount, 1.0f)), 2, 64);
     } else if (hasColor) {
-        effW = std::min(srcW, 256);
-        effH = std::min(srcH, 256);
+        effW = std::min(srcW, 96);
+        effH = std::min(srcH, 96);
     }
     if (effW <= 0) effW = 1;
     if (effH <= 0) effH = 1;
@@ -745,61 +781,62 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         }
     }
 
-    std::vector<uint8_t> scratch(static_cast<size_t>(effW) * effH * 4);
     const float colorShift = color / 200.0f;
-    const int dstPitch = effW * 4;
+    if (hasColor) {
+        updateColorLut(colorShift);
+    }
+
+    int sxArr[128];
+    for (int x = 0; x < effW; ++x) {
+        sxArr[x] = std::clamp((x * srcW + (srcW / 2)) / effW, 0, srcW - 1);
+    }
+
+    uint32_t mask_x = 0, mask_y = 0, mask_z = 0;
+    generate_swizzle_masks(slot.texture->dataWidth, slot.texture->dataHeight, 1, &mask_x, &mask_y, &mask_z);
+
+    auto *dst32 = reinterpret_cast<uint32_t *>(slot.texture->data);
+    uint32_t off_y = 0;
 
     for (int y = 0; y < effH; ++y) {
-        float vNorm = (static_cast<float>(y) + 0.5f) / static_cast<float>(effH);
-        int sy = std::clamp(static_cast<int>(vNorm * srcH), 0, srcH - 1);
+        int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
         const uint8_t *sRow = src + sy * srcPitch;
-        uint8_t *dRow = scratch.data() + y * dstPitch;
+        uint32_t *dRow = dst32 + off_y;
+        uint32_t off_x = 0;
 
         for (int x = 0; x < effW; ++x) {
-            float uNorm = (static_cast<float>(x) + 0.5f) / static_cast<float>(effW);
-            int sx = std::clamp(static_cast<int>(uNorm * srcW), 0, srcW - 1);
+            int sx = sxArr[x];
             const uint8_t *sPix = sRow + sx * 4;
 
             uint8_t a = sPix[3];
             if (a == 0) {
-                *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
-                continue;
-            }
-
-            if (hasColor) {
-                float r = sPix[0] * (1.0f / 255.0f);
-                float g = sPix[1] * (1.0f / 255.0f);
-                float b = sPix[2] * (1.0f / 255.0f);
-                float h, s, v;
-                rgb2hsv(r, g, b, h, s, v);
-                const float minLightness = 0.11f / 2.0f;
-                const float minSaturation = 0.09f;
-                if (v < minLightness) { h = 0.0f; s = 1.0f; v = minLightness; }
-                else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
-                h = h + colorShift;
-                h -= std::floor(h);
-                float ro, go, bo;
-                hsv2rgb(h, s, v, ro, go, bo);
-                dRow[x * 4 + 0] = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
-                dRow[x * 4 + 1] = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
-                dRow[x * 4 + 2] = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
-                dRow[x * 4 + 3] = a;
+                dRow[off_x] = 0;
+            } else if (hasColor) {
+                uint32_t rgb = s_colorLut[((sPix[0] >> 3) << 10) | ((sPix[1] >> 3) << 5) | (sPix[2] >> 3)];
+                dRow[off_x] = rgb | (static_cast<uint32_t>(a) << 24);
             } else {
-                memcpy(dRow + x * 4, sPix, 4);
+                dRow[off_x] = *reinterpret_cast<const uint32_t *>(sPix);
             }
+            off_x = (off_x - mask_x) & mask_x;
         }
+        off_y = (off_y - mask_y) & mask_y;
     }
 
-    nv2aRenderer->updateTexture(slot.texture, scratch.data(), dstPitch);
+#ifdef __XBOX__
+    __asm__ __volatile__ ("sfence" ::: "memory");
+#endif
 
     slot.color = params.colorEffect;
-    slot.fisheye = params.fisheyeEffect;
-    slot.whirl = params.whirlEffect;
     slot.pixelate = params.pixelateEffect;
-    slot.mosaic = params.mosaicEffect;
     slot.lastUsedFrame = currentFrame;
 
     return slot.texture;
+}
+
+static inline void setNV2AVertexColor(NV2AVertex &v, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    v.color[0] = r;
+    v.color[1] = g;
+    v.color[2] = b;
+    v.color[3] = a;
 }
 
 void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex) {
@@ -821,6 +858,70 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
     float renderX = params.centered ? (x - renderW / 2.0f) : x;
     float renderY = params.centered ? (y - renderH / 2.0f) : y;
 
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 16);
+
+    // If texture is a full POT texture without subrect, use GPU texture WRAP (1 quad, 6 verts!)
+    if (params.subrect == nullptr && activeTex->uScale == 1.0f && activeTex->vScale == 1.0f) {
+        auto p_tl = rotatePoint(renderX, renderY);
+        auto p_tr = rotatePoint(renderX + renderW, renderY);
+        auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
+        auto p_bl = rotatePoint(renderX, renderY + renderH);
+
+        float u0 = params.flip ? static_cast<float>(N) : 0.0f;
+        float u1 = params.flip ? 0.0f : static_cast<float>(N);
+        float v0 = 0.0f;
+        float v1 = static_cast<float>(N);
+
+        NV2AVertex quadVerts[6] = {
+            {{p_tl.first, p_tl.second}, {255, 255, 255, alpha}, {u0, v0}},
+            {{p_tr.first, p_tr.second}, {255, 255, 255, alpha}, {u1, v0}},
+            {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
+            {{p_tl.first, p_tl.second}, {255, 255, 255, alpha}, {u0, v0}},
+            {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
+            {{p_bl.first, p_bl.second}, {255, 255, 255, alpha}, {u0, v1}}
+        };
+
+        nv2aRenderer->bindTexture(activeTex, true, /*wrap=*/true);
+
+        if (brightness > 0) {
+            float b = brightness * 0.01f;
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+            uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+            if (addA > 0) {
+                for (int i = 0; i < 6; ++i) {
+                    setNV2AVertexColor(quadVerts[i], 255, 255, 255, addA);
+                }
+                nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+                nv2aRenderer->drawTriangles(quadVerts, 6);
+            }
+        } else if (brightness < 0) {
+            float b = brightness * 0.01f;
+            uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+            for (int i = 0; i < 6; ++i) {
+                setNV2AVertexColor(quadVerts[i], dim, dim, dim, alpha);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+        } else {
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+        }
+        return;
+    }
+
+    // Fallback for subrect or NPOT texture: grid of quads with step vector affine additions
     float subX = 0.0f, subY = 0.0f;
     float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
     if (params.subrect != nullptr) {
@@ -840,69 +941,65 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
         std::swap(u0, u1);
     }
 
-    const float centerX = renderX + renderW / 2.0f;
-    const float centerY = renderY + renderH / 2.0f;
-    const float cosA = static_cast<float>(std::cos(rotationRad));
-    const float sinA = static_cast<float>(std::sin(rotationRad));
-
-    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
-        float dx = px - centerX;
-        float dy = py - centerY;
-        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
-    };
-
-    int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 32);
     float stepW = renderW / static_cast<float>(N);
     float stepH = renderH / static_cast<float>(N);
+    float stepUx = stepW * cosA;
+    float stepUy = stepW * sinA;
+    float stepVx = -stepH * sinA;
+    float stepVy = stepH * cosA;
 
-    std::vector<NV2AVertex> verts;
-    verts.reserve(static_cast<size_t>(N) * N * 6);
+    auto p00 = rotatePoint(renderX, renderY);
 
-    auto buildVerts = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca) {
-        verts.clear();
-        for (int row = 0; row < N; ++row) {
-            float y0 = renderY + row * stepH;
-            float y1 = y0 + stepH;
-            for (int col = 0; col < N; ++col) {
-                float x0 = renderX + col * stepW;
-                float x1 = x0 + stepW;
+    static NV2AVertex s_mosaicVerts[16 * 16 * 6];
+    size_t vertCount = 0;
 
-                auto p_tl = rotatePoint(x0, y0);
-                auto p_tr = rotatePoint(x1, y0);
-                auto p_br = rotatePoint(x1, y1);
-                auto p_bl = rotatePoint(x0, y1);
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
 
-                verts.push_back({{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}});
-                verts.push_back({{p_tr.first, p_tr.second}, {cr, cg, cb, ca}, {u1, v0}});
-                verts.push_back({{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}});
+    for (int row = 0; row < N; ++row) {
+        float rY_x = p00.first + row * stepVx;
+        float rY_y = p00.second + row * stepVy;
+        float rY1_x = rY_x + stepVx;
+        float rY1_y = rY_y + stepVy;
 
-                verts.push_back({{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}});
-                verts.push_back({{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}});
-                verts.push_back({{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}});
-            }
+        for (int col = 0; col < N; ++col) {
+            float p_tl_x = rY_x + col * stepUx;
+            float p_tl_y = rY_y + col * stepUy;
+            float p_tr_x = p_tl_x + stepUx;
+            float p_tr_y = p_tl_y + stepUy;
+            float p_bl_x = rY1_x + col * stepUx;
+            float p_bl_y = rY1_y + col * stepUy;
+            float p_br_x = p_bl_x + stepUx;
+            float p_br_y = p_bl_y + stepUy;
+
+            s_mosaicVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {u0, v0}};
+            s_mosaicVerts[vertCount++] = {{p_tr_x, p_tr_y}, {cr, cg, cb, alpha}, {u1, v0}};
+            s_mosaicVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {u1, v1}};
+
+            s_mosaicVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {u0, v0}};
+            s_mosaicVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {u1, v1}};
+            s_mosaicVerts[vertCount++] = {{p_bl_x, p_bl_y}, {cr, cg, cb, alpha}, {u0, v1}};
         }
-    };
+    }
 
-    auto drawPass = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
-        buildVerts(cr, cg, cb, ca);
-        nv2aRenderer->bindTexture(activeTex, true);
-        nv2aRenderer->setBlendMode(blendMode);
-        nv2aRenderer->drawTriangles(verts.data(), verts.size());
-    };
+    nv2aRenderer->bindTexture(activeTex, true, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
 
     if (brightness > 0) {
         float b = brightness * 0.01f;
-        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
         uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
         if (addA > 0) {
-            drawPass(255, 255, 255, addA, NV2ABlendMode::Add);
+            for (size_t i = 0; i < vertCount; ++i) {
+                setNV2AVertexColor(s_mosaicVerts[i], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
         }
-    } else if (brightness < 0) {
-        float b = brightness * 0.01f;
-        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
-        drawPass(dim, dim, dim, alpha, NV2ABlendMode::Blend);
-    } else {
-        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
     }
 }
 
@@ -960,25 +1057,33 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     const float whirl = params.whirlEffect;
     const float fisheye = params.fisheyeEffect;
 
-    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 32.0f) : 1.0f;
+    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 16.0f) : 1.0f;
     const float whirlRad = whirl * 3.141592653589793f / 180.0f;
     const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
+    const bool doFisheye = hasFisheye && (std::abs(fisheyeAmount - 1.0f) > 0.001f);
 
-    constexpr int M = 16;
+    constexpr int M = 8;
+    constexpr float invM = 1.0f / static_cast<float>(M);
     struct GridPt {
         std::pair<float, float> pos;
         float u, v;
     };
     GridPt grid[M + 1][M + 1];
 
-    for (int j = 0; j <= M; ++j) {
-        float gy = static_cast<float>(j) / static_cast<float>(M);
-        float py = renderY + gy * renderH;
-        for (int i = 0; i <= M; ++i) {
-            float gx = static_cast<float>(i) / static_cast<float>(M);
-            float px = renderX + gx * renderW;
+    float stepUx = (renderW * invM) * cosA;
+    float stepUy = (renderW * invM) * sinA;
+    float stepVx = -(renderH * invM) * sinA;
+    float stepVy = (renderH * invM) * cosA;
+    auto p00 = rotatePoint(renderX, renderY);
 
-            grid[j][i].pos = rotatePoint(px, py);
+    for (int j = 0; j <= M; ++j) {
+        float gy = static_cast<float>(j) * invM;
+        float rY_x = p00.first + j * stepVx;
+        float rY_y = p00.second + j * stepVy;
+
+        for (int i = 0; i <= M; ++i) {
+            float gx = static_cast<float>(i) * invM;
+            grid[j][i].pos = {rY_x + i * stepUx, rY_y + i * stepUy};
 
             float u = gx;
             float v = gy;
@@ -992,28 +1097,32 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
 
             float cx = u - 0.5f;
             float cy = v - 0.5f;
+            float distSq = cx * cx + cy * cy;
 
-            if (hasWhirl) {
-                float dist = std::sqrt(cx * cx + cy * cy);
-                float whirlFactor = std::max(1.0f - (dist / 0.5f), 0.0f);
-                float whirlActual = whirlRad * whirlFactor * whirlFactor;
-                float s = std::sin(whirlActual);
-                float c = std::cos(whirlActual);
-                float ncx = c * cx - s * cy;
-                float ncy = s * cx + c * cy;
-                cx = ncx;
-                cy = ncy;
-            }
+            if (distSq < 0.25f) {
+                if (hasWhirl) {
+                    float dist = std::sqrt(distSq);
+                    float whirlFactor = 1.0f - (dist * 2.0f);
+                    float whirlActual = whirlRad * whirlFactor * whirlFactor;
+                    float s = std::sin(whirlActual);
+                    float c = std::cos(whirlActual);
+                    float ncx = c * cx - s * cy;
+                    float ncy = s * cx + c * cy;
+                    cx = ncx;
+                    cy = ncy;
+                }
 
-            if (hasFisheye) {
-                float vx = cx / 0.5f;
-                float vy = cy / 0.5f;
-                float vecLen = std::sqrt(vx * vx + vy * vy);
-                if (vecLen > 0.0001f) {
-                    float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
-                    float invLen = 1.0f / vecLen;
-                    cx = r * (vx * invLen) * 0.5f;
-                    cy = r * (vy * invLen) * 0.5f;
+                if (doFisheye) {
+                    float vx = cx * 2.0f;
+                    float vy = cy * 2.0f;
+                    float vecLenSq = vx * vx + vy * vy;
+                    if (vecLenSq > 0.000001f) {
+                        float vecLen = std::sqrt(vecLenSq);
+                        float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
+                        float invLen = 1.0f / vecLen;
+                        cx = r * (vx * invLen) * 0.5f;
+                        cy = r * (vy * invLen) * 0.5f;
+                    }
                 }
             }
 
@@ -1025,49 +1134,47 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
         }
     }
 
-    std::vector<NV2AVertex> verts;
-    verts.reserve(M * M * 6);
+    static NV2AVertex s_deformedVerts[M * M * 6];
+    size_t vertCount = 0;
 
-    auto buildVerts = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca) {
-        verts.clear();
-        for (int j = 0; j < M; ++j) {
-            for (int i = 0; i < M; ++i) {
-                const auto &p00 = grid[j][i];
-                const auto &p10 = grid[j][i + 1];
-                const auto &p11 = grid[j + 1][i + 1];
-                const auto &p01 = grid[j + 1][i];
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
 
-                verts.push_back({{p00.pos.first, p00.pos.second}, {cr, cg, cb, ca}, {p00.u, p00.v}});
-                verts.push_back({{p10.pos.first, p10.pos.second}, {cr, cg, cb, ca}, {p10.u, p10.v}});
-                verts.push_back({{p11.pos.first, p11.pos.second}, {cr, cg, cb, ca}, {p11.u, p11.v}});
+    for (int j = 0; j < M; ++j) {
+        for (int i = 0; i < M; ++i) {
+            const auto &p00_pt = grid[j][i];
+            const auto &p10_pt = grid[j][i + 1];
+            const auto &p11_pt = grid[j + 1][i + 1];
+            const auto &p01_pt = grid[j + 1][i];
 
-                verts.push_back({{p00.pos.first, p00.pos.second}, {cr, cg, cb, ca}, {p00.u, p00.v}});
-                verts.push_back({{p11.pos.first, p11.pos.second}, {cr, cg, cb, ca}, {p11.u, p11.v}});
-                verts.push_back({{p01.pos.first, p01.pos.second}, {cr, cg, cb, ca}, {p01.u, p01.v}});
-            }
+            s_deformedVerts[vertCount++] = {{p00_pt.pos.first, p00_pt.pos.second}, {cr, cg, cb, alpha}, {p00_pt.u, p00_pt.v}};
+            s_deformedVerts[vertCount++] = {{p10_pt.pos.first, p10_pt.pos.second}, {cr, cg, cb, alpha}, {p10_pt.u, p10_pt.v}};
+            s_deformedVerts[vertCount++] = {{p11_pt.pos.first, p11_pt.pos.second}, {cr, cg, cb, alpha}, {p11_pt.u, p11_pt.v}};
+
+            s_deformedVerts[vertCount++] = {{p00_pt.pos.first, p00_pt.pos.second}, {cr, cg, cb, alpha}, {p00_pt.u, p00_pt.v}};
+            s_deformedVerts[vertCount++] = {{p11_pt.pos.first, p11_pt.pos.second}, {cr, cg, cb, alpha}, {p11_pt.u, p11_pt.v}};
+            s_deformedVerts[vertCount++] = {{p01_pt.pos.first, p01_pt.pos.second}, {cr, cg, cb, alpha}, {p01_pt.u, p01_pt.v}};
         }
-    };
+    }
 
-    auto drawPass = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
-        buildVerts(cr, cg, cb, ca);
-        nv2aRenderer->bindTexture(activeTex, true);
-        nv2aRenderer->setBlendMode(blendMode);
-        nv2aRenderer->drawTriangles(verts.data(), verts.size());
-    };
+    nv2aRenderer->bindTexture(activeTex, true, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_deformedVerts, vertCount);
 
     if (brightness > 0) {
         float b = brightness * 0.01f;
-        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
         uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
         if (addA > 0) {
-            drawPass(255, 255, 255, addA, NV2ABlendMode::Add);
+            for (size_t k = 0; k < vertCount; ++k) {
+                setNV2AVertexColor(s_deformedVerts[k], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_deformedVerts, vertCount);
         }
-    } else if (brightness < 0) {
-        float b = brightness * 0.01f;
-        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
-        drawPass(dim, dim, dim, alpha, NV2ABlendMode::Blend);
-    } else {
-        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
     }
 }
 

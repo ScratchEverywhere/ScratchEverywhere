@@ -84,7 +84,7 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     bool updateTexture(NV2ATexture *texture, const void *pixels, int pitch);
 
     // Direct GPU Rendering Helpers
-    void bindTexture(const NV2ATexture *texture, bool linear = false);
+    void bindTexture(const NV2ATexture *texture, bool linear = false, bool wrap = false);
     void unbindTexture();
     void setBlendMode(NV2ABlendMode mode);
     void setScissor(int x, int y, int w, int h);

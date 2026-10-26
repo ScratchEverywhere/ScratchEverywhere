@@ -48,7 +48,7 @@
 #endif
 
 // Ring buffer arena size for direct vertex streaming (3 partitions for triple-buffering)
-static constexpr size_t ARENA_PER_FRAME_SIZE = 512 * 1024;
+static constexpr size_t ARENA_PER_FRAME_SIZE = 1024 * 1024;
 static constexpr size_t VERTEX_ARENA_SIZE = ARENA_PER_FRAME_SIZE * 3;
 static constexpr size_t PEN_FLUSH_THRESHOLD = 4096;
 
@@ -516,7 +516,7 @@ Renderer_NV2A::Renderer_NV2A() {
     }
 
 #ifdef __XBOX__
-    pb_size(512 * 1024);
+    pb_size(1024 * 1024);
     pb_set_color_format(NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8, false);
 
     int pb_res = pb_init();
@@ -691,6 +691,7 @@ uint32_t Renderer_NV2A::getFrameCounter() {
     return s_frameCounter;
 }
 static bool s_activeLinear = false;
+static bool s_activeWrap = false;
 static NV2ABlendMode s_activeBlendMode = NV2ABlendMode::None;
 static int s_activeShader = -1; // 0 = unlit, 1 = texture
 
@@ -700,9 +701,13 @@ void Renderer_NV2A::destroyTexture(NV2ATexture *&texture) {
         s_activeTexture = nullptr;
     }
 #ifdef __XBOX__
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(p);
     while (pb_busy()) {
         Sleep(0);
     }
+    pb_wait_until_gr_not_busy();
     if (texture->data) {
         MmFreeContiguousMemory(texture->data);
         texture->data = nullptr;
@@ -724,8 +729,10 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
                    static_cast<const uint8_t *>(pixels) + static_cast<size_t>(r) * pitch, rowBytes);
         }
     } else if (texture->swizzled) {
-        swizzle_rect(static_cast<const uint8_t *>(pixels), texture->texWidth, texture->texHeight,
-                     texture->data, pitch, texture->bytesPerPixel);
+        swizzle_subrect(static_cast<const uint8_t *>(pixels),
+                        texture->texWidth, texture->texHeight,
+                        texture->dataWidth, texture->dataHeight,
+                        texture->data, pitch, texture->bytesPerPixel);
     } else {
         for (int r = 0; r < texture->texHeight; ++r) {
             memcpy(texture->data + static_cast<size_t>(r) * texture->pitch,
@@ -740,7 +747,7 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
     return true;
 }
 
-void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear) {
+void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear, bool wrap) {
     if (!texture || !texture->data) return;
 
     if (s_activeShader != 1) {
@@ -748,7 +755,7 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear) {
         s_activeShader = 1;
     }
 
-    if (s_activeTexture != texture || s_activeLinear != linear) {
+    if (s_activeTexture != texture || s_activeLinear != linear || s_activeWrap != wrap) {
         uint32_t *p = pb_begin();
         p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
         p = xgu_set_texture_format(p, 0, 2, false, XGU_SOURCE_COLOR, 2,
@@ -762,10 +769,12 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear) {
         XguTexFilter filter = linear ? XGU_TEXTURE_FILTER_LINEAR : XGU_TEXTURE_FILTER_NEAREST;
         p = xgu_set_texture_filter(p, 0, 0, XGU_TEXTURE_CONVOLUTION_GAUSSIAN,
                                    filter, filter, false, false, false, false);
-        p = xgu_set_texture_address(p, 0, XGU_CLAMP_TO_EDGE, false, XGU_CLAMP_TO_EDGE, false, XGU_CLAMP_TO_EDGE, false, false);
+        XguTextureAddress addr = wrap ? XGU_WRAP : XGU_CLAMP_TO_EDGE;
+        p = xgu_set_texture_address(p, 0, addr, false, addr, false, addr, false, false);
         pb_end(p);
         s_activeTexture = texture;
         s_activeLinear = linear;
+        s_activeWrap = wrap;
     }
 }
 
@@ -851,12 +860,18 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     if (!vertices || count == 0 || !s_vertexArena) return;
 
     size_t byteSize = count * sizeof(NV2AVertex);
-    byteSize = (byteSize + 31) & ~31;
+    byteSize = (byteSize + 63) & ~63;
 
     if (s_arenaOffset + byteSize > s_arenaBase + ARENA_PER_FRAME_SIZE) {
+#ifdef __XBOX__
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        pb_end(p);
         while (pb_busy()) {
-            __asm__ __volatile__("pause");
+            Sleep(0);
         }
+        pb_wait_until_gr_not_busy();
+#endif
         s_arenaOffset = s_arenaBase;
     }
 
@@ -885,9 +900,9 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset));
 #endif
 
-    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & 0x03FFFFFF;
-    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & 0x03FFFFFF;
-    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & 0x03FFFFFF;
+    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & 0x0FFFFFFF;
+    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & 0x0FFFFFFF;
+    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & 0x0FFFFFFF;
 
     uint32_t *p = pb_begin();
     p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
@@ -896,9 +911,18 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     p = xgu_set_vertex_data_array_offset(p, XGU_COLOR_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(colAddr)));
     p = xgu_set_vertex_data_array_format(p, XGU_TEXCOORD0_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
     p = xgu_set_vertex_data_array_offset(p, XGU_TEXCOORD0_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(texAddr)));
-    pb_end(p);
 
-    xgux_draw_arrays(XGU_TRIANGLES, 0, count);
+    p = xgu_begin(p, XGU_TRIANGLES);
+    unsigned int curStart = 0;
+    unsigned int remaining = static_cast<unsigned int>(count);
+    while (remaining > 0) {
+        unsigned int batch = (remaining > 255) ? 255 : remaining;
+        p = xgu_draw_arrays(p, curStart, batch);
+        curStart += batch;
+        remaining -= batch;
+    }
+    p = xgu_end(p);
+    pb_end(p);
 }
 
 void Renderer_NV2A::drawColorTriangles(const NV2AVertex *vertices, size_t count) {
@@ -1092,11 +1116,6 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
 #ifdef __XBOX__
         pb_wait_for_vbl();
-
-        while (pb_busy()) {
-            __asm__ __volatile__("pause");
-        }
-
         pb_reset();
         pb_target_back_buffer();
         pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
@@ -1112,15 +1131,13 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
         p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
         pb_end(p);
-
-        while (pb_busy()) {
-            __asm__ __volatile__("pause");
-        }
 #endif
 
         s_activeTexture = nullptr;
         s_activeShader = -1;
         s_activeBlendMode = NV2ABlendMode::None;
+        s_activeWrap = false;
+        s_activeLinear = false;
         s_frameIndex = (s_frameIndex + 1) % 3;
         s_arenaBase = s_frameIndex * ARENA_PER_FRAME_SIZE;
         s_arenaOffset = s_arenaBase;
@@ -1135,15 +1152,15 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
     ensureMainTarget();
 
 #ifdef __XBOX__
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(p);
+
     while (pb_busy()) {
         Sleep(0);
     }
 
     while (pb_finished()) {
-        Sleep(0);
-    }
-
-    while (pb_busy()) {
         Sleep(0);
     }
 #endif

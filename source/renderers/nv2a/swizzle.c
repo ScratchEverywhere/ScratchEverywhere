@@ -45,12 +45,12 @@
  * mask_z:  00000000
  * for "Z": yyyxyxyx
  */
-static void generate_swizzle_masks(unsigned int width,
-                                   unsigned int height,
-                                   unsigned int depth,
-                                   uint32_t *mask_x,
-                                   uint32_t *mask_y,
-                                   uint32_t *mask_z)
+void generate_swizzle_masks(unsigned int width,
+                            unsigned int height,
+                            unsigned int depth,
+                            uint32_t *mask_x,
+                            uint32_t *mask_y,
+                            uint32_t *mask_z)
 {
     uint32_t x = 0, y = 0, z = 0;
     uint32_t bit = 1;
@@ -194,3 +194,57 @@ MULTIVERSION(unswizzle_box)
 
 #undef C
 #undef MULTIVERSION
+
+void swizzle_subrect(
+    const uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    unsigned int dst_width,
+    unsigned int dst_height,
+    uint8_t *dst_buf,
+    unsigned int row_pitch,
+    unsigned int bytes_per_pixel)
+{
+    uint32_t mask_x, mask_y, mask_z;
+    generate_swizzle_masks(dst_width, dst_height, 1, &mask_x, &mask_y, &mask_z);
+
+    if (bytes_per_pixel == 4) {
+        uint32_t off_y = 0;
+        uint32_t *dst32 = (uint32_t *)dst_buf;
+        for (unsigned int y = 0; y < height; y++) {
+            uint32_t off_x = 0;
+            const uint32_t *src32 = (const uint32_t *)(src_buf + y * row_pitch);
+            uint32_t *d = dst32 + off_y;
+            for (unsigned int x = 0; x < width; x++) {
+                d[off_x] = src32[x];
+                off_x = (off_x - mask_x) & mask_x;
+            }
+            off_y = (off_y - mask_y) & mask_y;
+        }
+    } else if (bytes_per_pixel == 2) {
+        uint32_t off_y = 0;
+        uint16_t *dst16 = (uint16_t *)dst_buf;
+        for (unsigned int y = 0; y < height; y++) {
+            uint32_t off_x = 0;
+            const uint16_t *src16 = (const uint16_t *)(src_buf + y * row_pitch);
+            uint16_t *d = dst16 + off_y;
+            for (unsigned int x = 0; x < width; x++) {
+                d[off_x] = src16[x];
+                off_x = (off_x - mask_x) & mask_x;
+            }
+            off_y = (off_y - mask_y) & mask_y;
+        }
+    } else {
+        uint32_t off_y = 0;
+        for (unsigned int y = 0; y < height; y++) {
+            uint32_t off_x = 0;
+            const uint8_t *src_tmp = src_buf + y * row_pitch;
+            uint8_t *dst_tmp = dst_buf + off_y * bytes_per_pixel;
+            for (unsigned int x = 0; x < width; x++) {
+                memcpy(dst_tmp + off_x * bytes_per_pixel, src_tmp + x * bytes_per_pixel, bytes_per_pixel);
+                off_x = (off_x - mask_x) & mask_x;
+            }
+            off_y = (off_y - mask_y) & mask_y;
+        }
+    }
+}
