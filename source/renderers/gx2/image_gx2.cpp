@@ -28,8 +28,8 @@ static void buildModelMatrix(float out[16],
     out[10] = 1.0f;
     out[11] = 0.0f;
 
-    out[12] = tx + pivotX - (c * sx * pivotX - s * sy * pivotY);
-    out[13] = ty + pivotY - (s * sx * pivotX + c * sy * pivotY);
+    out[12] = tx - (c * sx * pivotX - s * sy * pivotY);
+    out[13] = ty - (s * sx * pivotX + c * sy * pivotY);
     out[14] = 0.0f;
     out[15] = 1.0f;
 }

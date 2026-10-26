@@ -51,7 +51,7 @@ struct Program {
 
 struct SpriteProgram : Program {
     uint32_t uModel = 0, uProjection = 0;
-    uint32_t uOpacity = 0, uBrightness = 0, uColor = 0, uFisheye = 0, uWhirl = 0, uPixelate = 0, uMosaic = 0, uTexSize = 0;
+    uint32_t uParams0 = 0, uParams1 = 0, uParams2 = 0;
     uint32_t samplerLocation = 0;
 };
 

@@ -28,14 +28,9 @@ in  vec2 v_uv;
 out vec4 frag_color;
 
 uniform sampler2D u_tex;
-uniform float u_opacity;
-uniform float u_brightness;
-uniform float u_color;
-uniform float u_fisheye;
-uniform float u_whirl;
-uniform float u_pixelate;
-uniform float u_mosaic;
-uniform vec2  u_tex_size;
+uniform vec4 u_params0;
+uniform vec4 u_params1;
+uniform vec4 u_params2;
 
 const float epsilon = 1e-3;
 const vec2 kCenter = vec2(0.5, 0.5);
@@ -56,6 +51,15 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
+    float u_opacity = u_params0.x;
+    float u_brightness = u_params0.y;
+    float u_color = u_params0.z;
+    float u_fisheye = u_params0.w;
+    float u_whirl = u_params1.x;
+    float u_pixelate = u_params1.y;
+    float u_mosaic = u_params1.z;
+    vec2 u_tex_size = vec2(u_params1.w, u_params2.x);
+
     vec2 uv = v_uv;
 
     if (abs(u_mosaic) > 0.001) {

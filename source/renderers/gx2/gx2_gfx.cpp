@@ -207,14 +207,9 @@ bool buildSpriteProgram() {
     bool ok = true;
     ok &= findVertexUniform(p.vertexShader, "u_model", p.uModel);
     ok &= findVertexUniform(p.vertexShader, "u_projection", p.uProjection);
-    ok &= findPixelUniform(p.pixelShader, "u_opacity", p.uOpacity);
-    ok &= findPixelUniform(p.pixelShader, "u_brightness", p.uBrightness);
-    ok &= findPixelUniform(p.pixelShader, "u_color", p.uColor);
-    ok &= findPixelUniform(p.pixelShader, "u_fisheye", p.uFisheye);
-    ok &= findPixelUniform(p.pixelShader, "u_whirl", p.uWhirl);
-    ok &= findPixelUniform(p.pixelShader, "u_pixelate", p.uPixelate);
-    ok &= findPixelUniform(p.pixelShader, "u_mosaic", p.uMosaic);
-    ok &= findPixelUniform(p.pixelShader, "u_tex_size", p.uTexSize);
+    ok &= findPixelUniform(p.pixelShader, "u_params0", p.uParams0);
+    ok &= findPixelUniform(p.pixelShader, "u_params1", p.uParams1);
+    ok &= findPixelUniform(p.pixelShader, "u_params2", p.uParams2);
     ok &= findSampler(p.pixelShader, "u_tex", p.samplerLocation);
     return ok;
 }
@@ -625,15 +620,12 @@ void setSpriteUniforms(const float model[16], const float projection[16], const 
     const SpriteProgram &p = g.sprite;
     setVertexUniform(p.uModel, model, 16);
     setVertexUniform(p.uProjection, projection, 16);
-    setPixelUniform(p.uOpacity, &params.opacity, 1);
-    setPixelUniform(p.uBrightness, &params.brightness, 1);
-    setPixelUniform(p.uColor, &params.color, 1);
-    setPixelUniform(p.uFisheye, &params.fisheye, 1);
-    setPixelUniform(p.uWhirl, &params.whirl, 1);
-    setPixelUniform(p.uPixelate, &params.pixelate, 1);
-    setPixelUniform(p.uMosaic, &params.mosaic, 1);
-    const float texSize[2] = {params.texWidth, params.texHeight};
-    setPixelUniform(p.uTexSize, texSize, 2);
+    const float params0[4] = {params.opacity, params.brightness, params.color, params.fisheye};
+    const float params1[4] = {params.whirl, params.pixelate, params.mosaic, params.texWidth};
+    const float params2[4] = {params.texHeight, 0.0f, 0.0f, 0.0f};
+    setPixelUniform(p.uParams0, params0, 4);
+    setPixelUniform(p.uParams1, params1, 4);
+    setPixelUniform(p.uParams2, params2, 4);
 }
 
 void *streamAllocate(size_t bytes) {
