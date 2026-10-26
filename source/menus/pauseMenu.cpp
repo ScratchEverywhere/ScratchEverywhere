@@ -17,6 +17,9 @@ static std::string getTurboString() {
 }
 
 void PauseMenu::init() {
+#ifdef __XBOX__
+    Scratch::freeUnusedCostumeImages();
+#endif
     constexpr int buttons = 4;
     constexpr int space = (180 - 60) / buttons;
 

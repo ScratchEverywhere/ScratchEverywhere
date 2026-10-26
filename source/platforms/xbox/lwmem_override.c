@@ -94,13 +94,26 @@ static int se_lwmem_init(void) {
 
     se_probe_ram();
 
-    /* Lower region: allocate baseline heap size.
-       Ensure we leave at least SE_LWMEM_GPU_RESERVE_BYTES in lower memory (0-64MB)
-       because the NV2A GPU buffers (framebuffer, depth, DMA) can ONLY reside below 64MB. */
-    size_t lower_max = 64u * 1024u * 1024u;
-    if (lower_max > SE_LWMEM_GPU_RESERVE_BYTES) {
-        lower_max -= SE_LWMEM_GPU_RESERVE_BYTES;
-    } else {
+    /* Query actual available physical RAM before committing the heap.
+       On standard 64MB retail hardware, the kernel and drivers take ~12MB.
+       In 720p HD mode, NV2A framebuffers + vertex arena take 13.1MB, so we must
+       reserve at least 32MB of ACTUAL available physical RAM for GPU allocations
+       (textures, font atlases, audio buffers) to prevent OOM in HD mode. */
+    MM_STATISTICS stats;
+    memset(&stats, 0, sizeof(stats));
+    stats.Length = sizeof(stats);
+    size_t avail_ram = 52u * 1024u * 1024u;
+    if (NT_SUCCESS(MmQueryStatistics(&stats))) {
+        avail_ram = (size_t)stats.AvailablePages * 4096u;
+    }
+
+    size_t gpu_reserve = SE_LWMEM_GPU_RESERVE_BYTES;
+    if (!se_lwmem_is_expanded && gpu_reserve < (32u * 1024u * 1024u)) {
+        gpu_reserve = 32u * 1024u * 1024u;
+    }
+
+    size_t lower_max = (avail_ram > gpu_reserve) ? (avail_ram - gpu_reserve) : SE_LWMEM_MIN_HEAP_SIZE;
+    if (lower_max < SE_LWMEM_MIN_HEAP_SIZE) {
         lower_max = SE_LWMEM_MIN_HEAP_SIZE;
     }
 

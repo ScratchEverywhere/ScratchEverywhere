@@ -23,6 +23,7 @@
 #include <hal/debug.h>
 #include <stdio.h>
 #include <windows.h>
+#include <xboxkrnl/xboxkrnl.h>
 #endif
 
 /**
@@ -98,6 +99,15 @@ static CRITICAL_SECTION log_cs;
 static std::string lastLogWarning;
 static std::string lastLogError;
 static bool log_cs_inited = false;
+static inline void com1_puts(const char *str) {
+    while (*str) {
+        if (*str == '\n') {
+            __asm__ __volatile__("outb %0, %1" : : "a"((uint8_t)'\r'), "Nd"((uint16_t)0x3F8));
+        }
+        __asm__ __volatile__("outb %0, %1" : : "a"((uint8_t)*str), "Nd"((uint16_t)0x3F8));
+        str++;
+    }
+}
 
 static void xbox_append_log(const char *prefix, const std::string &msg) {
     if (!log_cs_inited) {
@@ -107,8 +117,16 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
     EnterCriticalSection(&log_cs);
     if (prefix && strlen(prefix) > 0) {
         debugPrint("%s %s\n", prefix, msg.c_str());
+        DbgPrint("%s %s\n", prefix, msg.c_str());
+        com1_puts(prefix);
+        com1_puts(" ");
+        com1_puts(msg.c_str());
+        com1_puts("\n");
     } else {
         debugPrint("%s\n", msg.c_str());
+        DbgPrint("%s\n", msg.c_str());
+        com1_puts(msg.c_str());
+        com1_puts("\n");
     }
     _mkdir("E:\\ScratchEverywhere");
     FILE *f = fopen("E:\\ScratchEverywhere\\debug.txt", "a");

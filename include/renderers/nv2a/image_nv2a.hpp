@@ -23,6 +23,9 @@ class SE_EXPORT Image_NV2A : public Image {
     nonstd::expected<void, std::string> buildTiles();
     void destroyTiles();
     void renderTiled(ImageRenderParams &params);
+    void renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex);
+    void renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
+                            bool hasWhirl, bool hasFisheye, bool hasMosaic);
 
     // Looks effects (color/fisheye/whirl/pixelate/mosaic) are evaluated on the CPU into cached textures.
     struct EffectCacheSlot {

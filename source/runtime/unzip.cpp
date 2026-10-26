@@ -234,7 +234,12 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
+#ifdef __XBOX__
+    constexpr size_t loaderStackSize = 0x40000; // 256 KB stack is plenty and safe for 64MB RAM
+#else
+    constexpr size_t loaderStackSize = 0x262144;
+#endif
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
@@ -264,11 +269,22 @@ bool Unzip::load() {
         loading.cleanup();
         return true;
     } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
         loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
         return true;
     }
 

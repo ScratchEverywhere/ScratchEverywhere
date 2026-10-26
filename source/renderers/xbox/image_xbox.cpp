@@ -1,6 +1,7 @@
 #include "image_xbox.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_xbox.hpp"
+#include <renderers/nv2a/image_nv2a.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -35,7 +36,7 @@ static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
 
 // Force an asset to downscale in quality if it exceeds x amount of pixels in either dimension.
-static constexpr int FORCE_DOWNSCALE_DIM = 1024;
+static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
 
 // Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
 // many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
@@ -772,12 +773,29 @@ void *Image_Xbox::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
+    const int maxDim = getMaxTextureDim();
+    while (imgData.width > maxDim || imgData.height > maxDim) {
+        int dw, dh;
+        unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
+                                                        imgData.width, imgData.height, dw, dh);
+        if (!downscaled) break;
+        imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
+        free(imgData.pixels);
+        imgData.pixels = downscaled;
+        imgData.width = dw;
+        imgData.height = dh;
+        imgData.pitch = dw * 4;
+    }
+
     if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) return buildTiles();
 
-    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-    if (!texture) {
-        Scratch::freeUnusedCostumeImages();
+    const bool is64MB = !OS::isEnhancedPlatform();
+    if (!is64MB || (imgData.width * imgData.height <= 128 * 128)) {
         texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+        if (!texture) {
+            Scratch::freeUnusedCostumeImages();
+            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+        }
     }
 
     if (!texture) {
@@ -924,7 +942,7 @@ std::string Image_Xbox::getTextureCacheDir() {
         cachedProjectPath = Unzip::filePath;
         std::string ramMode = OS::isEnhancedPlatform() ? "128m" : "64m";
         cachedDir = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
-                    "_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
+                    "_xbox_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
     }
     return cachedDir;
 }
@@ -966,7 +984,7 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
             numTiles++;
 
     XBTHeader header;
-    memcpy(header.magic, "XBT1", 4);
+    memcpy(header.magic, "XBTX", 4);
     header.version = XBT_VERSION;
     header.width = width;
     header.height = height;
@@ -1023,9 +1041,13 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
 
     XBTHeader header;
     if (fread(&header, sizeof(header), 1, f) != 1 ||
-        memcmp(header.magic, "XBT1", 4) != 0 || header.version != XBT_VERSION ||
+        (memcmp(header.magic, "XBTX", 4) != 0 &&
+         memcmp(header.magic, "XBTN", 4) != 0 &&
+         memcmp(header.magic, "XBT1", 4) != 0) ||
+        (header.version != XBT_VERSION && header.version != 6) ||
         header.numTiles == 0) {
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     }
 
@@ -1036,6 +1058,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
         alphaMask.clear();
         alphaMaskPitch = 0;
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     };
 
@@ -1135,10 +1158,10 @@ static void freeProjectAsset(void *ptr) {
 
 // Describes how a cache was built. Stored in .complete: a cache built under different settings is rebuilt.
 static std::string textureCacheSignature() {
-    return "xbt=" + std::to_string(XBT_VERSION) +
+    return "xbox_xbt=" + std::to_string(XBT_VERSION) +
            " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
            " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
-           " maxdim=" + std::to_string(FORCE_DOWNSCALE_DIM);
+           " maxdim=" + std::to_string(getMaxTextureDim());
 }
 
 static std::string readTextFile(const std::string &path) {
@@ -1221,8 +1244,35 @@ void Image_Xbox::precacheProjectTextures() {
         if (name.empty()) return;
 
         std::string cachePath = getTextureCachePath(name);
-        if (cachePath.empty() || FileSystem::fileExists(cachePath)) {
-            return;
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            FILE *vf = fopen(cachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+                remove(cachePath.c_str());
+            }
+        }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(name);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            FILE *vf = fopen(altCachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+            }
         }
 
         size_t fileSize = 0;
@@ -1281,7 +1331,8 @@ void Image_Xbox::precacheProjectTextures() {
         }
 
         // Downscale if too large in either dimension, adjusting logical scale to match
-        while (curW > FORCE_DOWNSCALE_DIM || curH > FORCE_DOWNSCALE_DIM) {
+        const int maxDim = getMaxTextureDim();
+        while (curW > maxDim || curH > maxDim) {
             int dw, dh;
             unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
             if (!downscaled) break;
@@ -1356,6 +1407,13 @@ nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
             }
             if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
         }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(cachedAssetPath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) {
+                return {};
+            }
+            if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
+        }
     }
     return setInitialTexture();
 }
@@ -1370,6 +1428,16 @@ Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
     std::string cachePath = getTextureCachePath(filePath);
     if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
         if (loadFromCache(cachePath)) {
+            return;
+        }
+        if (g_cacheLoadOOM) {
+            error = "Out of texture memory loading " + filePath;
+            return;
+        }
+    }
+    std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
+    if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+        if (loadFromCache(altCachePath)) {
             return;
         }
         if (g_cacheLoadOOM) {
@@ -1399,6 +1467,16 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
         std::string cachePath = getTextureCachePath(filePath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
             if (loadFromCache(cachePath)) {
+                return;
+            }
+            if (g_cacheLoadOOM) {
+                error = "Out of texture memory loading " + filePath;
+                return;
+            }
+        }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) {
                 return;
             }
             if (g_cacheLoadOOM) {

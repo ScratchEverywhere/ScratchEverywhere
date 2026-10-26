@@ -1,6 +1,7 @@
 #include "image_nv2a.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_nv2a.hpp"
+#include <renderers/xbox/image_xbox.hpp>
 #include "swizzle.h"
 #include "xgu.h"
 
@@ -31,7 +32,7 @@
 constexpr uint32_t XBT_VERSION = 6;
 static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
-static constexpr int FORCE_DOWNSCALE_DIM = 1024;
+static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
 static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
 
 #pragma pack(push, 1)
@@ -252,7 +253,8 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
     }
     if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
 
-    while (imgData.width > FORCE_DOWNSCALE_DIM || imgData.height > FORCE_DOWNSCALE_DIM) {
+    const int maxDim = getMaxTextureDim();
+    while (imgData.width > maxDim || imgData.height > maxDim) {
         int dw, dh;
         unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
                                                         imgData.width, imgData.height, dw, dh);
@@ -710,59 +712,64 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
 
     int srcW = imgData.width;
     int srcH = imgData.height;
-    int effW = std::min(srcW, 512);
-    int effH = std::min(srcH, 512);
+
+    const float pixelate = params.pixelateEffect;
+    const float color = params.colorEffect;
+    const bool hasPixelate = (std::abs(pixelate) > 0.001f);
+    const bool hasColor = (std::abs(color) > 0.001f);
+
+    int effW = srcW;
+    int effH = srcH;
+
+    if (hasPixelate) {
+        float pixelateAmount = std::abs(pixelate) / 10.0f;
+        effW = std::clamp(static_cast<int>(srcW / std::max(pixelateAmount, 1.0f)), 2, 64);
+        effH = std::clamp(static_cast<int>(srcH / std::max(pixelateAmount, 1.0f)), 2, 64);
+    } else if (hasColor) {
+        effW = std::min(srcW, 256);
+        effH = std::min(srcH, 256);
+    }
     if (effW <= 0) effW = 1;
     if (effH <= 0) effH = 1;
+
+    const uint32_t fmt = XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
 
     if (!slot.texture || slot.texture->texWidth != effW || slot.texture->texHeight != effH) {
         if (slot.texture) {
             nv2aRenderer->destroyTexture(slot.texture);
             slot.texture = nullptr;
         }
-        slot.texture = nv2aRenderer->createTexture(effW, effH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        slot.texture = nv2aRenderer->createTexture(effW, effH, fmt, true);
         if (!slot.texture) {
             return texture;
         }
     }
 
     std::vector<uint8_t> scratch(static_cast<size_t>(effW) * effH * 4);
-
-    const float mosaic = params.mosaicEffect;
-    const float pixelate = params.pixelateEffect;
-    const float whirl = params.whirlEffect;
-    const float fisheye = params.fisheyeEffect;
-    const float color = params.colorEffect;
-
-    const bool hasMosaic = (std::abs(mosaic) > 0.001f);
-    const bool hasPixelate = (std::abs(pixelate) > 0.001f);
-    const bool hasWhirl = (std::abs(whirl) > 0.001f);
-    const bool hasFisheye = (std::abs(fisheye) > 0.001f);
-    const bool hasColor = (std::abs(color) > 0.001f);
-
-    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 512.0f) : 1.0f;
-    const float pixelateAmount = std::abs(pixelate) / 10.0f;
-    const float pixelTexelSizeX = static_cast<float>(effW) / std::max(pixelateAmount, 1e-3f);
-    const float pixelTexelSizeY = static_cast<float>(effH) / std::max(pixelateAmount, 1e-3f);
-    const float whirlRad = whirl * 3.141592653589793f / 180.0f;
-    const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
     const float colorShift = color / 200.0f;
-
     const int dstPitch = effW * 4;
 
-    if (hasColor && !hasMosaic && !hasPixelate && !hasWhirl && !hasFisheye && effW == srcW && effH == srcH) {
-        for (int y = 0; y < effH; ++y) {
-            const uint8_t *sRow = src + y * srcPitch;
-            uint8_t *dRow = scratch.data() + y * dstPitch;
-            for (int x = 0; x < effW; ++x) {
-                uint8_t a = sRow[x * 4 + 3];
-                if (a == 0) {
-                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
-                    continue;
-                }
-                float r = sRow[x * 4 + 0] * (1.0f / 255.0f);
-                float g = sRow[x * 4 + 1] * (1.0f / 255.0f);
-                float b = sRow[x * 4 + 2] * (1.0f / 255.0f);
+    for (int y = 0; y < effH; ++y) {
+        float vNorm = (static_cast<float>(y) + 0.5f) / static_cast<float>(effH);
+        int sy = std::clamp(static_cast<int>(vNorm * srcH), 0, srcH - 1);
+        const uint8_t *sRow = src + sy * srcPitch;
+        uint8_t *dRow = scratch.data() + y * dstPitch;
+
+        for (int x = 0; x < effW; ++x) {
+            float uNorm = (static_cast<float>(x) + 0.5f) / static_cast<float>(effW);
+            int sx = std::clamp(static_cast<int>(uNorm * srcW), 0, srcW - 1);
+            const uint8_t *sPix = sRow + sx * 4;
+
+            uint8_t a = sPix[3];
+            if (a == 0) {
+                *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
+                continue;
+            }
+
+            if (hasColor) {
+                float r = sPix[0] * (1.0f / 255.0f);
+                float g = sPix[1] * (1.0f / 255.0f);
+                float b = sPix[2] * (1.0f / 255.0f);
                 float h, s, v;
                 rgb2hsv(r, g, b, h, s, v);
                 const float minLightness = 0.11f / 2.0f;
@@ -777,97 +784,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
                 dRow[x * 4 + 1] = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
                 dRow[x * 4 + 2] = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
                 dRow[x * 4 + 3] = a;
-            }
-        }
-    } else {
-        for (int y = 0; y < effH; ++y) {
-            float vNorm = (static_cast<float>(y) + 0.5f) / static_cast<float>(effH);
-            uint8_t *dRow = scratch.data() + y * dstPitch;
-            for (int x = 0; x < effW; ++x) {
-                float uNorm = (static_cast<float>(x) + 0.5f) / static_cast<float>(effW);
-                float u = uNorm;
-                float v = vNorm;
-
-                if (hasMosaic) {
-                    u = u * tiles;
-                    u -= std::floor(u);
-                    v = v * tiles;
-                    v -= std::floor(v);
-                }
-
-                if (hasPixelate) {
-                    u = (std::floor(u * pixelTexelSizeX) + 0.5f) / pixelTexelSizeX;
-                    v = (std::floor(v * pixelTexelSizeY) + 0.5f) / pixelTexelSizeY;
-                }
-
-                float cx = u - 0.5f;
-                float cy = v - 0.5f;
-
-                if (hasWhirl) {
-                    float dist = std::sqrt(cx * cx + cy * cy);
-                    float whirlFactor = std::max(1.0f - (dist / 0.5f), 0.0f);
-                    float whirlActual = whirlRad * whirlFactor * whirlFactor;
-                    float s = std::sin(whirlActual);
-                    float c = std::cos(whirlActual);
-                    float ncx = c * cx - s * cy;
-                    float ncy = s * cx + c * cy;
-                    cx = ncx;
-                    cy = ncy;
-                }
-
-                if (hasFisheye) {
-                    float vx = cx / 0.5f;
-                    float vy = cy / 0.5f;
-                    float vecLen = std::sqrt(vx * vx + vy * vy);
-                    if (vecLen > 0.0001f) {
-                        float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
-                        float invLen = 1.0f / vecLen;
-                        cx = r * (vx * invLen) * 0.5f;
-                        cy = r * (vy * invLen) * 0.5f;
-                    }
-                }
-
-                u = cx + 0.5f;
-                v = cy + 0.5f;
-
-                if (u < 0.0f || u >= 1.0f || v < 0.0f || v >= 1.0f) {
-                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
-                    continue;
-                }
-
-                int sx = static_cast<int>(u * srcW);
-                int sy = static_cast<int>(v * srcH);
-                if (sx < 0) sx = 0; else if (sx >= srcW) sx = srcW - 1;
-                if (sy < 0) sy = 0; else if (sy >= srcH) sy = srcH - 1;
-
-                const uint8_t *sPix = src + sy * srcPitch + sx * 4;
-                uint8_t a = sPix[3];
-                if (a == 0) {
-                    *reinterpret_cast<uint32_t *>(dRow + x * 4) = 0;
-                    continue;
-                }
-
-                if (hasColor) {
-                    float r = sPix[0] * (1.0f / 255.0f);
-                    float g = sPix[1] * (1.0f / 255.0f);
-                    float b = sPix[2] * (1.0f / 255.0f);
-                    float h, s, val;
-                    rgb2hsv(r, g, b, h, s, val);
-                    const float minLightness = 0.11f / 2.0f;
-                    const float minSaturation = 0.09f;
-                    if (val < minLightness) { h = 0.0f; s = 1.0f; val = minLightness; }
-                    else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
-                    h = h + colorShift;
-                    h -= std::floor(h);
-                    float ro, go, bo;
-                    hsv2rgb(h, s, val, ro, go, bo);
-                    dRow[x * 4 + 0] = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
-                    dRow[x * 4 + 1] = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
-                    dRow[x * 4 + 2] = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
-                    dRow[x * 4 + 3] = a;
-                } else {
-                    memcpy(dRow + x * 4, sPix, 4);
-                }
+            } else {
+                memcpy(dRow + x * 4, sPix, 4);
             }
         }
     }
@@ -884,17 +802,287 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     return slot.texture;
 }
 
+void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
+
+    float u0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float u1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(u0, u1);
+    }
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 32);
+    float stepW = renderW / static_cast<float>(N);
+    float stepH = renderH / static_cast<float>(N);
+
+    std::vector<NV2AVertex> verts;
+    verts.reserve(static_cast<size_t>(N) * N * 6);
+
+    auto buildVerts = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca) {
+        verts.clear();
+        for (int row = 0; row < N; ++row) {
+            float y0 = renderY + row * stepH;
+            float y1 = y0 + stepH;
+            for (int col = 0; col < N; ++col) {
+                float x0 = renderX + col * stepW;
+                float x1 = x0 + stepW;
+
+                auto p_tl = rotatePoint(x0, y0);
+                auto p_tr = rotatePoint(x1, y0);
+                auto p_br = rotatePoint(x1, y1);
+                auto p_bl = rotatePoint(x0, y1);
+
+                verts.push_back({{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}});
+                verts.push_back({{p_tr.first, p_tr.second}, {cr, cg, cb, ca}, {u1, v0}});
+                verts.push_back({{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}});
+
+                verts.push_back({{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}});
+                verts.push_back({{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}});
+                verts.push_back({{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}});
+            }
+        }
+    };
+
+    auto drawPass = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
+        buildVerts(cr, cg, cb, ca);
+        nv2aRenderer->bindTexture(activeTex, true);
+        nv2aRenderer->setBlendMode(blendMode);
+        nv2aRenderer->drawTriangles(verts.data(), verts.size());
+    };
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            drawPass(255, 255, 255, addA, NV2ABlendMode::Add);
+        }
+    } else if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        drawPass(dim, dim, dim, alpha, NV2ABlendMode::Blend);
+    } else {
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+    }
+}
+
+void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
+                                    bool hasWhirl, bool hasFisheye, bool hasMosaic) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
+
+    float baseU0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float baseU1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(baseU0, baseU1);
+    }
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    const float mosaic = params.mosaicEffect;
+    const float whirl = params.whirlEffect;
+    const float fisheye = params.fisheyeEffect;
+
+    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 32.0f) : 1.0f;
+    const float whirlRad = whirl * 3.141592653589793f / 180.0f;
+    const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
+
+    constexpr int M = 16;
+    struct GridPt {
+        std::pair<float, float> pos;
+        float u, v;
+    };
+    GridPt grid[M + 1][M + 1];
+
+    for (int j = 0; j <= M; ++j) {
+        float gy = static_cast<float>(j) / static_cast<float>(M);
+        float py = renderY + gy * renderH;
+        for (int i = 0; i <= M; ++i) {
+            float gx = static_cast<float>(i) / static_cast<float>(M);
+            float px = renderX + gx * renderW;
+
+            grid[j][i].pos = rotatePoint(px, py);
+
+            float u = gx;
+            float v = gy;
+
+            if (hasMosaic) {
+                u = u * tiles;
+                u -= std::floor(u);
+                v = v * tiles;
+                v -= std::floor(v);
+            }
+
+            float cx = u - 0.5f;
+            float cy = v - 0.5f;
+
+            if (hasWhirl) {
+                float dist = std::sqrt(cx * cx + cy * cy);
+                float whirlFactor = std::max(1.0f - (dist / 0.5f), 0.0f);
+                float whirlActual = whirlRad * whirlFactor * whirlFactor;
+                float s = std::sin(whirlActual);
+                float c = std::cos(whirlActual);
+                float ncx = c * cx - s * cy;
+                float ncy = s * cx + c * cy;
+                cx = ncx;
+                cy = ncy;
+            }
+
+            if (hasFisheye) {
+                float vx = cx / 0.5f;
+                float vy = cy / 0.5f;
+                float vecLen = std::sqrt(vx * vx + vy * vy);
+                if (vecLen > 0.0001f) {
+                    float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
+                    float invLen = 1.0f / vecLen;
+                    cx = r * (vx * invLen) * 0.5f;
+                    cy = r * (vy * invLen) * 0.5f;
+                }
+            }
+
+            u = std::clamp(cx + 0.5f, 0.0f, 1.0f);
+            v = std::clamp(cy + 0.5f, 0.0f, 1.0f);
+
+            grid[j][i].u = baseU0 + u * (baseU1 - baseU0);
+            grid[j][i].v = baseV0 + v * (baseV1 - baseV0);
+        }
+    }
+
+    std::vector<NV2AVertex> verts;
+    verts.reserve(M * M * 6);
+
+    auto buildVerts = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca) {
+        verts.clear();
+        for (int j = 0; j < M; ++j) {
+            for (int i = 0; i < M; ++i) {
+                const auto &p00 = grid[j][i];
+                const auto &p10 = grid[j][i + 1];
+                const auto &p11 = grid[j + 1][i + 1];
+                const auto &p01 = grid[j + 1][i];
+
+                verts.push_back({{p00.pos.first, p00.pos.second}, {cr, cg, cb, ca}, {p00.u, p00.v}});
+                verts.push_back({{p10.pos.first, p10.pos.second}, {cr, cg, cb, ca}, {p10.u, p10.v}});
+                verts.push_back({{p11.pos.first, p11.pos.second}, {cr, cg, cb, ca}, {p11.u, p11.v}});
+
+                verts.push_back({{p00.pos.first, p00.pos.second}, {cr, cg, cb, ca}, {p00.u, p00.v}});
+                verts.push_back({{p11.pos.first, p11.pos.second}, {cr, cg, cb, ca}, {p11.u, p11.v}});
+                verts.push_back({{p01.pos.first, p01.pos.second}, {cr, cg, cb, ca}, {p01.u, p01.v}});
+            }
+        }
+    };
+
+    auto drawPass = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
+        buildVerts(cr, cg, cb, ca);
+        nv2aRenderer->bindTexture(activeTex, true);
+        nv2aRenderer->setBlendMode(blendMode);
+        nv2aRenderer->drawTriangles(verts.data(), verts.size());
+    };
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            drawPass(255, 255, 255, addA, NV2ABlendMode::Add);
+        }
+    } else if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        drawPass(dim, dim, dim, alpha, NV2ABlendMode::Blend);
+    } else {
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+    }
+}
+
 void Image_NV2A::render(ImageRenderParams &params) {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
     if (!nv2aRenderer) return;
 
-    bool hasEffects = (std::abs(params.colorEffect) > 0.001f ||
-                       std::abs(params.fisheyeEffect) > 0.001f ||
-                       std::abs(params.whirlEffect) > 0.001f ||
-                       std::abs(params.pixelateEffect) > 0.001f ||
-                       std::abs(params.mosaicEffect) > 0.001f);
+    bool hasWhirl = (std::abs(params.whirlEffect) > 0.001f);
+    bool hasFisheye = (std::abs(params.fisheyeEffect) > 0.001f);
+    bool hasMosaic = (std::abs(params.mosaicEffect) > 0.001f);
+    bool hasPixelate = (std::abs(params.pixelateEffect) > 0.001f);
+    bool hasColor = (std::abs(params.colorEffect) > 0.001f);
+    bool hasEffects = (hasWhirl || hasFisheye || hasMosaic || hasPixelate || hasColor);
 
     if (!hasEffects) {
         uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
@@ -909,16 +1097,27 @@ void Image_NV2A::render(ImageRenderParams &params) {
     }
 
     NV2ATexture *activeTex = texture;
-    if (hasEffects) {
+    if (hasColor || hasPixelate) {
         NV2ATexture *effTex = acquireEffectTexture(params);
         if (effTex) {
             activeTex = effTex;
         }
     }
+
     if (!activeTex) {
         if (!tiles.empty()) {
             renderTiled(params);
         }
+        return;
+    }
+
+    if (hasWhirl || hasFisheye) {
+        renderDeformedMesh(params, activeTex, hasWhirl, hasFisheye, hasMosaic);
+        return;
+    }
+
+    if (hasMosaic) {
+        renderMosaic(params, activeTex);
         return;
     }
 
@@ -982,7 +1181,7 @@ void Image_NV2A::render(ImageRenderParams &params) {
             {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
             {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}
         };
-        nv2aRenderer->bindTexture(activeTex, true);
+        nv2aRenderer->bindTexture(activeTex, !hasPixelate);
         nv2aRenderer->setBlendMode(blendMode);
         nv2aRenderer->drawTriangles(verts, 6);
     };
@@ -1069,6 +1268,20 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
     if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
+
+    const int maxDim = getMaxTextureDim();
+    while (imgData.width > maxDim || imgData.height > maxDim) {
+        int dw, dh;
+        unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
+                                                        imgData.width, imgData.height, dw, dh);
+        if (!downscaled) break;
+        imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
+        free(imgData.pixels);
+        imgData.pixels = downscaled;
+        imgData.width = dw;
+        imgData.height = dh;
+        imgData.pitch = dw * 4;
+    }
 
     if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) {
         return buildTiles();
@@ -1185,7 +1398,7 @@ std::string Image_NV2A::getTextureCacheDir() {
         cachedProjectPath = Unzip::filePath;
         std::string ramMode = OS::isEnhancedPlatform() ? "128m" : "64m";
         cachedDir = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
-                    "_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
+                    "_nv2a_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
     }
     return cachedDir;
 }
@@ -1209,9 +1422,13 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
 
     XBTHeader header;
     if (fread(&header, sizeof(header), 1, f) != 1 ||
-        memcmp(header.magic, "XBT1", 4) != 0 || header.version != XBT_VERSION ||
+        (memcmp(header.magic, "XBTN", 4) != 0 &&
+         memcmp(header.magic, "XBTX", 4) != 0 &&
+         memcmp(header.magic, "XBT1", 4) != 0) ||
+        (header.version != XBT_VERSION && header.version != 5) ||
         header.numTiles == 0) {
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     }
 
@@ -1229,6 +1446,7 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
         alphaMask.clear();
         alphaMaskPitch = 0;
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     };
 
@@ -1343,7 +1561,7 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
             numTiles++;
 
     XBTHeader header;
-    memcpy(header.magic, "XBT1", 4);
+    memcpy(header.magic, "XBTN", 4);
     header.version = XBT_VERSION;
     header.width = width;
     header.height = height;
@@ -1397,7 +1615,7 @@ static std::string textureCacheSignature() {
     return "nv2a_xbt=" + std::to_string(XBT_VERSION) +
            " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
            " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
-           " maxdim=" + std::to_string(FORCE_DOWNSCALE_DIM);
+           " maxdim=" + std::to_string(getMaxTextureDim());
 }
 
 static std::string readTextFile(const std::string &path) {
@@ -1461,7 +1679,36 @@ void Image_NV2A::precacheProjectTextures() {
         if (name.empty()) return;
 
         std::string cachePath = getTextureCachePath(name);
-        if (cachePath.empty() || FileSystem::fileExists(cachePath)) return;
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            FILE *vf = fopen(cachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 5) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+                remove(cachePath.c_str());
+            }
+        }
+        std::string altCachePath = Image_Xbox::getTextureCachePath(name);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            FILE *vf = fopen(altCachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 5) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+            }
+        }
 
         size_t fileSize = 0;
         void *fileData = extractProjectAsset(name, fileSize);
@@ -1507,7 +1754,8 @@ void Image_NV2A::precacheProjectTextures() {
             }
         }
 
-        while (curW > FORCE_DOWNSCALE_DIM || curH > FORCE_DOWNSCALE_DIM) {
+        const int maxDim = getMaxTextureDim();
+        while (curW > maxDim || curH > maxDim) {
             int dw, dh;
             unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
             if (!downscaled) break;
@@ -1565,6 +1813,10 @@ nonstd::expected<void, std::string> Image_NV2A::refreshTexture() {
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
             if (loadFromCache(cachePath)) return {};
         }
+        std::string altCachePath = Image_Xbox::getTextureCachePath(cachedAssetPath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) return {};
+        }
     }
     return setInitialTexture();
 }
@@ -1577,6 +1829,10 @@ Image_NV2A::Image_NV2A(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
     std::string cachePath = getTextureCachePath(filePath);
     if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
         if (loadFromCache(cachePath)) return;
+    }
+    std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
+    if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+        if (loadFromCache(altCachePath)) return;
     }
 
     const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
@@ -1597,6 +1853,10 @@ Image_NV2A::Image_NV2A(std::string filePath, bool fromScratchProject, bool bitma
         std::string cachePath = getTextureCachePath(filePath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
             if (loadFromCache(cachePath)) return;
+        }
+        std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) return;
         }
     }
 

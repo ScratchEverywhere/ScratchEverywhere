@@ -7,7 +7,11 @@
 #include <stb_truetype.h>
 
 static constexpr int bucketSteps[] = {12, 16, 20, 24, 32, 40, 50, 64, 80, 100, 128, 160, 200, 256};
+#if defined(__XBOX__)
+static constexpr int maxAtlasDim = 512;
+#else
 static constexpr int maxAtlasDim = 2048;
+#endif
 static constexpr unsigned int evictAfterTicks = 5000;
 
 FontGeneration::~FontGeneration() {
@@ -40,8 +44,8 @@ int FontAtlas::pickBucket(float requestedPixelSize, int currentBucket) const {
     if (requestedPixelSize < 1.0f) requestedPixelSize = 1.0f;
 
     if (currentBucket != 0) {
-        float lower = currentBucket * 0.75f;
-        float upper = currentBucket * 1.35f;
+        float lower = currentBucket * 0.70f;
+        float upper = currentBucket * 1.50f;
         if (requestedPixelSize >= lower && requestedPixelSize <= upper) return currentBucket;
     }
 
@@ -69,7 +73,11 @@ void FontAtlas::growAndRepackAll(FontGeneration &gen) {
     gen.pixels.assign((size_t)gen.atlasWidth * (size_t)gen.atlasHeight, 0);
 
     stbtt_PackBegin(&gen.packCtx, gen.pixels.data(), gen.atlasWidth, gen.atlasHeight, 0, 1, nullptr);
-    stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
+    if (gen.pixelSize <= 24) {
+        stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
+    } else {
+        stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
+    }
 
     std::vector<int> allCodepoints(gen.bakedCodepoints.begin(), gen.bakedCodepoints.end());
 
@@ -114,7 +122,10 @@ void FontAtlas::bakeCodepoints(FontGeneration &gen, const std::vector<uint32_t> 
     range.chardata_for_range = &gen.packedChars[oldSize];
 
     int ok = stbtt_PackFontRanges(&gen.packCtx, fontBuffer.data(), 0, &range, 1);
-    if (!ok) growAndRepackAll(gen);
+    if (!ok) {
+        Log::logWarning("FontAtlas::bakeCodepoints: stbtt_PackFontRanges failed for bucket=" + std::to_string(gen.pixelSize) + " atlas=" + std::to_string(gen.atlasWidth) + "x" + std::to_string(gen.atlasHeight) + " toBakeCount=" + std::to_string(toBake.size()) + " calling growAndRepackAll");
+        growAndRepackAll(gen);
+    }
 
     for (size_t i = 0; i < toBake.size(); ++i) {
         gen.codepointIndex[(uint32_t)toBake[i]] = (int)(oldSize + i);
@@ -137,12 +148,19 @@ FontGeneration &FontAtlas::ensureGeneration(int bucket, const std::vector<uint32
         gen.descent = (float)descent * scale;
         gen.lineGap = (float)lineGap * scale;
 
-        int initialDim = bucket <= 32 ? 256 : (bucket <= 64 ? 512 : 1024);
+        int initialDim = bucket <= 64 ? 256 : (bucket <= 128 ? 512 : 1024);
+#if defined(__XBOX__)
+        if (initialDim > maxAtlasDim) initialDim = maxAtlasDim;
+#endif
         gen.atlasWidth = gen.atlasHeight = initialDim;
         gen.pixels.assign((size_t)initialDim * (size_t)initialDim, 0);
 
         stbtt_PackBegin(&gen.packCtx, gen.pixels.data(), initialDim, initialDim, 0, 1, nullptr);
-        stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
+        if (bucket <= 24) {
+            stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
+        } else {
+            stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
+        }
     }
 
     FontGeneration &gen = it->second;

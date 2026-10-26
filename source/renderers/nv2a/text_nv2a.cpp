@@ -1,6 +1,7 @@
 #include "text_nv2a.hpp"
 #include "renderer_nv2a.hpp"
 #include "xgu.h"
+#include <log.hpp>
 #include <os.hpp>
 #include <runtime.hpp>
 #include <vector>
@@ -28,6 +29,11 @@ void TextObjectNV2A::uploadAtlas(FontGeneration &gen) {
     if (try32Bit) {
         tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
         if (!tex) {
+            if (oldTex) {
+                renderer->destroyTexture(oldTex);
+                oldTex = nullptr;
+                gen.backendHandle = nullptr;
+            }
             Scratch::freeUnusedCostumeImages();
             tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
         }
@@ -44,9 +50,14 @@ void TextObjectNV2A::uploadAtlas(FontGeneration &gen) {
     }
 
     if (!tex) {
-        // 16-bit A4R4G4B4 swizzled (512KB for 512x512, 2MB for 1024x1024)
+        // 16-bit A4R4G4B4 swizzled (512KB for 512x512, 128KB for 256x256)
         tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED, true);
         if (!tex) {
+            if (oldTex) {
+                renderer->destroyTexture(oldTex);
+                oldTex = nullptr;
+                gen.backendHandle = nullptr;
+            }
             Scratch::freeUnusedCostumeImages();
             tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED, true);
         }
@@ -61,6 +72,7 @@ void TextObjectNV2A::uploadAtlas(FontGeneration &gen) {
     }
 
     if (!tex) {
+        Log::logError("uploadAtlas: failed to create texture for bucket=" + std::to_string(gen.pixelSize) + " size=" + std::to_string(gen.atlasWidth) + "x" + std::to_string(gen.atlasHeight));
         // Failed to allocate; keep old texture (if any) and leave dirty so it retries later
         return;
     }
@@ -84,11 +96,15 @@ void TextObjectNV2A::render(int xPos, int yPos) {
     if (!renderer && Render::getGlobalRenderer()) {
         renderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
-    if (!renderer || !fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
+    if (!renderer || !fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) {
+        return;
+    }
 
     FontGeneration &gen = touchGeneration();
     if (gen.dirty) uploadAtlas(gen);
-    if (!gen.backendHandle) return;
+    if (!gen.backendHandle) {
+        return;
+    }
 
     NV2ATexture *tex = static_cast<NV2ATexture *>(gen.backendHandle);
 
@@ -145,7 +161,7 @@ void TextObjectNV2A::render(int xPos, int yPos) {
     }
 
     if (!verts.empty()) {
-        renderer->bindTexture(tex, false);
+        renderer->bindTexture(tex, true);
         renderer->setBlendMode(NV2ABlendMode::Blend);
         renderer->drawTriangles(verts.data(), verts.size());
     }
