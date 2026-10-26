@@ -301,6 +301,7 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
             costume.rotationCenterY = -6767.6767;
         }
 
+        sprite->costumeNameIndex.emplace(costume.name, sprite->costumes.size());
         sprite->costumes.push_back(costume);
     }
 }

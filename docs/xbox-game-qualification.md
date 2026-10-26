@@ -19,14 +19,13 @@ neutralize all reports afterwards.
 | Hopper Heros Everywhere | Browser launch/exit; movement and 6 points in earlier tests | Repeatable gameplay, loss/replay, audio |
 | Ultra Bird | Flap, loss, embedded Start replay; browser launch/exit; 2 points | External replay shortcut, sustained play, audio |
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
-| Maze Starter | D-pad profile; repaired color wall collision; full intended route to You win; exit and fresh relaunch | Green Flag replay leaves prior win text; recheck optimized collision build; no authored audio |
+| Maze Starter | D-pad profile; repaired color wall collision; full intended route to You win; exit and fresh relaunch | Green Flag replay leaves prior win text; full-route repeat on combined build; no authored audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
 | PacMan (cdaniels7088) | Browser launch; repaired cached PNG colors; D-pad turns and wall rejection; 70 points | Loss/replay, repeat launch/exit; responsiveness with culling; scripts have no audio playback |
-
 | Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
@@ -334,3 +333,35 @@ Bomberman's cloud-multiplayer-centered version was screened out in favor of
 Will_Wam's local Super Mario first-level remake. The original Geometry Dash
 API returned 404 and was not substituted with an unverified third-party copy.
 Installation is not a claim that all twenty games are qualified.
+
+## Color sensing and Scratch 2 backdrop follow-up
+
+The [color-sensing investigation](xbox-color-sensing.md) records restored PNG/SVG
+CPU colors, conservative per-query culling, and the odd-sized collision-mask
+edge fix. The final color build passed 14 regression cases twice on hardware.
+Maze completed its full route with wall rejection, and fresh project relaunch
+cleared its old win message. Green Flag replay reset its position but retained
+the old message; that remains an open authored-ordering/reference check.
+
+PacMan's apparent freeze after Score 20 was a stopped project: holding Start
+still opened pause, and short Start then reset Score to 0 while retaining High
+Score 20. Its Game Over backdrop had not appeared. The SB2 parser did not fill
+`costumeNameIndex`, while SB3 did, so all costume/backdrop switches by name could
+silently do nothing. The SB2 parser now fills the same first-name lookup. The
+`examples/make-sb2-costume-test.py` six-case fixture checks named Play/Lost backdrops, named red/green
+sprite costumes and existing numeric selectors. The fourteen-case SB3 color
+fixture is also rerun on the combined production build.
+
+The combined production build passed **PASSES=6, ERRORS=0** in the SB2 fixture,
+with the expected blue backdrop and red final sprite, and **14/14** in the SB3
+color fixture. Evidence: `sb2-names-explicit-result.jpg` and
+`combined-color-regression.jpg`. An earlier bundled navigation sequence stayed
+on the previous color fixture; its `sb2-names-regression.jpg` is excluded from
+SB2 acceptance. The test was then explicitly selected in the browser before
+launch. The combined executable was read back from the normal Games folder,
+SHA-256 `60dc7891023a9c476d1f5f19dd943ade8e1abbdd551a91aa2dd34eb29a77df57`.
+
+The combined build also repeated Maze's first-wall rejection after a five-second
+right hold (`maze-final-shared-build-wall.jpg`) and could exit to the browser.
+This run resulted from a menu navigation landing one entry above PacMan; its
+captures were renamed to Maze and excluded from PacMan results.
