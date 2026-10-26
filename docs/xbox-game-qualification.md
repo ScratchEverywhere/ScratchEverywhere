@@ -395,3 +395,65 @@ files remained present with their expected sizes; the combined production XBE's
 full readback still matched the hash above. Evidence:
 `twenty-game-installed-final.json` and `combined-color-sb2-pacman.log`. The normal
 browser was relaunched from `F:\Games\ScratchEverywhere\default.xbe`.
+
+## 2048 long run and score audit
+
+On the combined production build, 2048 launched from the normal browser and
+accepted all four directions. Controller-driven play reached a 1024 tile in one
+round. Four saved chunks contain 802 board observations, including 788 changed
+boards; the observer uses HDMI pixels and ordinary controller reports, without
+changing game state. The original installed archive was unchanged.
+
+A later Up command produced a persistent board that did not match the observer's
+one-move prediction. Pause/resume did not change it. A subsequent Down showed
+Score 14456. This initially suggested a grid mutation defect, but the score
+audit changes that interpretation: the pre-Up score inferred from saved moves
+is **14428**, not the initially assumed 14432. The initial score was 12; visible
+anchors at 1772 after the first chunk and 14416 at the last chunk's turn 90 match
+that accounting.
+
+One Up should gain 16 and reach 14444. The observed 14448 board matches **two
+legal Up moves**: first spawn a 2 in the fourth column below the moved 2, then
+merge those twos on another Up (+4), then spawn a 2 in the bottom row's third
+column. Either of two first-spawn positions gives the exact observed board and
+score. This is an inference supporting duplicate input; controller/USB edges
+were not traced during the event. It does not prove the source of an extra
+move, nor exclude every other cause.
+
+Two isolated xemu/GDB seed runs each completed **1,000 iterations, zero errors**
+using the original Up and random-spawn procedures. Each verifies the moved grid,
+score gain, unchanged occupied cells and exactly one new 2/4 in an empty cell.
+One seed uses numeric tiles; the other uses string 0/2/4 values, as in the game's
+spawn scripts. The added diagnostic driver seeds the saved board and auto-starts
+the game; networking is skipped and the SB2 loader format is selected in GDB for
+the embedded bundle. Only the added driver's screen-refresh suppression was
+changed to accelerate the test. Its initial score is explicitly set to 14432,
+so its expected score 14448 checks the same +16 gain; it is not a claim that the
+real pre-event score was 14432.
+
+These are procedure diagnostics, not ordinary gameplay qualification. No grid
+code was changed on this evidence. Win/loss, replay, exit/relaunch and the input
+edge investigation remain open. The original project has no sound-playing
+opcodes. The physical console subsequently became unreachable during the
+separate startup follow-up, so hardware testing is waiting for recovery.
+
+Ignored evidence: `build-xbox/hardware/2048-play-run{1,2,3}-results.json`,
+`2048-play-results.json`, their saved images, `2048-second-stop.json`, and
+`2048-mismatch-down-diagnostic.jpg`; `build-xbox/xemu-debug/2048-numeric-seed/`,
+`2048-string-seed/`, `2048-source-up-result.json`, and
+`2048-duplicate-input-hypothesis.json` preserve the diagnostics, snapshots and
+score/move calculation. The seed archives were never uploaded over the game.
+
+The normal browser candidate containing the color/pen fixes was then built with
+no embedded fixture and with renderer/game tracing and debug symbols OFF:
+9,478,144 bytes, SHA-256
+`78d2fe178ae621a7d591d08af8439d829a49536686557f462eeb3df7d1788df5`.
+Its XBE initialization flags are `0x1` (expanded RAM permitted). It is staged
+locally as `build-xbox/hardware/color-effects-production-candidate.xbe`; it has
+not replaced the installed `60dc7891…` production build.
+
+The unmodified normal candidate also booted in the isolated emulator with NAT
+networking, without GDB overrides. Its empty project browser rendered correctly
+(`build-xbox/xemu-debug/production-candidate-startup.png`); the private HDD has
+none of the hardware console's game archives. This is a launcher smoke check,
+not a twenty-game hardware pass.
