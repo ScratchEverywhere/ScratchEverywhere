@@ -45,5 +45,44 @@ Evidence is in ignored `build-xbox/breakout-controller/`, including
 `controller-{left,right}.png`, corresponding stage/sprite JSON snapshots,
 `controller-replay-movement.png`, `controller-exit-browser.png` and
 `controller-gdb.log`. These emulator runs use the existing GDB-only network
-initialization bypass. Hardware installation and repeated browser-launch tests
-remain pending recovery of the physical console.
+initialization bypass. Hardware results follow below.
+
+
+## Physical Xbox check, October 26
+
+The original failure log ended after texture precaching. The prepared archive
+and profile were installed with full FTP readback verification, preserving
+`E:/ScratchEverywhere/Atari-original.sb2.bak`. Clean build `242d1c78…` was
+installed separately in `F:/scratch-breakout-20261026/default.xbe`; the regular
+dashboard launcher was not replaced.
+
+Normal browser selection launched gameplay. The first run displayed Score 40
+and two lives, then reached Score 100 and the complete Game Over message.
+Left-stick Left moved the paddle left; D-pad Right moved it right. These first
+captures span the ending, whose original paddle loop continues to run. Player
+One subsequently moved the paddle during the replay round as well.
+
+Several Start holds and a reset chord sent through the Player Three KVM route
+did not recover the menu. Read-only route diagnostics showed delayed Player
+Three adapter diagnostics while the other adapters were current. Switching to
+Player One opened pause with a five-second Start hold. This supports an input
+route problem for those failed attempts, rather than a proven runtime-menu
+failure. Green Flag replay restored bricks and lives; the captured new round
+already showed Score 20/two lives, not an exact zero-score frame.
+
+Local evidence is under `build-xbox/hardware/`: `breakout-original-freeze.log`,
+`breakout-deploy.json`, `breakout-fixed-playing-40.jpg`,
+`breakout-fixed-stick-left.jpg`, `breakout-fixed-dpad-right-ending-100.jpg`,
+`breakout-fixed-p1-pause.jpg` and `breakout-fixed-green-replay.jpg`.
+Full-board completion is still unverified. No authored audio-playback blocks
+were found, so silence is expected for this project.
+
+Exit returned to the populated browser with A held for 2.2 seconds. Selecting
+Breakout again launched a new round, with three lives/Score 20 visible during
+left-stick movement. The second round later reached Score 40/Game Over.
+`breakout-fixed-exit-browser.jpg`, `breakout-fixed-second-launch-stick.jpg`
+and `breakout-fixed-second-dpad.jpg` preserve these observations. Full-board
+completion remains pending.
+
+The second held-confirmation Exit also returned to the browser and stayed there
+(`breakout-fixed-second-exit-browser.jpg`).
