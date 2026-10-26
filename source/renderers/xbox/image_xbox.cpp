@@ -1043,7 +1043,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
     imgData.height = header.height;
     imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
     imgData.pitch = header.width * 4;
-    imgData.pixels = nullptr;
+    freePixels(); // A previous color query may have restored the CPU buffer.
     isOpaque = !(header.flags & 1);
 
     alphaMask.clear();
@@ -1358,6 +1358,43 @@ nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
         }
     }
     return setInitialTexture();
+}
+
+bool Image_Xbox::ensureColorData() {
+    if (imgData.pixels) return true;
+    if (colorDataUnavailable || cachedAssetPath.empty()) return false;
+
+    // DXT caches retain only alpha for collisions, and backdrop uploads free
+    // their pixels. Decode the original asset on first color query: compressed
+    // GPU colors are lossy and cannot be used for Scratch's color comparisons.
+    const ImageData saved = imgData;
+    auto result = (Unzip::loader || Unzip::zipArchive)
+        ? init(cachedAssetPath, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, false, saved.scale)
+        : init(cachedAssetPath, true, false, saved.scale);
+    while (result.has_value() && (imgData.width > saved.width || imgData.height > saved.height)) {
+        int width = 0, height = 0;
+        unsigned char *pixels = resizeRaster(static_cast<const unsigned char *>(imgData.pixels),
+                                             imgData.width, imgData.height, width, height);
+        if (!pixels) break;
+        freePixels();
+        imgData.pixels = pixels;
+        imgData.width = width;
+        imgData.height = height;
+        imgData.pitch = width * 4;
+    }
+    if (!result.has_value() || imgData.width != saved.width || imgData.height != saved.height || !imgData.pixels) {
+        freePixels();
+        imgData = saved;
+        colorDataUnavailable = true;
+        Log::logWarning("Unable to restore collision colors: " + cachedAssetPath);
+        return false;
+    }
+    // Preserve the existing texture's coordinate system and all GPU resources.
+    imgData.scale = saved.scale;
+    imgData.format = IMAGE_FORMAT_RGBA32;
+    freeTimer = maxFreeTimer;
+    Log::log("Restored collision colors: " + cachedAssetPath);
+    return true;
 }
 
 Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {

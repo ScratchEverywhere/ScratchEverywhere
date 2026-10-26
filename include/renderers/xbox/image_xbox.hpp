@@ -21,6 +21,7 @@ class SE_EXPORT Image_Xbox : public Image {
 
   private:
     std::vector<Tile> tiles;
+    bool colorDataUnavailable = false;
 
     nonstd::expected<void, std::string> setInitialTexture();
     nonstd::expected<void, std::string> buildTiles();
@@ -36,6 +37,7 @@ class SE_EXPORT Image_Xbox : public Image {
     Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_Xbox() override;
+    bool ensureColorData() override;
 
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;

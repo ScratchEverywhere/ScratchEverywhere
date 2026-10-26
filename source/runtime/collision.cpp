@@ -36,8 +36,10 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
         const float srcScale = image->getScale();
 
         auto mask = std::make_shared<CollisionMask>();
-        mask->width = srcW / scaleFactor;
-        mask->height = srcH / scaleFactor;
+        // Keep the final partial cell: small/odd-sized costumes must not lose
+        // their last source row or column when the collision grid is reduced.
+        mask->width = (srcW + scaleFactor - 1) / scaleFactor;
+        mask->height = (srcH + scaleFactor - 1) / scaleFactor;
         mask->scaleFactor = (float)scaleFactor / srcScale;
         mask->sourceScale = srcScale;
         mask->image = image;
@@ -66,8 +68,8 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     if (!imgData.pixels) return nullptr;
 
     auto mask = std::make_shared<CollisionMask>();
-    mask->width = imgData.width / scaleFactor;
-    mask->height = imgData.height / scaleFactor;
+    mask->width = (imgData.width + scaleFactor - 1) / scaleFactor;
+    mask->height = (imgData.height + scaleFactor - 1) / scaleFactor;
     mask->scaleFactor = (float)scaleFactor / imgData.scale;
     mask->sourceScale = imgData.scale;
 
@@ -126,7 +128,7 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     return mask;
 }
 
-static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite) {
+static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite, bool restoreColorData = false) {
     auto &costume = sprite->costumes[sprite->currentCostume];
     std::shared_ptr<CollisionMask> mask = costume.collisionMask;
 
@@ -139,6 +141,10 @@ static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite) {
     }
 
     if (mask == nullptr || stale) {
+        if (restoreColorData) {
+            auto image = Scratch::costumeImages.find(costume.fullName);
+            if (image != Scratch::costumeImages.end()) image->second->ensureColorData();
+        }
         mask = collision::generateCollisionMask(sprite);
         if (mask == nullptr) return nullptr;
         costume.collisionMask = mask;
@@ -295,7 +301,7 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
 static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &outG, uint8_t &outB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
     const float dx = x - sprite->xPosition;
@@ -327,13 +333,34 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     return mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB);
 }
 
-static bool environmentColorAt(Sprite *self, float x, float y, uint8_t &r, uint8_t &g, uint8_t &b) {
-    float accR = 0, accG = 0, accB = 0, accAlpha = 0;
-
+static std::vector<Sprite *> colorEnvironment(Sprite *self, float selfRadius) {
+    std::vector<Sprite *> environment;
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *candidate = *it;
-        if (candidate == self || !candidate->visible) continue;
+        if (candidate == self || !candidate->visible || candidate->ghostEffect >= 100.0f) continue;
+        auto mask = getValidCollisionMask(candidate, true);
+        if (!mask) continue;
+#ifdef __XBOX__
+        const float size = getEffectiveSpriteSize(candidate, candidate->costumes[candidate->currentCostume]);
+#else
+        const auto &costume = candidate->costumes[candidate->currentCostume];
+        const float size = !costume.isSVG && !Scratch::bitmapHalfQuality ? candidate->size * 0.5f : candidate->size;
+#endif
+        const float radius = selfRadius + mask->maxRadius * size / 100.0f;
+        const float dx = candidate->xPosition - self->xPosition;
+        const float dy = candidate->yPosition - self->yPosition;
+        // The pixel samplers reject points outside these same circles. Cull
+        // disjoint candidates once per query, keeping their compositing order.
+        if (dx * dx + dy * dy <= radius * radius) environment.push_back(candidate);
+    }
+    return environment;
+}
 
+static bool environmentColorAt(const std::vector<Sprite *> &environment, float x, float y,
+                               uint8_t &r, uint8_t &g, uint8_t &b) {
+    float accR = 0, accG = 0, accB = 0, accAlpha = 0;
+
+    for (Sprite *candidate : environment) {
         uint8_t cr, cg, cb;
         if (!colorAt(candidate, x, y, cr, cg, cb)) continue;
 
@@ -364,7 +391,7 @@ static bool scratchMaskMatches(uint8_t ar, uint8_t ag, uint8_t ab, uint8_t br, u
 
 bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
 #ifdef __XBOX__
@@ -373,6 +400,7 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 #endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
+    const auto environment = colorEnvironment(sprite, scaledRadius);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
@@ -383,7 +411,7 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
     for (float y = minY; y <= maxY; y++) {
         for (float x = minX; x <= maxX; x++) {
             if (!pointInSprite(sprite, x, y)) continue;
-            if (environmentColorAt(sprite, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
+            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
                 return true;
             }
         }
@@ -394,7 +422,7 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
 bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t maskG, uint8_t maskB,
                                      uint8_t targetR, uint8_t targetG, uint8_t targetB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
 #ifdef __XBOX__
@@ -403,6 +431,7 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 #endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
+    const auto environment = colorEnvironment(sprite, scaledRadius);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
@@ -414,7 +443,7 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
         for (float x = minX; x <= maxX; x++) {
             if (!colorAt(sprite, x, y, sr, sg, sb)) continue;
             if (!scratchMaskMatches(sr, sg, sb, maskR, maskG, maskB)) continue;
-            if (environmentColorAt(sprite, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
+            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
                 return true;
             }
         }

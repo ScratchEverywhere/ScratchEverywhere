@@ -109,6 +109,9 @@ class SE_EXPORT Image {
     nonstd::expected<void, std::string> init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
 
+    // Color sensing needs CPU pixels even when a renderer keeps only GPU data.
+    virtual bool ensureColorData() { return imgData.pixels != nullptr; }
+
     virtual ImageData getPixels(ImageSubrect rect);
     inline ImageData getPixels() {
         return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});

@@ -1,8 +1,11 @@
-# Ten-game hardware qualification
+# Twenty-game hardware qualification
 
-The goal is ten playable games, with actual Xbox testing and fixes until each
+The goal is twenty playable games, with actual Xbox testing and fixes until each
 works. Downloads, successful builds, and a title screen are not full passes.
-The current console has 128MB RAM; this does not establish retail 64MB support.
+Twenty distinct projects are now packaged and installed with archive readback
+verification. Installation is not qualification; the additional ten still need
+the gameplay checks below. The current console has 128MB RAM; this does not
+establish retail 64MB support.
 
 For each game, establish selection from the normal browser, correct visuals,
 controller movement and actions, a meaningful gameplay objective/score, loss or
@@ -16,13 +19,24 @@ neutralize all reports afterwards.
 | Hopper Heros Everywhere | Browser launch/exit; movement and 6 points in earlier tests | Repeatable gameplay, loss/replay, audio |
 | Ultra Bird | Flap, loss, embedded Start replay; browser launch/exit; 2 points | External replay shortcut, sustained play, audio |
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
-| Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
+| Maze Starter | D-pad profile; repaired color wall collision; full intended route to You win; exit and fresh relaunch | Green Flag replay leaves prior win text; recheck optimized collision build; no authored audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
-| PacMan (cdaniels7088) | Packaged, uploaded and FTP readback verified | All hardware gameplay checks |
+| PacMan (cdaniels7088) | Browser launch; repaired cached PNG colors; D-pad turns and wall rejection; 70 points | Loss/replay, repeat launch/exit; responsiveness with culling; scripts have no audio playback |
+
+| Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| 2048 (JereTheJuggler) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Doodle Jump (xamuil2) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| Jumper (Depicklator) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile | All hardware gameplay checks |
 
 Sources, authors, instructions, packaging details and hashes for the additional
 five are in ignored `build-xbox/more-games/next-five-manifest.json`. Game scripts
@@ -299,3 +313,24 @@ On that same installed production build, Appel subsequently passed title and
 level rendering, right movement, jumping, collection of one apple, and runtime
 pause → Exit Project → visible browser without rebooting. Evidence:
 `startup-final-appel-{title,level,moving,exit-menu,browser-return}.jpg`.
+
+## Additional ten-game installation
+
+The new ten are listed in [the source/hash/control manifest](xbox-additional-games.json).
+Their archives and profiles were uploaded to `E:\ScratchEverywhere` and fully
+read back. ZIP integrity and unchanged game-script comparisons passed for all
+ten; downloaded assets were checked against their original MD5 names. SB2
+assets were assigned standard numeric archive IDs. Connect Four's absent pen
+layer (`penLayerID=-1`, unavailable asset URL) was not included; all actual
+costumes and sounds were included, and scripts were preserved.
+
+The base arrow profile is adjusted only where needed: Y mutes Asteroids and
+Sokoban; Y pauses the racers, Back mutes them, X changes Hill Climb vehicles;
+Connect Four maps its second player's WASD to the right stick. Conflicting
+base bindings were removed so every physical button has only one key. These
+extra actions still need game-specific hardware checks.
+
+Bomberman's cloud-multiplayer-centered version was screened out in favor of
+Will_Wam's local Super Mario first-level remake. The original Geometry Dash
+API returned 404 and was not substituted with an unverified third-party copy.
+Installation is not a claim that all twenty games are qualified.
