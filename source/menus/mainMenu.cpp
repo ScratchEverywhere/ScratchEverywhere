@@ -8,11 +8,11 @@
 #include <audiostack.hpp>
 #include <cctype>
 #include <cmath>
+#include <font_atlas.hpp>
 #include <image.hpp>
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
-#include <font_atlas.hpp>
 
 #include <nlohmann/json.hpp>
 

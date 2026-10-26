@@ -12,6 +12,9 @@
 #ifdef RENDERER_XBOX
 #include "renderer_xbox.hpp"
 #endif
+#ifdef RENDERER_GX2
+#include "renderer_gx2.hpp"
+#endif
 #ifdef RENDERER_SDL3
 #include "renderer_sdl3.hpp"
 #endif
@@ -74,6 +77,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #endif
 #ifdef RENDERER_XBOX
     add(Renderers::Xbox);
+#endif
+#ifdef RENDERER_GX2
+    add(Renderers::GX2);
 #endif
 #ifdef RENDERER_SDL3
     add(Renderers::SDL3);
@@ -169,6 +175,15 @@ bool Render::init() {
 #ifdef RENDERER_XBOX
             Render::currentRenderer = Renderers::Xbox;
             globalRenderer = new Renderer_Xbox;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::GX2: {
+#ifdef RENDERER_GX2
+            Render::currentRenderer = Renderers::GX2;
+            globalRenderer = new Renderer_GX2;
             break;
 #else
             continue;

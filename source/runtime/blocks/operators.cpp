@@ -80,8 +80,7 @@ SCRATCH_BLOCK_DOUBLE(operator, random) {
 #if defined(__XBOX__)
     static std::mt19937_64 rng(
         static_cast<uint64_t>(std::time(nullptr)) ^
-        (static_cast<uint64_t>(std::clock()) << 16)
-    );
+        (static_cast<uint64_t>(std::clock()) << 16));
     uint64_t r;
     do {
         r = (rng() >> 11); // 53-bit precision
