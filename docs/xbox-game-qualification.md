@@ -31,9 +31,9 @@ neutralize all reports afterwards.
 | Sokoban (Gammastr20) | Hardware completion of puzzles 1–3; four D-pad directions, crate/goal updates, Black/R puzzle restart; 7.995s HDMI audio; hardware pause/exit on the new candidate | Repeat launch; later puzzles, including authored level-10 dead crate; subjective/long-run audio |
 | 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| Hill Climb Racing (griffpatch) | Hardware jeep Score 1,000, motorcycle Score 420/+200 airtime; crash and fuel loss; A replay, X vehicle swap, active Black/R restart; repaired full messages; pause/exit and repeat launch; HDMI audio signal | Extended terrain, precise brake/air control, fuel pickup, authored Y pause, subjective/long-run audio |
 | Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Doodle Jump (xamuil2) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| Doodle Jump (xamuil2) | Hardware browser launch, left/right platform steering, at least 1,044 m; fall and automatic replay; pause/exit, fresh launch and second exit; HDMI audio signal | Edge wrapping, monsters, extended play and subjective audio |
 | Jumper (Depicklator) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile | All hardware gameplay checks |
 
@@ -615,3 +615,68 @@ signal and no digital clipping. No full wave was cleared, and subjective or
 long-run audio acceptance remains outstanding. Evidence is in ignored
 `build-xbox/hardware/scratch2-svg-space-*.jpg`, `scratch2-svg-space-audio.json`
 and the `space_invaders` section of `scratch2-svg-validation.json`.
+
+
+## Doodle Jump hardware progression (October 26)
+
+On candidate `dc10c078…`, the normal browser launched Doodle Jump. Bouncing
+is automatic; D-pad left/right steered between platforms and the visible
+height reached at least 1,044 m. A deliberate move away from the platforms
+produced a fall, showed the high-score monitor and started another round
+automatically. The project source confirms its outer loop waits two seconds,
+deletes old clones and resets its round variables. In the repeated live-video
+check, `doodle-verified-replay-23.jpg` shows the 278 m loss state and
+`doodle-verified-replay-28.jpg` shows the new round at 35 m. This is visible
+reset evidence, not a claim that an exact zero frame was captured.
+
+A five-second physical Start hold opened runtime pause, and A exited to the
+populated list. Selection and launch were repeated, followed by a second
+successful exit. The old bounded video-reader session ended during later
+review; replay/launch/exit were repeated with a new reader. Live-status records
+show one viewer and frame ages of 10/11 ms for those checks. The eight-second
+HDMI sample contained signal, peak 0.02960/RMS 0.004464, without digital
+clipping. Edge wrapping, monster interactions and subjective/extended audio
+remain unqualified. Evidence and hashes are in ignored
+`build-xbox/hardware/doodle-hill-qualification.json`, `doodle-*.jpg`,
+`doodle-gameplay-audio.json` and `doodle-final-return-status.json`.
+
+## Hill Climb Racing and the Scratch font (October 26)
+
+The same browser launched Hill Climb Racing. Right accelerated the jeep and
+collected coins to Score=900; Left was exercised during that run. A crash
+showed the authored loss message. A/Space restarted with Score=0, restored
+fuel and Personal Best=900. Black/R and X/V do not bypass the game-over menu
+because the project waits for Space there. During active play, X switched
+to a motorcycle and different terrain; driving reached Score=420 with a
+visible +200 airtime bonus. Black/R then reset that active run to zero and
+restored fuel. Runtime pause, browser exit, a fresh jeep launch and another
+exit succeeded. Both vehicle selection and these extra shortcuts are supplied
+by the installed control profile; game scripts are unchanged.
+
+A natural fuel expiry exposed a separate visual defect: “Out of Fuel!” lost
+its ending, as did the countdown. The project uses the `Scratch` font, which
+was missing and fell back to a wider serif font. The
+[font compatibility repair](xbox-scratch-font.md) registers the open-font,
+metric-compatible Scratch Savers replacement and retains its attribution.
+Host rendering verified the original messages now fit their unchanged SVGs.
+The existing Asteroids ending also rendered pixel-identically with/without
+the newly registered font (SHA-256
+`101f8d8a9c2983e7eb08f68556e9d5ef1532600108589cfd70ec116837e03e8e`
+for both host regression PNGs, using a white background).
+
+The font candidate `fe4329c2…` was uploaded to a separate folder and read
+back. On hardware, `hill-font-countdown-20.jpg` shows the complete countdown,
+`hill-font-fuel-watch.jpg` shows the complete fuel-loss message, and
+`hill-font-crash-check.jpg` shows the complete crash message after Score=1,000.
+A replayed each loss; after crash replay Personal Best=1,000 remained visible.
+Runtime exit, a visually confirmed fresh browser launch and a second exit
+passed again on this candidate. A fresh process/project load starts Personal
+Best at zero; no cross-launch local score persistence is established.
+
+The 7.995-second HDMI sample contained signal, peak 0.07767/RMS 0.01437,
+without digital clipping. Extended terrain, precise brake/air control, fuel
+pickup, authored Y pause and subjective/long-run audio remain outstanding.
+Evidence is in `doodle-hill-qualification.json`, `scratch-font-deploy.json`,
+`hill-font-*.jpg` and the saved hardware logs under ignored
+`build-xbox/hardware`. The regular Games launcher still retains its prior
+production build; this candidate has not been promoted across the library.

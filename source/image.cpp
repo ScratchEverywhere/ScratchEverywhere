@@ -67,6 +67,7 @@ std::unordered_map<std::string, std::weak_ptr<Image>> images;
 std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
     {"", {"gfx/ingame/fonts/NotoSerif-Regular", false}},
     {"Sans Serif", {"gfx/ingame/fonts/NotoSans-Medium", false}},
+    {"Scratch", {"gfx/ingame/fonts/ScratchSavers", false}},
     {"Handwriting", {"gfx/ingame/fonts/Handlee-Regular", false}},
     {"Marker", {"gfx/ingame/fonts/Knewave-Regular", false}},
     {"Curly", {"gfx/ingame/fonts/Griffy-Regular", false}},
