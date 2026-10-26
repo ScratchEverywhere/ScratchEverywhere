@@ -12,6 +12,7 @@
 #include <string>
 #include <types.hpp>
 #include <vector>
+#include <xbox_menu_trace.hpp>
 #ifdef __XBOX__
 #include <log.hpp>
 #endif
@@ -195,6 +196,7 @@ void InputDevice_SDL3::getInput() {
 #endif
 
     BlockExecutor::executeKeyHats();
+    XboxMenuTrace::gameFrame();
 
 #ifdef PLATFORM_HAS_TOUCH
     int numDevices, numFingers;

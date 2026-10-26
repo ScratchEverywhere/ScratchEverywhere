@@ -42,6 +42,14 @@ set(SE_PLATFORM "xbox")
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
+option(SE_XBOX_TRACE_MENU_INPUT "Log bounded Xbox menu handoff input snapshots" OFF)
+if(SE_XBOX_TRACE_MENU_INPUT)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/projectMenu.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/input_sdl3.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_MENU_INPUT)
+endif()
 option(SE_XBOX_TRACE_RENDERER "Log GPU pixel probes and render-cache statistics" OFF)
 if(SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE

@@ -4,6 +4,7 @@
 #include <runtime.hpp>
 #include <speech_manager.hpp>
 #include <utility>
+#include <xbox_menu_trace.hpp>
 #include <algorithm>
 #ifdef SE_XBOX_TRACE_GAME_STATE
 #include <blockExecutor.hpp>
@@ -87,6 +88,8 @@ void PauseMenu::init() {
 }
 
 void PauseMenu::finishAction(Action action) {
+    if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("pause released " + std::to_string(static_cast<int>(action)));
+    XboxMenuTrace::beginGameFrames();
     pendingAction = Action::None;
     if (action == Action::Exit) Scratch::shouldStop = true;
     if (action == Action::GreenFlag) Scratch::greenFlagClicked();
@@ -99,6 +102,7 @@ void PauseMenu::requestAction(Action action) {
     // Keep UI controls installed until confirmation is released. Otherwise A
     // becomes the game's Space key on the first frame after Green Flag/resume.
     pendingAction = action;
+    if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("pause requested " + std::to_string(static_cast<int>(action)));
 #else
     finishAction(action);
 #endif

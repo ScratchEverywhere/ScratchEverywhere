@@ -81,3 +81,28 @@ yellow pieces in columns 5–6. The visible result is retained as
 `menu-input-connect-horizontal-win.jpg`. The prepared project contains sound
 assets but no authored sound-playback blocks were found; silence is not treated
 as an audio-backend failure.
+
+A second held-confirmation Exit after the horizontal win returned to the
+populated browser before Jumper was selected for the next hardware test.
+
+A later Jumper run on the SVG-bounds candidate (`1953d3d1…`) unexpectedly
+loaded 2048 after its second Exit. The saved hardware log confirms a real load
+of the first browser entry after cleanup. An initial matching xemu Exit stayed
+in the browser. The bounded `SE_XBOX_TRACE_MENU_INPUT` diagnostic records
+physical buttons, mapped keys, held durations and handoff times to distinguish
+a second controller report from stale UI state. This failure remains open;
+the earlier successful exits do not establish universal handoff reliability.
+
+The first bounded hardware trace (`menu-input-trace-first.log`) recorded a
+neutral pause release, neutral browser arming and eight neutral post-handoff
+polls. This Exit remained in the browser, so it does not identify the cause
+of the intermittent failure. It also recorded an intentional fresh gameplay
+A mapped to Up immediately after launch, which exposed Jumper’s separate
+menu-entrance readiness race.
+
+The readiness-fixed Jumper archive then completed two more launch/Exit
+sequences on the trace build. Both exits stayed in the browser. The saved
+`menu-input-trace-readiness.log` records neutral pause release, browser arming
+and all bounded post-handoff polls on both returns; no unexpected browser
+acceptance was recorded. This still does not reproduce or resolve the earlier
+automatic 2048 launch.
