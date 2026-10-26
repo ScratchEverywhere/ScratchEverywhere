@@ -78,6 +78,8 @@ bool frameStarted();
 
 void present(RenderTarget &source);
 
+void presentSplit(RenderTarget &source);
+
 void *allocate(size_t size, size_t alignment);
 void release(void *memory);
 

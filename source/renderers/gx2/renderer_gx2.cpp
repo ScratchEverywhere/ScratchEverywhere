@@ -30,6 +30,26 @@ static bool hasOverrideTarget = false;
 static int overrideWidth = 0;
 static int overrideHeight = 0;
 
+static GX2Gfx::RenderTarget comboSceneTarget;
+static int comboWidth = 0;
+static int comboHeight = 0;
+
+static bool ensureComboSceneTarget() {
+    const int width = Scratch::projectWidth;
+    const int height = Scratch::projectHeight;
+    if (comboSceneTarget.valid && comboWidth == width && comboHeight == height) return true;
+
+    if (comboSceneTarget.valid) GX2Gfx::destroyRenderTarget(comboSceneTarget);
+    if (!GX2Gfx::createRenderTarget(comboSceneTarget, width, height)) {
+        Log::logError("[GX2] Failed to create the dual-screen combo render target");
+        comboWidth = comboHeight = 0;
+        return false;
+    }
+    comboWidth = width;
+    comboHeight = height;
+    return true;
+}
+
 static int effectiveWidth(WindowSE *window) {
     if (hasOverrideTarget) return overrideWidth;
     return window ? window->getWidth() : 854;
@@ -46,6 +66,22 @@ static GX2ColorBuffer *mainColorBuffer() {
 
 static void bindMainTarget(WindowSE *window) {
     GX2Gfx::setRenderTarget(mainColorBuffer(), effectiveWidth(window), effectiveHeight(window));
+}
+
+static void enterComboTarget(WindowSE *window) {
+    overrideColorBuffer = &comboSceneTarget.colorBuffer;
+    overrideWidth = comboWidth;
+    overrideHeight = comboHeight;
+    hasOverrideTarget = true;
+    bindMainTarget(window);
+}
+
+static void exitComboTarget(WindowSE *window) {
+    hasOverrideTarget = false;
+    overrideColorBuffer = nullptr;
+    overrideWidth = 0;
+    overrideHeight = 0;
+    bindMainTarget(window);
 }
 
 static constexpr uint32_t kSolidStride = 6 * sizeof(float);
@@ -297,6 +333,8 @@ Renderer_GX2::~Renderer_GX2() {
     }
 
     GX2Gfx::destroyRenderTarget(sceneTarget);
+    GX2Gfx::destroyRenderTarget(comboSceneTarget);
+    comboWidth = comboHeight = 0;
     GX2Gfx::shutdown();
 
     if (window) {
@@ -435,9 +473,24 @@ void Renderer_GX2::penStamp(Sprite *sprite) {
     Image_GX2 *image = reinterpret_cast<Image_GX2 *>(imgFind->second.get());
 
     const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
-    Render::calculateRenderPosition(sprite, isSVG);
 
+    const bool dualScreen = Render::renderMode == Render::BOTH_SCREENS;
+    const bool enteredComboForStamp = dualScreen && !hasOverrideTarget && ensureComboSceneTarget();
+    if (enteredComboForStamp) {
+        overrideWidth = comboWidth;
+        overrideHeight = comboHeight;
+        hasOverrideTarget = true;
+    }
+
+    Render::calculateRenderPosition(sprite, isSVG);
     auto cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
+
+    if (enteredComboForStamp) {
+        hasOverrideTarget = false;
+        overrideWidth = 0;
+        overrideHeight = 0;
+    }
+
     float penX = static_cast<float>(cords.first + Scratch::projectWidth / 2.0);
     float penY = static_cast<float>(-cords.second + Scratch::projectHeight / 2.0);
 
@@ -578,7 +631,12 @@ void Renderer_GX2::renderPenLayer() {
 void Renderer_GX2::renderSprites() {
     GX2Gfx::beginFrame();
     flushPenTarget(window);
-    bindMainTarget(window);
+
+    bool dualScreen = Render::renderMode == Render::BOTH_SCREENS;
+    if (dualScreen && !ensureComboSceneTarget()) dualScreen = false;
+
+    if (dualScreen) enterComboTarget(window);
+    else bindMainTarget(window);
     GX2Gfx::clear(1.0f, 1.0f, 1.0f, 1.0f);
 
     float proj[16];
@@ -618,10 +676,17 @@ void Renderer_GX2::renderSprites() {
 
     if (speechManager) speechManager->render();
 
-    drawBlackBars(getWidth(), getHeight(), proj);
+    if (!dualScreen) drawBlackBars(getWidth(), getHeight(), proj);
     Render::renderMonitors();
 
-    endFrame(true);
+    if (dualScreen) {
+        flushPenTarget(window);
+        exitComboTarget(window);
+        GX2Gfx::presentSplit(comboSceneTarget);
+        hasFrameBegan = false;
+    } else {
+        endFrame(true);
+    }
 }
 
 bool Renderer_GX2::appShouldRun() {

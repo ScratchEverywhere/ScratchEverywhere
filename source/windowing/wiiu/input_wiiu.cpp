@@ -164,10 +164,15 @@ void InputDevice_WiiU::getInput() {
     BlockExecutor::executeKeyHats();
 
     if (touching) {
-        const std::array<int, 2> pos = getTouchPosition();
-        const auto coords = Scratch::screenToScratchCoords(pos[0], pos[1], Render::getWidth(), Render::getHeight());
-        Input::mousePointer.x = coords.first;
-        Input::mousePointer.y = coords.second;
+        if (Render::renderMode == Render::BOTH_SCREENS) {
+            Input::mousePointer.x = (lastTouch[0] / GAMEPAD_SCREEN_WIDTH) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+            Input::mousePointer.y = -(lastTouch[1] / GAMEPAD_SCREEN_HEIGHT) * (Scratch::projectHeight / 2.0f);
+        } else {
+            const std::array<int, 2> pos = getTouchPosition();
+            const auto coords = Scratch::screenToScratchCoords(pos[0], pos[1], Render::getWidth(), Render::getHeight());
+            Input::mousePointer.x = coords.first;
+            Input::mousePointer.y = coords.second;
+        }
         Input::mousePointer.isPressed = true;
         Input::mousePointer.isMoving = true;
     }

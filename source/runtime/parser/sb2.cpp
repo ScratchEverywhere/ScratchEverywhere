@@ -403,7 +403,7 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::miscellaneousLimits = true;
     Scratch::maxClones = 300;
 
-    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D || Render::currentRenderer == Renderers::GX2) {
         auto bottomScreen = Unzip::getSetting("bottomScreen");
         if (!bottomScreen.is_null() && bottomScreen.get<bool>())
             Render::renderMode = Render::BOTTOM_SCREEN_ONLY;

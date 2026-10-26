@@ -382,61 +382,98 @@ void beginFrame() {
 
 bool frameStarted() { return g.frameStarted; }
 
+namespace {
+
+void blitRegion(RenderTarget &source, GX2ColorBuffer *target, float v0, float v1) {
+    const int tw = static_cast<int>(target->surface.width);
+    const int th = static_cast<int>(target->surface.height);
+    const float regionHeight = static_cast<float>(source.height) * (v1 - v0);
+    const float sourceAspect = static_cast<float>(source.width) / regionHeight;
+
+    invalidateStateCache();
+    setViewport(tw, th);
+    applyRasterDefaults();
+    setBlend(Blend::None);
+    bindProgram(g.sprite);
+
+    float destW = static_cast<float>(tw);
+    float destH = destW / sourceAspect;
+    if (destH > static_cast<float>(th)) {
+        destH = static_cast<float>(th);
+        destW = destH * sourceAspect;
+    }
+    const float destX = (static_cast<float>(tw) - destW) * 0.5f;
+    const float destY = (static_cast<float>(th) - destH) * 0.5f;
+
+    float projection[16];
+    buildOrtho(projection, 0.0f, static_cast<float>(tw), static_cast<float>(th), 0.0f);
+
+    float model[16] = {};
+    model[0] = destW;
+    model[5] = destH;
+    model[10] = 1.0f;
+    model[12] = destX;
+    model[13] = destY;
+    model[15] = 1.0f;
+
+    SpriteParams params;
+    params.texWidth = static_cast<float>(source.width);
+    params.texHeight = regionHeight;
+    setSpriteUniforms(model, projection, params);
+
+    const bool scaled = static_cast<float>(tw) != source.width || static_cast<float>(th) != regionHeight;
+    bindTexture(source.texture, g.sprite.samplerLocation, scaled ? Filter::Linear : Filter::Nearest);
+
+    float *verts = static_cast<float *>(streamAllocate(16 * sizeof(float)));
+    if (verts) {
+        const float quad[16] = {
+            0.0f, 0.0f, 0.0f, v0,
+            1.0f, 0.0f, 1.0f, v0,
+            1.0f, 1.0f, 1.0f, v1,
+            0.0f, 1.0f, 0.0f, v1};
+        std::memcpy(verts, quad, sizeof(quad));
+        drawStream(verts, sizeof(quad), 4 * sizeof(float), GX2_PRIMITIVE_MODE_QUADS, 4);
+    }
+}
+
+} // namespace
+
 void present(RenderTarget &source) {
     if (!g.frameStarted) beginFrame();
 
     makeReadable(source);
 
-    const float sourceAspect = static_cast<float>(source.width) / static_cast<float>(source.height);
-
-    auto blit = [&](GX2ColorBuffer *target) {
-        const int tw = static_cast<int>(target->surface.width);
-        const int th = static_cast<int>(target->surface.height);
-
-        invalidateStateCache();
-        setViewport(tw, th);
-        applyRasterDefaults();
-        setBlend(Blend::None);
-        bindProgram(g.sprite);
-
-        float destW = static_cast<float>(tw);
-        float destH = destW / sourceAspect;
-        if (destH > static_cast<float>(th)) {
-            destH = static_cast<float>(th);
-            destW = destH * sourceAspect;
-        }
-        const float destX = (static_cast<float>(tw) - destW) * 0.5f;
-        const float destY = (static_cast<float>(th) - destH) * 0.5f;
-
-        float projection[16];
-        buildOrtho(projection, 0.0f, static_cast<float>(tw), static_cast<float>(th), 0.0f);
-
-        float model[16] = {};
-        model[0] = destW;
-        model[5] = destH;
-        model[10] = 1.0f;
-        model[12] = destX;
-        model[13] = destY;
-        model[15] = 1.0f;
-
-        SpriteParams params;
-        params.texWidth = static_cast<float>(source.width);
-        params.texHeight = static_cast<float>(source.height);
-        setSpriteUniforms(model, projection, params);
-
-        const bool scaled = tw != source.width || th != source.height;
-        bindTexture(source.texture, g.sprite.samplerLocation, scaled ? Filter::Linear : Filter::Nearest);
-        drawUnitQuad();
-    };
-
     WHBGfxBeginRenderTV();
     WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    blit(WHBGfxGetTVColourBuffer());
+    blitRegion(source, WHBGfxGetTVColourBuffer(), 0.0f, 1.0f);
     WHBGfxFinishRenderTV();
 
     WHBGfxBeginRenderDRC();
     WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    blit(WHBGfxGetDRCColourBuffer());
+    blitRegion(source, WHBGfxGetDRCColourBuffer(), 0.0f, 1.0f);
+    WHBGfxFinishRenderDRC();
+
+    WHBGfxFinishRender();
+
+    flushDeferred();
+    g.frameStarted = false;
+    GX2SetContextState(g.context);
+    invalidateStateCache();
+}
+
+void presentSplit(RenderTarget &source) {
+    if (!g.frameStarted) beginFrame();
+
+    makeReadable(source);
+
+    WHBGfxBeginRenderTV();
+    WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    blitRegion(source, WHBGfxGetTVColourBuffer(), 0.0f, 0.5f);
+    WHBGfxFinishRenderTV();
+
+    WHBGfxBeginRenderDRC();
+    WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    blitRegion(source, WHBGfxGetDRCColourBuffer(), 0.5f, 1.0f);
     WHBGfxFinishRenderDRC();
 
     WHBGfxFinishRender();

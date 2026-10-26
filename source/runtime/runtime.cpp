@@ -764,8 +764,8 @@ void Scratch::stopClicked() {
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-    if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
-        // 3DS res with both screens combined
+    if ((Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) && Render::renderMode == Render::BOTH_SCREENS) {
+        // 3DS/Wii U res with both screens combined
         windowWidth = 400;
         windowHeight = 480;
     }
@@ -802,7 +802,7 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
         float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
         scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
         scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
-        if (Render::currentRenderer == Renderers::Citro2D && Render::renderMode == Render::BOTH_SCREENS) {
+        if ((Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) && Render::renderMode == Render::BOTH_SCREENS) {
             scratchY -= 120;
         }
     }
