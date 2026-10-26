@@ -18,7 +18,7 @@ neutralize all reports afterwards.
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
 | Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 4 apples; pause/exit; fresh relaunch | Full level; lwmem loading; loss/replay/audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; intermittent blank startup; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
@@ -226,3 +226,46 @@ artifact paths and remaining qualification work.
 After returning to XBMC with the controller reset combo, the same fixed XBE
 booted a visible browser again and launched the full Appel title screen.
 Evidence: `appel-fixed-repeat-title.jpg`. The console was left on that title.
+
+
+## Appel extended play and HDMI audio (October 25, 2026)
+
+The same native GPU-range build reached ten apples, traversing both opening
+checkpoints, ground spikes, an overhead spiked platform, blue weak platforms,
+red enemies and the lower route under a floating spiked eye. Spike and enemy
+deaths showed the breakup animation and respawned at the start or the activated
+checkpoint. The retrieved `appel-death-and-audio.log` records APPLES=10,
+LIVES=0, GAME STATE=PLAY, 167 clones and 63 Foreground tiles. This is extended
+play evidence, not a level-completion pass.
+
+The KVM HDMI PCM endpoint captured actual 48kHz stereo output. A 11.995-second
+sample had peak 0.2494, RMS 0.008734 and zero reported capture overruns. Its
+spectral pattern matches the bundled music (cosine similarity 0.723 versus
+0.180 median at unrelated alignments). Sample correlation also identifies the
+Player impact sound at 0.991 and jump at 0.780. Thus music and effects reach the
+HDMI output without digital clipping in this sample; subjective listening and
+long-run audio stability are separate checks. Evidence: `appel-death-audio.wav`,
+`appel-death-audio.json`, `appel-audio-verification.json`, `appel-sfx-matches.json`
+and `appel-blue-enemy-combined.jpg` in ignored `build-xbox/hardware`.
+
+`examples/appel-xbox-controls.json` adds Y -> P (Appel pause) and Back -> Q;
+Black already maps to R, so Back+Black supplies Appel's authored Q+R quick
+restart. This profile is specific to Appel, preserving the generic arrow-game
+profile for other games. Hardware verification passed: Y opened Appel's pause menu; Y resumed it;
+Back+Black reset APPLES from 1 to 0, the timer to 0:00.0 and the player to
+the start without rebooting. Evidence: `appel-y-pause-test.jpg` and
+`appel-quick-restart-result.jpg`.
+
+One profile-reload boot again rendered only clear colors, although its log
+retained all 63 Foreground clones. Retrying the unchanged XBE restored browser
+and Appel rendering. Startup rendering remains intermittently unreliable.
+
+Quick restart also passed after a subsequent spike death: APPLES=0,
+timer=0:00.0 and the player returned to the start, then Y opened the game pause
+menu. The console was left there, safely paused; Y resumes. Evidence:
+`appel-restart-after-death-paused.jpg`. A further 9.995-second HDMI recording
+after restart contained nonzero game audio (peak 0.1465, RMS 0.006139), with no
+reported capture overruns (`appel-after-restart-audio*.json/.wav`). First-level
+completion remains unverified: the best attempt collected ten apples and
+passed both opening checkpoints before repeated deaths. No completion screen
+or completed-level replay is claimed.

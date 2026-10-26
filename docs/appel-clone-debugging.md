@@ -81,8 +81,8 @@ context range (`MAXRAM`, 0x03FFAFFF). Restricting those three GPU allocations to
 MAXRAM restored the browser, title, level picker and terrain. CPU allocations
 can still use expanded RAM. The dependency patch applies cleanly to its pinned
 upstream source. Existing Catalog checkouts cache applied patches: refresh SDL3
-when adopting this change (`-DREFRESH_SDL3=ON` for that configure, then remove
-the refresh setting for subsequent builds).
+when adopting this change (`-DCL_REFRESH_SDL3=ON` for that configure, then remove
+the refresh setting for subsequent builds with `-UCL_REFRESH_SDL3`).
 
 On the physical console, the level labeled LEVEL 1 entered play (its internal
 LEVEL # is 2). Right movement, A+jump, raised platforms, scrolling ground and
@@ -95,5 +95,12 @@ The generated empty-input fixture also ran on hardware and displayed/logged
 PASSES=3, ERRORS=0, EMPTY ADD=7. It was removed from the console afterward.
 Proof is retained in ignored `build-xbox/hardware/appel-fixed-gpu-range.log`,
 `appel-terrain-four-apples.jpg`, `appel-fixed-exit-browser.jpg` and
-`empty-input-result.jpg`. Full-level completion, death/replay and audio remain
-separate qualification work.
+`empty-input-result.jpg`. At that point, full-level completion, death/replay and audio remained
+separate qualification work; subsequent checks are in the qualification log.
+
+A later extended-test boot still produced a purple browser and black Appel
+scene despite the GPU range restriction. Its pause log retained the correct
+156 menu clones and all 63 Foreground tiles. The range restriction is a valid
+DMA constraint and improved the tested run, but it does not establish that the
+intermittent startup rendering failure is fully resolved. Retrying the same
+XBE returned a visible browser. Evidence: `appel-profile-black-startup.log`.

@@ -1,0 +1,24 @@
+{
+  "controls": {
+    "up arrow": ["dpadUp", "LeftStickUp"],
+    "down arrow": ["dpadDown", "LeftStickDown"],
+    "left arrow": ["dpadLeft", "LeftStickLeft"],
+    "right arrow": ["dpadRight", "LeftStickRight"],
+    "space": "A",
+    "a": "X",
+    "b": "B",
+    "p": "Y",
+    "l": "shoulderL",
+    "r": "shoulderR",
+    "1": "start",
+    "q": "back",
+    "c": "LeftStickPressed",
+    "5": "RightStickRight",
+    "4": "RightStickLeft",
+    "3": "RightStickDown",
+    "2": "RightStickUp",
+    "v": "RightStickPressed",
+    "z": "LT",
+    "f": "RT"
+  }
+}
