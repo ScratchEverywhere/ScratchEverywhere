@@ -33,7 +33,7 @@ set(CMAKE_CXX_COMPILER "${PS3DEV}/ppu/bin/ppu-g++")
 
 set(PPU_CFLAGS "-mhard-float -fmodulo-sched -ffunction-sections -fdata-sections -I${PSL1GHT}/ppu/include -I${PSL1GHT}/portlibs/ppu/include -I${PSL1GHT}/portlibs/ppu/include/SDL2 -I${PSL1GHT}/ppu/include/simdmath -D__PS3__")
 set(PPU_CXXFLAGS "-D_GLIBCXX11_USE_C99_STDIO=1 -D_GLIBCXX11_USE_C99_STDLIB=1 ${PPU_CFLAGS}")
-set(PPU_LDFLAGS "-mhard-float -fmodulo-sched -Wl,--gc-sections -L${PSL1GHT}/ppu/lib -L${PS3DEV}/portlibs/ppu/lib -lm -lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2")
+set(PPU_LDFLAGS "-mhard-float -fmodulo-sched -Wl,--gc-sections -L${PSL1GHT}/ppu/lib -L${PS3DEV}/portlibs/ppu/lib -lm -lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lpthread")
 
 set(CMAKE_INSTALL_PREFIX ${PS3DEV}/portlibs/ppu)
 

@@ -23,8 +23,12 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
+# for some reason it doesn't compile with svg????
+set(SE_SVG OFF CACHE BOOL "Enable support for SVG images." FORCE)
+
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-exceptions -fno-rtti")
 
 macro(package_platform)
+	target_link_libraries(scratch-everywhere PRIVATE /usr/local/ps3dev/ppu/lib/libpthread.a)
 	# Packaging is done manually via gfx/ps3/makepkg.sh for now.
 endmacro()
