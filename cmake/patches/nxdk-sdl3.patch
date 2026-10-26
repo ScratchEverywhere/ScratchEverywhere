@@ -72,7 +72,7 @@ index db1494a..3ac858a 100644
      return true;
  }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..6646807 100644
+index df82129..5e32d54 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
 @@ -14,11 +14,14 @@
@@ -363,7 +363,59 @@ index df82129..6646807 100644
      while (cmd) {
          switch (cmd->command) {
          case SDL_RENDERCMD_SETVIEWPORT:
-@@ -819,6 +959,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
+@@ -755,7 +895,6 @@ static SDL_Surface *XBOX_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect
+         return NULL;
+     }
+     const SDL_PixelFormat dst_format = surface->format;
+-    const int dst_bytes_per_pixel = SDL_BYTESPERPIXEL(dst_format);
+     const int dst_pitch = surface->pitch;
+     uint8_t *dst8 = surface->pixels;
+
+@@ -771,23 +910,30 @@ static SDL_Surface *XBOX_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect
+
+     XVideoFlushFB();
+
+-    // Get the back buffer as the source
+-    VIDEO_MODE vm = XVideoGetMode();
+     SDL_PixelFormat src_format;
+-    if (vm.bpp == 15) {
+-        src_format = SDL_PIXELFORMAT_XRGB1555;
+-    } else if (vm.bpp == 16) {
+-        src_format = SDL_PIXELFORMAT_RGB565;
++    int src_pitch;
++    const uint8_t *src8;
++    if (render_data->active_render_target) {
++        // Render targets are linear and have their own dimensions and pitch.
++        src_format = renderer->target->format;
++        src_pitch = render_data->active_render_target->pitch;
++        src8 = render_data->active_render_target->data;
+     } else {
+-        src_format = SDL_PIXELFORMAT_ARGB8888;
++        VIDEO_MODE vm = XVideoGetMode();
++        src_format = vm.bpp == 15 ? SDL_PIXELFORMAT_XRGB1555 :
++                     vm.bpp == 16 ? SDL_PIXELFORMAT_RGB565 : SDL_PIXELFORMAT_ARGB8888;
++        src_pitch = pb_back_buffer_pitch();
++        src8 = (const uint8_t *)pb_back_buffer();
+     }
+-    const int src_pitch = vm.width * ((vm.bpp + 7) / 8);
+-    const uint8_t *src8 = (const uint8_t *)pb_back_buffer();
++    const int src_bytes_per_pixel = SDL_BYTESPERPIXEL(src_format);
+
+-    // Now copy the back buffer pixels to the surface
+-    SDL_ConvertPixels(rect->w, rect->h,
+-                      src_format, &src8[rect->y * src_pitch + rect->x * dst_bytes_per_pixel], src_pitch,
+-                      dst_format, &dst8[rect->y * dst_pitch + rect->x * dst_bytes_per_pixel], dst_pitch);
++    // The result is rect-sized: only the source includes the rectangle offset.
++    if (!SDL_ConvertPixels(rect->w, rect->h,
++                           src_format, &src8[rect->y * src_pitch + rect->x * src_bytes_per_pixel], src_pitch,
++                           dst_format, dst8, dst_pitch)) {
++        SDL_DestroySurface(surface);
++        return NULL;
++    }
+
+     return surface;
+ }
+@@ -819,6 +965,8 @@ static bool XBOX_RenderPresent(SDL_Renderer *renderer)
      calculate_fps(FPS_STAGE_RESET);
      pb_reset();
      pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
@@ -372,7 +424,7 @@ index df82129..6646807 100644
      return true;
  }
  
-@@ -915,14 +1057,28 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -915,14 +1063,29 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      }
 
      p = pb_begin();
@@ -399,11 +451,12 @@ index df82129..6646807 100644
 +    render_data->clip_rect.h = pb_back_buffer_height();
 +    render_data->active_texture = NULL;
 +    render_data->texture_shader_active = -1;
++    render_data->active_blend_mode = (SDL_BlendMode)-1;
 +
      const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
      pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
      pb_bind_channel(&render_data->render_target_dma_ctx);
-@@ -970,7 +1126,9 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+@@ -970,7 +1133,9 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA8888);
      SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);
@@ -414,7 +467,7 @@ index df82129..6646807 100644
  
      // This hint makes SDL use the driver line API.
      SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
-@@ -1019,6 +1177,14 @@ static bool sdl_to_xgu_surface_format(SDL_PixelFormat sdl_format, int *xgu_surfa
+@@ -1019,6 +1184,14 @@ static bool sdl_to_xgu_surface_format(SDL_PixelFormat sdl_format, int *xgu_surfa
  static bool sdl_to_xgu_texture_format(SDL_PixelFormat fmt, int *xgu_format, int *bytes_per_pixel, bool swizzled)
  {
      switch (fmt) {
@@ -429,7 +482,7 @@ index df82129..6646807 100644
      case SDL_PIXELFORMAT_ARGB1555:
          *xgu_format = (swizzled) ? XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED : XGU_TEXTURE_FORMAT_A1R5G5B5;
          *bytes_per_pixel = 2;
-@@ -1059,7 +1225,7 @@ static bool sdl_to_xgu_texture_format(SDL_PixelFormat fmt, int *xgu_format, int
+@@ -1059,7 +1232,7 @@ static bool sdl_to_xgu_texture_format(SDL_PixelFormat fmt, int *xgu_format, int
  static bool arena_init(SDL_Renderer *renderer)
  {
      xgu_render_data_t *render_data = (xgu_render_data_t *)renderer->internal;
@@ -438,7 +491,7 @@ index df82129..6646807 100644
                                                              PAGE_WRITECOMBINE | PAGE_READWRITE);
      if (render_data->vertex_data == NULL) {
          SDL_SetError("Failed to allocate XGU arena");
-@@ -1080,21 +1246,29 @@ static void *arena_allocate(SDL_Renderer *renderer, size_t size, size_t *vertex_
+@@ -1080,21 +1253,29 @@ static void *arena_allocate(SDL_Renderer *renderer, size_t size, size_t *vertex_
      // Ensure alignment. If every allocation is aligned, we know every pointer will be aligned.
      size = (size + SDL_XGU_VERTEX_ALIGNMENT - 1) & ~(SDL_XGU_VERTEX_ALIGNMENT - 1);
  
@@ -478,6 +531,46 @@ index df82129..6646807 100644
      }
  
      void *ptr = (void *)((intptr_t)render_data->vertex_data + render_data->vertex_arena_offset);
+@@ -1116,6 +1297,7 @@ static void set_blend_mode(SDL_Renderer *renderer, SDL_BlendMode blendMode)
+
+     XguBlendFactor sfactor;
+     XguBlendFactor dfactor;
++    bool premultiply = (blendMode == SDL_BLENDMODE_BLEND);
+
+     switch (blendMode) {
+     case SDL_BLENDMODE_NONE:
+@@ -1123,7 +1305,9 @@ static void set_blend_mode(SDL_Renderer *renderer, SDL_BlendMode blendMode)
+         dfactor = XGU_FACTOR_ZERO;
+         break;
+     case SDL_BLENDMODE_BLEND:
+-        sfactor = XGU_FACTOR_SRC_ALPHA;
++        // NV2A shares RGB and alpha blend factors. Premultiply RGB in the
++        // final combiner, then use ONE so alpha is not multiplied by itself.
++        sfactor = XGU_FACTOR_ONE;
+         dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+         break;
+     case SDL_BLENDMODE_BLEND_PREMULTIPLIED:
+@@ -1148,11 +1332,19 @@ static void set_blend_mode(SDL_Renderer *renderer, SDL_BlendMode blendMode)
+         break;
+     default:
+         SDL_Log("Unsupported blend mode %d, defaulting to SDL_BLENDMODE_BLEND", blendMode);
+-        sfactor = XGU_FACTOR_SRC_ALPHA;
++        premultiply = true;
++        sfactor = XGU_FACTOR_ONE;
+         dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+     }
+
+     p = pb_begin();
++    // Final RGB = A*B + (1-A)*C + D. Stage zero has already combined
++    // texture and vertex RGBA in DIFFUSE (0x4). Leave final alpha unchanged.
++    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
++        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, premultiply ? 0x4 : 0x0)
++        | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, premultiply ? 1 : 0)
++        | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, premultiply ? 0x4 : 0x0)
++        | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, premultiply ? 0x0 : 0x4));
+     p = xgu_set_blend_func_sfactor(p, sfactor);
+     p = xgu_set_blend_func_dfactor(p, dfactor);
+     p = push_command_parameter(p, NV097_SET_BLEND_EQUATION, NV097_SET_BLEND_EQUATION_V_FUNC_ADD);
 diff --git a/nxdk_glue/thread/SDL_systhread.c b/nxdk_glue/thread/SDL_systhread.c
 index ee7eee7..a38e69d 100644
 --- a/nxdk_glue/thread/SDL_systhread.c

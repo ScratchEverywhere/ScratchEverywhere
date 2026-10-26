@@ -1,4 +1,5 @@
 #include "collision.hpp"
+#include "color_effects.hpp"
 #include "image.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
@@ -330,7 +331,9 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
 
-    return mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB);
+    if (!mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB)) return false;
+    ScratchColorTransform(sprite->colorEffect, sprite->brightnessEffect).apply(outR, outG, outB);
+    return true;
 }
 
 static std::vector<Sprite *> colorEnvironment(Sprite *self, float selfRadius) {

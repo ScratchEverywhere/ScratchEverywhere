@@ -463,6 +463,15 @@ void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool i
 }
 
 #ifdef SE_XBOX_TRACE_RENDERER
+static void traceEffectCache() {
+    static unsigned frames = 0;
+    if (++frames % 120 != 0) return;
+    const auto stats = Image_Xbox::getEffectCacheStats();
+    Log::log("GPU effect cache bytes=" + std::to_string(stats.bytes) +
+             " peak=" + std::to_string(stats.peakBytes) + " entries=" + std::to_string(stats.entries) +
+             " created=" + std::to_string(stats.created) + " evicted=" + std::to_string(stats.evicted));
+}
+
 static bool traceStartupPixels(SDL_Renderer *renderer) {
     // Exercise the actual GPU path, including state changes used by games.
     bool passed = true;
@@ -473,11 +482,12 @@ static bool traceStartupPixels(SDL_Renderer *renderer) {
     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     SDL_SetRenderViewport(renderer, nullptr);
     auto pixel = [&](SDL_Surface *surface, const char *test, int x, int y,
-                     int expectedR, int expectedG, int expectedB, int tolerance = 0) {
+                     int expectedR, int expectedG, int expectedB, int tolerance = 0, int expectedA = -1) {
         Uint8 r = 0, g = 0, b = 0, a = 0;
         bool read = surface && SDL_ReadSurfacePixel(surface, x, y, &r, &g, &b, &a);
         bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
-                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance;
+                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance &&
+                       (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
         Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
                  " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
         passed &= matches;
@@ -535,7 +545,42 @@ static bool traceStartupPixels(SDL_Renderer *renderer) {
         SDL_SetTextureAlphaMod(texture, 128);
         passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
         pixels = SDL_RenderReadPixels(renderer, nullptr);
-        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1);
+        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1, 255);
+        SDL_DestroySurface(pixels);
+    }
+    if (texture && target) {
+        passed &= SDL_SetRenderTarget(renderer, target);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+        passed &= SDL_RenderClear(renderer);
+        const SDL_FRect entireTarget = {0, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, texture, nullptr, &entireTarget);
+        const SDL_FColor halfRed = {1, 0, 0, 128.0f / 255.0f};
+        const SDL_Vertex halfTriangle[] = {
+            {{0, 0}, halfRed, {0, 0}}, {{64, 0}, halfRed, {0, 0}}, {{0, 64}, halfRed, {0, 0}}
+        };
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        passed &= SDL_RenderGeometry(renderer, nullptr, halfTriangle, 3, nullptr, 0);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-alpha", 52, 52, 0, 128, 0, 1, 128);
+        pixel(pixels, "target-alpha-overlap", 8, 8, 128, 64, 0, 1, 192);
+        SDL_DestroySurface(pixels);
+        const SDL_Rect targetSample = {8, 8, 4, 4};
+        pixels = SDL_RenderReadPixels(renderer, &targetSample);
+        pixel(pixels, "target-subrect", 0, 0, 128, 64, 0, 1, 192);
+        SDL_DestroySurface(pixels);
+        passed &= SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        clearBlue();
+        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
+        const SDL_FRect targetDestination = {128, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-alpha-composite", 180, 52, 0, 128, 127, 1, 255);
+        pixel(pixels, "target-alpha-overlap-composite", 136, 8, 128, 64, 63, 1, 255);
+        SDL_DestroySurface(pixels);
+        const SDL_Rect mainSample = {136, 8, 4, 4};
+        pixels = SDL_RenderReadPixels(renderer, &mainSample);
+        pixel(pixels, "main-subrect", 0, 0, 128, 64, 63, 1, 255);
         SDL_DestroySurface(pixels);
     }
     SDL_DestroyTexture(target);
@@ -680,7 +725,9 @@ bool Renderer_Xbox::initPen() {
     }
 
     // Clear the texture
-    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
+    // Drawing into a transparent target stores premultiplied RGB. Composite it
+    // without multiplying that RGB by alpha a second time.
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
     SDL_SetTextureScaleMode(penTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
@@ -923,6 +970,7 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
+    params.colorEffect = sprite->colorEffect;
 
     image->render(params);
 
@@ -970,6 +1018,9 @@ void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Renderer_Xbox::endFrame(bool shouldFlush) {
     ensureMainTarget(Sdlrenderer);
     SDL_RenderPresent(Sdlrenderer);
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceEffectCache();
+#endif
     SDL_Delay(16);
     hasFrameBegan = false;
 }
@@ -1067,6 +1118,7 @@ void Renderer_Xbox::renderSprites() {
             params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
+            params.colorEffect = currentSprite->colorEffect;
 
             image->render(params);
         }
@@ -1095,6 +1147,9 @@ void Renderer_Xbox::renderSprites() {
 #endif
 
     SDL_RenderPresent(Sdlrenderer);
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceEffectCache();
+#endif
 }
 
 void Renderer_Xbox::renderPenLayer() {

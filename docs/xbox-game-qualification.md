@@ -29,7 +29,7 @@ neutralize all reports afterwards.
 | Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
-| 2048 (JereTheJuggler) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
 | Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
@@ -84,10 +84,16 @@ extended to a persistent one-hour stream, and live status showed one viewer
 and a frame age of 13ms before the replay/rotation/stick/hard-drop checks were
 repeated. Keep a live stream and verify freshness during later tests.
 
-All Tetris pieces render red. The project uses color effects; the Xbox renderer
-currently does not forward/apply `Sprite::colorEffect` as the OpenGL core
+At this test point, all Tetris pieces rendered red. The project uses color effects; the Xbox renderer
+did not forward/apply `Sprite::colorEffect` as the OpenGL core
 renderer does. Treat this as an unresolved compatibility defect, not a full
 game pass. No line-clear/scoring or audio acceptance is established yet.
+
+A subsequent [color/brightness/pen repair](xbox-color-effects.md) passes 1,756
+host math cases, fourteen GPU probes and 107/107 fixture pixels in xemu. It also
+fixes alpha compositing through the pen layer. This candidate is not yet on the
+physical console; colored Tetris pieces, line clearing, gameplay/audio and
+browser exit/relaunch still need hardware verification.
 
 The retrieved `build-xbox/hardware/replay-controls.log` confirms both arrow
 bindings for every direction, `space -> A`, active-controller changes, two

@@ -42,7 +42,7 @@ set(SE_PLATFORM "xbox")
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
-option(SE_XBOX_TRACE_RENDERER "Run and log a GPU pixel probe at startup" OFF)
+option(SE_XBOX_TRACE_RENDERER "Log GPU pixel probes and render-cache statistics" OFF)
 if(SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"

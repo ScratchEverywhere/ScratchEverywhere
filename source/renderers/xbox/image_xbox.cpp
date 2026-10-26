@@ -6,11 +6,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <color_effects.hpp>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem.hpp>
 #include <image.hpp>
 #include <log.hpp>
+#include <list>
+#include <memory>
 #include <os.hpp>
 #include <runtime.hpp>
 #include <stb_image.h>
@@ -125,6 +129,94 @@ static TexState &getTexState(SDL_Texture *tex) {
     g_mruTexture = tex;
     g_mruState = &state;
     return state;
+}
+
+struct EffectTile {
+    Image_Xbox *owner;
+    int x, y;
+    ScratchColorTransform effect;
+    SDL_Texture *texture;
+    size_t bytes;
+};
+
+// Cache individual tiles, so even a large effected backdrop can stream through
+// the same bounded cache. Untouched costumes allocate no additional textures.
+static std::list<EffectTile> g_effectTiles;
+static size_t g_effectBytes = 0;
+static size_t g_effectPeakBytes = 0;
+static uint32_t g_effectCreated = 0, g_effectEvicted = 0;
+static constexpr size_t EFFECT_CACHE_BYTES = 8 * 1024 * 1024;
+static constexpr size_t EFFECT_CACHE_TILES = 128;
+
+Image_Xbox::EffectCacheStats Image_Xbox::getEffectCacheStats() {
+    return {g_effectBytes, g_effectPeakBytes, g_effectTiles.size(), g_effectCreated, g_effectEvicted};
+}
+
+static void eraseEffectTile(std::list<EffectTile>::iterator entry) {
+    g_effectBytes -= entry->bytes;
+    safeDestroyTexture(entry->texture);
+    g_effectTiles.erase(entry);
+}
+
+static void clearEffectTiles(Image_Xbox *owner) {
+    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end();) {
+        auto entry = it++;
+        if (entry->owner == owner) eraseEffectTile(entry);
+    }
+}
+
+static SDL_Texture *effectTile(Image_Xbox *owner, const ImageData &source,
+                               const Image_Xbox::Tile &tile, const ScratchColorTransform &effect) {
+    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end(); ++it) {
+        if (it->owner == owner && it->x == tile.x && it->y == tile.y &&
+            it->effect.colorEnabled == effect.colorEnabled && it->effect.hue == effect.hue &&
+            it->effect.brightness == effect.brightness) {
+            SDL_Texture *texture = it->texture;
+            g_effectTiles.splice(g_effectTiles.end(), g_effectTiles, it);
+            return texture;
+        }
+    }
+    auto pot = [](size_t n) { size_t size = 1; while (size < n) size *= 2; return size; };
+    const size_t bytes = (pot(tile.w) * pot(tile.h) * 4 + 4095) & ~size_t(4095);
+    while (!g_effectTiles.empty() &&
+           (g_effectBytes + bytes > EFFECT_CACHE_BYTES || g_effectTiles.size() >= EFFECT_CACHE_TILES)) {
+        ++g_effectEvicted;
+        eraseEffectTile(g_effectTiles.begin());
+    }
+    SDL_Texture *texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
+                                             SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+    while (!texture && !g_effectTiles.empty()) {
+        ++g_effectEvicted;
+        eraseEffectTile(g_effectTiles.begin());
+        texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
+                                    SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+    }
+    if (!texture) return nullptr;
+    std::unique_ptr<uint8_t, decltype(&std::free)> pixels(
+        static_cast<uint8_t *>(std::malloc(static_cast<size_t>(tile.w) * tile.h * 4)), &std::free);
+    if (!pixels) {
+        safeDestroyTexture(texture);
+        return nullptr;
+    }
+    for (int y = 0; y < tile.h; ++y) {
+        const auto *src = static_cast<const uint8_t *>(source.pixels) + (tile.y + y) * source.pitch + tile.x * 4;
+        auto *dst = pixels.get() + static_cast<size_t>(y) * tile.w * 4;
+        for (int x = 0; x < tile.w; ++x, src += 4, dst += 4) {
+            memcpy(dst, src, 4);
+            if (dst[3]) effect.apply(dst[0], dst[1], dst[2]);
+        }
+    }
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
+    if (!SDL_UpdateTexture(texture, nullptr, pixels.get(), tile.w * 4)) {
+        safeDestroyTexture(texture);
+        return nullptr;
+    }
+    g_effectTiles.push_back({owner, tile.x, tile.y, effect, texture, bytes});
+    g_effectBytes += bytes;
+    g_effectPeakBytes = std::max(g_effectPeakBytes, g_effectBytes);
+    ++g_effectCreated;
+    return texture;
 }
 
 static inline int toPowerOfTwo(int v) {
@@ -472,8 +564,8 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
     return {};
 }
 
-void Image_Xbox::renderTiled(ImageRenderParams &params) {
-    if (tiles.empty()) return;
+void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
+    if (!effects && tiles.empty()) return;
 
     const float &x = params.x;
     const float &y = params.y;
@@ -486,6 +578,8 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     if (opacity <= 0.001f) return;
     const Uint8 alpha = static_cast<Uint8>(opacity * 255);
     if (alpha == 0) return;
+    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
+    const ScratchColorTransform effect(params.colorEffect, params.brightness);
 
     SDL_FRect renderRect;
     renderRect.w = imgData.width / imgData.scale * scale;
@@ -514,36 +608,63 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     // Every tile rotates around the center of the whole image, not its own center.
     const SDL_FPoint imageCenter = {renderRect.x + renderRect.w / 2.0f, renderRect.y + renderRect.h / 2.0f};
 
-    auto drawAll = [&]() {
-        for (const auto &tile : tiles) {
-            const float ix0 = std::max(static_cast<float>(tile.x), subRect.x);
-            const float iy0 = std::max(static_cast<float>(tile.y), subRect.y);
-            const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subRect.x + subRect.w);
-            const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subRect.y + subRect.h);
-            if (ix1 <= ix0 || iy1 <= iy0) continue;
+    auto drawTile = [&](const Tile &tile, SDL_Texture *renderTexture) {
+        const float ix0 = std::max(static_cast<float>(tile.x), subRect.x);
+        const float iy0 = std::max(static_cast<float>(tile.y), subRect.y);
+        const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subRect.x + subRect.w);
+        const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subRect.y + subRect.h);
+        if (ix1 <= ix0 || iy1 <= iy0) return;
 
-            const SDL_FRect src = {ix0 - tile.x, iy0 - tile.y, ix1 - ix0, iy1 - iy0};
+        const SDL_FRect src = {ix0 - tile.x, iy0 - tile.y, ix1 - ix0, iy1 - iy0};
 
-            float dx0 = (ix0 - subRect.x) * rx;
-            float dx1 = (ix1 - subRect.x) * rx;
-            float dy0 = (iy0 - subRect.y) * ry;
-            float dy1 = (iy1 - subRect.y) * ry;
-            if (params.flip) {
-                const float t = renderRect.w - dx1;
-                dx1 = renderRect.w - dx0;
-                dx0 = t;
-            }
-            SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
-            if (cardinal) {
-                // Snap shared edges so neighbouring tiles never leave seams.
-                const float l = std::round(dst.x), t = std::round(dst.y);
-                const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
-                dst = {l, t, r - l, b - t};
-            }
-            const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
-            SDL_RenderTextureRotated(sdlRenderer, tile.texture, &src, &dst, rotation, &center, flip);
+        float dx0 = (ix0 - subRect.x) * rx;
+        float dx1 = (ix1 - subRect.x) * rx;
+        float dy0 = (iy0 - subRect.y) * ry;
+        float dy1 = (iy1 - subRect.y) * ry;
+        if (params.flip) {
+            const float t = renderRect.w - dx1;
+            dx1 = renderRect.w - dx0;
+            dx0 = t;
         }
+        SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
+        if (cardinal) {
+            // Snap shared edges so neighbouring tiles never leave seams.
+            const float l = std::round(dst.x), t = std::round(dst.y);
+            const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
+            dst = {l, t, r - l, b - t};
+        }
+        const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
+        SDL_RenderTextureRotated(sdlRenderer, renderTexture, &src, &dst, rotation, &center, flip);
     };
+    auto drawAll = [&]() {
+        for (const auto &tile : tiles) drawTile(tile, tile.texture);
+    };
+    if (effects) {
+        for (int y = 0; y < imgData.height; y += TILE_SIZE) {
+            for (int x = 0; x < imgData.width; x += TILE_SIZE) {
+                Tile tile;
+                tile.x = x; tile.y = y;
+                tile.w = std::min(TILE_SIZE, imgData.width - x);
+                tile.h = std::min(TILE_SIZE, imgData.height - y);
+                if (x >= subRect.x + subRect.w || y >= subRect.y + subRect.h ||
+                    x + tile.w <= subRect.x || y + tile.h <= subRect.y) continue;
+                SDL_Texture *effectTexture = effectTile(this, imgData, tile, effect);
+                if (!effectTexture) {
+                    if (!effectWarningLogged) {
+                        Log::logWarning("Failed to allocate color-effect tile: " + std::string(SDL_GetError()));
+                        effectWarningLogged = true;
+                    }
+                    continue;
+                }
+                auto &state = getTexState(effectTexture);
+                if (state.alpha != alpha) { SDL_SetTextureAlphaMod(effectTexture, alpha); state.alpha = alpha; }
+                if (state.blend != normalBlendMode) { SDL_SetTextureBlendMode(effectTexture, normalBlendMode); state.blend = normalBlendMode; }
+                drawTile(tile, effectTexture);
+            }
+        }
+        freeTimer = maxFreeTimer;
+        return;
+    }
 
     auto setAlpha = [&](Uint8 a) {
         for (auto &t : tiles) {
@@ -573,7 +694,6 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
         }
     };
 
-    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
     setAlpha(alpha);
     setColor(255);
     setBlend(normalBlendMode);
@@ -597,6 +717,12 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
 }
 
 void Image_Xbox::render(ImageRenderParams &params) {
+    if (params.opacity <= 0.001f) return;
+    const ScratchColorTransform effect(params.colorEffect, params.brightness);
+    if ((effect.colorEnabled || effect.brightness != 0.0f) && ensureColorData()) {
+        renderTiled(params, true);
+        return;
+    }
     if (!tiles.empty()) {
         renderTiled(params);
         return;
@@ -1346,6 +1472,7 @@ void Image_Xbox::precacheProjectTextures() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
+    clearEffectTiles(this);
     destroyTiles();
     safeDestroyTexture(texture);
     if (!cachedAssetPath.empty()) {
@@ -1456,6 +1583,7 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
 }
 
 Image_Xbox::~Image_Xbox() {
+    clearEffectTiles(this);
     destroyTiles();
     safeDestroyTexture(texture);
 }
