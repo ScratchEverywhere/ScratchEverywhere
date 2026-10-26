@@ -63,6 +63,12 @@ std::array<int, 2> InputDevice_SDL3::getTouchPosition() {
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos[0] = rawMouseX * Render::getPixelDensity();
     pos[1] = rawMouseY * Render::getPixelDensity();
+#elif !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
@@ -165,7 +171,23 @@ void InputDevice_SDL3::getInput() {
     if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
     if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
-    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) {
+        Input::buttonPress("RT");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+#endif
+    }
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
+        if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
+        if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
+        if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
+        if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::mousePointer.y += 3;
+    }
+    Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+#endif
 
     Input::leftJoystick.first = joyLeftX / 32767.0f;
     Input::leftJoystick.second = joyLeftY / 32767.0f;
