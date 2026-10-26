@@ -8,6 +8,10 @@
 namespace XboxMenuTrace {
 inline constexpr bool enabled = true;
 inline unsigned gameFrames = 0;
+inline unsigned gameTransitions = 0;
+inline std::vector<std::string> previousButtons;
+inline std::vector<std::string> previousKeys;
+inline bool previousMouse = false;
 inline void snapshot(const std::string &event) {
     std::string line = "Menu input " + std::to_string(SDL_GetTicks()) + " " + event + " buttons=";
     for (const auto &button : Input::inputButtons) line += button + ",";
@@ -24,9 +28,24 @@ inline void snapshot(const std::string &event) {
 #endif
     Log::log(line);
 }
-inline void beginGameFrames() { gameFrames = 8; }
+inline void beginGameFrames() {
+    gameFrames = 8;
+    gameTransitions = 512;
+    previousButtons.clear();
+    previousKeys.clear();
+    previousMouse = false;
+}
 inline void gameFrame() {
     if (gameFrames) { --gameFrames; snapshot("post-handoff poll"); }
+    if (gameTransitions && (Input::inputButtons != previousButtons ||
+                            Input::inputKeys != previousKeys ||
+                            Input::mousePointer.isPressed != previousMouse)) {
+        --gameTransitions;
+        previousButtons = Input::inputButtons;
+        previousKeys = Input::inputKeys;
+        previousMouse = Input::mousePointer.isPressed;
+        snapshot("game input transition");
+    }
 }
 }
 #else
