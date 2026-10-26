@@ -25,7 +25,7 @@ neutralize all reports afterwards.
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
-| PacMan (cdaniels7088) | Browser launch; repaired cached PNG colors; D-pad turns and wall rejection; 70 points | Loss/replay, repeat launch/exit; responsiveness with culling; scripts have no audio playback |
+| PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
 | Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
@@ -365,3 +365,27 @@ The combined build also repeated Maze's first-wall rejection after a five-second
 right hold (`maze-final-shared-build-wall.jpg`) and could exit to the browser.
 This run resulted from a menu navigation landing one entry above PacMan; its
 captures were renamed to Maze and excluded from PacMan results.
+
+PacMan then launched from a visually confirmed selection on the combined build
+and reached its actual red GAME OVER backdrop after a ghost loss. The crossed-out
+yellow character matched its authored backdrop, with the normal maze and dot
+sprites hidden. Evidence: `pacman-combined-start.jpg` and
+`pacman-combined-loss-observation.jpg`. This directly verifies the named-backdrop
+repair in a real SB2 game.
+
+After that ghost loss, a short Start press restored the normal maze and Score 0
+while preserving High Score 10. A subsequent right-input check reached Score 20;
+a long Start hold opened pause and A returned to the browser. Evidence:
+`pacman-combined-short-start-replay.jpg`, `pacman-combined-replay-score.jpg`,
+`pacman-combined-pause.jpg` and `pacman-combined-browser-return.jpg`.
+The original scripts have no audio-playing opcodes; its otherwise unused sound
+assets do not imply missing music. A bounded 9.995-second HDMI capture was quiet,
+consistent with that source (`pacman-gameplay-audio.wav`). Power pellets/edible
+ghosts and board completion are not yet qualified.
+
+Both temporary regression archives were then retrieved and compared with their
+local originals before deletion from the console. All twenty selected game
+files remained present with their expected sizes; the combined production XBE's
+full readback still matched the hash above. Evidence:
+`twenty-game-installed-final.json` and `combined-color-sb2-pacman.log`. The normal
+browser was relaunched from `F:\Games\ScratchEverywhere\default.xbe`.
