@@ -19,7 +19,7 @@ neutralize all reports afterwards.
 | Hopper Heros Everywhere | Browser launch/exit; movement and 6 points in earlier tests | Repeatable gameplay, loss/replay, audio |
 | Ultra Bird | Flap, loss, embedded Start replay; browser launch/exit; 2 points | External replay shortcut, sustained play, audio |
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
-| Maze Starter | D-pad profile; repaired color wall collision; full intended route to You win; exit and fresh relaunch | Green Flag replay leaves prior win text; full-route repeat on combined build; no authored audio |
+| [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
@@ -347,7 +347,9 @@ CPU colors, conservative per-query culling, and the odd-sized collision-mask
 edge fix. The final color build passed 14 regression cases twice on hardware.
 Maze completed its full route with wall rejection, and fresh project relaunch
 cleared its old win message. Green Flag replay reset its position but retained
-the old message; that remains an open authored-ordering/reference check.
+the old message at that point. A later [prepared-copy startup repair](xbox-maze-replay.md)
+yields before Goal checks Ball, preventing the win bubble from being recreated
+before Ball resets. The later verification is summarized in the matrix.
 
 PacMan's apparent freeze after Score 20 was a stopped project: holding Start
 still opened pause, and short Start then reset Score to 0 while retaining High
