@@ -191,6 +191,7 @@ static int s_stageScissorX = 0;
 static int s_stageScissorY = 0;
 static int s_stageScissorW = 640;
 static int s_stageScissorH = 480;
+static bool s_stageScissorActive = false;
 
 static void updateViewportOverscan();
 
@@ -819,13 +820,17 @@ void Renderer_NV2A::setScissor(int x, int y, int w, int h) {
         int sy = static_cast<int>(std::round(y * s_mainViewportScaleY + s_mainViewportOffsetY));
         int sw = static_cast<int>(std::round(w * s_mainViewportScaleX));
         int sh = static_cast<int>(std::round(h * s_mainViewportScaleY));
-        int x1 = std::max(sx, s_stageScissorX);
-        int y1 = std::max(sy, s_stageScissorY);
-        int x2 = std::min(sx + sw, s_stageScissorX + s_stageScissorW);
-        int y2 = std::min(sy + sh, s_stageScissorY + s_stageScissorH);
-        int fw = std::max(0, x2 - x1);
-        int fh = std::max(0, y2 - y1);
-        p = xgu_set_scissor_rect(p, false, x1, y1, fw, fh);
+        if (s_stageScissorActive) {
+            int x1 = std::max(sx, s_stageScissorX);
+            int y1 = std::max(sy, s_stageScissorY);
+            int x2 = std::min(sx + sw, s_stageScissorX + s_stageScissorW);
+            int y2 = std::min(sy + sh, s_stageScissorY + s_stageScissorH);
+            int fw = std::max(0, x2 - x1);
+            int fh = std::max(0, y2 - y1);
+            p = xgu_set_scissor_rect(p, false, x1, y1, fw, fh);
+        } else {
+            p = xgu_set_scissor_rect(p, false, sx, sy, sw, sh);
+        }
     }
     pb_end(p);
 }
@@ -834,8 +839,10 @@ void Renderer_NV2A::clearScissor() {
     uint32_t *p = pb_begin();
     if (s_penTargetActive) {
         p = xgu_set_scissor_rect(p, false, 0, 0, s_penTexture.texWidth, s_penTexture.texHeight);
-    } else {
+    } else if (s_stageScissorActive) {
         p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    } else {
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
     }
     pb_end(p);
 }
@@ -927,7 +934,11 @@ static void ensureMainTarget() {
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
     p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
     p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
-    p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    if (s_stageScissorActive) {
+        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    } else {
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    }
     pb_end(p);
 
     s_activeTexture = nullptr;
@@ -1099,7 +1110,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         uint32_t *p = pb_begin();
         p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
         p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
-        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
         pb_end(p);
 
         while (pb_busy()) {
@@ -1523,6 +1534,7 @@ void Renderer_NV2A::renderSprites() {
     s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
     s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
 
+    s_stageScissorActive = true;
     clearScissor();
 
     drawBox(static_cast<int>(stageW), static_cast<int>(stageH),
@@ -1562,6 +1574,9 @@ void Renderer_NV2A::renderSprites() {
     if (speechManager) {
         speechManager->render();
     }
+
+    s_stageScissorActive = false;
+    clearScissor();
 
     drawBlackBarsNV2A(this, getWidth(), getHeight());
     Render::renderMonitors();
