@@ -10,6 +10,7 @@
 enum class SE_EXPORT WindowingBackends : uint8_t {
     SDL3,
     SDL2,
+    NV2A,
     GLFW,
     N3DS,
     NDS,
@@ -23,6 +24,7 @@ enum class SE_EXPORT WindowingBackends : uint8_t {
 constexpr std::array WindowingBackendNames = {
     "SDL3",
     "SDL2",
+    "NV2A",
     "GLFW",
     "3DS",
     "NDS",

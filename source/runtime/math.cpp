@@ -50,6 +50,7 @@ int Math::color(int r, int g, int b, int a) {
     case Renderers::SDL2:
     case Renderers::SDL3:
     case Renderers::Xbox:
+    case Renderers::NV2A:
     case Renderers::OpenGL:
     case Renderers::OpenGLCore:
     case Renderers::GDI:

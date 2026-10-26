@@ -7,6 +7,9 @@
 #ifdef WINDOWING_SDL2
 #include <window_sdl2.hpp>
 #endif
+#ifdef WINDOWING_NV2A
+#include <window_nv2a.hpp>
+#endif
 #ifdef WINDOWING_SDL1
 #include <window_sdl1.hpp>
 #endif
@@ -66,6 +69,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         case Renderers::SDL3:
         case Renderers::Xbox:
             b = WindowingBackends::SDL1;
+            break;
+        case Renderers::NV2A:
+            b = WindowingBackends::NV2A;
             break;
         case Renderers::Headless:
             b = WindowingBackends::Headless;
@@ -129,6 +135,14 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #ifdef WINDOWING_SDL2
         WindowSE::currentWindowingBackend = WindowingBackends::SDL2;
         window = new WindowSDL2(width, height, title);
+        break;
+#endif
+        break;
+    }
+    case WindowingBackends::NV2A: {
+#ifdef WINDOWING_NV2A
+        WindowSE::currentWindowingBackend = WindowingBackends::NV2A;
+        window = new WindowNV2A(width, height, title);
         break;
 #endif
         break;
@@ -212,6 +226,9 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #endif
 #ifdef WINDOWING_SDL2
     add(WindowingBackends::SDL2);
+#endif
+#ifdef WINDOWING_NV2A
+    add(WindowingBackends::NV2A);
 #endif
 #ifdef WINDOWING_SDL1
     add(WindowingBackends::SDL1);

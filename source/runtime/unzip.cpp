@@ -19,8 +19,11 @@
 #include <sys/types.h>
 #include <vector>
 
-#ifdef __XBOX__
+#ifdef RENDERER_XBOX
 #include <renderers/xbox/image_xbox.hpp>
+#endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/image_nv2a.hpp>
 #endif
 
 #ifdef _WIN32
@@ -315,8 +318,15 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
 
-#ifdef __XBOX__
-    Image_Xbox::precacheProjectTextures();
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Image_Xbox::precacheProjectTextures();
+    }
+#endif
+#ifdef RENDERER_NV2A
+    if (Render::currentRenderer == Renderers::NV2A) {
+        Image_NV2A::precacheProjectTextures();
+    }
 #endif
 
     Unzip::projectOpened = 1;
