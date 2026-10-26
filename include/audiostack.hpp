@@ -27,6 +27,7 @@
 #include <thread.hpp>
 #include <unordered_map>
 #include <zip_archive.hpp>
+#include <audio_resampler.hpp>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -78,6 +79,7 @@ class SE_EXPORT SoundStream {
     int channels;
     int rate;
     SoundConfig config;
+    AudioResampler resampler;
 
     bool paused;
     bool auto_clean;

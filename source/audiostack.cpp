@@ -82,6 +82,7 @@ bool SoundStream::loadAsVorbis() {
 
 void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
+    resampler.reset();
     this->paused = false;
     this->auto_clean = false;
     this->no_lock = false;
@@ -443,6 +444,7 @@ void Mixer::initMusic() {
 
 void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
+    if (frames <= 0) return;
     const int channels_out = 2;
     std::vector<float> mixBuffer(frames * channels_out, 0.0f);
 
@@ -478,65 +480,14 @@ void Mixer::requestSound(short *output, int frames) {
             continue;
         }
 
-        const float pitch = s->config.pitch;
         const float volume = s->config.volume / 100.0f;
-        const float step = (float)s->rate * pitch / (float)Mixer::rate;
-        int maxFramesNeeded = (int)(frames * step) + 2;
-
-#if defined(__XBOX__)
-        static std::vector<float> decodeBuffer;
-        if (decodeBuffer.size() < static_cast<size_t>(maxFramesNeeded * s->channels)) {
-            decodeBuffer.resize(maxFramesNeeded * s->channels);
-        }
-        std::fill(decodeBuffer.begin(), decodeBuffer.begin() + (maxFramesNeeded * s->channels), 0.0f);
-#else
-        std::vector<float> decodeBuffer(maxFramesNeeded * s->channels, 0.0f);
-#endif
-
-        int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
-        if (decoded <= 0) {
-            s->paused = true;
-            it++;
-            continue;
-        }
-
-        float pos = 0.0f;
-
-        for (int i = 0; i < frames; i++) {
-            int i0 = (int)pos;
-            int i1 = std::min(i0 + 1, decoded - 1);
-            float frac = pos - i0;
-
-            float left = 0.0f;
-            float right = 0.0f;
-
-            if (s->channels == 1) {
-                float a = decodeBuffer[i0];
-                float b = decodeBuffer[i1];
-                float sample = a + (b - a) * frac;
-                left = right = sample;
-            } else {
-                float aL = decodeBuffer[2 * i0 + 0];
-                float aR = decodeBuffer[2 * i0 + 1];
-                float bL = decodeBuffer[2 * i1 + 0];
-                float bR = decodeBuffer[2 * i1 + 1];
-
-                left = aL + (bL - aL) * frac;
-                right = aR + (bR - aR) * frac;
-            }
-
-            float p = std::clamp(s->config.pan / 100.0f, -1.0f, 1.0f);
-            float panL = (p <= 0.0f) ? 1.0f : 1.0f - p;
-            float panR = (p >= 0.0f) ? 1.0f : 1.0f + p;
-
-            left *= panL * volume;
-            right *= panR * volume;
-
-            mixBuffer[2 * i + 0] += left;
-            mixBuffer[2 * i + 1] += right;
-
-            pos += step;
-        }
+        const double step = static_cast<double>(s->rate) * s->config.pitch / Mixer::rate;
+        const float pan = std::clamp(s->config.pan / 100.0f, -1.0f, 1.0f);
+        const float gainLeft = volume * (pan <= 0 ? 1.0f : 1.0f - pan);
+        const float gainRight = volume * (pan >= 0 ? 1.0f : 1.0f + pan);
+        const int mixed = s->resampler.mixStereo(mixBuffer.data(), frames, s->channels, step, gainLeft, gainRight,
+                                                 [s](float *data, int count) { return s->read(data, count); });
+        if (mixed == 0) s->paused = true;
 
         it++;
     }
