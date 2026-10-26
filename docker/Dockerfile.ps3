@@ -1,4 +1,4 @@
-FROM ghcr.io/02900/ps3-toolchain:latest AS main_builder
+FROM hldtux/ps3dev-sdl2:latest AS main_builder
 ENV PS3DEV=/usr/local/ps3dev
 ENV PSL1GHT=/usr/local/ps3dev
 ENV PATH=${PS3DEV}/bin:${PS3DEV}/ppu/bin:${PATH}
