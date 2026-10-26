@@ -708,7 +708,11 @@ bool Renderer_GX2::appShouldRun() {
             }
         }
 
-        return !window->shouldClose();
+        if (window->shouldClose()) {
+            OS::toExit = true;
+            return false;
+        }
+        return true;
     }
     return false;
 }

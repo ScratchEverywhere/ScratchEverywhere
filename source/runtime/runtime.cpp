@@ -161,6 +161,7 @@ void Scratch::initializeScratchProject() {
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
+        OS::toExit = true;
 #ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
             MenuManager::cleanup();

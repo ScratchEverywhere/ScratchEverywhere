@@ -600,6 +600,7 @@ void setRenderTarget(GX2ColorBuffer *colorBuffer, int width, int height) {
 
 void clear(float r, float gr, float b, float a) {
     if (!g.colorBuffer) return;
+    if (!ProcUIInForeground()) return;
     GX2ClearColor(g.colorBuffer, r, gr, b, a);
     GX2SetContextState(g.context);
     invalidateStateCache();
