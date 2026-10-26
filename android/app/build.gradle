@@ -11,14 +11,14 @@ android {
 	namespace "io.github.scratcheverywhere"
 	compileSdkVersion 36
 	defaultConfig {
-		minSdkVersion 19
+		minSdkVersion 18
 		targetSdkVersion 36
 		versionCode 4
 		versionName "1.3"
 		externalNativeBuild {
 			cmake {
-				arguments "-DANDROID_STL=c++_static",
-					"-DBUILD_SHARED_LIBS=ON", "-DCL_CACHE_DIR=${buildDir}/.cl"
+				arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON",
+					"-DCL_CACHE_DIR=${buildDir}/.cl", "-DCL_STAGES=source"
 				abiFilters = targetAbis
 			}
 		}

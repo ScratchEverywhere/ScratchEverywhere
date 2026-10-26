@@ -1,8 +1,8 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch") # libscratch.so
 
-set(SE_RENDERER_VALID_OPTIONS "opengl_core" "sdl2" "sdl3")
-set(SE_WINDOWING_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_RENDERER_VALID_OPTIONS "opengl_core" "sdl2")
+set(SE_WINDOWING_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
@@ -18,16 +18,12 @@ set(SE_HAS_THREADS ON)
 
 set(SE_HAS_TOUCH TRUE)
 set(SE_HAS_MOUSE FALSE)
-set(SE_HAS_KEYBOARD TRUE)
+set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_PLATFORM "android")
-set(SE_LIBRARY ON)
 
 macro(package_platform)
-    # Link against logging library
-    target_link_libraries(se-interface INTERFACE log)
-
     # armeabi-v7a requires cpufeatures library
     include(AndroidNdkModules)
     android_ndk_import_module_cpufeatures()
