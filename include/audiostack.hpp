@@ -22,6 +22,7 @@
 #endif
 #endif
 #include "nonstd/expected.hpp"
+#include <audio_resampler.hpp>
 #include <optional>
 #include <string>
 #include <thread.hpp>
@@ -78,6 +79,7 @@ class SE_EXPORT SoundStream {
     int channels;
     int rate;
     SoundConfig config;
+    AudioResampler resampler;
 
     bool paused;
     bool auto_clean;
