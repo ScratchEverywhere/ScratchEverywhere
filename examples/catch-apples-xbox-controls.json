@@ -1,0 +1,8 @@
+{
+  "controls": {
+    "left arrow": ["dpadLeft", "LeftStickLeft"],
+    "right arrow": ["dpadRight", "LeftStickRight"],
+    "1": "start",
+    "0": "back"
+  }
+}
