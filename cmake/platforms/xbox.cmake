@@ -42,6 +42,13 @@ set(SE_PLATFORM "xbox")
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
+option(SE_XBOX_TRACE_RENDERER "Run and log a GPU pixel probe at startup" OFF)
+if(SE_XBOX_TRACE_RENDERER)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/window_sdl3.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_RENDERER)
+endif()
 option(SE_XBOX_DEBUG_SYMBOLS "Keep DWARF symbols for xemu guest debugging" OFF)
 if(SE_XBOX_TRACE_GAME_STATE)
     set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp" APPEND PROPERTY

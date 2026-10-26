@@ -462,6 +462,94 @@ void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool i
     applyAspectRatio(Sdlrenderer, logicalWidth, logicalHeight, isWidescreen);
 }
 
+#ifdef SE_XBOX_TRACE_RENDERER
+static bool traceStartupPixels(SDL_Renderer *renderer) {
+    // Exercise the actual GPU path, including state changes used by games.
+    bool passed = true;
+    SDL_Rect savedViewport;
+    float savedScaleX = 1.0f, savedScaleY = 1.0f;
+    SDL_GetRenderViewport(renderer, &savedViewport);
+    SDL_GetRenderScale(renderer, &savedScaleX, &savedScaleY);
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    SDL_SetRenderViewport(renderer, nullptr);
+    auto pixel = [&](SDL_Surface *surface, const char *test, int x, int y,
+                     int expectedR, int expectedG, int expectedB, int tolerance = 0) {
+        Uint8 r = 0, g = 0, b = 0, a = 0;
+        bool read = surface && SDL_ReadSurfacePixel(surface, x, y, &r, &g, &b, &a);
+        bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
+                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance;
+        Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
+                 " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
+        passed &= matches;
+    };
+    auto clearBlue = [&] {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        passed &= SDL_RenderClear(renderer);
+    };
+    const SDL_FColor red = {1, 0, 0, 1};
+    const SDL_Vertex triangle[] = {
+        {{0, 0}, red, {0, 0}}, {{64, 0}, red, {0, 0}}, {{0, 64}, red, {0, 0}}
+    };
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 2, 2);
+    const Uint32 green[] = {0xff00ff00, 0xff00ff00, 0xff00ff00, 0xff00ff00};
+    passed &= texture && SDL_UpdateTexture(texture, nullptr, green, 8);
+    const SDL_FRect destination = {64, 0, 64, 64};
+    clearBlue();
+    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
+    if (texture) passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
+    SDL_Surface *pixels = SDL_RenderReadPixels(renderer, nullptr);
+    pixel(pixels, "solid", 8, 8, 255, 0, 0);
+    pixel(pixels, "textured", 72, 8, 0, 255, 0);
+    pixel(pixels, "clear", 144, 8, 0, 0, 255);
+    SDL_DestroySurface(pixels);
+
+    clearBlue();
+    const SDL_Rect viewport = {32, 32, 64, 64};
+    passed &= SDL_SetRenderViewport(renderer, &viewport);
+    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
+    passed &= SDL_SetRenderViewport(renderer, nullptr);
+    pixels = SDL_RenderReadPixels(renderer, nullptr);
+    pixel(pixels, "viewport-offset", 40, 40, 255, 0, 0);
+    pixel(pixels, "viewport-outside", 8, 8, 0, 0, 255);
+    SDL_DestroySurface(pixels);
+
+    clearBlue();
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 64, 64);
+    passed &= target != nullptr;
+    if (target) {
+        passed &= SDL_SetRenderTarget(renderer, target);
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        passed &= SDL_RenderClear(renderer);
+        passed &= SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_NONE);
+        const SDL_FRect targetDestination = {128, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-restore", 136, 8, 0, 255, 0);
+        pixel(pixels, "target-outside", 208, 8, 0, 0, 255);
+        SDL_DestroySurface(pixels);
+    }
+    clearBlue();
+    if (texture) {
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(texture, 128);
+        passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1);
+        SDL_DestroySurface(pixels);
+    }
+    SDL_DestroyTexture(target);
+    SDL_DestroyTexture(texture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
+    SDL_SetRenderScale(renderer, savedScaleX, savedScaleY);
+    SDL_SetRenderViewport(renderer, &savedViewport);
+    Log::log(passed ? "GPU startup probe passed." : "GPU startup probe FAILED.");
+    return passed;
+}
+#endif
+
 Renderer_Xbox::Renderer_Xbox() {
     initVideo();
     int windowWidth = xboxVideoSettings.width;
@@ -489,6 +577,9 @@ Renderer_Xbox::Renderer_Xbox() {
     Log::log("Xbox active video mode: " + std::to_string(actualMode.width) + "x" + std::to_string(actualMode.height));
 #endif
     applyVideoSettings();
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceStartupPixels(Sdlrenderer);
+#endif
 }
 
 Renderer_Xbox::~Renderer_Xbox() {

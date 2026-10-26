@@ -18,7 +18,7 @@ neutralize all reports afterwards.
 | Catch Apples | Browser launch; expiry at score 7; short Start replay resets timer/score; pause and exit to list pass | Repeat launch, directed collection/collision, audio |
 | Maze Starter | Browser launch/exit; movement down initial corridor | Wall collision, goal completion, replay, audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; intermittent blank startup; lwmem loading; long-run audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
@@ -269,3 +269,33 @@ reported capture overruns (`appel-after-restart-audio*.json/.wav`). First-level
 completion remains unverified: the best attempt collected ten apples and
 passed both opening checkpoints before repeated deaths. No completion screen
 or completed-level replay is claimed.
+
+
+## Startup rendering reliability repair
+
+The intermittent purple-browser/black-game startup was isolated with GPU pixel
+readback: clears worked, but fixed-function vertex processing could produce no
+visible geometry. Switching the same failing boot to an explicit vertex
+program immediately restored solid and textured drawing. Position defaults,
+clipping/test resets and vertex-cache invalidation did not repair the failure.
+The renderer now initializes a screen-space vertex program and its viewport
+offset explicitly.
+
+The final GPU regression probe passed solid/textured rendering, viewport
+translation/clipping, render-target restoration and alpha modulation. With both
+renderer and gameplay diagnostics disabled, the installed normal launcher then
+passed **eight consecutive dashboard launches**, each with a further 6.2-second
+visible-browser stability check. The eight screenshots were reviewed together.
+This covers warm launches on the 128MB console at 480p; it does not claim eight
+physical power cycles.
+
+The verified executable is `F:\Games\ScratchEverywhere\default.xbe`, SHA-256
+`3e68d3a127afdd2fe0ac99d74c54177ea5956e9b40ef59eaf7f6898d92b95fe1`.
+It continues to read the existing projects from `E:\ScratchEverywhere`.
+See [the startup investigation](xbox-startup-rendering.md) for controlled
+experiments, the optional diagnostic build flag and proof artifact paths.
+
+On that same installed production build, Appel subsequently passed title and
+level rendering, right movement, jumping, collection of one apple, and runtime
+pause → Exit Project → visible browser without rebooting. Evidence:
+`startup-final-appel-{title,level,moving,exit-menu,browser-return}.jpg`.

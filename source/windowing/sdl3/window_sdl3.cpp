@@ -67,6 +67,11 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
 
+#if defined(__XBOX__) && defined(SE_XBOX_TRACE_RENDERER)
+    SDL_SetLogOutputFunction([](void *, int, SDL_LogPriority, const char *message) {
+        Log::log(std::string("SDL: ") + message);
+    }, nullptr);
+#endif
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
         error = "Failed to initialize SDL3: " + std::string(SDL_GetError());
         return;

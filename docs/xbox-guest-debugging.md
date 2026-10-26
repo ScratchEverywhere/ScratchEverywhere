@@ -104,3 +104,8 @@ References: [xemu guest debugging](https://xemu.app/docs/dev/debug/guest/),
 The alternative [xbdm_gdb_bridge](https://github.com/abaire/xbdm_gdb_bridge)
 requires an XBDM-capable Xbox environment; that hardware route has not been set
 up or tested here.
+
+For the separate intermittent physical-console startup rendering fault, see
+[the GPU startup investigation](xbox-startup-rendering.md). Its same-boot pixel
+experiments isolated the fixed-function vertex path, leading to an explicit
+screen-space vertex program and repeated production hardware launches.
