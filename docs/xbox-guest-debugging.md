@@ -112,6 +112,16 @@ project JSON; the full game is tested separately on the actual 128MB Xbox.
 Release DWARF also reported a misleading value for one optimized Boolean local;
 checking the actual compare instruction and its stack byte resolved it.
 
+In the October 26 Frogger run on this Apple Silicon/xemu 0.8.136 setup, data
+watchpoints stalled the private guest and its QMP connection. A host process
+sample repeatedly showed `cpu_check_watchpoint`, `tb_check_watchpoint` and
+translation-block invalidation. Restarting that isolated guest without data
+watchpoints restored progress. Software breakpoints at input polls plus
+read-only state snapshots completed the scoring/replay probes. This is a
+debugger limitation observed in that setup, not evidence of a Frogger freeze;
+code breakpoints at startup still worked. The sample and logs are retained in
+ignored `build-xbox/xemu-frogger-score/`.
+
 References: [xemu guest debugging](https://xemu.app/docs/dev/debug/guest/),
 [xemu command-line options](https://xemu.app/docs/cli/), and
 [xemu networking](https://xemu.app/docs/networking/).
