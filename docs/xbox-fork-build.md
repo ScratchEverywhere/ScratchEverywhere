@@ -128,9 +128,11 @@ matching diagnostic ISO/XBE/ELF files and settings retained under `fixture/`.
 The final normal build restores menu mode, has no embedded fixture, and disables
 debug symbols and renderer/game tracing. Its XBE is 9,633,792 bytes, SHA-256
 `f90ec7b0ba1aaa460dcbaa8cfbdce69945ae878eed422f97042d72852dab918f`.
-It reached the populated browser in xemu without debugger overrides. This sync
-has not been installed on the physical Xbox or qualified across all twenty
-games; the console retains the previously tested production build.
+It reached the populated browser in xemu without debugger overrides. At sync completion this build had not yet been tested on the physical Xbox.
+It was subsequently installed in a separate test folder for Appel and Asteroids
+checks; the regular Games launcher retains the previous production build.
+See `xbox-game-qualification.md` for that testing and the later SB2 text repair.
+Qualification across all twenty games remains incomplete.
 The normal-build emulator smoke test also passed browser selection, SB2
 named-costume rendering, the installed D-pad profile (a crate push), physical
 Start-hold pause, and Exit Project back to the browser with an 800ms confirm.

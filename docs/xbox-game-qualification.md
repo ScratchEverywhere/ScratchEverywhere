@@ -27,8 +27,8 @@ neutralize all reports afterwards.
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
 | Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile; normal-controller emulator completion of puzzles one and two | All hardware gameplay checks; restart/exit/audio |
+| Asteroids (Will_Wam) | Hardware browser launch, thrust/turn/fire, 9,200 points and game over; repaired SB2 ending text; pause Green Flag replay to 0; exit, fresh browser relaunch and second exit; captured HDMI audio | Subjective/long-run audio; further level progression |
+| Sokoban (Gammastr20) | Hardware completion of puzzles 1–3; four D-pad directions, crate/goal updates, Black/R puzzle restart; 7.995s HDMI audio; emulator pause/exit | Hardware exit/relaunch; later puzzles, including authored level-10 dead crate; subjective/long-run audio |
 | 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
@@ -503,3 +503,85 @@ apple-collection pass. Evidence is
 The tested candidate was subsequently promoted to the regular Games launcher,
 with the previous executable retained for rollback. See the
 [color-effects hardware record](xbox-color-effects.md) for hashes and paths.
+
+
+## Sokoban hardware progression (October 26)
+
+On the installed color/pen build (`78d2fe17…`), normal browser selection
+launched Sokoban. Up pushed a crate onto a goal and changed its costume/color.
+Black/R restored the initial crate and player positions; the cumulative move
+counter intentionally remained 1, matching the authored Load Level routine.
+D-pad solutions Up/Down/Left, Up/Down/Down/Up/Left/Right/Right and Right/Up/Left
+then completed puzzles one, two and three. The visible counters reached
+Moves=14, Level=4, consistent with the earlier single push and restart.
+Inputs were released between moves and spaced to respect the authored cooldown.
+Evidence is in ignored `build-xbox/hardware/sokoban-hardware-*.jpg` and
+`sokoban-hardware-three-puzzles.log`.
+
+An HDMI sample contained 7.995 seconds of 48kHz stereo audio, peak 0.03030 and
+RMS 0.003990, without digital clipping in this sample. This establishes signal
+capture, not subjective or long-run audio acceptance.
+
+A source-level check found a later authored obstacle to full completion:
+level 10 starts with a non-goal crate at zero-based (12,2), with walls immediately
+right at (13,2) and below at (12,3). Without pulling, it cannot leave that corner:
+left/up pushes require standing on those walls, while right/down destinations
+are walls. This is in the downloaded project data; it is not attributed to the
+Xbox runtime. The level also has eleven goals, so leaving this crate trapped
+prevents completion. It needs an explicitly documented project repair and
+runtime verification before a full-game pass. Solver timeouts on other levels
+are not evidence that those puzzles are impossible. Level 12 also has seventy
+tile digits despite a 7×9 header; no runtime defect is inferred from that alone.
+
+## Upstream runtime hardware checks and SB2 text (October 26)
+
+The upstream candidate (`f90ec7b0…`) was uploaded and read back in the separate
+`F:\scratch-upstream-20261026` folder. The regular Games launcher remained
+`78d2fe17…`. Appel reached five apples in level one with visible terrain and a
+checkpoint, and returned to that checkpoint after deaths. Back+Black held for
+1.2 seconds reset apples and the timer to zero; a preceding 250ms attempt did
+not visibly restart. Physical Start held five seconds opened the runtime pause
+menu, and A exited to the populated browser without launching another project.
+A full level and long-run audio remain outstanding. The captured HDMI sample
+contained 7.995 seconds of signal without digital clipping (peak 0.14453).
+Evidence is in ignored `build-xbox/hardware/upstream-appel-*.jpg`,
+`upstream-appel-audio.json` and `upstream-hardware-candidate.json`.
+
+Asteroids launched from the same browser. D-pad thrust/turning and A firing
+were exercised, the score reached 2,350 and all lives were lost. Pause → Click
+Green Flag reset the score to zero and restored the three reserve ships;
+subsequent play reached 700. Pause → Exit Project returned to the browser.
+Short Start did not replay the game-over scene: the authored project still has
+running scripts, so it does not meet the stopped-project shortcut condition.
+The Green Flag action is the available replay path. An eight-second audio
+sample contained signal, peak 0.12561/RMS 0.01870, without digital clipping;
+subjective audio acceptance is not established.
+
+Asteroids also exposed misplaced ending text: “Game Over” was offscreen and
+“Score” appeared at the right edge. Its original SB2 SVG includes text x/y
+coordinates that Scratch 2 ignores, and a multiline message separated by lone
+carriage returns. The image loader now normalizes original SB2 text before
+LunaSVG rasterization, following the text positioning, baseline, font spacing,
+inset and line-break rules in Scratch's
+[official converter](https://github.com/scratchfoundation/scratch-svg-renderer/blob/develop/src/load-svg-string.js).
+Project-format gating excludes SB3 assets and application UI. Project archives
+and scripts are unchanged; this does not implement every other SB2 SVG quirk.
+
+`python3 tests/scratch2_svg_test.py` passed with address/undefined sanitizers.
+The corrected ending asset was also rendered with host LunaSVG 3.5.0 and the
+bundled font, then compared with an independent XML implementation of the
+reference conversion: both PNGs have SHA-256
+`fb14fcf12b0e56f5ec66ca2e9469b408a996aac86fc7c09b7b40609eee42ee6d`.
+The NXDK build succeeded. The separate hardware candidate is
+`F:\scratch-svg-20261026\default.xbe`, 9,637,888 bytes, SHA-256
+`dc10c0781f34cf8e723602f24046b671a89dbc57de01a0f0e08ce7495cd4425a`,
+with FTP readback verified. The regular Games launcher hash was checked and
+remains unchanged. The KVM restarted during the launch video mode transition,
+then reconnected to a live populated browser. On hardware, the corrected ending and both instruction lines rendered after
+a 9,200-point round. Pause → Green Flag reset the score to zero; Exit Project
+returned to the browser. Selecting Asteroids again produced another fresh
+zero-score round, and a second exit also succeeded. Evidence includes
+`scratch2-svg-asteroids-ending-live.jpg`, `scratch2-svg-asteroids-replay-zero.jpg`,
+`scratch2-svg-asteroids-browser-return.jpg` and
+`scratch2-svg-asteroids-relaunch.jpg`; see `scratch2-svg-validation.json` and
+`scratch2-svg-deploy.json` for the artifact record.

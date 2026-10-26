@@ -66,6 +66,7 @@ std::vector<char> Unzip::zipBuffer;
 #endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
 bool Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
@@ -286,6 +287,7 @@ void Unzip::openScratchProject(void *arg) {
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {

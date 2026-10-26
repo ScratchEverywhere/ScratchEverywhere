@@ -20,6 +20,7 @@
 
 #ifdef ENABLE_SVG
 #include <lunasvg.h>
+#include <scratch2_svg.hpp>
 #endif
 
 #if defined(RENDERER_SDL1)
@@ -346,7 +347,7 @@ inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t p
 }
 #endif
 
-nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale, bool scratch2) {
 #ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
@@ -376,6 +377,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         svgData.resize(endPos + 6);
     }
 
+    if (scratch2) svgData = Scratch2Svg::normalizeText(svgData);
     svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) {
         return nonstd::make_unexpected("LunaSVG failed to parse SVG");
@@ -397,7 +399,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     const float targetWidth = docW * scale;
     const float targetHeight = docH * scale;
 #else
-    svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
+    const std::string svgData = scratch2 ? Scratch2Svg::normalizeText(svgView) : std::string(svgView);
+    svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
 
     float docW = svgDocument->width();
@@ -675,7 +678,8 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     if (!buffer.has_value()) return nonstd::make_unexpected(buffer.error());
 
     if (isSVG) {
-        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.value().data()), buffer.value().size(), imgData.width, imgData.height);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.value().data()), buffer.value().size(), imgData.width, imgData.height, 1,
+                                        fromScratchProject && Unzip::currentFormat == ProjectFormat::SB2);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
@@ -736,7 +740,8 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
         memcpy(buffer.data(), raw_data, file_size);
         buffer[file_size] = '\0';
 
-        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale,
+                                        Unzip::currentFormat == ProjectFormat::SB2);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {

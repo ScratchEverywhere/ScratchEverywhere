@@ -66,6 +66,7 @@ class SE_EXPORT Unzip {
     static std::unique_ptr<ProjectLoader> loader;
 
     static std::optional<ProjectFormat> unpackedFormatHint;
+    static ProjectFormat currentFormat;
 
     static void openScratchProject(void *arg);
     static std::vector<std::string> getProjectFiles(const std::string &directory);

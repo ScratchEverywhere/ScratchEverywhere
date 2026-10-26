@@ -69,7 +69,7 @@ class SE_EXPORT Image {
 
     bool loadFont(const std::string &family);
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
-    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
+    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1, bool scratch2 = false);
     inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
 
   protected:
