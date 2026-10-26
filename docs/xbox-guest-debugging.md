@@ -2,7 +2,7 @@
 
 xemu's guest debugger lets us stop at source lines, inspect memory and registers,
 and restart an emulated Xbox without resetting the physical console. It does
-not replace the ten-game hardware qualification.
+not replace the twenty-game hardware qualification.
 
 ## Build the symbol companion
 
@@ -41,6 +41,20 @@ source configuration and source disk files. Stop this debug instance before
 launching the helper again or rebuilding/replacing its mounted ISO. Its GDB
 endpoint is explicitly bound to `127.0.0.1:1234`, equivalent to `-s` with a local
 bind address. `--memory 64` permits a separate retail-memory test.
+
+For controller-driven tests, add `--keyboard-controller`. This binds player
+one in the private guest configuration to xemu's keyboard gamepad and disables
+automatic physical-controller binding for that guest. The tested mapping uses
+A/B/X/Y for face buttons, arrows for the D-pad, Return for Start, Backspace for
+Back, and 1/2 for White/Black. Keyboard input through the isolated test window
+successfully activated the application's normal menu.
+
+Add `--persist-disk` when installing projects into the private guest HDD; this
+omits `-snapshot` so those copied-disk writes survive later test runs. The
+source HDD and EEPROM are still preserved. The helper rejects a work directory
+whose generated config, private HDD or EEPROM aliases any source input,
+including existing hard links or symlinks. The default remains temporary HDD writes.
+Only run one instance against a given private work directory.
 
 In another terminal, from this repository:
 
@@ -109,3 +123,30 @@ For the separate intermittent physical-console startup rendering fault, see
 [the GPU startup investigation](xbox-startup-rendering.md). Its same-boot pixel
 experiments isolated the fixed-function vertex path, leading to an explicit
 screen-space vertex program and repeated production hardware launches.
+
+
+## Controller-driven private guest (October 26)
+
+The helper's opt-in keyboard binding was exercised through xemu's emulated Xbox
+controller, with normal browser selection and unmodified project archives.
+Twenty archives plus the installed hardware profiles/settings were uploaded
+into the private guest's `E:\ScratchEverywhere` using the official
+[xemu dashboard](https://github.com/xemu-project/xemu-dashboard) FTP server and
+complete SHA-256 readback verification. The ordinary browser listed the games.
+
+Sokoban's first two puzzles completed through normal controller input, followed
+by a successful runtime pause and Exit Project back to the browser. Puzzle-one
+input was Up, Down, Left; puzzle two was Up, Down, Down, Up, Left, Right, Right.
+Inputs were separated to respect the project's authored movement cooldown.
+Evidence is in ignored `build-xbox/xemu-debug/controller-guest-installed.json`,
+`controller-twenty-browser.png`, `sokoban-level1-complete.png`,
+`sokoban-level2-complete.png` and `sokoban-browser-return.png`. The completion
+images record the subsequent puzzle/level counters after transition.
+These are emulator checks, not physical Xbox qualification.
+
+The launcher also passed a temporary fixture check for default snapshot mode,
+opt-in keyboard/persistent mode, unchanged source bytes, and rejection of HDD/EEPROM hard links, a cross-file EEPROM-to-HDD symlink,
+and a generated-config hard link to the source configuration. Python 3.13 syntax compilation passed.
+A complete process quit/relaunch with `--persist-disk` retained the installed
+games and returned to the populated browser
+(`controller-persisted-browser.png`).

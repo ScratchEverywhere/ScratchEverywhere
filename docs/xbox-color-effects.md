@@ -103,6 +103,43 @@ was skipped under GDB; the existing user's emulator/disk/config were preserved.
 Ignored evidence is in `build-xbox/xemu-debug/effects-final/`, the build manifest
 `effects-diagnostic-build.json`, and `effects-final-patch-verification.json`.
 The preceding `effects-before-alpha/` capture retains the failing half-opacity
-stamp (106/107), along with its executable, ISO and symbols. The physical Xbox
-still has its prior verified production build; these changes have not been
-deployed there.
+stamp (106/107), along with its executable, ISO and symbols. At that point, the normal launcher retained its prior verified production
+build; the separate hardware diagnostic below was deployed later.
+
+
+## Physical Xbox diagnostic (October 26)
+
+The same diagnostic XBE was uploaded to
+`F:\scratch-effects-20261026\default.xbe` and its complete FTP readback matched
+the SHA-256 above. It booted normally with networking on the 128MB console.
+All fourteen GPU readback probes passed, including the exact target alpha,
+overlap, composite and subrectangle values. The visible fixture reached
+PASSES=5, ERRORS=0, CYCLES=40. Cache counters matched xemu: peak 8,273,920
+bytes, 43 settled entries, 181 created and 138 evicted. The Player One reset
+combo returned to XBMC; the normal launcher was not replaced.
+
+The unadjusted HDMI JPEG pixel check **did not pass**: 36/107 samples were
+within the existing tolerance, maximum channel error 25. Dark source shades
+were clipped and highlights expanded in the capture, consistent with a video
+range conversion, but that explanation is not yet calibrated or proven.
+Do not loosen the tolerance or count the HDMI image as 107 passing pixels.
+The direct GPU probes and five in-project sensing assertions are independent
+passing checks. The fixture's full raw hardware framebuffer still needs an
+independent comparison if exact hardware pixel acceptance is required.
+
+Evidence is in ignored `build-xbox/hardware/effects-hardware.log`,
+`effects-hardware-deploy.json`, `effects-hardware-first.jpg`,
+`effects-hardware-final.jpg` and `effects-hardware-final.pixels.json`.
+
+After the separate candidate passed Tetris line-clear/loss/replay/exit/relaunch
+and Appel title/terrain/movement/pause/exit checks, it replaced the regular
+`F:\Games\ScratchEverywhere\default.xbe`. The installed XBE is 9,478,144
+bytes, SHA-256
+`78d2fe178ae621a7d591d08af8439d829a49536686557f462eeb3df7d1788df5`.
+The uploaded staging file was fully read back before the rename. The prior
+`60dc7891…` executable is retained as `prev-60dc-070358.xbe` in that folder.
+Deployment evidence is `color-production-installed.json`; the compatibility
+run's retrieved log is `color-production-compatibility.log`.
+The installed regular launcher then reached a fresh visible browser at 480p,
+with one active capture viewer and frame age 2ms
+(`color-production-installed-browser.jpg` and its status JSON).

@@ -22,13 +22,13 @@ neutralize all reports afterwards.
 | Maze Starter | D-pad profile; repaired color wall collision; full intended route to You win; exit and fresh relaunch | Green Flag replay leaves prior win text; full-route repeat on combined build; no authored audio |
 | Snake | Four stick directions proven by input/position trace; browser launch/exit | Clean D-pad/profile test, collection/scoring, loss/replay, audio |
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
-| Tetris (Tech-Coder) | Browser launch; D-pad movement/rotation, stick movement, A hard drop, top-out and Start replay | Line clearing/scoring, repeat launch/exit/audio; fix all-red pieces |
+| Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
 | Atari Breakout (LVRS) | Packaged, uploaded and FTP readback verified | Mouse-emulation usability, all hardware gameplay checks |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
 | Space Invaders (RokCoder) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Asteroids (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
+| Sokoban (Gammastr20) | Archive uploaded/readback verified; arrow profile; normal-controller emulator completion of puzzles one and two | All hardware gameplay checks; restart/exit/audio |
 | 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Hill Climb Racing (griffpatch) | Archive uploaded/readback verified; arrow profile | All hardware gameplay checks |
@@ -457,3 +457,49 @@ networking, without GDB overrides. Its empty project browser rendered correctly
 (`build-xbox/xemu-debug/production-candidate-startup.png`); the private HDD has
 none of the hardware console's game archives. This is a launcher smoke check,
 not a twenty-game hardware pass.
+
+
+## Color build hardware gameplay (October 26)
+
+The normal browser candidate with color/brightness/pen-alpha changes was
+uploaded to `F:\scratch-color-production-20261026\default.xbe`; its complete
+FTP readback matched SHA-256
+`78d2fe178ae621a7d591d08af8439d829a49536686557f462eeb3df7d1788df5`
+(9,478,144 bytes). Renderer/game tracing and debug symbols are disabled.
+The normal Games launcher was not replaced for this test.
+
+Tetris was visually selected from the normal browser and launched. Falling and
+settled pen-stamped pieces showed distinct cyan, yellow, orange, green, red,
+blue and purple colors. Bounded controller play cleared a row and the visible
+HUD reported LINES=1, SCORE=40 (`tetris-ai-05-0.jpg`). The observer stopped when
+it could not identify a fully visible falling piece, and later stopped on a
+placement mismatch rather than assuming every report had been sampled. These
+observer limits are not game failures or additional line-clear passes.
+
+A deliberate stack of hard drops reached the authored top-out/thumbnail state.
+A 250ms Start press restarted to LINES=0, SCORE=0 with a fresh falling piece.
+A five-second Start hold then opened runtime pause, and A/Exit Project returned
+to the visible browser. Evidence is
+`color-production-tetris-{topout,replay,pause-after-replay,browser-return}.jpg`
+in ignored `build-xbox/hardware`.
+
+A 7.99-second, 48kHz stereo HDMI recording contained audio (peak 0.551, RMS
+0.01687; no digital clipping in this sample). Matching against the bundled
+Tetris theme yielded only 0.165 full-window sample correlation and 0.396–0.609
+for one-second windows. Preserve those measured limits; do not claim exact
+sample matching or subjective audio acceptance. Evidence is
+`tetris-color-audio.wav`, its JSON, and the two audio-match reports.
+A second visually confirmed Tetris browser selection relaunched the game
+(`color-production-tetris-relaunched.jpg`). Pause/Exit Project returned to the
+visible browser again (`color-production-tetris-repeat-exit.jpg`).
+
+The same production candidate then launched the full Appel title and rendered
+level four terrain. Right/up input moved and jumped the player; the five-second
+Start pause and Exit Project returned to the visible browser. This checks basic
+Appel compatibility with the color/pen changes, not level completion or a new
+apple-collection pass. Evidence is
+`color-production-appel-{title,selected-game,level4-moving,pause,browser-return}.jpg`.
+
+The tested candidate was subsequently promoted to the regular Games launcher,
+with the previous executable retained for rollback. See the
+[color-effects hardware record](xbox-color-effects.md) for hashes and paths.

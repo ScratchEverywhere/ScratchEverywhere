@@ -123,3 +123,37 @@ the stripes, not a successful title; `startup-recheck-appel-loaded.jpg` and
 `startup-recheck-appel-pause-attempt.jpg` show the same result. KVM status and
 log snapshots are saved alongside them. No XBE or project was replaced during
 this recheck.
+
+
+## Physical recovery follow-up (October 26)
+
+The user confirmed that the physical display also showed colored stripes or
+black, so the failed image cannot be dismissed as capture corruption alone.
+After a physical power cycle to XBMC, FTP recovered. The retrieved log
+(`startup-recheck-appel-recovered.log`) instead names
+`Atari-Breakout-LVRS.sb2`, reaches texture precache completion, and has an FTP
+modification timestamp of `20261026021112`. It is preserved, but cannot be
+attributed to the earlier visually selected Appel attempt. It supplies no
+Appel-specific failure diagnosis.
+
+A fresh launch of the unchanged installed executable reached a visible browser.
+Appel was selected and captured before confirmation
+(`recovery-appel-selection.jpg`); its title then rendered correctly
+(`recovery-appel-launch.jpg`). The live KVM had one viewer and frame age below
+one second. This successful recovery does not establish the striped failure's
+cause or qualify physical cold-start reliability.
+
+The same recovery run entered level one, rendered terrain, and reached two
+apples after right movement and jumping (`recovery-appel-motion.jpg`). A
+five-second Start hold opened the runtime pause menu
+(`recovery-appel-exit-menu.jpg`). These observations used the unchanged
+`60dc7891…` installed build.
+Exit Project then returned to the visible game browser without rebooting
+(`recovery-appel-browser-return.jpg`).
+
+The later color/pen production candidate also rendered Appel's title and level
+four terrain, accepted movement/jump, and returned from pause/Exit Project to
+the browser. Its promotion to the regular launcher reached another fresh
+visible browser. See [the color-effects record](xbox-color-effects.md) for
+that separate compatibility test and installed hash. Neither this success nor
+the old-build recovery establishes the cause of the striped event.
