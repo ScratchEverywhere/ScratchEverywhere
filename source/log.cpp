@@ -23,6 +23,10 @@
 #include <hal/debug.h>
 #include <stdio.h>
 #include <windows.h>
+#ifdef SE_XBOX_TRACE_LOG_HOST
+#include <lwip/inet.h>
+#include <lwip/sockets.h>
+#endif
 #endif
 
 /**
@@ -99,6 +103,44 @@ static std::string lastLogWarning;
 static std::string lastLogError;
 static bool log_cs_inited = false;
 
+#ifdef SE_XBOX_TRACE_LOG_HOST
+static int trace_socket = -1;
+static sockaddr_in trace_destination = {};
+static unsigned trace_sequence = 0;
+#endif
+
+void Log::initNetworkTrace() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    // The first log predates nxNetInit. Only the networking owner enables UDP.
+    if (!log_cs_inited) return;
+    EnterCriticalSection(&log_cs);
+    if (trace_socket < 0) {
+        const int candidate = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (candidate >= 0) {
+            if (lwip_fcntl(candidate, F_SETFL, O_NONBLOCK) == 0) {
+                trace_destination.sin_family = AF_INET;
+                trace_destination.sin_port = htons(SE_XBOX_TRACE_LOG_PORT);
+                trace_destination.sin_addr.s_addr = inet_addr(SE_XBOX_TRACE_LOG_HOST);
+                trace_socket = candidate;
+            } else {
+                lwip_close(candidate);
+            }
+        }
+    }
+    LeaveCriticalSection(&log_cs);
+#endif
+}
+
+void Log::closeNetworkTrace() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    if (!log_cs_inited) return;
+    EnterCriticalSection(&log_cs);
+    if (trace_socket >= 0) lwip_close(trace_socket);
+    trace_socket = -1;
+    LeaveCriticalSection(&log_cs);
+#endif
+}
+
 static void xbox_append_log(const char *prefix, const std::string &msg) {
     if (!log_cs_inited) {
         InitializeCriticalSection(&log_cs);
@@ -121,6 +163,19 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
         fflush(f);
         fclose(f);
     }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    if (trace_socket >= 0) {
+        // Keep datagrams small and never make logging wait for a receiver.
+        char packet[1024];
+        const int size = snprintf(packet, sizeof(packet), "<SE-UDP seq=%u tick=%lu> %s %s",
+                                  trace_sequence++, GetTickCount(), prefix ? prefix : "", msg.c_str());
+        if (size > 0) {
+            const size_t length = static_cast<size_t>(size) < sizeof(packet) ? static_cast<size_t>(size) : sizeof(packet) - 1;
+            (void)lwip_sendto(trace_socket, packet, length, MSG_DONTWAIT,
+                              reinterpret_cast<const sockaddr *>(&trace_destination), sizeof(trace_destination));
+        }
+    }
+#endif
     LeaveCriticalSection(&log_cs);
 }
 
