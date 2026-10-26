@@ -9,6 +9,9 @@
 
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 static nlohmann::json translationKeys = nullptr;
@@ -26,6 +29,12 @@ const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLangu
 #ifdef USE_BUNDLE
     auto assets = Bundle::assets();
     nlohmann::json json = nlohmann::json::parse(assets.load_text(assets.find(path).value()));
+#elif defined(__ANDROID__)
+    AAsset *asset = AAssetManager_open(g_assetManager, path.c_str(), AASSET_MODE_BUFFER);
+    std::vector<unsigned char> buffer(AAsset_getLength(asset));
+    AAsset_read(asset, buffer.data(), buffer.size());
+    nlohmann::json json = nlohmann::json::parse(buffer);
+    AAsset_close(asset);
 #else
     nlohmann::json json;
     std::ifstream file(path);
@@ -63,6 +72,22 @@ void TranslationManager::loadLanguage(std::string language) {
             splashTexts.push_back(line);
         }
     }
+#elif defined(__ANDROID__)
+    AAsset *translations = AAssetManager_open(g_assetManager, path.c_str(), AASSET_MODE_BUFFER);
+    translationKeys = nlohmann::json::parse(static_cast<const char *>(AAsset_getBuffer(translations)));
+    AAsset_close(translations);
+
+    AAsset *splash = AAssetManager_open(g_assetManager, splashPath.c_str(), AASSET_MODE_BUFFER);
+    std::istringstream stream(static_cast<const char *>(AAsset_getBuffer(splash)));
+
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty()) {
+            splashTexts.push_back(line);
+        }
+    }
+
+    AAsset_close(splash);
 #else
     std::ifstream i(path);
     i >> translationKeys;

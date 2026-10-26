@@ -25,6 +25,11 @@
 #include <windows.h>
 #endif
 
+#if defined(__ANDROID__)
+#include <android/log.h>
+#define LOGCAT_TAG "ScratchEverywhere"
+#endif
+
 /**
  * See these lines, in libdlgmod's source code, for reference, where the 'BUTTON_TYPES' enum, below, is copied from:
  * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
@@ -166,6 +171,67 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
     remove("E:\\ScratchEverywhere\\debug.txt");
+}
+
+#elif defined(__ANDROID__)
+static std::string lastLog;
+void Log::log(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+
+    __android_log_print(ANDROID_LOG_INFO, LOGCAT_TAG, "%s", message.c_str());
+    writeToFile(message);
+}
+
+void Log::logWarning(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+
+    __android_log_print(ANDROID_LOG_WARN, LOGCAT_TAG, "Warning: %s", message.c_str());
+    writeToFile("<Warning> " + message);
+}
+
+void Log::logError(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+
+    __android_log_print(ANDROID_LOG_ERROR, LOGCAT_TAG, "Error: %s", message.c_str());
+    writeToFile("<Error> " + message);
+}
+
+void Log::logCritical(std::string message, bool fatal) {
+    if (lastLog == message) return;
+    lastLog = message;
+
+    if (fatal) {
+        __android_log_print(ANDROID_LOG_FATAL, LOGCAT_TAG, "Fatal: %s", message.c_str());
+        writeToFile("<Fatal> " + message);
+
+        // If fatal, exit the current SE! process instance:
+        exit(0);
+    } else {
+        __android_log_print(ANDROID_LOG_ERROR, LOGCAT_TAG, "Critical: %s", message.c_str());
+        writeToFile("<Critical> " + message);
+    }
+}
+
+void Log::writeToFile(std::string message) {
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
+    }
+}
+
+void Log::deleteLogFile() {
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
 }
 
 #else

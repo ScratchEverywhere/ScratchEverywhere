@@ -58,6 +58,9 @@
 
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
@@ -91,6 +94,20 @@ bool Image::loadFont(const std::string &family) {
     void *fontData = bundle_load(&entry->raw(), &fontSize);
     if (!fontData) return false;
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) return false;
+#elif defined(__ANDROID__)
+    AAsset *asset = AAssetManager_open(g_assetManager, (path + ".ttf").c_str(), AASSET_MODE_BUFFER);
+    if (!asset) return false;
+    size_t fontSize = AAsset_getLength(asset);
+    void *fontData = const_cast<void*>(AAsset_getBuffer(asset));
+    if (!fontData) {
+        AAsset_close(asset);
+        return false;
+    };
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) {
+        AAsset_close(asset);
+        return false;
+    }
+    AAsset_close(asset);
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
@@ -293,7 +310,20 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
         return buffer;
     }
 #else
-
+#ifdef __ANDROID__
+    if (!Unzip::UnpackedInSD || !fromScratchProject) {
+        AAsset *asset = AAssetManager_open(g_assetManager, filePath.c_str(), AASSET_MODE_BUFFER);
+        if (!asset) return nonstd::make_unexpected("File not found: " + filePath);
+        std::vector<unsigned char> buffer(AAsset_getLength(asset) + 1);
+        if (AAsset_read(asset, buffer.data(), buffer.size()) < 0) {
+            AAsset_close(asset);
+            return nonstd::make_unexpected("Failed to decompress file: " + filePath);
+        }
+        buffer[AAsset_getLength(asset)] = '\0';
+        AAsset_close(asset);
+        return buffer;
+    }
+#endif
     std::string path = filePath;
 
     FILE *file = fopen(path.c_str(), "rb");

@@ -32,6 +32,9 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
+#if defined(__ANDROID__)
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+#endif
 
     uint32_t sdlFlags = 0;
 // SDL has to be initialized before window creation on webOS
@@ -53,7 +56,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     } else if (Render::currentRenderer == Renderers::OpenGLCore) {
-#if defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__) || defined(__PS4__) || defined(__ANDROID__)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -70,7 +73,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     }
 
-#ifdef WEBOS
+#if defined(WEBOS) || defined(__ANDROID__)
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
@@ -94,7 +97,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 
         SDL_GL_SetSwapInterval(1); // VSync
 
-#if defined(RENDERER_OPENGL_CORE) && !defined(__EMSCRIPTEN__) && !defined(__PS4__)
+#if defined(RENDERER_OPENGL_CORE) && !defined(__EMSCRIPTEN__) && !defined(__PS4__) && !defined(__ANDROID__)
 #ifdef __SWITCH__
         if (!gladLoadGL()) {
 #else

@@ -8,6 +8,9 @@
 
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 #ifdef RENDERER_CITRO2D
@@ -183,6 +186,16 @@ static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
     }
     std::vector<unsigned char> buffer(entry->size());
     bundle_read_all(&entry->raw(), buffer.data(), buffer.size());
+    return buffer;
+#elif defined(__ANDROID__)
+    AAsset *asset = AAssetManager_open(g_assetManager, fullPath.c_str(), AASSET_MODE_BUFFER);
+    if (!asset) {
+        Log::logError("Failed to open font file: " + fullPath);
+        return {};
+    }
+    std::vector<unsigned char> buffer(AAsset_getLength(asset));
+    AAsset_read(asset, buffer.data(), buffer.size());
+    AAsset_close(asset);
     return buffer;
 #else
     FILE *f = fopen(fullPath.c_str(), "rb");

@@ -9,6 +9,9 @@
 #include <log.hpp>
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 #include <cstdio>
@@ -210,7 +213,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     std::string fullAudioPath = prefix + path;
 #endif
 
-#ifdef USE_BUNDLE
+#if defined(USE_BUNDLE) || defined(__ANDROID__)
     bool loadFromDisk = !isSystemAsset && (cached || Unzip::UnpackedInSD || on_disk);
     if (loadFromDisk) {
 #endif
@@ -263,6 +266,42 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
             Mixer::streams[path] = this;
             Mixer::mutex.unlock();
             return {};
+        }
+    }
+#elif defined(__ANDROID__)
+    } else {
+        AAsset *asset = AAssetManager_open(g_assetManager, (prefix + path).c_str(), AASSET_MODE_BUFFER);
+        this->name = path;
+        commonInit();
+
+        if (asset) {
+            this->buffer_size = AAsset_getLength(asset);
+            this->buffer = static_cast<unsigned char*>(malloc(this->buffer_size));
+            if (!AAsset_read(asset, this->buffer, this->buffer_size)) {
+                AAsset_close(asset);
+                free(this->buffer);
+                this->buffer = nullptr;
+                return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+            }
+
+            if (!loadFromBuffer()) {
+                return nonstd::make_unexpected("Failed to load bundled sound.");
+            }
+
+            AAsset_close(asset);
+            Mixer::mutex.lock();
+            Mixer::streams[path] = this;
+            Mixer::mutex.unlock();
+            return {};
+        } else {
+            // Fallback to disk if not in bundle archive (Streams from file)
+            if (loadFromFile(fullAudioPath)) {
+                Mixer::mutex.lock();
+                Mixer::streams[path] = this;
+                Mixer::mutex.unlock();
+                return {};
+            }
+            return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
         }
     }
 #endif
@@ -413,6 +452,14 @@ void Mixer::initMusic() {
         Mixer::sf2_buffer = malloc(size);
         fread(Mixer::sf2_buffer, 1, size, f);
         fclose(f);
+    }
+#elif defined(__ANDROID__)
+    AAsset *sf2 = AAssetManager_open(g_assetManager, path.c_str(), AASSET_MODE_BUFFER);
+    if (sf2) {
+        size_t sf2Size = AAsset_getLength(sf2);
+        Mixer::sf2_buffer = malloc(sf2Size);
+        AAsset_read(sf2, Mixer::sf2_buffer, sf2Size);
+        AAsset_close(sf2);
     }
 #else
     std::ifstream ifs(path, std::ios::binary);
