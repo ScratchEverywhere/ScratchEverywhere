@@ -183,8 +183,35 @@ const char *Renderer_NV2A::getAVPackName() {
     }
 }
 
+static float s_mainViewportScaleX = 1.0f;
+static float s_mainViewportScaleY = 1.0f;
+static float s_mainViewportOffsetX = 0.0f;
+static float s_mainViewportOffsetY = 0.0f;
+static int s_stageScissorX = 0;
+static int s_stageScissorY = 0;
+static int s_stageScissorW = 640;
+static int s_stageScissorH = 480;
+
+static void updateViewportOverscan();
+
+void Renderer_NV2A::applyVideoSettings() {
+    applyOverscan(s_nv2aVideoSettings.overscanRatio);
+}
+
+void Renderer_NV2A::applyOverscan(float overscanRatio) {
+    s_nv2aVideoSettings.overscanRatio = overscanRatio;
+    updateViewportOverscan();
+}
+
+void Renderer_NV2A::applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen) {
+    (void)logicalWidth;
+    (void)logicalHeight;
+    s_nv2aVideoSettings.isWidescreen = isWidescreen;
+}
+
 void Renderer_NV2A::setOverscanRatio(float ratio) {
     s_nv2aVideoSettings.overscanRatio = ratio;
+    updateViewportOverscan();
 }
 
 float Renderer_NV2A::getOverscanRatio() {
@@ -398,6 +425,59 @@ static s_CtxDma s_penDmaCtx;
 static bool s_penTargetActive = false;
 static float s_penScaleY = 1.0f;
 static std::vector<NV2AVertex> s_penVerts;
+static bool s_lastCapValid = false;
+static float s_lastCapX = 0.0f, s_lastCapY = 0.0f, s_lastCapRadius = 0.0f;
+static uint32_t s_lastCapColor = 0;
+
+static void updateViewportOverscan() {
+    float ratio = s_nv2aVideoSettings.overscanRatio;
+    int width = 0, height = 0;
+#ifdef __XBOX__
+    width = pb_back_buffer_width();
+    height = pb_back_buffer_height();
+#endif
+    if (width <= 0) width = s_nv2aVideoSettings.width;
+    if (height <= 0) height = s_nv2aVideoSettings.height;
+
+    if (ratio <= 0.0f) {
+        s_mainViewportScaleX = 1.0f;
+        s_mainViewportScaleY = 1.0f;
+        s_mainViewportOffsetX = 0.0f;
+        s_mainViewportOffsetY = 0.0f;
+    } else {
+        float totalW = static_cast<float>(width);
+        float totalH = static_cast<float>(height);
+        float offsetX = std::floor(totalW * ratio);
+        float offsetY = std::floor(totalH * ratio);
+        float safeW = totalW - (offsetX * 2.0f);
+        float safeH = totalH - (offsetY * 2.0f);
+        s_mainViewportScaleX = safeW / totalW;
+        s_mainViewportScaleY = safeH / totalH;
+        s_mainViewportOffsetX = offsetX;
+        s_mainViewportOffsetY = offsetY;
+    }
+
+    float screenW = static_cast<float>(width);
+    float screenH = static_cast<float>(height);
+    float screenAspect = screenW / screenH;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float stageX = 0, stageY = 0, stageW = screenW, stageH = screenH;
+    if (screenAspect > projectAspect) {
+        float scale = screenH / Scratch::projectHeight;
+        stageW = Scratch::projectWidth * scale;
+        stageX = (screenW - stageW) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scale = screenW / Scratch::projectWidth;
+        stageH = Scratch::projectHeight * scale;
+        stageY = (screenH - stageH) / 2.0f;
+    }
+
+    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+}
 
 // Circle calculation table
 struct CirclePoint {
@@ -515,6 +595,8 @@ Renderer_NV2A::Renderer_NV2A() {
     // Create DMA channel for off-screen pen rendering (channel 3)
     pb_create_dma_ctx(3, DMA_CLASS_3D, 0, MAXRAM, &s_penDmaCtx);
     pb_bind_channel(&s_penDmaCtx);
+
+    applyVideoSettings();
 
     Log::log("Renderer_NV2A hardware initialized: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
 #endif
@@ -725,13 +807,31 @@ void Renderer_NV2A::setViewport(int x, int y, int w, int h) {
 
 void Renderer_NV2A::setScissor(int x, int y, int w, int h) {
     uint32_t *p = pb_begin();
-    p = xgu_set_scissor_rect(p, false, x, y, w, h);
+    if (s_penTargetActive) {
+        p = xgu_set_scissor_rect(p, false, x, y, w, h);
+    } else {
+        int sx = static_cast<int>(std::round(x * s_mainViewportScaleX + s_mainViewportOffsetX));
+        int sy = static_cast<int>(std::round(y * s_mainViewportScaleY + s_mainViewportOffsetY));
+        int sw = static_cast<int>(std::round(w * s_mainViewportScaleX));
+        int sh = static_cast<int>(std::round(h * s_mainViewportScaleY));
+        int x1 = std::max(sx, s_stageScissorX);
+        int y1 = std::max(sy, s_stageScissorY);
+        int x2 = std::min(sx + sw, s_stageScissorX + s_stageScissorW);
+        int y2 = std::min(sy + sh, s_stageScissorY + s_stageScissorH);
+        int fw = std::max(0, x2 - x1);
+        int fh = std::max(0, y2 - y1);
+        p = xgu_set_scissor_rect(p, false, x1, y1, fw, fh);
+    }
     pb_end(p);
 }
 
 void Renderer_NV2A::clearScissor() {
     uint32_t *p = pb_begin();
-    p = xgu_set_scissor_rect(p, false, 0, 0, getWidth(), getHeight());
+    if (s_penTargetActive) {
+        p = xgu_set_scissor_rect(p, false, 0, 0, s_penTexture.texWidth, s_penTexture.texHeight);
+    } else {
+        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    }
     pb_end(p);
 }
 
@@ -743,14 +843,27 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
 
     if (s_arenaOffset + byteSize > s_arenaBase + ARENA_PER_FRAME_SIZE) {
         while (pb_busy()) {
-            Sleep(0);
+            __asm__ __volatile__("pause");
         }
         s_arenaOffset = s_arenaBase;
     }
 
     const size_t vertOffset = s_arenaOffset;
     auto *dstVerts = reinterpret_cast<NV2AVertex *>(s_vertexArena + vertOffset);
-    memcpy(dstVerts, vertices, count * sizeof(NV2AVertex));
+    if (!s_penTargetActive && (s_mainViewportScaleX != 1.0f || s_mainViewportScaleY != 1.0f || s_mainViewportOffsetX != 0.0f || s_mainViewportOffsetY != 0.0f)) {
+        for (size_t i = 0; i < count; ++i) {
+            dstVerts[i].pos[0] = vertices[i].pos[0] * s_mainViewportScaleX + s_mainViewportOffsetX;
+            dstVerts[i].pos[1] = vertices[i].pos[1] * s_mainViewportScaleY + s_mainViewportOffsetY;
+            dstVerts[i].color[0] = vertices[i].color[0];
+            dstVerts[i].color[1] = vertices[i].color[1];
+            dstVerts[i].color[2] = vertices[i].color[2];
+            dstVerts[i].color[3] = vertices[i].color[3];
+            dstVerts[i].tex[0] = vertices[i].tex[0];
+            dstVerts[i].tex[1] = vertices[i].tex[1];
+        }
+    } else {
+        memcpy(dstVerts, vertices, count * sizeof(NV2AVertex));
+    }
     s_arenaOffset += byteSize;
 
 #ifdef __XBOX__
@@ -792,7 +905,6 @@ static void ensureMainTarget() {
     pb_target_back_buffer();
 
     p = pb_begin();
-    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
     p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, DMA_CHANNEL_PIXEL_RENDERER);
     p = pb_push1(p, NV097_SET_SURFACE_PITCH,
                  XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pb_back_buffer_pitch()) |
@@ -808,8 +920,9 @@ static void ensureMainTarget() {
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, pb_ColorFmt) |
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
     p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
-    p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
     pb_end(p);
 
     s_activeTexture = nullptr;
@@ -821,19 +934,11 @@ static void ensurePenTarget() {
     s_penTargetActive = true;
 
     uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(p);
-
-#ifdef __XBOX__
-    pb_set_dma_address(&s_penDmaCtx, s_penTexture.dataPhysicalAddress, s_penTexture.allocationSize - 1);
-#endif
-
-    p = pb_begin();
     p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, s_penDmaCtx.ChannelID);
     p = pb_push1(p, NV097_SET_SURFACE_PITCH,
                  XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, s_penTexture.pitch) |
                  XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
-    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0);
+    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_penTexture.dataPhysicalAddress)));
     p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
                  XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, s_penTexture.texWidth) |
                  XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
@@ -844,6 +949,7 @@ static void ensurePenTarget() {
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8) |
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
                  XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
     p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
     p = xgu_set_scissor_rect(p, false, 0, 0, s_penTexture.texWidth, s_penTexture.texHeight);
     pb_end(p);
@@ -877,8 +983,8 @@ bool Renderer_NV2A::initPen() {
     s_penTexture.pitch = (penW * 4 + 63) & ~63;
     s_penTexture.dataWidth = s_penTexture.pitch / 4;
     s_penTexture.dataHeight = penH;
-    s_penTexture.uScale = static_cast<float>(penW) / static_cast<float>(npot2pot(s_penTexture.dataWidth));
-    s_penTexture.vScale = static_cast<float>(penH) / static_cast<float>(npot2pot(s_penTexture.dataHeight));
+    s_penTexture.uScale = static_cast<float>(penW);
+    s_penTexture.vScale = static_cast<float>(penH);
     s_penTexture.swizzled = false;
     s_penTexture.isDXT = false;
     s_penTexture.format = XGU_TEXTURE_FORMAT_A8R8G8B8;
@@ -895,14 +1001,13 @@ bool Renderer_NV2A::initPen() {
     }
     s_penTexture.dataPhysicalAddress = reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(MmGetPhysicalAddress(s_penTexture.data)));
     memset(s_penTexture.data, 0, s_penTexture.allocationSize);
-
-    pb_set_dma_address(&s_penDmaCtx, s_penTexture.dataPhysicalAddress, s_penTexture.allocationSize - 1);
 #endif
 
     s_hasPenTexture = true;
     s_penScaleY = static_cast<float>(penH) / static_cast<float>(Scratch::projectHeight > 0 ? Scratch::projectHeight : 360);
     s_penVerts.clear();
     s_penVerts.reserve(PEN_FLUSH_THRESHOLD + 1024);
+    s_lastCapValid = false;
 
     return true;
 }
@@ -917,6 +1022,7 @@ void Renderer_NV2A::cleanupPen() {
         }
 #endif
         s_hasPenTexture = false;
+        s_lastCapValid = false;
     }
     s_penTargetActive = false;
     s_penVerts.clear();
@@ -971,7 +1077,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         pb_wait_for_vbl();
 
         while (pb_busy()) {
-            Sleep(0);
+            __asm__ __volatile__("pause");
         }
 
         pb_reset();
@@ -984,8 +1090,14 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
                               0xFF000000;
         pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), clearColor);
 
+        uint32_t *p = pb_begin();
+        p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+        p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+        pb_end(p);
+
         while (pb_busy()) {
-            Sleep(0);
+            __asm__ __volatile__("pause");
         }
 #endif
 
@@ -1085,6 +1197,7 @@ void Renderer_NV2A::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 
 void Renderer_NV2A::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
     const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -1126,9 +1239,7 @@ void Renderer_NV2A::penMoveFast(double x1, double y1, double x2, double y2, Spri
 }
 
 void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMoveFast(x1, y1, x2, y2, sprite);
-
-    // End caps
+    if (!s_hasPenTexture) return;
     const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
     uint8_t ca = static_cast<uint8_t>(alpha * 255);
@@ -1141,8 +1252,30 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
     float sy1 = static_cast<float>(-y1 * scale + s_penTexture.texHeight / 2.0);
     float sx2 = static_cast<float>(x2 * scale + s_penTexture.texWidth / 2.0);
     float sy2 = static_cast<float>(-y2 * scale + s_penTexture.texHeight / 2.0);
-    float radius = static_cast<float>((sprite->penData.size / 2.0) * scale);
 
+    double dx = sx2 - sx1, dy = sy2 - sy1;
+    double len = std::sqrt(dx * dx + dy * dy);
+    double drawW = (sprite->penData.size / 2.0) * scale;
+
+    if (len > 0) {
+        float nx = static_cast<float>((-dy / len) * drawW);
+        float ny = static_cast<float>((dx / len) * drawW);
+
+        NV2AVertex v0 = {{sx1 + nx, sy1 + ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v1 = {{sx1 - nx, sy1 - ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v2 = {{sx2 + nx, sy2 + ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v3 = {{sx2 - nx, sy2 - ny}, {cr, cg, cb, ca}, {0, 0}};
+
+        s_penVerts.push_back(v0);
+        s_penVerts.push_back(v1);
+        s_penVerts.push_back(v2);
+
+        s_penVerts.push_back(v1);
+        s_penVerts.push_back(v3);
+        s_penVerts.push_back(v2);
+    }
+
+    float radius = static_cast<float>(drawW);
     unsigned int segments = circleSegmentsFor(8.0, sprite->penData.size);
     const CirclePoint *table = getCircleTable(segments);
 
@@ -1154,8 +1287,23 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
         }
     };
 
-    addCircle(sx1, sy1);
+    const uint32_t colorPacked = (static_cast<uint32_t>(ca) << 24) |
+                                 (static_cast<uint32_t>(cr) << 16) |
+                                 (static_cast<uint32_t>(cg) << 8) |
+                                 static_cast<uint32_t>(cb);
+
+    const bool continuesChain = alpha >= 1.0f && s_lastCapValid &&
+                                s_lastCapX == sx1 && s_lastCapY == sy1 &&
+                                s_lastCapRadius == radius && s_lastCapColor == colorPacked;
+
+    if (!continuesChain) addCircle(sx1, sy1);
     addCircle(sx2, sy2);
+
+    s_lastCapValid = true;
+    s_lastCapX = sx2;
+    s_lastCapY = sy2;
+    s_lastCapRadius = radius;
+    s_lastCapColor = colorPacked;
 
     if (s_penVerts.size() >= PEN_FLUSH_THRESHOLD) {
         flushPenVerts(this);
@@ -1164,6 +1312,7 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
 
 void Renderer_NV2A::penDotFast(Sprite *sprite) {
     if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
     const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
     uint8_t ca = static_cast<uint8_t>(alpha * 255);
@@ -1196,6 +1345,7 @@ void Renderer_NV2A::penDotFast(Sprite *sprite) {
 
 void Renderer_NV2A::penDotAccurate(Sprite *sprite) {
     if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
     const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
     uint8_t ca = static_cast<uint8_t>(alpha * 255);
@@ -1225,6 +1375,7 @@ void Renderer_NV2A::penDotAccurate(Sprite *sprite) {
 void Renderer_NV2A::penStamp(Sprite *sprite) {
     if (!s_hasPenTexture) return;
     flushPenVerts(this);
+    s_lastCapValid = false;
 
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) return;
@@ -1262,26 +1413,15 @@ void Renderer_NV2A::penStamp(Sprite *sprite) {
     params.brightness = sprite->brightnessEffect;
 
     image->render(params);
-
-    ensureMainTarget();
 }
 
 void Renderer_NV2A::penClear() {
     if (!s_hasPenTexture) return;
     s_penVerts.clear();
+    s_lastCapValid = false;
 
     ensurePenTarget();
-    uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(p);
-
     pb_fill(0, 0, s_penTexture.texWidth, s_penTexture.texHeight, 0x00000000);
-#ifdef __XBOX__
-    if (s_penTexture.data) {
-        memset(s_penTexture.data, 0, s_penTexture.allocationSize);
-    }
-#endif
-    ensureMainTarget();
 }
 
 void Renderer_NV2A::renderPenLayer() {
@@ -1366,6 +1506,13 @@ void Renderer_NV2A::renderSprites() {
         stageH = Scratch::projectHeight * scale;
         stageY = (screenH - stageH) / 2.0f;
     }
+
+    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+
+    clearScissor();
 
     drawBox(static_cast<int>(stageW), static_cast<int>(stageH),
             static_cast<int>(stageX + stageW / 2.0f), static_cast<int>(stageY + stageH / 2.0f),

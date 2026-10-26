@@ -252,6 +252,19 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
     }
     if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
 
+    while (imgData.width > FORCE_DOWNSCALE_DIM || imgData.height > FORCE_DOWNSCALE_DIM) {
+        int dw, dh;
+        unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
+                                                        imgData.width, imgData.height, dw, dh);
+        if (!downscaled) break;
+        imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
+        free(imgData.pixels);
+        imgData.pixels = downscaled;
+        imgData.width = dw;
+        imgData.height = dh;
+        imgData.pitch = dw * 4;
+    }
+
     const int tileSize = TILE_SIZE;
     const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
 
@@ -278,7 +291,7 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
 
             const uint32_t codec = (isOpaqueTile || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
             const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                              tx, ty, tile.w, tile.h, codec, isOpaqueTile, true);
+                                              tx, ty, tile.w, tile.h, codec, isOpaqueTile, false);
             tile.texture = createDXTTexture(nv2aRenderer, tile.w, tile.h, codec, data.data());
             if (!tile.texture) {
                 Scratch::freeUnusedCostumeImages();
@@ -630,10 +643,10 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
         }
     }
 
-    // High-quality DXT compression
+    // Fast DXT compression for runtime on-the-fly
     const uint32_t codec = (isOpaqueImg || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
     const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                      0, 0, imgData.width, imgData.height, codec, isOpaqueImg, true);
+                                      0, 0, imgData.width, imgData.height, codec, isOpaqueImg, false);
     texture = createDXTTexture(nv2aRenderer, imgData.width, imgData.height, codec, data.data());
     if (texture) return {};
 
@@ -919,13 +932,68 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
     return rename(tempPath.c_str(), cachePath.c_str()) == 0;
 }
 
+// Describes how a cache was built. Stored in .complete: a cache built under different settings is rebuilt.
+static std::string textureCacheSignature() {
+    return "nv2a_xbt=" + std::to_string(XBT_VERSION) +
+           " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
+           " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
+           " maxdim=" + std::to_string(FORCE_DOWNSCALE_DIM);
+}
+
+static std::string readTextFile(const std::string &path) {
+    FILE *f = fopen(path.c_str(), "rb");
+    if (!f) return "";
+    char buf[256];
+    const size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    std::string text(buf, n);
+    while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
+        text.pop_back();
+    return text;
+}
+
+static bool writeTextFile(const std::string &path, const std::string &text) {
+    FILE *f = fopen(path.c_str(), "wb");
+    if (!f) return false;
+    const bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
+    fclose(f);
+    return ok;
+}
+
+static void clearTextureCacheDir(const std::string &dir) {
+    auto files = FileSystem::listDirectory(dir);
+    if (!files.has_value()) return;
+    for (const std::string &name : files.value()) {
+        if (name == "." || name == "..") continue;
+        remove((dir + name).c_str());
+    }
+}
+
 void Image_NV2A::precacheProjectTextures() {
     std::string cacheDir = getTextureCacheDir();
     FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache\\");
     FileSystem::createDirectory(cacheDir);
 
     const std::string completeFile = cacheDir + ".complete";
-    if (FileSystem::fileExists(completeFile)) return;
+    const std::string signature = textureCacheSignature();
+    if (FileSystem::fileExists(completeFile)) {
+        const std::string builtFor = readTextFile(completeFile);
+        if (builtFor == signature) return;
+
+        Log::log("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
+                 "] Current: [" + signature + "]");
+        clearTextureCacheDir(cacheDir);
+    }
+
+    bool cachingStateSet = false;
+    auto ensureCachingState = [&]() {
+        if (!cachingStateSet) {
+            Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.caching"));
+            cachingStateSet = true;
+        }
+    };
+
+    bool allSucceeded = true;
 
     auto precacheCostume = [&](const Costume &costume, bool isStage) {
         if (costume.isSVG) return;
@@ -937,13 +1005,17 @@ void Image_NV2A::precacheProjectTextures() {
 
         size_t fileSize = 0;
         void *fileData = extractProjectAsset(name, fileSize);
-        if (!fileData || fileSize == 0) return;
+        if (!fileData || fileSize == 0) {
+            allSucceeded = false;
+            return;
+        }
 
         int rawW = 0, rawH = 0, channels = 0;
         unsigned char *pixels = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
         freeProjectAsset(fileData);
         if (!pixels || rawW <= 0 || rawH <= 0) {
             if (pixels) stbi_image_free(pixels);
+            allSucceeded = false;
             return;
         }
 
@@ -955,6 +1027,24 @@ void Image_NV2A::precacheProjectTextures() {
             if (curPixels == pixels) stbi_image_free(curPixels);
             else free(curPixels);
             return;
+        }
+
+        ensureCachingState();
+
+        // Downscale Retina (resolution == 2) assets on 64MB consoles if large (> 256x256)
+        if (!OS::isEnhancedPlatform() && costume.bitmapResolution == 2) {
+            if (curW * curH > 256 * 256) {
+                int dw, dh;
+                unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+                if (downscaled) {
+                    logicalScale /= 2.0f;
+                    if (curPixels == pixels) stbi_image_free(curPixels);
+                    else free(curPixels);
+                    curPixels = downscaled;
+                    curW = dw;
+                    curH = dh;
+                }
+            }
         }
 
         while (curW > FORCE_DOWNSCALE_DIM || curH > FORCE_DOWNSCALE_DIM) {
@@ -985,7 +1075,9 @@ void Image_NV2A::precacheProjectTextures() {
         }
 
         uint32_t codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
-        writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec, logicalScale);
+        if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec, logicalScale)) {
+            allSucceeded = false;
+        }
 
         if (curPixels == pixels) stbi_image_free(curPixels);
         else free(curPixels);
@@ -999,10 +1091,8 @@ void Image_NV2A::precacheProjectTextures() {
         for (const auto &costume : sprite->costumes) precacheCostume(costume, false);
     }
 
-    FILE *f = fopen(completeFile.c_str(), "wb");
-    if (f) {
-        fputs("nv2a_complete", f);
-        fclose(f);
+    if (allSucceeded) {
+        writeTextFile(completeFile, signature);
     }
 }
 

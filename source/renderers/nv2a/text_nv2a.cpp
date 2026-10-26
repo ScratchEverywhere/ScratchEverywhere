@@ -1,6 +1,7 @@
 #include "text_nv2a.hpp"
 #include "renderer_nv2a.hpp"
 #include "xgu.h"
+#include <os.hpp>
 #include <runtime.hpp>
 #include <vector>
 
@@ -17,30 +18,38 @@ void TextObjectNV2A::uploadAtlas(FontGeneration &gen) {
     }
     if (!renderer) return;
 
-    if (gen.backendHandle) {
-        NV2ATexture *oldTex = static_cast<NV2ATexture *>(gen.backendHandle);
-        renderer->destroyTexture(oldTex);
-        gen.backendHandle = nullptr;
-    }
+    NV2ATexture *oldTex = static_cast<NV2ATexture *>(gen.backendHandle);
+    NV2ATexture *tex = nullptr;
 
-    NV2ATexture *tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
-    if (!tex) {
-        Scratch::freeUnusedCostumeImages();
+    // On standard 64MB Xbox, prefer 16-bit A4R4G4B4 swizzled to conserve contiguous memory (half the size).
+    // On enhanced 128MB consoles with plenty of RAM, try 32-bit first.
+    const bool try32Bit = OS::isEnhancedPlatform();
+
+    if (try32Bit) {
         tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        if (!tex) {
+            Scratch::freeUnusedCostumeImages();
+            tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        }
+        if (tex) {
+            std::vector<uint8_t> rgba(static_cast<size_t>(gen.atlasWidth) * gen.atlasHeight * 4);
+            for (size_t i = 0; i < gen.pixels.size(); ++i) {
+                rgba[i * 4 + 0] = 255;
+                rgba[i * 4 + 1] = 255;
+                rgba[i * 4 + 2] = 255;
+                rgba[i * 4 + 3] = gen.pixels[i];
+            }
+            renderer->updateTexture(tex, rgba.data(), gen.atlasWidth * 4);
+        }
     }
 
-    if (tex) {
-        std::vector<uint8_t> rgba(static_cast<size_t>(gen.atlasWidth) * gen.atlasHeight * 4);
-        for (size_t i = 0; i < gen.pixels.size(); ++i) {
-            rgba[i * 4 + 0] = 255;
-            rgba[i * 4 + 1] = 255;
-            rgba[i * 4 + 2] = 255;
-            rgba[i * 4 + 3] = gen.pixels[i];
-        }
-        renderer->updateTexture(tex, rgba.data(), gen.atlasWidth * 4);
-    } else {
-        // Fallback to 16-bit A4R4G4B4 swizzled (half memory)
+    if (!tex) {
+        // 16-bit A4R4G4B4 swizzled (512KB for 512x512, 2MB for 1024x1024)
         tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED, true);
+        if (!tex) {
+            Scratch::freeUnusedCostumeImages();
+            tex = renderer->createTexture(gen.atlasWidth, gen.atlasHeight, XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED, true);
+        }
         if (tex) {
             std::vector<uint16_t> a4(static_cast<size_t>(gen.atlasWidth) * gen.atlasHeight);
             for (size_t i = 0; i < gen.pixels.size(); ++i) {
@@ -49,6 +58,15 @@ void TextObjectNV2A::uploadAtlas(FontGeneration &gen) {
             }
             renderer->updateTexture(tex, a4.data(), gen.atlasWidth * 2);
         }
+    }
+
+    if (!tex) {
+        // Failed to allocate; keep old texture (if any) and leave dirty so it retries later
+        return;
+    }
+
+    if (oldTex) {
+        renderer->destroyTexture(oldTex);
     }
 
     gen.backendHandle = tex;
