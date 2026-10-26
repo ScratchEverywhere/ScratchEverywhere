@@ -75,11 +75,11 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_D3D9
     add(Renderers::D3D9);
 #endif
-#ifdef RENDERER_XBOX
-    add(Renderers::Xbox);
-#endif
 #ifdef RENDERER_NV2A
     add(Renderers::NV2A);
+#endif
+#ifdef RENDERER_XBOX
+    add(Renderers::Xbox);
 #endif
 #ifdef RENDERER_SDL3
     add(Renderers::SDL3);
@@ -171,19 +171,19 @@ bool Render::init() {
             continue;
 #endif
         }
-        case Renderers::Xbox: {
-#ifdef RENDERER_XBOX
-            Render::currentRenderer = Renderers::Xbox;
-            globalRenderer = new Renderer_Xbox;
+        case Renderers::NV2A: {
+#ifdef RENDERER_NV2A
+            Render::currentRenderer = Renderers::NV2A;
+            globalRenderer = new Renderer_NV2A;
             break;
 #else
             continue;
 #endif
         }
-        case Renderers::NV2A: {
-#ifdef RENDERER_NV2A
-            Render::currentRenderer = Renderers::NV2A;
-            globalRenderer = new Renderer_NV2A;
+        case Renderers::Xbox: {
+#ifdef RENDERER_XBOX
+            Render::currentRenderer = Renderers::Xbox;
+            globalRenderer = new Renderer_Xbox;
             break;
 #else
             continue;

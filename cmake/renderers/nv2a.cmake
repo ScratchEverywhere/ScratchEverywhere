@@ -3,10 +3,6 @@ cl_add_dep(renderer_interface stb_truetype)
 
 list(APPEND SE_WINDOWING_VALID_OPTIONS "nv2a")
 
-if(SE_RENDERER STREQUAL "nv2a" AND (NOT DEFINED SE_WINDOWING OR SE_WINDOWING STREQUAL ""))
-    set(SE_WINDOWING "nv2a" CACHE STRING "Select the desired windowing backend." FORCE)
-endif()
-
 if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
     set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 endif()

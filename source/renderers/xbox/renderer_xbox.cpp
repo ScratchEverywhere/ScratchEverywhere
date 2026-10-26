@@ -1,6 +1,8 @@
 #include "renderer_xbox.hpp"
 #include "speech_manager_xbox.hpp"
+#ifdef WINDOWING_SDL3
 #include "window_sdl3.hpp"
+#endif
 #include <os.hpp>
 #include <window.hpp>
 
@@ -464,6 +466,7 @@ Renderer_Xbox::Renderer_Xbox() {
     int windowWidth = xboxVideoSettings.width;
     int windowHeight = xboxVideoSettings.height;
 
+#ifdef WINDOWING_SDL3
     window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL3);
     if (window->error.has_value()) {
         error = "Failed to init window: " + window->error.value();
@@ -477,6 +480,9 @@ Renderer_Xbox::Renderer_Xbox() {
         return;
     }
     applyVideoSettings();
+#else
+    error = "Renderer_Xbox requires SDL3 windowing backend (WINDOWING_SDL3)";
+#endif
 }
 
 Renderer_Xbox::~Renderer_Xbox() {
