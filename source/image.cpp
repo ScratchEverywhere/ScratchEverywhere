@@ -49,6 +49,9 @@
 #if defined(RENDERER_OPENGL_CORE)
 #include <image_gl_core.hpp>
 #endif
+#if defined(RENDERER_GX2)
+#include <image_gx2.hpp>
+#endif
 #if defined(RENDERER_GDI)
 #include <image_gdi.hpp>
 #endif
@@ -157,6 +160,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_GX2)
+    case Renderers::GX2:
+        rawImg = new Image_GX2(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_GDI)
     case Renderers::GDI:
         rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -245,6 +253,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_OPENGL_CORE)
     case Renderers::OpenGLCore:
         rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GX2)
+    case Renderers::GX2:
+        rawImg = new Image_GX2(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_GDI)
