@@ -35,6 +35,9 @@ bool initNetworking() {
         if (g_pnetif && netif_ip4_addr(g_pnetif)) {
             Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
         }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+        Log::initNetworkTrace();
+#endif
         return true;
     }
 
@@ -50,6 +53,9 @@ bool initNetworking() {
         Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
         Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
     }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    Log::initNetworkTrace();
+#endif
     Log::log("Network initialized successfully.");
     return true;
 }
@@ -124,6 +130,9 @@ bool OS::init() {
 }
 
 void OS::deinit() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    Log::closeNetworkTrace();
+#endif
     nxNetShutdown();
     return;
 }

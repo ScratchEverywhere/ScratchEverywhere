@@ -21,7 +21,7 @@ neutralize all reports afterwards.
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; current normal-build route reaches 7 apples and the second checkpoint, with death/respawn there; quick restart; music/effects capture; pause/exit/relaunch; optional live pause snapshots verified on hardware | Full first level, including moving blue platforms after checkpoint two; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; road crossing/platform carrying; prepared prompt seven-pad win and ordered replay initialization pass targeted xemu collision probes; prepared copy passes hardware movement, traffic death/replay, two launches/two exits; 8s non-clipping HDMI audio | Complete river crossing/lily-pad scoring and seven-pad win through controller play on hardware; subjective/long-run audio |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
@@ -43,6 +43,24 @@ are unchanged; SB2 archives use numeric asset IDs assigned during packaging.
 Upload readback results are in `next-five-installed.json` in that directory.
 The browser visibly lists the new games; the first page shows Appel, Atari
 Breakout, Catch Apples, Frogger and Hopper.
+
+## Appel controller route follow-up — October 26, 2026
+
+The normal `07f15fc6…` build reached seven apples and the second checkpoint
+through ordinary D-pad/A input. The matching terrain has the deep pit with
+vertical spike walls behind the flag and moving blue platforms ahead. Death
+returned the player to that flag with seven apples retained. Local captures
+`appel-level1-deep-pit-jump.jpg` and `appel-level1-blue-attempt-respawn.jpg`
+show those states. The original archive's decoded Level 1 map places this flag
+at tile `(36, 3)`; that map reading is route context, not a live position trace.
+
+Earlier captures named `checkpoint2-jump`, `checkpoint2-respawn` and
+`middle-safe-tile` actually showed returns to the first checkpoint and are
+excluded from the second-checkpoint claim. Attempts at the blue platforms
+remain incomplete; an authored pause obscured the landing in one attempt.
+The [optional live log mirror](xbox-network-logging.md) now exposes existing
+runtime-pause position and checkpoint snapshots without returning to FTP.
+Neither those snapshots nor this route establish a complete first level.
 
 ## October 25 continuation
 
