@@ -32,7 +32,7 @@ neutralize all reports afterwards.
 | 2048 (JereTheJuggler) | Browser launch; four directions; extended controller play to 1024 and Score 14456; one persistent grid mismatch preserved | Diagnose grid mismatch; win/loss/replay, exit/relaunch; no authored sound playback |
 | Retro Racing (griffpatch) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Hill Climb Racing (griffpatch) | Hardware jeep Score 1,000, motorcycle Score 420/+200 airtime; crash and fuel loss; A replay, X vehicle swap, active Black/R restart; repaired full messages; pause/exit and repeat launch; HDMI audio signal | Extended terrain, precise brake/air control, fuel pickup, authored Y pause, subjective/long-run audio |
-| Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
+| Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile; hardware startup fault reproduced in GDB and calendar reporter fixed; xemu movement/jump, block hit, Green Flag replay and browser exit | Hardware verification of calendar fix; first pipe/level completion, loss/recovery, repeat launch and audio |
 | Doodle Jump (xamuil2) | Hardware browser launch, left/right platform steering, at least 1,044 m; fall and automatic replay; pause/exit, fresh launch and second exit; HDMI audio signal | Edge wrapping, monsters, extended play and subjective audio |
 | Jumper (Depicklator) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
 | Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile | All hardware gameplay checks |
