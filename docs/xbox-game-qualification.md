@@ -24,7 +24,7 @@ neutralize all reports afterwards.
 | Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; 10 apples; start/checkpoint respawn; quick restart; music/effects capture; pause/exit/relaunch | Full level; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | Frogger (cs50) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch verified | Safe crossing/lily-pad scoring, audio |
-| Atari Breakout (LVRS) | Hardware startup crash reproduced in xemu; localized stage monitor fix restores emulator gameplay and Score 20; bitmap text layers restore life count/ending and Green Flag replay in xemu | Hardware retest after recovery; controller usability, loss/replay and audio |
+| Atari Breakout (LVRS) | Hardware startup crash reproduced in xemu; localized stage monitor fix restores emulator gameplay and Score 20; bitmap text layers restore life count/ending; prepared D-pad/stick controls reach Score 60, loss/Green Flag replay/exit pass in xemu | Hardware install/retest after recovery, repeat browser launch, full board; no authored audio-playback blocks |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
 | Space Invaders (RokCoder) | Hardware browser launch; D-pad left/right, A start/fire, Score 450, shield damage and life loss; A replay to 0/three lives; pause/exit, verified fresh launch and second exit; HDMI audio signal | Full wave; subjective/long-run audio |
 | Asteroids (Will_Wam) | Hardware browser launch, thrust/turn/fire, 9,200 points and game over; repaired SB2 ending text; pause Green Flag replay to 0; exit, fresh browser relaunch and second exit; captured HDMI audio | Subjective/long-run audio; further level progression |
@@ -716,3 +716,9 @@ archive’s stage is named Bühne, while the runtime normalizes it to Stage.
 The [stage-monitor fix and fixture](xbox-sb2-stage-monitors.md) pass in the
 actual Xbox executable under xemu, and original Breakout reached Score 20
 with a visible paddle, ball and removed brick. Hardware retest is pending.
+
+The [separate Breakout controller copy](xbox-breakout-controller.md) then
+passed D-pad/right and left-stick/left steering, ±201 edge limits, Score 60,
+loss, Green Flag replay with mode reset and renewed direct steering, and Exit
+to the browser in xemu. Its original assets and non-input scripts are retained.
+It has not yet been installed on the physical Xbox.
