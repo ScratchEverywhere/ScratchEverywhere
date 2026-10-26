@@ -442,16 +442,16 @@ double mathOpApply(BytecodeMathOp op, double value) {
     case BytecodeMathOp::Sqrt:
         return std::sqrt(value);
     case BytecodeMathOp::Sin:
-        return std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        return ::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
     case BytecodeMathOp::Cos:
-        return std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        return ::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
     case BytecodeMathOp::Tan: {
         double modAngle = std::fmod(value, 360.0);
         if (modAngle < -180.0) modAngle += 360.0;
         if (modAngle > 180.0) modAngle -= 360.0;
         if (modAngle == 90.0 || modAngle == -270.0) return std::numeric_limits<double>::infinity();
         if (modAngle == -90.0 || modAngle == 270.0) return -std::numeric_limits<double>::infinity();
-        return std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+        return ::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
     }
     case BytecodeMathOp::Asin:
         return Math::radiansToDegrees(std::asin(value));
@@ -1110,7 +1110,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     thread.pc = instr.a;
                     SE_NEXT();
                 }
-                const double remaining = std::round(thread.valueStack.back().get<double>()) - 1.0;
+                const double remaining = ::round(thread.valueStack.back().get<double>()) - 1.0;
                 if (remaining < 0.0) {
                     thread.valueStack.pop_back();
                     thread.pc = instr.a;

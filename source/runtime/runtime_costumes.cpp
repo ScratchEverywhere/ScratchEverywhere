@@ -10,7 +10,7 @@
 #include <vector>
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
-    costumeIndex = std::round(costumeIndex);
+    costumeIndex = ::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
 #ifdef __XBOX__

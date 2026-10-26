@@ -1,0 +1,11 @@
+FROM ubuntu:24.04 AS main_builder
+ENV PS3DEV=/usr/local/ps3dev
+ENV PSL1GHT=/usr/local/ps3dev
+ENV PATH=${PS3DEV}/bin:${PS3DEV}/ppu/bin:${PATH}
+WORKDIR /app
+COPY . .
+# Toolchain must be provided at /usr/local/ps3dev (mount or COPY).
+RUN cmake -S . -B build-ps3 -DCMAKE_TOOLCHAIN_FILE=ppu.cmake -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build-ps3 -j$(nproc)
+FROM scratch AS exporter
+COPY --from=main_builder /app/build-ps3/scratch-ps3 /

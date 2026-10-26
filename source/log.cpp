@@ -180,14 +180,22 @@ void Log::log(std::string message) {
 void Log::logWarning(std::string message) {
     if (lastLog == message) return;
     lastLog = message;
+#ifdef __PC__
     std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+#else
+    std::cout << "Warning: " << message << std::endl;
+#endif
     writeToFile("<Warning> " + message);
 }
 
 void Log::logError(std::string message) {
     if (lastLog == message) return;
     lastLog = message;
+#ifdef __PC__
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+#else
+    std::cerr << "Error: " << message << std::endl;
+#endif
     writeToFile("<Error> " + message);
 }
 

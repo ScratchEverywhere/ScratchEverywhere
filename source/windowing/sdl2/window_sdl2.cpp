@@ -72,6 +72,8 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 
 #ifdef WEBOS
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
+#elif defined(__PS3__)
+    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_FULLSCREEN_DESKTOP;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
@@ -107,6 +109,9 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
     }
 
 #ifdef PLATFORM_HAS_CONTROLLER
+#ifdef __PS3__
+    while (SDL_NumJoysticks() == 0) { SDL_PumpEvents(); }
+#endif
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 #endif
 
@@ -123,7 +128,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 #if defined(WEBOS)
         SDL_GetWindowSize(window, &dw, &dh);
 #else
-        SDL_GetWindowSizeInPixels(window, &dw, &dh);
+        SDL_GetWindowSize(window, &dw, &dh);
 #endif
         resize(dw, dh);
     }
@@ -176,7 +181,7 @@ void WindowSDL2::pollEvents() {
 #if defined(WEBOS)
                     SDL_GetWindowSize(window, &w, &h);
 #else
-                    SDL_GetWindowSizeInPixels(window, &w, &h);
+                    SDL_GetWindowSize(window, &w, &h);
 #endif
                 }
                 resize(w, h);
@@ -223,7 +228,7 @@ void WindowSDL2::calculatePixelDensity() {
     int logicalW, logicalH, pixelW, pixelH;
 
     SDL_GetWindowSize(window, &logicalW, &logicalH);
-    SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH);
+    SDL_GetWindowSize(window, &pixelW, &pixelH);
 
     this->pixelDensity = static_cast<float>(pixelW) / logicalW;
 #endif

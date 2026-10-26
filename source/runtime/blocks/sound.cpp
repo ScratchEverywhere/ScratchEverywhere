@@ -19,7 +19,7 @@ bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::str
     }
 
     if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return false;
-    double index = std::trunc(soundValue.get<double>());
+    double index = ::trunc(soundValue.get<double>());
     double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
     outFullName = sprite->sounds[soundIndex].fullName;
     return true;
@@ -100,7 +100,7 @@ SCRATCH_BLOCK(sound, play) {
     // If not found by name and input is a number, try index-based lookup
     if (!soundFound) {
         if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return BlockResult::CONTINUE;
-        double index = std::trunc(soundValue.get<double>());
+        double index = ::trunc(soundValue.get<double>());
         double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
         soundFullName = sprite->sounds[soundIndex].fullName;
         soundFound = true;

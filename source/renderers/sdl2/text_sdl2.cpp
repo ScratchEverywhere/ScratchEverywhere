@@ -3,6 +3,11 @@
 #include <renderer_sdl2.hpp>
 #include <vector>
 
+#if !SDL_VERSION_ATLEAST(2, 0, 18)
+struct SDL_Vertex { SDL_FPoint position; SDL_Color color; SDL_FPoint tex_coord; };
+static inline int SDL_RenderGeometry(SDL_Renderer *, SDL_Texture *, const SDL_Vertex *, int, const int *, int) { return 0; }
+#endif
+
 TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
     renderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
@@ -62,6 +67,31 @@ void TextObjectSDL2::render(int xPos, int yPos) {
     }
 
     const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
+
+#if !SDL_VERSION_ATLEAST(2, 0, 18)
+    SDL_SetTextureColorMod(tex, col.r, col.g, col.b);
+    SDL_SetTextureAlphaMod(tex, col.a);
+    for (size_t li = 0; li < layoutLines.size(); ++li) {
+        const auto &glyphs = layoutLines[li];
+        if (glyphs.empty()) continue;
+
+        float lineX = drawX;
+        float lineY = drawY + (float)li * lineHeight + gen.ascent * glyphScale;
+
+        for (const GlyphQuad &q : glyphs) {
+            float qx0 = lineX + q.x0 * glyphScale;
+            float qy0 = lineY + q.y0 * glyphScale;
+            float qx1 = lineX + q.x1 * glyphScale;
+            float qy1 = lineY + q.y1 * glyphScale;
+
+            SDL_Rect src = {(int)(q.s0 * gen.atlasWidth), (int)(q.t0 * gen.atlasHeight),
+                            (int)((q.s1 - q.s0) * gen.atlasWidth), (int)((q.t1 - q.t0) * gen.atlasHeight)};
+            SDL_Rect dst = {(int)qx0, (int)qy0, (int)(qx1 - qx0), (int)(qy1 - qy0)};
+            SDL_RenderCopy(renderer, tex, &src, &dst);
+        }
+    }
+    return;
+#endif
 
     std::vector<SDL_Vertex> verts;
     std::vector<int> indices;

@@ -594,7 +594,7 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, cleargraphiceffects) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(looks, size) {
-    return std::round(sprite->size);
+    return ::round(sprite->size);
 }
 SCRATCH_BLOCK_DOUBLE(looks, size) {
     *outValue = block_looks_size_pos_(sprite);

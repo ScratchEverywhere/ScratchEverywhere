@@ -287,7 +287,7 @@ SCRATCH_BLOCK_POSITIONAL_SPRITE_S_B(sensing, touchingobject) {
 }
 
 static uint8_t toColorByte(float channel) {
-    return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
+    return static_cast<uint8_t>(std::clamp(::roundf(channel), 0.0f, 255.0f));
 }
 
 SCRATCH_BLOCK_BOOLEAN(sensing, touchingcolor) {

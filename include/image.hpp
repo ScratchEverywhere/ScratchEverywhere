@@ -6,7 +6,7 @@
 #include "lunasvg.h"
 #endif
 #include <cstddef>
-#include <memory.h>
+#include <cstring>
 #include <string>
 #include <types.hpp>
 #include <vector>
