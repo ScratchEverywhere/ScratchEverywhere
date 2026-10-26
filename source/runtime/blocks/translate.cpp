@@ -110,6 +110,7 @@ SCRATCH_BLOCK_STRING(translate, getTranslate) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(translate, getTranslate, {"WORDS", BytecodeStackKind::String}, {"LANGUAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK_STRING(translate, getViewerLanguage) {
     // Uses English by default,
@@ -118,3 +119,4 @@ SCRATCH_BLOCK_STRING(translate, getViewerLanguage) {
     *outValue = getNameFromCode(currentLocale);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(translate, getViewerLanguage);

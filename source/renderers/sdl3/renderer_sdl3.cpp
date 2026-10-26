@@ -35,6 +35,10 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
+#ifdef __XBOX__
+#include <os.hpp>
+#endif
+
 static SDL_Texture *mainRenderTarget = nullptr;
 static bool hasOverrideTarget = false;
 static int overrideWidth = 0;
@@ -81,6 +85,9 @@ Renderer_SDL3::Renderer_SDL3() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
+#elif defined(__XBOX__)
+    int windowWidth = 640;
+    int windowHeight = 480;
 #else
     int windowWidth = 480;
     int windowHeight = 360;

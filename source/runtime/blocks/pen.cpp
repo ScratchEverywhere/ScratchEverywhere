@@ -17,11 +17,26 @@ SCRATCH_BLOCK(pen, penDown) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, penDown);
+SCRATCH_BLOCK_POSITIONAL_VOID(pen, penDown) {
+    if (!Render::initPen()) return;
+    sprite->penData.down = true;
+
+    if (Scratch::accuratePen)
+        Render::penDotAccurate(sprite);
+    else Render::penDotFast(sprite);
+
+    Scratch::forceRedraw = true;
+}
 
 SCRATCH_BLOCK(pen, penUp) {
     sprite->penData.down = false;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(pen, penUp);
+SCRATCH_BLOCK_POSITIONAL_VOID(pen, penUp) {
+    sprite->penData.down = false;
 }
 
 SCRATCH_BLOCK(pen, setPenColorParamTo) {
@@ -58,6 +73,34 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenColorParamTo, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, setPenColorParamTo) {
+    if (str == "color") {
+        double unwrappedColor = num;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return;
+    }
+    if (str == "saturation") {
+        sprite->penData.color.saturation = num;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return;
+    }
+    if (str == "brightness") {
+        sprite->penData.color.brightness = num;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return;
+    }
+    if (str == "transparency") {
+        sprite->penData.color.transparency = num;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return;
+    }
+
+    Log::log("[Pen] Unknown pen option: " + str);
+}
 
 SCRATCH_BLOCK(pen, changePenColorParamBy) {
     std::string option;
@@ -93,6 +136,33 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenColorParamBy, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, changePenColorParamBy) {
+    if (str == "color") {
+        double unwrappedColor = sprite->penData.color.hue + num;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return;
+    }
+    if (str == "saturation") {
+        sprite->penData.color.saturation += num;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return;
+    }
+    if (str == "brightness") {
+        sprite->penData.color.brightness += num;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return;
+    }
+    if (str == "transparency") {
+        sprite->penData.color.transparency += num;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return;
+    }
+    Log::log("[Pen] Unknown pen option: " + str);
+}
 
 SCRATCH_BLOCK(pen, setPenColorToColor) {
     Color color;
@@ -100,6 +170,11 @@ SCRATCH_BLOCK(pen, setPenColorToColor) {
     sprite->penData.color = color;
     sprite->penData.shade = sprite->penData.color.brightness / 2;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(pen, setPenColorToColor, {"COLOR", BytecodeStackKind::Color});
+SCRATCH_BLOCK_POSITIONAL_C_VOID(pen, setPenColorToColor) {
+    sprite->penData.color = color;
+    sprite->penData.shade = sprite->penData.color.brightness / 2;
 }
 
 SCRATCH_BLOCK(pen, setPenSizeTo) {
@@ -112,6 +187,12 @@ SCRATCH_BLOCK(pen, setPenSizeTo) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenSizeTo, {"SIZE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, setPenSizeTo) {
+    sprite->penData.size = num;
+    if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
+    else if (sprite->penData.size > maxPenSize) sprite->penData.size = maxPenSize;
+}
 
 SCRATCH_BLOCK(pen, changePenSizeBy) {
     double size;
@@ -123,6 +204,12 @@ SCRATCH_BLOCK(pen, changePenSizeBy) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenSizeBy, {"SIZE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, changePenSizeBy) {
+    sprite->penData.size += num;
+    if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
+    else if (sprite->penData.size > maxPenSize) sprite->penData.size = maxPenSize;
+}
 
 SCRATCH_BLOCK(pen, clear) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
@@ -131,6 +218,12 @@ SCRATCH_BLOCK(pen, clear) {
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(pen, clear);
+SCRATCH_BLOCK_POSITIONAL_VOID(pen, clear) {
+    if (!Render::initPen()) return;
+    Render::penClear();
+    Scratch::forceRedraw = true;
 }
 
 SCRATCH_BLOCK(pen, stamp) {
@@ -143,6 +236,13 @@ SCRATCH_BLOCK(pen, stamp) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, stamp);
+SCRATCH_BLOCK_POSITIONAL_VOID(pen, stamp) {
+    if (!Render::initPen()) return;
+    Scratch::loadCurrentCostumeImage(sprite);
+    Render::penStamp(sprite);
+    Scratch::forceRedraw = true;
+}
 
 SCRATCH_BLOCK(pen, setPenHueToNumber) {
     double hue;
@@ -153,6 +253,12 @@ SCRATCH_BLOCK(pen, setPenHueToNumber) {
     sprite->penData.color.transparency = 0;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenHueToNumber, {"HUE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, setPenHueToNumber) {
+    double unwrappedColor = num / 2;
+    sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+    sprite->penData.color.transparency = 0;
+}
 
 SCRATCH_BLOCK(pen, changePenHueBy) {
     double hue;
@@ -162,6 +268,11 @@ SCRATCH_BLOCK(pen, changePenHueBy) {
     sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(pen, changePenHueBy, {"HUE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, changePenHueBy) {
+    double unwrappedColor = sprite->penData.color.hue + num / 2;
+    sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
 }
 
 SCRATCH_BLOCK(pen, setPenShadeToNumber) {
@@ -174,6 +285,13 @@ SCRATCH_BLOCK(pen, setPenShadeToNumber) {
     sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenShadeToNumber, {"SHADE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, setPenShadeToNumber) {
+    sprite->penData.shade = std::fmod(num, 200);
+    if (sprite->penData.shade < 0) sprite->penData.shade += 200;
+
+    sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
+}
 
 SCRATCH_BLOCK(pen, changePenShadeBy) {
     double shade;
@@ -185,6 +303,14 @@ SCRATCH_BLOCK(pen, changePenShadeBy) {
 
     sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(pen, changePenShadeBy, {"SHADE", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(pen, changePenShadeBy) {
+    sprite->penData.shade += num;
+    sprite->penData.shade = std::fmod(sprite->penData.shade, 200);
+    if (sprite->penData.shade < 0) sprite->penData.shade += 200;
+
+    sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
 }
 
 SCRATCH_SHADOW_BLOCK(pen_menu_colorParam, colorParam)

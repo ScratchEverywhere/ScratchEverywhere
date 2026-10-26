@@ -6,6 +6,7 @@
 
 enum class PopupType : uint8_t {
     ACCEPT_OR_CANCEL,
+    ACKNOWLEDGE,
 };
 
 class SE_EXPORT PopupMenu : public Menu {

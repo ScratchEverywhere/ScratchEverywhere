@@ -79,6 +79,48 @@ SCRATCH_BLOCK(procedures, call) {
     return BlockResult::REPEAT;
 }
 
+SCRATCH_BYTECODE_BLOCK(procedures, call) {
+    outFirstInstr = compiler.here();
+
+    if (!block->bytecodeCallOpcode.empty()) {
+        auto &sigMap = BlockExecutor::getInputSignatures();
+        auto sigIt = sigMap.find(block->bytecodeCallOpcode);
+        if (sigIt != sigMap.end()) {
+            for (const auto &s : sigIt->second)
+                compiler.compileInput(block, s.name, s.kind);
+            BytecodeIndex opSlot = compiler.opcodeSlot(block->bytecodeCallOpcode, sigIt->second);
+            compiler.emit(BytecodeOp::CallNative, opSlot,
+                          static_cast<BytecodeIndex>(sigIt->second.size()));
+        }
+        return true;
+    }
+
+    if (block->MyBlockDefinitionID == nullptr) return true;
+    BytecodeIndex procSlot = compiler.procedureSlot(block->MyBlockDefinitionID);
+    if (procSlot == invalidBytecodeIndex) return true;
+
+    for (size_t i = 0; i < block->argumentIDs.size(); i++) {
+        const std::string &argId = block->argumentIDs[i];
+        const ParsedInput *input = Scratch::getInput(block, argId);
+
+        if (input == nullptr) {
+            Value defaultVal;
+            if (i < block->MyBlockDefinitionID->argumentDefaults.size())
+                defaultVal = block->MyBlockDefinitionID->argumentDefaults[i];
+
+            BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
+            compiler.chunk().constants.push_back(defaultVal);
+            compiler.emit(BytecodeOp::PushConstValue, idx);
+        } else {
+            compiler.compileOperand(input, BytecodeStackKind::Value);
+        }
+    }
+
+    BytecodeIndex argCount = static_cast<BytecodeIndex>(block->argumentIDs.size());
+    compiler.emit(compiler.inStatementContext() ? BytecodeOp::CallProcedure : BytecodeOp::CallProcedureValue, procSlot, argCount);
+    return true;
+}
+
 SCRATCH_BLOCK(procedures, prototype) {
     for (size_t i = 0; i < block->argumentIDs.size(); i++) {
         const std::string &argId = block->argumentIDs[i];
@@ -113,6 +155,12 @@ BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite 
     thread->returnValue = returnVal;
     thread->finished = true;
     return BlockResult::RETURN;
+}
+SCRATCH_BYTECODE_BLOCK(procedures, return) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::Return);
+    return true;
 }
 
 SCRATCH_BLOCK(argument, reporter_string_number) {

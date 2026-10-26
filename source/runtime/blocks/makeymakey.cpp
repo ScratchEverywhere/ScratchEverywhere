@@ -12,9 +12,11 @@ SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
     }
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(makeymakey, whenMakeyKeyPressed, {"KEY", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(makeymakey, whenCodePressed) {
-    if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
+    Block *const hat = thread->blockHat != nullptr ? thread->blockHat : block;
+    if (Input::codePressedBlockOpcodes.find(hat) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
     std::string input;
     if (!Scratch::getInputValueAs(block, "SEQUENCE", thread, sprite, input)) return BlockResult::REPEAT;
 
@@ -36,11 +38,12 @@ SCRATCH_BLOCK(makeymakey, whenCodePressed) {
     if (keySequence.size() <= 1) return BlockResult::CONTINUE;
 
     if (Input::checkSequenceMatch(keySequence)) {
-        Input::codePressedBlockOpcodes.insert(block);
+        Input::codePressedBlockOpcodes.insert(hat);
         return BlockResult::CONTINUE;
     }
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(makeymakey, whenCodePressed, {"SEQUENCE", BytecodeStackKind::String});
 
 SCRATCH_SHADOW_BLOCK(makeymakey_menu_KEY, KEY)
 SCRATCH_SHADOW_BLOCK(makeymakey_menu_SEQUENCE, SEQUENCE)

@@ -12,6 +12,10 @@ SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, resettimer);
+SCRATCH_BLOCK_POSITIONAL_VOID(sensing, resettimer) {
+    BlockExecutor::timer.start();
+}
 
 SCRATCH_BLOCK(sensing, askandwait) {
     std::string input;
@@ -19,6 +23,10 @@ SCRATCH_BLOCK(sensing, askandwait) {
     Scratch::answer = Input::openSoftwareKeyboard(input.c_str());
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(sensing, askandwait, {"QUESTION", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_VOID(sensing, askandwait) {
+    Scratch::answer = Input::openSoftwareKeyboard(str.c_str());
 }
 
 SCRATCH_BLOCK(sensing, setdragmode) {
@@ -32,22 +40,31 @@ SCRATCH_BLOCK(sensing, setdragmode) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(sensing, setdragmode) {
+    const std::string mode = Scratch::getFieldValue(*block, "DRAG_MODE");
+    BytecodeIndex draggable = (mode == "draggable") ? 1 : 0;
 
-SCRATCH_BLOCK_DOUBLE(sensing, timer) {
-#if defined(__XBOX__)
-    *outValue = BlockExecutor::timer.getTimeMsDouble() / 1000.0;
-#else
-    *outValue = BlockExecutor::timer.getTimeMs() / 1000.0;
-#endif
-    return BlockResult::CONTINUE;
+    outFirstInstr = compiler.emit(BytecodeOp::SetDragMode, invalidBytecodeIndex, draggable);
+    return true;
 }
 
-SCRATCH_BLOCK(sensing, of) {
-    std::string object;
-    if (!Scratch::getInputValueAs(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, timer) {
+#if defined(__XBOX__)
+    return BlockExecutor::timer.getTimeMsDouble() / 1000.0;
+#else
+    return BlockExecutor::timer.getTimeMs() / 1000.0;
+#endif
+}
+SCRATCH_BLOCK_DOUBLE(sensing, timer) {
+    *outValue = block_sensing_timer_pos_(sprite);
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(sensing, timer);
 
-    const std::string value = Scratch::getFieldValue(*block, "PROPERTY");
-    *outValue = Value(0);
+SCRATCH_BLOCK_POSITIONAL_SPRITE_SS_V(sensing, of) {
+    const std::string &object = str1;
+    const std::string &value = str2;
+    Value result(0);
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : Scratch::sprites) {
@@ -57,15 +74,15 @@ SCRATCH_BLOCK(sensing, of) {
         }
     }
 
-    if (!spriteObject) return BlockResult::CONTINUE;
+    if (!spriteObject) return result;
 
-    const auto setOutFromVar = [outValue](const Variable &variable) {
-        std::visit([outValue](auto &&v) {
+    const auto setOutFromVar = [&result](const Variable &variable) {
+        std::visit([&result](auto &&v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, Value>) {
-                *outValue = v;
+                result = v;
             } else {
-                *outValue = Value(v);
+                result = Value(v);
             }
         },
                    variable.value);
@@ -73,9 +90,9 @@ SCRATCH_BLOCK(sensing, of) {
 
     if (spriteObject->isStage) {
         if (value == "background #" || value == "backdrop #") {
-            *outValue = Value(spriteObject->currentCostume + 1);
+            result = Value(spriteObject->currentCostume + 1);
         } else if (value == "backdrop name") {
-            *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+            result = Value(spriteObject->costumes[spriteObject->currentCostume].name);
         } else {
             for (const auto &[id, variable] : spriteObject->variables) {
                 if (value == variable.name) {
@@ -85,12 +102,12 @@ SCRATCH_BLOCK(sensing, of) {
             }
         }
     } else {
-        if (value == "x position") *outValue = Value(spriteObject->xPosition);
-        else if (value == "y position") *outValue = Value(spriteObject->yPosition);
-        else if (value == "direction") *outValue = Value(spriteObject->rotation);
-        else if (value == "costume #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "costume name" || value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else if (value == "size") *outValue = Value(spriteObject->size);
+        if (value == "x position") result = Value(spriteObject->xPosition);
+        else if (value == "y position") result = Value(spriteObject->yPosition);
+        else if (value == "direction") result = Value(spriteObject->rotation);
+        else if (value == "costume #") result = Value(spriteObject->currentCostume + 1);
+        else if (value == "costume name" || value == "backdrop name") result = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        else if (value == "size") result = Value(spriteObject->size);
         else {
             for (const auto &[id, variable] : spriteObject->variables) {
                 if (value == variable.name) {
@@ -100,18 +117,37 @@ SCRATCH_BLOCK(sensing, of) {
             }
         }
     }
+    return result;
+}
+SCRATCH_BLOCK(sensing, of) {
+    std::string object;
+    if (!Scratch::getInputValueAs(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
+
+    std::string value;
+    if (!Scratch::getInputValueAs(block, "PROPERTY", thread, sprite, value)) return BlockResult::REPEAT;
+    *outValue = block_sensing_of_pos_(sprite, object, value);
+
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, of, {"OBJECT", BytecodeStackKind::String}, {"PROPERTY", BytecodeStackKind::String});
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, mousex) {
+    return Input::mousePointer.x;
+}
 SCRATCH_BLOCK_DOUBLE(sensing, mousex) {
-    *outValue = Input::mousePointer.x;
+    *outValue = block_sensing_mousex_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousex);
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, mousey) {
+    return Input::mousePointer.y;
+}
 SCRATCH_BLOCK_DOUBLE(sensing, mousey) {
-    *outValue = Input::mousePointer.y;
+    *outValue = block_sensing_mousey_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousey);
 
 SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     std::string distanceTo;
@@ -134,11 +170,31 @@ SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     *outValue = 10000;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, distanceto, {"DISTANCETOMENU", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_SPRITE_S_N(sensing, distanceto) {
+    if (str == "_mouse_") {
+        const double dx = Input::mousePointer.x - sprite->xPosition;
+        const double dy = Input::mousePointer.y - sprite->yPosition;
+        return std::sqrt(dx * dx + dy * dy);
+    }
 
+    for (Sprite *currentSprite : Scratch::sprites) {
+        if (currentSprite->isClone || currentSprite->name != str) continue;
+        const double dx = currentSprite->xPosition - sprite->xPosition;
+        const double dy = currentSprite->yPosition - sprite->yPosition;
+        return std::sqrt(dx * dx + dy * dy);
+    }
+    return 10000;
+}
+
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, dayssince2000) {
+    return TimeSE::getDaysSince2000();
+}
 SCRATCH_BLOCK_DOUBLE(sensing, dayssince2000) {
-    *outValue = TimeSE::getDaysSince2000();
+    *outValue = block_sensing_dayssince2000_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, dayssince2000);
 
 SCRATCH_BLOCK_DOUBLE(sensing, current) {
     std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
@@ -153,26 +209,47 @@ SCRATCH_BLOCK_DOUBLE(sensing, current) {
     else *outValue = 0;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(sensing, current) {
+    const std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
 
-SCRATCH_BLOCK_STRING(sensing, answer) {
-    *outValue = Scratch::answer;
-    return BlockResult::CONTINUE;
+    BytecodeIndex field;
+    if (inputValue == "YEAR") field = 0;
+    else if (inputValue == "MONTH") field = 1;
+    else if (inputValue == "DATE") field = 2;
+    else if (inputValue == "DAYOFWEEK") field = 3;
+    else if (inputValue == "HOUR") field = 4;
+    else if (inputValue == "MINUTE") field = 5;
+    else if (inputValue == "SECOND") field = 6;
+    else return false;
+
+    outFirstInstr = compiler.emit(BytecodeOp::CurrentDateTime, invalidBytecodeIndex, field);
+    return true;
 }
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_S(sensing, answer) {
+    return Scratch::answer;
+}
+SCRATCH_BLOCK_STRING(sensing, answer) {
+    *outValue = block_sensing_answer_pos_(sprite);
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(sensing, answer);
+
+SCRATCH_BLOCK_POSITIONAL_V_B(sensing, keypressed) {
+    const Value &keyOption = value;
+    for (const std::string &button : Input::inputKeys) {
+        if (Input::convertToKey(keyOption) == button) return true;
+    }
+    return false;
+}
 SCRATCH_BLOCK_BOOLEAN(sensing, keypressed) {
     Value keyOption;
     if (!Scratch::getInputValue(block, "KEY_OPTION", thread, sprite, keyOption)) return BlockResult::REPEAT;
-    *outValue = false;
-
-    for (std::string button : Input::inputKeys) {
-        if (Input::convertToKey(keyOption) == button) {
-            *outValue = true;
-            break;
-        }
-    }
+    *outValue = block_sensing_keypressed_pos_(keyOption);
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, keypressed, {"KEY_OPTION", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
     std::string touchingObject;
@@ -196,6 +273,18 @@ SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, touchingobject, {"TOUCHINGOBJECTMENU", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_SPRITE_S_B(sensing, touchingobject) {
+    if (str == "_mouse_") return Scratch::isColliding("mouse", sprite);
+    if (str == "_edge_") return Scratch::isColliding("edge", sprite);
+
+    for (size_t i = 0; i < Scratch::sprites.size(); i++) {
+        Sprite *currentSprite = Scratch::sprites[i];
+        if (currentSprite == sprite) continue;
+        if (currentSprite->name == str && Scratch::isColliding("sprite", sprite, currentSprite, str)) return true;
+    }
+    return false;
+}
 
 static uint8_t toColorByte(float channel) {
     return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
@@ -209,6 +298,7 @@ SCRATCH_BLOCK_BOOLEAN(sensing, touchingcolor) {
     *outValue = collision::isTouchingColor(sprite, toColorByte(rgb.r), toColorByte(rgb.g), toColorByte(rgb.b));
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, touchingcolor, {"COLOR", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
     Value maskColor;
@@ -224,32 +314,41 @@ SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
                                                 toColorByte(targetRgb.r), toColorByte(targetRgb.g), toColorByte(targetRgb.b));
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, coloristouchingcolor, {"COLOR", BytecodeStackKind::Value}, {"COLOR2", BytecodeStackKind::Value});
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_B(sensing, mousedown) {
+    return Input::mousePointer.isPressed;
+}
 SCRATCH_BLOCK_BOOLEAN(sensing, mousedown) {
-    *outValue = Input::mousePointer.isPressed;
+    *outValue = block_sensing_mousedown_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousedown);
 
-SCRATCH_BLOCK_STRING(sensing, username) {
+SCRATCH_BLOCK_POSITIONAL_SPRITE_S(sensing, username) {
 #ifdef ENABLE_CLOUDVARS
-    if (Scratch::cloudProject) *outValue = Scratch::cloudUsername;
-    else
+    if (Scratch::cloudProject) return Scratch::cloudUsername;
 #endif
-        if (Scratch::useCustomUsername)
-        *outValue = Scratch::customUsername;
-    else *outValue = OS::getUsername();
+    if (Scratch::useCustomUsername) return Scratch::customUsername;
+    return OS::getUsername();
+}
+SCRATCH_BLOCK_STRING(sensing, username) {
+    *outValue = block_sensing_username_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, username);
 
 SCRATCH_BLOCK_BOOLEAN(sensing, online) {
     *outValue = OS::isOnline();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, online);
 
 SCRATCH_BLOCK(sensing, userid) {
     *outValue = Value(Undefined{});
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, userid);
 
 SCRATCH_SHADOW_BLOCK(sensing_touchingobjectmenu, TOUCHINGOBJECTMENU)
 SCRATCH_SHADOW_BLOCK(sensing_distancetomenu, DISTANCETOMENU)

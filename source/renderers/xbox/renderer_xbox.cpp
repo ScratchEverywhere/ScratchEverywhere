@@ -1,7 +1,36 @@
 #include "renderer_xbox.hpp"
 #include "speech_manager_xbox.hpp"
 #include "window_sdl3.hpp"
+#include <os.hpp>
 #include <window.hpp>
+
+#ifdef __XBOX__
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <xboxkrnl/xboxkrnl.h>
+#include <hal/video.h>
+
+#undef min
+#undef max
+
+#ifndef VENC_MODE_WIDESCREEN
+#define VENC_MODE_WIDESCREEN VIDEO_WIDESCREEN
+#endif
+#ifndef VENC_MODE_720P
+#define VENC_MODE_720P VIDEO_MODE_720P
+#endif
+#ifndef VENC_MODE_1080I
+#define VENC_MODE_1080I VIDEO_MODE_1080I
+#endif
+#ifndef VENC_MODE_480P
+#define VENC_MODE_480P VIDEO_MODE_480P
+#endif
+#ifndef VENC_MODE_LETTERBOX
+#define VENC_MODE_LETTERBOX VIDEO_LETTERBOX
+#endif
+#endif
 
 #include <algorithm>
 #include <audio.hpp>
@@ -153,9 +182,287 @@ static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHei
     }
 }
 
+static bool videoInitialized = false;
+static Renderer_Xbox::VideoDisplaySettings xboxVideoSettings = {
+    640, 480, 32, 60, false, false, false, false, 0.04f, 0
+};
+
+// Errata: Map raw SMC register 0x04 values (from hardware ID pins on Xbox AV connector)
+// to standard AV_PACK_* constants due to incorrect mappings:
+// 0x00: SCART
+// 0x01: HDTV (Component)
+// 0x02: VGA
+// 0x03: RFU
+// 0x04: S-Video
+// 0x06: Standard (Composite)
+// 0x07: Missing / Disconnected
+static uint32_t mapSmcToAvPack(uint32_t smcVal) {
+    switch (smcVal & 0x07) {
+        case 0x00: return AV_PACK_SCART;
+        case 0x01: return AV_PACK_HDTV;
+        case 0x02: return AV_PACK_VGA;
+        case 0x03: return AV_PACK_RFU;
+        case 0x04: return AV_PACK_SVIDEO;
+        case 0x06: return AV_PACK_STANDARD;
+        case 0x07: return AV_PACK_NONE;
+        default:   return AV_PACK_NONE;
+    }
+}
+
+void Renderer_Xbox::initVideo() {
+    if (videoInitialized) return;
+    videoInitialized = true;
+
+#ifdef __XBOX__
+    // Read video display settings from Xbox EEPROM / MS Dashboard
+    ULONG encoderSettings = XVideoGetEncoderSettings();
+    bool isWidescreen = (encoderSettings & VENC_MODE_WIDESCREEN) != 0;
+    bool supports720p = (encoderSettings & VENC_MODE_720P) != 0;
+    bool supports480p = (encoderSettings & VENC_MODE_480P) != 0;
+    bool supports1080i = (encoderSettings & VENC_MODE_1080I) != 0;
+
+    xboxVideoSettings.isWidescreen = isWidescreen;
+    xboxVideoSettings.supports720p = supports720p;
+    xboxVideoSettings.supports480p = supports480p;
+    xboxVideoSettings.supports1080i = supports1080i;
+
+    // Detect physical AV cable / display device from SMC over SMBus (address 0x20, register 0x04)
+    ULONG smcAvPack = 0;
+    NTSTATUS smbStatus = HalReadSMBusValue(0x20, 0x04, FALSE, &smcAvPack);
+    uint32_t resolvedPack = AV_PACK_NONE;
+    if (NT_SUCCESS(smbStatus)) {
+        resolvedPack = mapSmcToAvPack(smcAvPack);
+    }
+    if (resolvedPack == AV_PACK_NONE) {
+        // Fallback to AV pack bits in encoder settings if SMBus read was unsuccessful
+        resolvedPack = static_cast<uint32_t>(encoderSettings & VIDEO_ADAPTER_MASK);
+    }
+    xboxVideoSettings.avPackType = resolvedPack;
+
+    // Automatic resolution detection:
+    // If 720p is supported by the dashboard EEPROM settings and the connected AV pack
+    // (HDTV Component or VGA), request 1280x720; otherwise fall back to 640x480.
+    bool can720p = false;
+    if (supports720p && (xboxVideoSettings.avPackType == AV_PACK_HDTV || xboxVideoSettings.avPackType == AV_PACK_VGA)) {
+        VIDEO_MODE testMode;
+        void *p = NULL;
+        while (XVideoListModes(&testMode, 32, 60, &p)) {
+            if (testMode.width == 1280 && testMode.height == 720) {
+                can720p = true;
+                break;
+            }
+        }
+    }
+
+    xboxVideoSettings.width = can720p ? 1280 : 640;
+    xboxVideoSettings.height = can720p ? 720 : 480;
+    xboxVideoSettings.bpp = 32;
+    xboxVideoSettings.refresh = 60;
+
+    // Automatically determine overscan adjustment based on the hardware environment
+    float autoOverscan = 0.0f;
+    switch (xboxVideoSettings.avPackType) {
+        case AV_PACK_VGA:
+            // PC monitors display edge-to-edge with 1:1 pixel mapping (0% overscan)
+            autoOverscan = 0.0f;
+            break;
+
+        case AV_PACK_HDTV:
+            // Component (HDTV):
+            // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
+            // Standard 480i through component may be on early HD CRTs with overscan (4%).
+            if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
+                autoOverscan = 0.04f;
+            } else {
+                autoOverscan = 0.0f;
+            }
+            break;
+
+        case AV_PACK_STANDARD: // Composite Stereo
+        case AV_PACK_SVIDEO:   // S-Video
+        case AV_PACK_RFU:      // RF Adapter
+        case AV_PACK_SCART:    // Advanced SCART (RGB)
+        default:
+            // Standard-definition analog CRT formats:
+            // Almost all consumer CRTs crop borders by ~3-5%. Apply 4% centered safe margin.
+            if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
+                autoOverscan = 0.04f;
+            } else {
+                autoOverscan = 0.0f;
+            }
+            break;
+    }
+    xboxVideoSettings.overscanRatio = autoOverscan;
+
+    char vidLog[256];
+    snprintf(vidLog, sizeof(vidLog),
+             "Xbox Video: %s cable detected. Mode %dx%d@%dHz (bpp: %d, widescreen: %s, 720p: %s, overscan: %d%%)",
+             getAVPackName(), xboxVideoSettings.width, xboxVideoSettings.height, xboxVideoSettings.refresh,
+             xboxVideoSettings.bpp, xboxVideoSettings.isWidescreen ? "yes" : "no",
+             xboxVideoSettings.supports720p ? "yes" : "no",
+             static_cast<int>(xboxVideoSettings.overscanRatio * 100.0f));
+    Log::log(vidLog);
+#endif
+}
+
+Renderer_Xbox::VideoDisplaySettings Renderer_Xbox::getVideoDisplaySettings() {
+    initVideo();
+    return xboxVideoSettings;
+}
+
+uint32_t Renderer_Xbox::getAVPackType() {
+    initVideo();
+    return xboxVideoSettings.avPackType;
+}
+
+const char *Renderer_Xbox::getAVPackName() {
+    initVideo();
+    switch (xboxVideoSettings.avPackType) {
+        case AV_PACK_STANDARD: return "Composite (Standard)";
+        case AV_PACK_RFU:      return "RF Adapter";
+        case AV_PACK_SCART:    return "SCART (RGB)";
+        case AV_PACK_HDTV:     return "HDTV (Component)";
+        case AV_PACK_VGA:      return "VGA";
+        case AV_PACK_SVIDEO:   return "S-Video";
+        default:               return "None / Unknown";
+    }
+}
+
+void Renderer_Xbox::setOverscanRatio(float ratio) {
+    xboxVideoSettings.overscanRatio = ratio;
+}
+
+float Renderer_Xbox::getOverscanRatio() {
+    return xboxVideoSettings.overscanRatio;
+}
+
+bool Renderer_Xbox::isWidescreen() {
+    initVideo();
+    return xboxVideoSettings.isWidescreen;
+}
+
+bool Renderer_Xbox::supports720p() {
+    initVideo();
+    return xboxVideoSettings.supports720p;
+}
+
+bool Renderer_Xbox::supports480p() {
+    initVideo();
+    return xboxVideoSettings.supports480p;
+}
+
+bool Renderer_Xbox::supports1080i() {
+    initVideo();
+    return xboxVideoSettings.supports1080i;
+}
+
+void Renderer_Xbox::getVideoMode(int &width, int &height, int &bpp, int &refresh) {
+    initVideo();
+#ifdef __XBOX__
+    VIDEO_MODE currentMode = XVideoGetMode();
+    width = currentMode.width > 0 ? currentMode.width : xboxVideoSettings.width;
+    height = currentMode.height > 0 ? currentMode.height : xboxVideoSettings.height;
+    bpp = currentMode.bpp > 0 ? currentMode.bpp : xboxVideoSettings.bpp;
+    refresh = currentMode.refresh > 0 ? currentMode.refresh : xboxVideoSettings.refresh;
+#else
+    width = xboxVideoSettings.width;
+    height = xboxVideoSettings.height;
+    bpp = xboxVideoSettings.bpp;
+    refresh = xboxVideoSettings.refresh;
+#endif
+}
+
+void Renderer_Xbox::applyAspectRatio(SDL_Renderer *renderer, int logicalWidth, int logicalHeight, bool isWidescreen) {
+    if (!renderer) return;
+    if (logicalWidth <= 0 || logicalHeight <= 0) {
+        logicalWidth = xboxVideoSettings.width;
+        logicalHeight = xboxVideoSettings.height;
+    }
+
+    if (isWidescreen && logicalWidth == 640 && logicalHeight == 480) {
+        // If the Xbox dashboard is outputting 16:9, but canvas is 4:3 (anamorphic 480p/480i),
+        // SDL3 can pillarbox it to preserve the 4:3 aspect ratio.
+        SDL_SetRenderLogicalPresentation(
+            renderer,
+            logicalWidth,
+            logicalHeight,
+            SDL_LOGICAL_PRESENTATION_LETTERBOX
+        );
+    } else {
+        // Render natively at full window resolution without extra scaling overhead
+        SDL_SetRenderLogicalPresentation(
+            renderer,
+            logicalWidth,
+            logicalHeight,
+            SDL_LOGICAL_PRESENTATION_DISABLED
+        );
+    }
+}
+
+void Renderer_Xbox::applyOverscan(SDL_Renderer *renderer, float overscanRatio) {
+    if (!renderer) return;
+    if (overscanRatio <= 0.0f) {
+        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        SDL_SetRenderViewport(renderer, NULL);
+        return;
+    }
+
+    int modeW = xboxVideoSettings.width;
+    int modeH = xboxVideoSettings.height;
+#ifdef __XBOX__
+    VIDEO_MODE currentMode = XVideoGetMode();
+    if (currentMode.width > 0 && currentMode.height > 0) {
+        modeW = currentMode.width;
+        modeH = currentMode.height;
+    }
+#endif
+
+    const float totalW = static_cast<float>(modeW);
+    const float totalH = static_cast<float>(modeH);
+
+    const int offsetX = static_cast<int>(totalW * overscanRatio);
+    const int offsetY = static_cast<int>(totalH * overscanRatio);
+    const int safeW = static_cast<int>(totalW - (offsetX * 2));
+    const int safeH = static_cast<int>(totalH - (offsetY * 2));
+
+    const float scaleX = static_cast<float>(safeW) / totalW;
+    const float scaleY = static_cast<float>(safeH) / totalH;
+
+    // In SDL3, view->viewport coordinates are in render units and multiplied by current_scale
+    // when computing the hardware pixel viewport. To position the hardware pixel viewport at
+    // (offsetX, offsetY) with dimensions (safeW, safeH):
+    SDL_Rect renderViewport;
+    renderViewport.x = static_cast<int>(std::ceil(offsetX / scaleX));
+    renderViewport.y = static_cast<int>(std::ceil(offsetY / scaleY));
+    renderViewport.w = modeW;
+    renderViewport.h = modeH;
+
+    SDL_SetRenderScale(renderer, scaleX, scaleY);
+    SDL_SetRenderViewport(renderer, &renderViewport);
+}
+
+void Renderer_Xbox::applyVideoSettings(SDL_Renderer *renderer) {
+    if (!renderer) return;
+    applyAspectRatio(renderer, xboxVideoSettings.width, xboxVideoSettings.height, xboxVideoSettings.isWidescreen);
+    applyOverscan(renderer, xboxVideoSettings.overscanRatio);
+}
+
+void Renderer_Xbox::applyVideoSettings() {
+    applyVideoSettings(Sdlrenderer);
+}
+
+void Renderer_Xbox::applyOverscan(float overscanRatio) {
+    applyOverscan(Sdlrenderer, overscanRatio);
+}
+
+void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen) {
+    applyAspectRatio(Sdlrenderer, logicalWidth, logicalHeight, isWidescreen);
+}
+
 Renderer_Xbox::Renderer_Xbox() {
-    int windowWidth = 640;
-    int windowHeight = 480;
+    initVideo();
+    int windowWidth = xboxVideoSettings.width;
+    int windowHeight = xboxVideoSettings.height;
 
     window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL3);
     if (window->error.has_value()) {
@@ -169,6 +476,7 @@ Renderer_Xbox::Renderer_Xbox() {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
     }
+    applyVideoSettings();
 }
 
 Renderer_Xbox::~Renderer_Xbox() {
@@ -615,8 +923,27 @@ void Renderer_Xbox::renderSprites() {
     // Everything below draws to the main target; pen operations may have left the pen texture active.
     ensureMainTarget(Sdlrenderer);
 
-    SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 255);
     SDL_RenderClear(Sdlrenderer);
+
+    float screenW = static_cast<float>(getWidth());
+    float screenH = static_cast<float>(getHeight());
+    float screenAspect = screenW / screenH;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    SDL_FRect stageRect = {0, 0, screenW, screenH};
+    if (screenAspect > projectAspect) {
+        float scale = screenH / Scratch::projectHeight;
+        float scaledW = Scratch::projectWidth * scale;
+        stageRect.x = (screenW - scaledW) / 2.0f;
+        stageRect.w = scaledW;
+    } else if (screenAspect < projectAspect) {
+        float scale = screenW / Scratch::projectWidth;
+        float scaledH = Scratch::projectHeight * scale;
+        stageRect.y = (screenH - scaledH) / 2.0f;
+        stageRect.h = scaledH;
+    }
+    SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
+    SDL_RenderFillRect(Sdlrenderer, &stageRect);
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;

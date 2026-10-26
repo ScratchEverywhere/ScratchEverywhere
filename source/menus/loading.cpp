@@ -1,5 +1,6 @@
 #include "loading.hpp"
 #include "image.hpp"
+#include <algorithm>
 #include <memory>
 #include <renderer.hpp>
 #include <string>
@@ -50,23 +51,33 @@ void Loading::render() {
         Render::beginFrame(0, 0, 0, 0);
     else Render::beginFrame(1, 0, 0, 0);
 
-    ImageRenderParams p1 = {
-        .x = Render::getWidth() / 2.0f,
-        .y = block1Y,
-        .scale = 0.5f,
-        .centered = true};
-    ImageRenderParams p2 = {
-        .x = Render::getWidth() / 2.0f,
-        .y = block2Y,
-        .scale = 0.5f,
-        .centered = true};
-    ImageRenderParams p3 = {
-        .x = Render::getWidth() / 2.0f,
-        .y = block3Y,
-        .scale = 0.5f,
-        .centered = true};
-
     if (renderBlocks) {
+        constexpr float blockScale = 0.5f;
+
+        // Left-align the blocks as a group, and center that group on screen.
+        const float w1 = block1->getWidth() * blockScale;
+        const float w2 = block2->getWidth() * blockScale;
+        const float w3 = block3->getWidth() * blockScale;
+        const float groupWidth = std::max({w1, w2, w3});
+        const float groupLeft = (Render::getWidth() - groupWidth) / 2.0f;
+
+        // Images are rendered centered, so offset each by half its own width.
+        ImageRenderParams p1 = {
+            .x = groupLeft + w1 / 2.0f,
+            .y = block1Y,
+            .scale = blockScale,
+            .centered = true};
+        ImageRenderParams p2 = {
+            .x = groupLeft + w2 / 2.0f,
+            .y = block2Y,
+            .scale = blockScale,
+            .centered = true};
+        ImageRenderParams p3 = {
+            .x = groupLeft + w3 / 2.0f,
+            .y = block3Y,
+            .scale = blockScale,
+            .centered = true};
+
         block1->render(p1);
         block2->render(p2);
         block3->render(p3);
