@@ -297,7 +297,7 @@ void InputDevice_SDL2::getInput() {
 }
 
 std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
-#if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
+#if defined(__WIIU__) || defined(__OGC__)
 // doesn't work on these platforms....
 #else
     std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);

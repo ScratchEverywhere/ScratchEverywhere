@@ -18,8 +18,10 @@
 #endif
 #include <algorithm>
 #include <windows.h>
+#endif
 
 namespace {
+#if defined(__XBOX__)
 // Reads a whole file straight into `dst` in large chunks.
 // std::ifstream goes through the C stdio layer and its small buffer, which turns a 30+ MB read into
 // tens of thousands of tiny kernel reads. Large direct reads let the file system stream the data.
@@ -38,8 +40,107 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
     CloseHandle(handle);
     return done == size;
 }
-} // namespace
 #endif
+
+#if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
+    std::string result;
+    result.reserve(raw.size());
+    size_t pos = 0;
+    const std::string marker = "\",";
+
+    while (pos < raw.size()) {
+        size_t idx = raw.find(marker, pos);
+        if (idx == std::string::npos) {
+            result.append(raw, pos, raw.size() - pos);
+            break;
+        }
+
+        size_t arr_start = idx + marker.size();
+        while (arr_start < raw.size() && (raw[arr_start] == ' ' || raw[arr_start] == '\t' ||
+                                          raw[arr_start] == '\r' || raw[arr_start] == '\n')) {
+            arr_start++;
+        }
+
+        if (arr_start >= raw.size() || raw[arr_start] != '[') {
+            result.append(raw, pos, (idx + marker.size()) - pos);
+            pos = idx + marker.size();
+            continue;
+        }
+
+        result.append(raw, pos, (arr_start + 1) - pos);
+
+        size_t cur = arr_start + 1;
+        int depth = 1;
+        bool in_str = false;
+        bool esc = false;
+        size_t items_count = 0;
+        size_t trunc_pos = std::string::npos;
+
+        while (cur < raw.size() && depth > 0) {
+            char ch = raw[cur];
+            if (esc) {
+                esc = false;
+                cur++;
+                continue;
+            }
+            if (ch == '\\') {
+                esc = true;
+                cur++;
+                continue;
+            }
+            if (ch == '"') {
+                in_str = !in_str;
+                cur++;
+                continue;
+            }
+            if (!in_str) {
+                if (ch == '[') {
+                    depth++;
+                } else if (ch == ']') {
+                    depth--;
+                    if (depth == 0) break;
+                } else if (ch == ',' && depth == 1) {
+                    items_count++;
+                    if (items_count == max_items) {
+                        trunc_pos = cur;
+                    }
+                }
+            }
+            cur++;
+        }
+
+        if (trunc_pos != std::string::npos) {
+            result.append(raw, arr_start + 1, trunc_pos - (arr_start + 1));
+            result.push_back(']');
+            pos = cur + 1;
+        } else {
+            result.append(raw, arr_start + 1, (cur + 1) - (arr_start + 1));
+            pos = cur + 1;
+        }
+    }
+
+    return result;
+}
+#endif
+
+static nlohmann::json parseProjectJson(const std::string &rawJson) {
+#if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
+    if (sanitized.size() != rawJson.size()) {
+        Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
+                 " to " + std::to_string(sanitized.size()) + " bytes");
+    }
+    size_t inf_pos;
+    while ((inf_pos = sanitized.find("Infinity")) != std::string::npos) {
+        sanitized.replace(inf_pos, 8, "1e9");
+    }
+    return nlohmann::json::parse(sanitized);
+#else
+    return nlohmann::json::parse(rawJson);
+#endif
+}
+} // namespace
 
 ZipProjectLoader::ZipProjectLoader(ProjectFormat format) : format(format) {}
 
@@ -50,7 +151,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
             keepInRam = false;
 #else
             keepInRam = true;
@@ -60,16 +161,21 @@ bool ZipProjectLoader::load(std::istream *file) {
         }
 
 #if defined(__XBOX__)
+        // Embedded projects have no backing file on disk and must always be kept in RAM.
+        if (Scratch::projectType == ProjectType::EMBEDDED) {
+            keepInRam = true;
+        }
+
         // Keeping the archive in RAM only makes sense when it fits comfortably. Larger projects fall back
         // to the file-backed archive instead of exhausting the heap.
         std::streamoff xboxProjectSize = 0;
-        if (keepInRam) {
-            file->clear();
-            file->seekg(0, std::ios::end);
-            xboxProjectSize = file->tellg();
-            file->clear();
-            file->seekg(0, std::ios::beg);
+        file->clear();
+        file->seekg(0, std::ios::end);
+        xboxProjectSize = file->tellg();
+        file->clear();
+        file->seekg(0, std::ios::beg);
 
+        if (keepInRam && Scratch::projectType != ProjectType::EMBEDDED) {
             const std::streamoff budget = OS::isEnhancedPlatform() ? 24 * 1024 * 1024 : 6 * 1024 * 1024;
             if (xboxProjectSize <= 0 || xboxProjectSize > budget) {
                 Log::logWarning("sb3InRam disabled: project is " + std::to_string(xboxProjectSize / 1024) +
@@ -133,7 +239,7 @@ bool ZipProjectLoader::load(std::istream *file) {
                 return false;
             }
 
-            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
+            project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
 #else
             std::streamsize size = file->tellg();
@@ -157,7 +263,7 @@ bool ZipProjectLoader::load(std::istream *file) {
                 return false;
             }
 
-            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
+            project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
 #endif
 
@@ -179,7 +285,10 @@ bool ZipProjectLoader::load(std::istream *file) {
                 uint64_t file_size = file->tellg();
                 file->clear();
                 file->seekg(0, std::ios::beg);
-                opened = Unzip::zipArchive->openStream(file, file_size);
+                Unzip::zipBuffer.resize(file_size);
+                file->read(Unzip::zipBuffer.data(), static_cast<std::streamsize>(file_size));
+                opened = (static_cast<size_t>(file->gcount()) == file_size) &&
+                         Unzip::zipArchive->openMemory(Unzip::zipBuffer.data(), Unzip::zipBuffer.size());
             }
 
             if (!opened) {
@@ -195,7 +304,7 @@ bool ZipProjectLoader::load(std::istream *file) {
                 return false;
             }
 
-            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
+            project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
 #else
             file->seekg(0, std::ios::end);
@@ -215,7 +324,7 @@ bool ZipProjectLoader::load(std::istream *file) {
                 return false;
             }
 
-            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
+            project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             archive->freeHeap(json_data);
 #endif
         }
@@ -239,7 +348,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         json_content.assign(std::istreambuf_iterator<char>(*file),
                             std::istreambuf_iterator<char>());
 
-        project_json = nlohmann::json::parse(json_content);
+        project_json = parseProjectJson(json_content);
     }
 
     if (project_json.empty()) {
@@ -247,8 +356,20 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
+    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    if (useBytecodeSetting.is_null()) {
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+        Scratch::useBytecode = false;
+#else
+        Scratch::useBytecode = true;
+#endif
+    } else {
+        Scratch::useBytecode = useBytecodeSetting.get<bool>();
+    }
+
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
+    project_json.clear();
     return true;
 }
 

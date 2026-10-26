@@ -22,6 +22,24 @@ function(_recipe_nxdk_source)
         set(_nxdk "${CL_SOURCE_DIR}")
     endif()
 
+    # Ensure custom patches are applied to NXDK directory
+    if(NOT EXISTS "${_nxdk}/nxdk_patch_status.cmake")
+        message(STATUS "Applying custom NXDK patches to ${_nxdk}...")
+        execute_process(
+            COMMAND patch -p1 -N -i "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk.patch"
+            WORKING_DIRECTORY "${_nxdk}"
+            RESULT_VARIABLE _patch_res
+        )
+    endif()
+
+    # Attempt to include the patch status file
+    include("${_nxdk}/nxdk_patch_status.cmake" OPTIONAL)
+
+    # Abort immediately if the patch wasn't applied
+    if(NOT NXDK_CUSTOM_PATCHES_APPLIED)
+        message(FATAL_ERROR "CRITICAL: NXDK patches were NOT successfully applied! Aborting build.")
+    endif()
+
     if(NOT EXISTS "${_nxdk}/lib/libnxdk.lib" OR NOT EXISTS "${_nxdk}/lib/libnxdk_automount_d.lib" OR NOT EXISTS "${_nxdk}/lib/libxboxrt.lib" OR NOT EXISTS "${_nxdk}/lib/libnxdk_net.lib")
         message(STATUS "Building nxdk (this can take a while)...")
         execute_process(

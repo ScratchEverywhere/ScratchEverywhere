@@ -1,5 +1,5 @@
 #pragma once
-#if defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__) || defined(__PS4__)
 #include <GLES3/gl3.h>
 #elif __has_include(<glad/gl.h>)
 #include <glad/gl.h>
@@ -11,7 +11,7 @@
 #include <renderer.hpp>
 #include <se_export.hpp>
 
-#if defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__) || defined(__PS4__)
 #define SE_GL_SHADER_VERSION "#version 300 es\n"
 #define SE_GL_FRAG_PRECISION "precision highp float;\n"
 #else

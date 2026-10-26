@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include <windows.h>
 
+#ifndef NXDK_CUSTOM_PATCHES_APPLIED
+#error "CRITICAL: NXDK was built without the required custom patches!"
+#endif
+
 extern "C" {
 extern struct netif *g_pnetif;
 #if defined(SE_USE_LWMEM)
@@ -50,15 +54,13 @@ bool initNetworking() {
 }
 
 bool OS::init() {
-    // TODO: add support for automatic resolution detection
-    // TODO 2: add support for overscan compensation
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
 
     // Verify D: is mounted
     if (!nxIsDriveMounted('D')) {
         Log::logError("D: mount failure!\n");
         Sleep(5000);
-        return 1;
+        return false;
     }
 
     // Mount C:
@@ -67,7 +69,7 @@ bool OS::init() {
         if (!ret) {
             Log::logError("C: mount failure!\n");
             Sleep(5000);
-            return 1;
+            return false;
         }
     }
 
@@ -77,7 +79,7 @@ bool OS::init() {
         if (!ret) {
             Log::logError("E: mount failure!\n");
             Sleep(5000);
-            return 1;
+            return false;
         }
     }
 

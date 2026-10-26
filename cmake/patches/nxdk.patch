@@ -332,8 +332,8 @@ index c461d19dd..702c3dbe7 100644
  }
  
  #elif defined(CLOCK_MONOTONIC)
-
 diff --git a/lib/libcxx/src/support/win32/thread_win32.cpp b/lib/libcxx/src/support/win32/thread_win32.cpp
+index b38f5d155..4ce747e69 100644
 --- a/lib/libcxx/src/support/win32/thread_win32.cpp
 +++ b/lib/libcxx/src/support/win32/thread_win32.cpp
 @@ -205,7 +205,7 @@ int __libcpp_thread_create(__libcpp_thread_t *__t, void *(*__func)(void *),
@@ -344,4 +344,12 @@ diff --git a/lib/libcxx/src/support/win32/thread_win32.cpp b/lib/libcxx/src/supp
 +  *__t = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 262144,
                                                   __libcpp_beginthreadex_thunk,
                                                   __data, 0, nullptr));
-
+ 
+diff --git a/nxdk_patch_status.cmake b/nxdk_patch_status.cmake
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/nxdk_patch_status.cmake
+@@ -0,0 +1,2 @@
++set(NXDK_CUSTOM_PATCHES_APPLIED TRUE CACHE INTERNAL "Verification flag for nxdk patches")
++add_compile_definitions(NXDK_CUSTOM_PATCHES_APPLIED=1)

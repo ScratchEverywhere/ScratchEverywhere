@@ -28,6 +28,13 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
+#ifdef __XBOX__
+#include <os.hpp>
+#if defined(RENDERER_XBOX)
+#include <renderers/xbox/renderer_xbox.hpp>
+#endif
+#endif
+
 WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL3);
 #if defined(VITA)
@@ -70,6 +77,9 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
         error = "Failed to create SDL3 window/renderer: " + std::string(SDL_GetError());
         return;
     }
+#if defined(RENDERER_XBOX)
+    Renderer_Xbox::applyVideoSettings(sdlRenderer);
+#endif
 #else
     window = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (!window) {
@@ -201,6 +211,11 @@ void WindowSDL3::resize(int width, int height) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore)
         glViewport(0, 0, width, height);
+#endif
+#if defined(__XBOX__) && defined(RENDERER_XBOX)
+    if (sdlRenderer) {
+        Renderer_Xbox::applyVideoSettings(sdlRenderer);
+    }
 #endif
     Render::setRenderScale();
     Render::resizeSVGs();

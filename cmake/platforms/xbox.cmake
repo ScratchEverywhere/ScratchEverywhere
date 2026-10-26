@@ -90,36 +90,43 @@ add_compile_options(
     -fms-extensions
 
     # Miscellaneous Xbox performance tuning
-    -O1                         # Baseline optimizations, further ones are below
-    -fomit-frame-pointer        # Frees up the EBP register
-    -msse                       # Enable SSE instructions
-    -mfpmath=sse                # Use SSE for floating point math instead of x87 FPU
-    -fno-math-errno             # Tells the compiler math functions won't set errno (allows better vectorization)
+    -O1                  # Baseline optimizations, further ones are below
+    -fomit-frame-pointer # Frees up the EBP register
+    -msse                # Enable SSE instructions
+    -mfpmath=sse         # Use SSE for floating point math instead of x87 FPU
+    -fno-math-errno      # Tells the compiler math functions won't set errno (allows better vectorization)
 
     # Aligning loops and functions to the CPU's cache line boundary
     -falign-functions=16
     -falign-loops=16
-    -falign-jumps=16
 )
 
-# OPTIMIZE: SE! runtime and renderer at -O3
-file(GLOB_RECURSE SE_RUNTIME_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/*.cpp")
-set_source_files_properties(${SE_RUNTIME_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3")
-
-# OPTIMIZE: SE! menus, audio, and windowing at -O2
-file(GLOB_RECURSE SE_MISC_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/audio/*.cpp"
+# Optimize the filesystem, components of the runtime, renderers, and windowing to run with -O3 optimizations.
+file(GLOB_RECURSE SE_MAX_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/filesystem.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blockExecutor.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/math.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/time.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/value.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/*.cpp")
-set_source_files_properties(${SE_MISC_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3;-ffast-math;-fno-finite-math-only")
 
-# OPTIMIZE: SE! everything else at -O1
-file(GLOB_RECURSE SE_OTHER_SOURCES CONFIGURE_DEPENDS
+# Optimize menus to run with -O2 optimizations.
+file(GLOB_RECURSE SE_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.cpp")
+set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2;-ffast-math;-fno-finite-math-only")
+
+# Everything else gets -O1 optimizations except for collisions.
+file(GLOB_RECURSE SE_NO_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/collision.cpp")
+file(GLOB_RECURSE SE_BASIC_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
-set_source_files_properties(${SE_OTHER_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
+list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES} ${SE_NO_OPTIMIZE_SOURCES})
+set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-ffast-math;-fno-finite-math-only")
+
+# Collisions can only work accurately with tweaks and no other optimization flags
+set_source_files_properties(${SE_NO_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O0;-ffp-contract=off;-fno-strict-aliasing")
 
 # HACK: Force CMake to skip failing network checks for libcurl on Xbox
 set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")
