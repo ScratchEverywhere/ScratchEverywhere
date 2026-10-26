@@ -90,8 +90,10 @@ void FileSystem::renameFile(const std::string &originalPath, const std::string &
 #if defined(__XBOX__)
     std::string normOrig = originalPath;
     std::string normNew = newPath;
-    for (char &c : normOrig) if (c == '/') c = '\\';
-    for (char &c : normNew) if (c == '/') c = '\\';
+    for (char &c : normOrig)
+        if (c == '/') c = '\\';
+    for (char &c : normNew)
+        if (c == '/') c = '\\';
     MoveFileA(normOrig.c_str(), normNew.c_str());
 #else
     rename(originalPath.c_str(), newPath.c_str());
