@@ -3,11 +3,24 @@
 #include <algorithm>
 #include <cmath>
 #include <image.hpp>
+#include <image_geometry.hpp>
 #include <log.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <unordered_set>
 #include <vector>
+
+namespace {
+void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
+    sprite->spriteWidth = image.getWidth();
+    sprite->spriteHeight = image.getHeight();
+    const auto offset = image.getSVGViewOffset();
+    // Apply the difference, rather than accumulating offsets on cached loads,
+    // clone copies, or a retry after a temporary missing-image fallback.
+    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidth / 2);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeight / 2);
+}
+}
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
@@ -41,8 +54,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         auto potentialError = it->second->resizeSVG(cachedScale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
 
-        sprite->spriteWidth = it->second->getWidth();
-        sprite->spriteHeight = it->second->getHeight();
+        applyImageGeometry(sprite, costume, *it->second);
 
         if (it->second->getScale() != oldScale) {
             costume.collisionMask = nullptr;
@@ -133,14 +145,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     }
 
     if (image) {
-        sprite->spriteWidth = image->getWidth();
-        sprite->spriteHeight = image->getHeight();
-
-        // if rotation center wasn't present in project.json, set a default one
-        if (costume.rotationCenterX == -6767.6767)
-            costume.rotationCenterX = sprite->spriteWidth / 2;
-        if (costume.rotationCenterY == -6767.6767)
-            costume.rotationCenterY = sprite->spriteHeight / 2;
+        applyImageGeometry(sprite, costume, *image);
 
         costumeImages[costumeName] = image;
 #ifdef __XBOX__

@@ -21,6 +21,7 @@
 #ifdef ENABLE_SVG
 #include <lunasvg.h>
 #include <scratch2_svg.hpp>
+#include <scratch2_svg_bounds.hpp>
 #endif
 
 #if defined(RENDERER_SDL1)
@@ -383,6 +384,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     if (!svgDocument) {
         return nonstd::make_unexpected("LunaSVG failed to parse SVG");
     }
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
@@ -403,6 +405,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     const std::string svgData = scratch2 ? Scratch2Svg::normalizeText(svgView) : std::string(svgView);
     svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();

@@ -34,8 +34,8 @@ neutralize all reports afterwards.
 | Hill Climb Racing (griffpatch) | Hardware jeep Score 1,000, motorcycle Score 420/+200 airtime; crash and fuel loss; A replay, X vehicle swap, active Black/R restart; repaired full messages; pause/exit and repeat launch; HDMI audio signal | Extended terrain, precise brake/air control, fuel pickup, authored Y pause, subjective/long-run audio |
 | Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile; hardware startup fault reproduced in GDB and calendar reporter fixed; xemu movement/jump, block hit and Green Flag; fixed hardware launch, movement/jump, first two pipes crossed and browser exit | Diagnose return to start near third pipe; level completion, loss/recovery, repeat launch and audio |
 | Doodle Jump (xamuil2) | Hardware browser launch, left/right platform steering, at least 1,044 m; fall and automatic replay; pause/exit, fresh launch and second exit; HDMI audio signal | Edge wrapping, monsters, extended play and subjective audio |
-| Jumper (Depicklator) | Archive uploaded/readback verified; arrow/Space profile | All hardware gameplay checks |
-| Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile; computed-list loader fix passes 19 checks in both engines; prepared initial state/monitor repair; hardware both control sets/colors, stacking, vertical/horizontal wins, full-column rejection, Green Flag replay and repeated browser launch; exit | One initial mouse-mode launch remains unexplained; diagonal win and second exit; no authored sound-playback blocks |
+| Jumper (Depicklator) | Fixed SVG bounds; hardware A-to-play/jump, levels 1–4 cleared, level 5 rendered, lava death/respawn, Black level restart, Green Flag full replay, fresh launch and Y+Black full restart, browser exit and HDMI audio signal | Intermittent second Exit launches 2048; new readiness guard passes quick A start and two subsequent exits; later levels, subjective/long-run audio |
+| Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile; computed-list loader fix passes 19 checks in both engines; prepared initial state/monitor repair; hardware both control sets/colors, stacking, vertical/horizontal/diagonal wins, full-column rejection, Green Flag replay and repeated browser launch; exit | One initial mouse-mode launch remains unexplained; no authored sound-playback blocks |
 
 Sources, authors, instructions, packaging details and hashes for the additional
 five are in ignored `build-xbox/more-games/next-five-manifest.json`. Game scripts
@@ -680,3 +680,15 @@ Evidence is in `doodle-hill-qualification.json`, `scratch-font-deploy.json`,
 `hill-font-*.jpg` and the saved hardware logs under ignored
 `build-xbox/hardware`. The regular Games launcher still retains its prior
 production build; this candidate has not been promoted across the library.
+
+## Clean SVG-bounds regression
+
+The clean build `3ba0cfe9d17ee50e49a829cd7ff60cd21e60c8b16ba76121c9e1111ec87404f3`
+(9,687,040 bytes, menu tracing OFF) was installed separately in
+`F:\scratch-bounds-clean-20261026` with complete FTP readback. Connect Four
+launched after a 2.2-second A confirmation in keyboard mode, red first.
+The controller sequence 1,2,2,3,3,4,3,4,4,6,4,7,4 produced the expected
+red diagonal from column-one bottom to column-four row four, with “Red Wins!!!”
+visible. Both D-pad red controls and right-stick yellow controls placed pieces
+correctly. This is a pen-stamp, dynamic-list and SB2-rendering regression pass.
+Evidence: `bounds-clean-connect-{launch,diagonal-win}.jpg`.

@@ -74,6 +74,7 @@ class SE_EXPORT Image {
 
   protected:
     ImageData imgData;
+    std::pair<float, float> svgViewOffset = {0, 0};
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
 
@@ -159,6 +160,7 @@ class SE_EXPORT Image {
     int getHeight();
 
     inline float getScale() const { return imgData.scale; }
+    inline std::pair<float, float> getSVGViewOffset() const { return svgViewOffset; }
 
     nonstd::expected<void, std::string> resizeSVG(float scale);
 
