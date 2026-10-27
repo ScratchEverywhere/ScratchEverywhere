@@ -20,7 +20,8 @@ uint64_t statsOpCounts[256] = {};
 
 std::string BytecodeExecutor::takeStatsReport() {
     uint64_t total = 0;
-    for (uint64_t c : statsOpCounts) total += c;
+    for (uint64_t c : statsOpCounts)
+        total += c;
 
     std::vector<std::pair<uint64_t, unsigned>> ranked;
     for (unsigned i = 0; i < 256; i++) {
@@ -596,7 +597,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Variable *var = resolveOrCreateVariable(thread, instr.a);
                 std::string v = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
-                if (var) var->value = std::make_shared<const std::string>(std::move(v));
+                if (var) var->value = std::make_shared<std::string>(std::move(v));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -605,6 +606,23 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 bool v = thread.boolStack.back();
                 thread.boolStack.pop_back();
                 if (var) var->value = v;
+                thread.pc++;
+                SE_NEXT();
+            }
+            SE_CASE(AppendVarString) {
+                Variable *var = resolveOrCreateVariable(thread, instr.a);
+                std::string suffix = std::move(thread.stringStack.back());
+                thread.stringStack.pop_back();
+                if (var) {
+                    auto *current = std::get_if<std::shared_ptr<const std::string>>(&var->value);
+                    if (current != nullptr && *current && current->use_count() == 1) {
+                        const_cast<std::string &>(**current).append(suffix);
+                    } else {
+                        std::string joined = BlockExecutor::getVariableValueAs<std::string>(var);
+                        joined.append(suffix);
+                        var->value = std::make_shared<std::string>(std::move(joined));
+                    }
+                }
                 thread.pc++;
                 SE_NEXT();
             }
@@ -654,13 +672,13 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     } else if (indexStr == "last" && !list->items.empty()) {
                         list->items.pop_back();
                     } else if ((indexStr == "random" || indexStr == "any") && !list->items.empty()) {
-                        list->items.erase(list->items.begin() + fastRandomBelow(list->items.size()));
+                        eraseValueAt(list->items, fastRandomBelow(list->items.size()));
                     } else {
                         double d = index.get<double>();
                         if (std::isfinite(d)) {
                             double idx = std::floor(d) - 1;
                             if (idx >= 0 && idx < static_cast<double>(list->items.size())) {
-                                list->items.erase(list->items.begin() + static_cast<size_t>(idx));
+                                eraseValueAt(list->items, static_cast<size_t>(idx));
                             }
                         }
                     }
@@ -697,7 +715,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                         pos = static_cast<size_t>(idx);
                     }
                     if (pos <= list->items.size()) {
-                        list->items.insert(list->items.begin() + pos, item);
+                        insertValueAt(list->items, pos, std::move(item));
                         if (list->items.size() > MAX_LIST_ITEMS) list->items.pop_back();
                     }
                 }

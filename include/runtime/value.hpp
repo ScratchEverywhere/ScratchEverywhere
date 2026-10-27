@@ -1,9 +1,11 @@
 #pragma once
 #include "color.hpp"
 #include "compiler_hints.hpp"
+#include "conversions.hpp"
 #include "math.hpp"
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <memory>
 #include <new>
@@ -152,6 +154,7 @@ class SE_EXPORT Value {
     }
 
     std::string_view asStringView(std::string &scratch) const;
+    bool equalsSlow(const Value &other) const;
 
   public:
     Value() : tag(Tag::STRING_ID), flags(0) {
@@ -212,14 +215,63 @@ class SE_EXPORT Value {
         return isDouble() && std::isnan(storage.d);
     }
 
-    double asDouble() const;
+    SE_FORCEINLINE double asDouble() const {
+        switch (tag) {
+        case Tag::NUMBER:
+            return Conversions::numberToNumber(storage.d);
+        case Tag::STRING_ID:
+            return Conversions::stringToNumber(StringPool::get(storage.stringId));
+        case Tag::COLOR:
+            return Conversions::colorToNumber(storage.c);
+        case Tag::BOOLEAN:
+            return Conversions::boolToNumber(storage.b);
+        case Tag::UNDEFINED:
+            break;
+        }
+        return 0.0;
+    }
 
-    std::string asString() const;
+    SE_FORCEINLINE std::string asString() const {
+        switch (tag) {
+        case Tag::NUMBER:
+            return Conversions::numberToString(storage.d);
+        case Tag::STRING_ID:
+            return StringPool::get(storage.stringId);
+        case Tag::BOOLEAN:
+            return Conversions::boolToString(storage.b);
+        case Tag::UNDEFINED:
+            return "undefined";
+        case Tag::COLOR:
+            return Conversions::colorToString(storage.c);
+        }
+        return "";
+    }
 
-    bool asBoolean() const;
+    SE_FORCEINLINE bool asBoolean() const {
+        switch (tag) {
+        case Tag::BOOLEAN:
+            return storage.b;
+        case Tag::NUMBER:
+            return Conversions::numberToBool(storage.d);
+        case Tag::STRING_ID:
+            return Conversions::stringToBool(StringPool::get(storage.stringId));
+        case Tag::COLOR:
+            return Conversions::colorToBool(storage.c);
+        case Tag::UNDEFINED:
+            break;
+        }
+        return false;
+    }
 
-    Color asColor() const;
-    ColorRGBA asRGB() const;
+    SE_FORCEINLINE Color asColor() const {
+        if (tag == Tag::STRING_ID) return Conversions::stringToColor(StringPool::get(storage.stringId));
+        return Conversions::numberToColor(asDouble());
+    }
+
+    SE_FORCEINLINE ColorRGBA asRGB() const {
+        if (tag == Tag::STRING_ID) return Conversions::stringToRGB(StringPool::get(storage.stringId));
+        return Conversions::numberToRGB(asDouble());
+    }
 
     template <typename T>
     SE_FORCEINLINE T get() const {
@@ -276,8 +328,8 @@ class SE_EXPORT Value {
     }
 
     SE_FORCEINLINE std::shared_ptr<const std::string> getStringPtr() const {
-        if (isString()) return std::make_shared<const std::string>(StringPool::get(storage.stringId));
-        return std::make_shared<const std::string>(asString());
+        if (isString()) return std::make_shared<std::string>(StringPool::get(storage.stringId));
+        return std::make_shared<std::string>(asString());
     }
 
     SE_FORCEINLINE Value operator+(const Value &other) const {
@@ -299,7 +351,12 @@ class SE_EXPORT Value {
     }
 
     // Comparison operators
-    bool operator==(const Value &other) const;
+    SE_FORCEINLINE bool operator==(const Value &other) const {
+        SE_LIKELY_IF(tag == Tag::NUMBER && other.tag == Tag::NUMBER && !std::isnan(storage.d) && !std::isnan(other.storage.d)) {
+            return storage.d == other.storage.d;
+        }
+        return equalsSlow(other);
+    }
     bool operator<(const Value &other) const;
     bool operator>(const Value &other) const;
 
@@ -325,3 +382,18 @@ class SE_EXPORT Value {
 
     static Value fromJson(const nlohmann::json &jsonVal);
 };
+
+inline void insertValueAt(std::vector<Value> &values, size_t pos, Value &&value) {
+    values.emplace_back();
+    Value *data = values.data();
+    std::memmove(static_cast<void *>(data + pos + 1), static_cast<const void *>(data + pos), (values.size() - 1 - pos) * sizeof(Value));
+    ::new (static_cast<void *>(data + pos)) Value(std::move(value));
+}
+
+inline void eraseValueAt(std::vector<Value> &values, size_t pos) {
+    Value *data = values.data();
+    data[pos].~Value();
+    std::memmove(static_cast<void *>(data + pos), static_cast<const void *>(data + pos + 1), (values.size() - 1 - pos) * sizeof(Value));
+    ::new (static_cast<void *>(data + values.size() - 1)) Value();
+    values.pop_back();
+}

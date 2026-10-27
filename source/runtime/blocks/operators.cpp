@@ -442,15 +442,11 @@ SCRATCH_BLOCK_BOOLEAN(operator, contains) {
         return BlockResult::CONTINUE;
     }
 
-    const std::string lowered1 = Math::toLowerCaseJs(string1);
-    const std::string lowered2 = Math::toLowerCaseJs(string2);
-
     thread->eraseState(block);
-    *outValue = lowered1.find(lowered2) != std::string::npos;
+    *outValue = Math::containsCaseInsensitive(string1, string2);
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(operator, contains, {"STRING1", BytecodeStackKind::String}, {"STRING2", BytecodeStackKind::String});
 SCRATCH_BLOCK_POSITIONAL_SS_B(operator, contains) {
-    if (str2.empty()) return true;
-    return Math::toLowerCaseJs(str1).find(Math::toLowerCaseJs(str2)) != std::string::npos;
+    return Math::containsCaseInsensitive(str1, str2);
 }

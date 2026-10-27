@@ -14,7 +14,7 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-inline constexpr uint16_t bytecodeCacheVersion = 1;
+inline constexpr uint16_t bytecodeCacheVersion = 2;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 
@@ -53,6 +53,8 @@ enum class BytecodeOp : uint8_t {
     StoreVarBoolean,
     StoreVarColor,
     StoreVarValue,
+
+    AppendVarString,
 
     ChangeVarNumber,
 

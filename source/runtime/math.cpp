@@ -304,7 +304,25 @@ int lowerCaseCodepoint(uint32_t cp, uint32_t prevCp, uint32_t nextCp, uint32_t o
 }
 } // namespace
 
+namespace {
+bool isAsciiOnly(std::string_view s) {
+    unsigned char acc = 0;
+    for (unsigned char c : s) acc |= c;
+    return (acc & 0x80) == 0;
+}
+
+constexpr unsigned char asciiLowerChar(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+} // namespace
+
 std::string Math::toLowerCaseJs(std::string_view str) {
+    if (isAsciiOnly(str)) {
+        std::string result(str);
+        for (char &c : result) c = static_cast<char>(asciiLowerChar(static_cast<unsigned char>(c)));
+        return result;
+    }
+
     struct Unit {
         uint32_t cp;
         size_t pos;
@@ -568,4 +586,23 @@ const uint32_t Math::next_pow2(uint32_t n) {
     n |= n >> 16;
     n++;
     return n;
+}
+
+bool Math::containsCaseInsensitive(std::string_view haystack, std::string_view needle) {
+    if (needle.empty()) return true;
+
+    if (isAsciiOnly(haystack) && isAsciiOnly(needle)) {
+        if (needle.size() > haystack.size()) return false;
+        const unsigned char first = asciiLowerChar(static_cast<unsigned char>(needle[0]));
+        const size_t last = haystack.size() - needle.size();
+        for (size_t i = 0; i <= last; i++) {
+            if (asciiLowerChar(static_cast<unsigned char>(haystack[i])) != first) continue;
+            size_t j = 1;
+            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(haystack[i + j])) == asciiLowerChar(static_cast<unsigned char>(needle[j]))) j++;
+            if (j == needle.size()) return true;
+        }
+        return false;
+    }
+
+    return toLowerCaseJs(haystack).find(toLowerCaseJs(needle)) != std::string::npos;
 }
