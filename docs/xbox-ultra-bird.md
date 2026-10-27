@@ -7,12 +7,12 @@ It needs no controller sidecar: the bird's `when any key pressed` hat accepts
 the default A binding. The game archive and runtime were unchanged in this
 qualification run.
 
-## Current normal-build gameplay
+## Earlier normal-build gameplay
 
 Normal XBE `07f15fc60186e719c48834596bbae080b0bc4d283c27af067806b3634c9ee3b4`
 selected the external archive from the regular project browser on the 128 MB
 Xbox. A visibly flapped the bird, and video-guided ordinary controller inputs
-reached Score 2 in one round and Score 1 in another. These are current-build
+reached Score 2 in one round and Score 1 in another. These are `07f15fc6…` build
 checks, separate from the older embedded-build Score 2 result.
 
 Local evidence is under ignored `build-xbox/hardware/`:
@@ -37,8 +37,9 @@ This is a visual timing observation, not proof of the exact input transport
 latency or absence of missed/duplicate reports.
 
 The replay and browser-return checks below are independent of the pilot's
-automatic loss classification. Sustained flight beyond two scored pipes
-remains open, as does the shared [KVM delivery fault](xbox-kvm-input-delivery.md).
+automatic loss classification. The later installed-build run below extends this
+to six scored pipes. The shared [KVM delivery fault](xbox-kvm-input-delivery.md)
+remains open.
 
 ## External short-Start replay
 
@@ -78,3 +79,59 @@ Silence is therefore expected for this archive, rather than a missing Xbox
 audio implementation. `ultra-source-audit.json` records this inspection of the
 actual installed bytes. Audio stability in games that play sound remains a
 separate requirement in the [twenty-game matrix](xbox-game-qualification.md).
+
+## Six scored pipes on the installed normal build
+
+The regular diagnostics-off Xbox executable `b75e9beb…` ran the unchanged
+external project through **Score 6** on the physical 128 MB console. The accepted
+round has ID 4 (the fifth attempt) in `ultra-pen-predict7`. The helper recorded
+178 camera observations and 18 A-button requests for that round. It used no
+debugger, game-state access or state writes. Original live images show Score 6 while the sixth pipe pair moves behind the
+bird and the seventh pair approaches. This goes beyond a score visible only
+after the project stops.
+
+The source still increments Score by one when a lower-pipe clone passes the
+bird under its authored height condition. The accepted flight ends naturally;
+the original loss image retains Score 6 after stop-all removes the pipe clones.
+The following ordinary 350 ms Start action restores Score 0, a bird and a new
+advancing pipe pair. This is a controller replay, not a seeded or patched run.
+
+Earlier helper attempts are retained and do not count as sustained-flight
+passes. The broad red mask included orange city windows, one component filter
+rejected the bird's horizontal pose, and scenery corrupted a lower-pipe edge.
+The final helper uses a red component with a nearby white eye, the upper pipe's
+lip, delayed-input prediction, flap spacing and a corrected gap handoff. These
+are host test-helper changes; game physics and the archive are unchanged.
+
+Ignored evidence is in `build-xbox/hardware/ultra-pen-predict7/`, including
+`score6-verification.json`, original live/loss/replay images and executed helper
+source snapshots. The corresponding `ultra-pen-predict7-input-client.json` is
+beside that directory; its 144 reports during the inspected live interval are
+A or neutral only. These host reports do not prove every individual press was
+delivered; the actual flight and score are checked in the images.
+`ultra-observer-components-verification.json` and
+`ultra-upper-lip-verification.json` retain the saved-frame detector checks.
+The other nineteen games' open requirements remain in the qualification matrix.
+
+
+A separate fresh browser launch restored Score 0 and new pipes. One 220 ms A
+request visibly lifted the bird; the saved red-component centers move from
+Y=399.5 to Y=320.5. That 79-pixel detector change includes sprite rotation and
+is not a precise measurement of the project's velocity or input latency.
+Long Start paused both sessions, and both 700 ms Exit confirmations returned
+to the populated browser. Each long navigation sequence missed one Down;
+selection was corrected and visually checked before A.
+
+The eight-second HDMI capture contains 384,000 stereo frames at 48 kHz, all
+zero (peak and RMS zero). This agrees with the project's zero sound assets
+and zero sound/music blocks; it does not establish sound quality in other games.
+The final complete FTP readback reconfirms the original 22,381-byte archive and
+its `f848b1d5…` hash, plus regular XBE `b75e9beb…`. The retrieved normal log has
+no diagnostic trace markers. Its 41 stopped-project restart markers describe
+the bounded attempts, not 41 accepted scored flights.
+
+Fresh-launch images and observations are under ignored
+`build-xbox/hardware/ultra-pen-fresh1/`; the audio uses `ultra-pen-normal-audio*`,
+and readback/log verification is under `ultra-pen-normal-readback/`.
+The sustained-flight requirement is now covered; shared KVM delivery remains
+open, and no KVM firmware or settings were changed.
