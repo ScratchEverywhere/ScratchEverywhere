@@ -15,6 +15,86 @@
 #include <unzip.hpp>
 #include <variant>
 
+#ifdef SE_BYTECODE_STATS
+#include "bytecode_analysis.hpp"
+#include <log.hpp>
+#include "bytecode_disassembler.hpp"
+#include <cstdlib>
+#include <fstream>
+#include <map>
+
+namespace {
+void logBytecodeAnalysis() {
+    BytecodeAnalysisStats total[3];
+    uint32_t failed[3] = {0, 0, 0};
+    uint32_t entries[3] = {0, 0, 0};
+
+    for (Sprite *sprite : Scratch::sprites) {
+        if (!sprite->bytecode || !sprite->bytecodeLink) continue;
+        if (const char *dumpPath = std::getenv("SE_DUMP_BYTECODE")) {
+            std::ofstream(std::string(dumpPath) + "." + sprite->name + ".txt") << BytecodeDisassembler::disassemble(*sprite->bytecode, sprite->bytecodeLink.get());
+        }
+        for (int mode = 0; mode < 3; mode++) {
+            BytecodeAnalysisPolicy policy;
+            policy.warpYieldForgets = mode == 0;
+            policy.genericNativeCallsForget = mode < 2;
+            BytecodeAnalysis analysis(*sprite->bytecode, *sprite->bytecodeLink, policy);
+            analysis.run();
+
+            if (mode == 0) Log::log("[analysis] " + sprite->name + ": " + analysis.report());
+            if (mode == 1) {
+                std::map<std::string, std::pair<int, int>> byVar; // name -> {unknown reads, known reads}
+                const BytecodeChunk &chunk = *sprite->bytecode;
+                for (BytecodeIndex pc = 0; pc < chunk.instructions.size(); pc++) {
+                    const BytecodeInstruction &in = chunk.instructions[pc];
+                    if (in.op != BytecodeOp::PushVarValue) continue;
+                    const BytecodeValueType t = analysis.variableTypeBefore(pc, in.a);
+                    const std::string name = in.a < chunk.variableSlots.size() ? chunk.strings[chunk.variableSlots[in.a]] : "?";
+                    const bool known = t != BytecodeValueType::Unknown && t != BytecodeValueType::Unreached;
+                    (known ? byVar[name].second : byVar[name].first)++;
+                }
+                for (const auto &[name, counts] : byVar) {
+                    Log::log("[analysis var] " + sprite->name + " " + name + ": unknown " + std::to_string(counts.first) + " known " + std::to_string(counts.second));
+                }
+            }
+
+            const BytecodeAnalysisStats &s = analysis.stats();
+            BytecodeAnalysisStats &t = total[mode];
+            t.instructions += s.instructions;
+            t.reachable += s.reachable;
+            t.pushVarValue += s.pushVarValue;
+            t.pushVarValueKnown += s.pushVarValueKnown;
+            t.storeVarValue += s.storeVarValue;
+            t.storeVarValueKnown += s.storeVarValueKnown;
+            t.convertValueToTyped += s.convertValueToTyped;
+            t.convertValueToTypedKnown += s.convertValueToTypedKnown;
+            t.convertValueToTypedIdentity += s.convertValueToTypedIdentity;
+            t.pushArg += s.pushArg;
+            t.demotedAccesses += s.demotedAccesses;
+            t.demotedAccessesKnown += s.demotedAccessesKnown;
+            entries[mode] += static_cast<uint32_t>(analysis.entries().size());
+            for (const BytecodeEntryResult &e : analysis.entries()) {
+                if (!e.ok) failed[mode]++;
+            }
+        }
+    }
+
+    for (int mode = 0; mode < 3; mode++) {
+        const BytecodeAnalysisStats &t = total[mode];
+        Log::log(std::string("[analysis total, ") + (mode == 0 ? "conservative" : mode == 1 ? "warp yields keep variables" : "warp yields + generic natives keep variables") + "] entries=" + std::to_string(entries[mode]) +
+                 " failed=" + std::to_string(failed[mode]) + " instrs=" + std::to_string(t.reachable) +
+                 " pushVarValue=" + std::to_string(t.pushVarValueKnown) + "/" + std::to_string(t.pushVarValue) +
+                 " storeVarValue=" + std::to_string(t.storeVarValueKnown) + "/" + std::to_string(t.storeVarValue) +
+                 " convertValueTo*=" + std::to_string(t.convertValueToTypedKnown) + "/" + std::to_string(t.convertValueToTyped) +
+                 " (identity " + std::to_string(t.convertValueToTypedIdentity) + ")" +
+                 " pushArg=" + std::to_string(t.pushArg) +
+                 " demotedAccesses=" + std::to_string(t.demotedAccessesKnown) + "/" + std::to_string(t.demotedAccesses));
+    }
+}
+} // namespace
+#endif
+
+
 void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
     Parser::log("Loading sprites:");
@@ -326,6 +406,10 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     }
 
     BytecodeCache::endLoadSession();
+
+#ifdef SE_BYTECODE_STATS
+    logBytecodeAnalysis();
+#endif
 
     Scratch::sortSprites();
 
