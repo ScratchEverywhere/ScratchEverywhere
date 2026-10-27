@@ -45,13 +45,33 @@ static uint32_t s_frameIndex = 0;
 
 static void flushRetiredTextures(bool syncGpu); // deferred texture frees, defined below
 
+#ifndef NV2A_PROFILE
+#define NV2A_PROFILE 0 // 1 = log a per-second timing breakdown (CPU/GPU/vsync) via Log::log
+#endif
+#if NV2A_PROFILE
+// 733.33 MHz Xbox CPU: cycles -> ms = cycles / 733333.
+static inline uint64_t nv2aTsc() { return __builtin_ia32_rdtsc(); }
+struct NV2AProf {
+    uint64_t logic = 0, vbl = 0, idle = 0, build = 0, gpuWait = 0, flush = 0;
+    uint64_t tEndExit = 0, tBuildStart = 0;
+    uint32_t draws = 0, verts = 0, binds = 0, frames = 0;
+};
+static NV2AProf s_prof;
+#define NV2A_PROF(x) x
+#else
+#define NV2A_PROF(x)
+#endif
+
+
 static inline void nv2a_cache_flush() {
 #ifdef __XBOX__
+    NV2A_PROF(const uint64_t t0 = nv2aTsc());
     __asm__ __volatile__ ("sfence" ::: "memory");
     VIDEOREG(NV_PFB_WC_CACHE) |= NV_PFB_WC_CACHE_FLUSH_TRIGGER;
     while (VIDEOREG(NV_PFB_WC_CACHE) & NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS) {
         __asm__ __volatile__("pause");
     }
+    NV2A_PROF(s_prof.flush += nv2aTsc() - t0);
 #endif
 }
 
@@ -846,6 +866,7 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleM
     }
 
     if (s_activeTexture != texture || s_activeScaleMode != scaleMode || s_activeWrap != wrap) {
+        NV2A_PROF(++s_prof.binds);
         uint32_t *p = pb_begin();
         p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
         p = xgu_set_texture_format(p, 0, 2, false, XGU_SOURCE_COLOR, 2,
@@ -966,6 +987,7 @@ void Renderer_NV2A::clearScissor() {
 
 void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     if (!vertices || count == 0 || !s_vertexArena) return;
+    NV2A_PROF(++s_prof.draws; s_prof.verts += static_cast<uint32_t>(count));
 
     size_t byteSize = count * sizeof(NV2AVertex);
     byteSize = (byteSize + 63) & ~63;
@@ -1242,11 +1264,14 @@ float Renderer_NV2A::getPixelDensity() {
 void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
     (void)screen;
     if (!hasFrameBegan) {
+        NV2A_PROF(const uint64_t tBegin = nv2aTsc(); if (s_prof.tEndExit) s_prof.logic += tBegin - s_prof.tEndExit);
         ensureMainTarget();
         ++s_frameCounter;
 
 #ifdef __XBOX__
+        NV2A_PROF(const uint64_t tVbl0 = nv2aTsc());
         pb_wait_for_vbl();
+        NV2A_PROF(const uint64_t tVbl1 = nv2aTsc(); s_prof.vbl += tVbl1 - tVbl0);
 
         // Wait for prior pushbuffer DMA and graphics pipeline to be completely idle before resetting pushbuffer head
         while (pb_busy()) {
@@ -1289,6 +1314,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         s_arenaBase = s_frameIndex * ARENA_PER_FRAME_SIZE;
         s_arenaOffset = s_arenaBase;
 
+        NV2A_PROF(s_prof.idle += nv2aTsc() - tVbl1; s_prof.tBuildStart = nv2aTsc());
         hasFrameBegan = true;
     }
 }
@@ -1296,6 +1322,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Renderer_NV2A::endFrame(bool shouldFlush) {
     (void)shouldFlush;
     if (!hasFrameBegan) return;
+    NV2A_PROF(const uint64_t tEnd0 = nv2aTsc(); s_prof.build += tEnd0 - s_prof.tBuildStart);
     ensureMainTarget();
 
 #ifdef __XBOX__
@@ -1320,6 +1347,24 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
 #endif
 
     hasFrameBegan = false;
+
+#if NV2A_PROFILE
+    s_prof.tEndExit = nv2aTsc();
+    s_prof.gpuWait += s_prof.tEndExit - tEnd0;
+    if (++s_prof.frames >= 60) {
+        const double f = s_prof.frames, c = 733333.0;
+        Log::log("NV2A prof (ms/frame): logic=" + std::to_string(s_prof.logic / c / f) +
+                 " vbl=" + std::to_string(s_prof.vbl / c / f) +
+                 " beginWait=" + std::to_string(s_prof.idle / c / f) +
+                 " build=" + std::to_string(s_prof.build / c / f) +
+                 " (cacheFlush=" + std::to_string(s_prof.flush / c / f) + ")" +
+                 " gpuWait+flip=" + std::to_string(s_prof.gpuWait / c / f) +
+                 " | draws=" + std::to_string(s_prof.draws / s_prof.frames) +
+                 " verts=" + std::to_string(s_prof.verts / s_prof.frames) +
+                 " texBinds=" + std::to_string(s_prof.binds / s_prof.frames));
+        s_prof = NV2AProf{};
+    }
+#endif
 }
 
 void Renderer_NV2A::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

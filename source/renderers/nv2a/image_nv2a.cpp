@@ -591,10 +591,13 @@ static void decodeDXT5Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch
     }
 }
 
+static void purgeEffectOwner(Renderer_NV2A *r, const void *owner); // shared effect cache, defined below
+
 void Image_NV2A::releaseEffects() {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
+    purgeEffectOwner(nv2aRenderer, this); // shared cache entries baked from this image
     for (int i = 0; i < 2; ++i) {
         if (effectSlots[i].texture) {
             if (nv2aRenderer) {
@@ -607,13 +610,8 @@ void Image_NV2A::releaseEffects() {
         effectSlots[i].whirl = 0.0f;
         effectSlots[i].pixelate = 0.0f;
         effectSlots[i].mosaic = 0.0f;
-        effectSlots[i].effW = 0;
-        effectSlots[i].effH = 0;
         effectSlots[i].lastUsedFrame = 0;
     }
-    hsvCache.clear();
-    hsvCache.shrink_to_fit();
-    hsvW = hsvH = 0;
     effectSource.clear();
     effectSource.shrink_to_fit();
 }
@@ -711,16 +709,24 @@ const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
     return nullptr;
 }
 
+#ifndef NV2A_PROFILE
+#define NV2A_PROFILE 0 // set to 1 to log per-second effect-cache stats (see Renderer_NV2A for frame timings)
+#endif
+#include <unordered_map>
+#include <utility>
+
 // ---------------------------------------------------------------------------
-// Baked effect textures (color + pixelate)
+// Shared, write-once effect-texture cache (color + pixelate)
 //
-// Everything below runs only when an effect *value changes*; a steady effect is a cache hit and costs nothing.
-//  * Effect textures are allocated once at a fixed pow2 capacity (<=128x128). Changing the pixelate grid size
-//    just changes uScale/vScale - no destroy/create (which used to force a full GPU idle every frame).
-//  * Color shift works on a cached 8-bit HSV copy of the downsampled source. Per texel it is one integer add
-//    and one integer HSV->RGB (no 32768-entry float LUT rebuild, no per-texel float math).
-//  * Texels are composed in cached RAM, swizzled in cached RAM, then streamed to write-combined VRAM-visible
-//    memory as one sequential copy (done inside Renderer_NV2A::updateTexture).
+// Problem this solves: with hundreds of clones that each have their own, constantly changing color value, a
+// per-sprite bake means hundreds of texture builds + uploads per frame. Instead:
+//  * Baked textures are shared by every clone of a costume: the key is (costume image, hue step, grid size).
+//  * The hue is quantised to EFFECT_HUE_STEPS (3.75 degree) steps, so N clones with N different colors need at most
+//    96 distinct textures per costume/size - after the first sweep around the hue circle, steady state is 0 bakes.
+//  * Bake resolution follows the on-screen size (small clones bake 16-32px textures, not 128px).
+//  * Entries are write-once: nothing in the cache is ever rewritten, so the GPU can never read a texture being
+//    modified. Eviction retires the texture (freed after the GPU is idle).
+//  * A byte budget + idle age-out keeps memory bounded on a 64MB console.
 // ---------------------------------------------------------------------------
 static constexpr int EFFECT_MAX_DIM = 128;
 static constexpr int PIXELATE_MESH_MAX_CELLS = 256; // grids this small are cheaper as a mesh than as a texture refill
@@ -802,6 +808,105 @@ static bool computePixelateDims(const ImageRenderParams &params, int srcW, int s
     return true;
 }
 
+
+static constexpr int EFFECT_HUE_STEPS = 96;            // 1536 / 96 = 16 hue units (3.75 deg) per step
+static constexpr uint16_t EFFECT_NO_HUE = 0xFFFF;
+static constexpr uint32_t EFFECT_IDLE_FRAMES = 150;    // drop cached bakes unused for this many frames
+static constexpr uint32_t EFFECT_SWEEP_INTERVAL = 120;
+
+struct EffectKey {
+    const void *owner;
+    uint16_t step;
+    uint16_t effW;
+    uint16_t effH;
+    bool operator==(const EffectKey &o) const {
+        return owner == o.owner && step == o.step && effW == o.effW && effH == o.effH;
+    }
+};
+struct EffectKeyHash {
+    size_t operator()(const EffectKey &k) const {
+        uint64_t h = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(k.owner));
+        h = h * 0x9E3779B1ull + k.step;
+        h = h * 0x9E3779B1ull + k.effW;
+        h = h * 0x9E3779B1ull + k.effH;
+        return static_cast<size_t>(h ^ (h >> 29));
+    }
+};
+struct EffectEntry {
+    NV2ATexture *tex;
+    uint32_t lastUsed;
+};
+
+static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash> s_effectCache;
+static size_t s_effectCacheBytes = 0;
+static uint32_t s_lastEffectSweep = 0;
+static size_t s_effectBudgetOverride = 0; // 0 = default budget
+
+static size_t effectCacheBudget() {
+    if (s_effectBudgetOverride) return s_effectBudgetOverride;
+    return OS::isEnhancedPlatform() ? (12u * 1024u * 1024u) : (4u * 1024u * 1024u);
+}
+
+static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator
+evictEffectEntry(Renderer_NV2A *r, std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator it) {
+    NV2ATexture *t = it->second.tex;
+    if (t) {
+        s_effectCacheBytes -= std::min(s_effectCacheBytes, t->allocationSize);
+        if (r) r->destroyTexture(t); // deferred free
+    }
+    return s_effectCache.erase(it);
+}
+
+// Idle age-out (periodic) + LRU eviction when over budget.
+//  - Entries used this frame (and the one just baked, `keep`) are evicted last: evicting something we are about to
+//    draw would just re-bake it next call (thrash). A frame may overshoot the budget, but never beyond 2x.
+static void trimEffectCache(Renderer_NV2A *r, uint32_t now, const EffectKey *keep) {
+    const size_t budget = effectCacheBudget();
+    const bool periodic = (now - s_lastEffectSweep) >= EFFECT_SWEEP_INTERVAL;
+    if (s_effectCacheBytes <= budget && !periodic) return;
+    if (periodic) s_lastEffectSweep = now;
+
+    for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
+        if (now - it->second.lastUsed > EFFECT_IDLE_FRAMES && !(keep && it->first == *keep)) it = evictEffectEntry(r, it);
+        else ++it;
+    }
+    if (s_effectCacheBytes <= budget) return;
+
+    std::vector<std::pair<uint32_t, EffectKey>> order;
+    order.reserve(s_effectCache.size());
+    for (const auto &kv : s_effectCache) order.emplace_back(kv.second.lastUsed, kv.first);
+    std::sort(order.begin(), order.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+    const size_t target = budget - budget / 8; // trim to ~87% so we don't re-trim on every insert
+    // pass 1: not used this frame
+    for (const auto &o : order) {
+        if (s_effectCacheBytes <= target) break;
+        if (o.first == now || (keep && o.second == *keep)) continue;
+        auto it = s_effectCache.find(o.second);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it);
+    }
+    // pass 2: hard cap at 2x budget, oldest first (never the entry just baked)
+    for (const auto &o : order) {
+        if (s_effectCacheBytes <= budget * 2) break;
+        if (keep && o.second == *keep) continue;
+        auto it = s_effectCache.find(o.second);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it);
+    }
+}
+
+static void purgeEffectOwner(Renderer_NV2A *r, const void *owner) {
+    for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
+        if (it->first.owner == owner) it = evictEffectEntry(r, it);
+        else ++it;
+    }
+}
+
+#if NV2A_PROFILE
+static uint32_t s_fxHits = 0, s_fxBakes = 0, s_fxEvictBytes = 0;
+static uint64_t s_fxBakeCycles = 0;
+static inline uint64_t fxTsc() { return __builtin_ia32_rdtsc(); }
+#endif
+
 static uint32_t s_effectLinear[EFFECT_MAX_DIM * EFFECT_MAX_DIM];
 
 NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
@@ -815,8 +920,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     const int srcH = imgData.height;
     const bool hasColor = (std::abs(params.colorEffect) > 0.001f);
 
-    int effW = std::min(srcW, EFFECT_MAX_DIM);
-    int effH = std::min(srcH, EFFECT_MAX_DIM);
+    // ---- resolution of the baked texture ----
+    int effW = 0, effH = 0;
     int pixW = 0, pixH = 0;
     const bool hasPixelGrid = (std::abs(params.pixelateEffect) > 0.001f) &&
                               computePixelateDims(params, srcW, srcH, imgData.scale, pixW, pixH);
@@ -825,53 +930,73 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         effH = pixH;
     } else if (!hasColor) {
         return texture; // nothing to bake
-    }
-
-    const float colorKey = hasColor ? params.colorEffect : 0.0f;
-    const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
-
-    // 1) Cache hit: same color value and same grid -> reuse as-is (zero CPU work).
-    for (int i = 0; i < 2; ++i) {
-        EffectCacheSlot &s = effectSlots[i];
-        if (s.texture && s.effW == effW && s.effH == effH && std::abs(s.color - colorKey) < 0.001f) {
-            s.lastUsedFrame = currentFrame;
-            return s.texture;
+    } else {
+        // Color only: bake no more texels than the sprite will cover on screen (pow2 tiers 16..128).
+        const float isc = (imgData.scale > 0.0f) ? imgData.scale : 1.0f;
+        const float dispMax = std::max((srcW / isc) * params.scale, (srcH / isc) * params.scale);
+        int tier = toPowerOfTwo(std::max(1, static_cast<int>(std::ceil(dispMax))));
+        tier = std::clamp(tier, 16, EFFECT_MAX_DIM);
+        const int srcMax = std::max(srcW, srcH);
+        if (tier >= srcMax) {
+            effW = srcW;
+            effH = srcH;
+        } else {
+            const float f = static_cast<float>(tier) / static_cast<float>(srcMax);
+            effW = std::max(1, static_cast<int>(std::lround(srcW * f)));
+            effH = std::max(1, static_cast<int>(std::lround(srcH * f)));
         }
     }
 
-    // 2) Pick a slot. A slot already used by a draw queued THIS frame may still be read by the GPU, so it must
-    //    never be rewritten in place; if both are in flight we retire the texture (freed after the GPU is idle)
-    //    and allocate a fresh one.
-    const bool busy0 = effectSlots[0].texture && effectSlots[0].lastUsedFrame == currentFrame;
-    const bool busy1 = effectSlots[1].texture && effectSlots[1].lastUsedFrame == currentFrame;
-    int chosen = 0;
-    bool replace = false;
-    if (!busy0) {
-        chosen = 0;
-    } else if (!busy1) {
-        chosen = 1;
-    } else {
-        chosen = (effectSlots[0].lastUsedFrame <= effectSlots[1].lastUsedFrame) ? 0 : 1;
-        replace = true;
+    // ---- quantised hue ----
+    uint16_t step = EFFECT_NO_HUE;
+    uint32_t shift = 0;
+    if (hasColor) {
+        const float cs = params.colorEffect / 200.0f;
+        const float frac = cs - std::floor(cs);
+        const int st = static_cast<int>(std::lround(frac * EFFECT_HUE_STEPS)) % EFFECT_HUE_STEPS;
+        step = static_cast<uint16_t>(st);
+        shift = static_cast<uint32_t>(st) * (1536u / EFFECT_HUE_STEPS);
     }
-    EffectCacheSlot &slot = effectSlots[chosen];
 
+    const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
+#if NV2A_PROFILE
+    {
+        static uint32_t s_lastLog = 0;
+        if (currentFrame - s_lastLog >= 120) {
+            const double frames = static_cast<double>(currentFrame - s_lastLog);
+            Log::log("NV2A fx: hits/f=" + std::to_string(s_fxHits / frames) + " bakes/f=" + std::to_string(s_fxBakes / frames) +
+                     " bakeMs/f=" + std::to_string(s_fxBakeCycles / 733333.0 / frames) +
+                     " cacheKB=" + std::to_string(s_effectCacheBytes / 1024) + " entries=" + std::to_string(s_effectCache.size()));
+            s_fxHits = s_fxBakes = 0;
+            s_fxBakeCycles = 0;
+            s_lastLog = currentFrame;
+        }
+    }
+#endif
+    effectSlots[0].lastUsedFrame = currentFrame; // "this image used an effect" stamp for idle release in render()
+
+    const EffectKey key{this, step, static_cast<uint16_t>(effW), static_cast<uint16_t>(effH)};
+    auto found = s_effectCache.find(key);
+    if (found != s_effectCache.end()) {
+        found->second.lastUsed = currentFrame;
+#if NV2A_PROFILE
+        ++s_fxHits;
+#endif
+        return found->second.tex;
+    }
+
+    // ---- miss: bake once, share with every clone ----
+#if NV2A_PROFILE
+    const uint64_t t0 = fxTsc();
+#endif
     int srcPitch = 0;
     const uint8_t *src = getEffectSource(srcPitch);
     if (!src) return texture;
 
-    // 3) Fixed-capacity texture (never reallocated when only the grid size changes).
-    const int capW = toPowerOfTwo(std::min(srcW, EFFECT_MAX_DIM));
-    const int capH = toPowerOfTwo(std::min(srcH, EFFECT_MAX_DIM));
-    if (slot.texture && (replace || slot.texture->dataWidth != capW || slot.texture->dataHeight != capH)) {
-        nv2aRenderer->destroyTexture(slot.texture); // deferred free
-        slot.texture = nullptr;
-        slot.effW = slot.effH = 0;
-    }
-    if (!slot.texture) {
-        slot.texture = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
-        if (!slot.texture) return texture;
-    }
+    const int capW = toPowerOfTwo(effW);
+    const int capH = toPowerOfTwo(effH);
+    NV2ATexture *tex = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+    if (!tex) return texture;
 
     int sxArr[EFFECT_MAX_DIM];
     for (int x = 0; x < effW; ++x) {
@@ -881,7 +1006,6 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     uint32_t *lin = s_effectLinear;
 
     if (hasColor) {
-        // Cached HSV of the downsampled source; only rebuilt when the grid size changes.
         if (hsvW != effW || hsvH != effH || hsvCache.size() != static_cast<size_t>(effW) * effH) {
             hsvCache.resize(static_cast<size_t>(effW) * effH);
             for (int y = 0; y < effH; ++y) {
@@ -905,10 +1029,6 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
             hsvH = effH;
         }
 
-        const float cs = params.colorEffect / 200.0f;
-        const float frac = cs - std::floor(cs);
-        const uint32_t shift = static_cast<uint32_t>(std::lround(frac * 1536.0f)) % 1536u;
-
         for (int y = 0; y < effH; ++y) {
             uint32_t *row = lin + static_cast<size_t>(y) * capW;
             const EffectHSVA *hp = &hsvCache[static_cast<size_t>(y) * effW];
@@ -924,7 +1044,6 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
             }
         }
     } else {
-        // Pixelate only: straight nearest-neighbour sample at cell centres.
         for (int y = 0; y < effH; ++y) {
             const int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
             const uint8_t *sRow = src + static_cast<size_t>(sy) * srcPitch;
@@ -935,8 +1054,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         }
     }
 
-    // Replicate the last column/row into the pow2 padding so bilinear filtering at the edge doesn't pull in
-    // transparent black.
+    // Replicate the last column/row into the pow2 padding so bilinear filtering at the edge stays clean.
     for (int y = 0; y < effH; ++y) {
         uint32_t *row = lin + static_cast<size_t>(y) * capW;
         for (int x = effW; x < capW; ++x) row[x] = row[effW - 1];
@@ -945,16 +1063,19 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         memcpy(lin + static_cast<size_t>(y) * capW, lin + static_cast<size_t>(effH - 1) * capW, static_cast<size_t>(capW) * 4);
     }
 
-    nv2aRenderer->updateTexture(slot.texture, lin, capW * 4);
+    nv2aRenderer->updateTexture(tex, lin, capW * 4);
+    tex->uScale = static_cast<float>(effW) / static_cast<float>(capW);
+    tex->vScale = static_cast<float>(effH) / static_cast<float>(capH);
 
-    slot.texture->uScale = static_cast<float>(effW) / static_cast<float>(capW);
-    slot.texture->vScale = static_cast<float>(effH) / static_cast<float>(capH);
-    slot.color = colorKey;
-    slot.effW = effW;
-    slot.effH = effH;
-    slot.lastUsedFrame = currentFrame;
+    s_effectCache.emplace(key, EffectEntry{tex, currentFrame});
+    s_effectCacheBytes += tex->allocationSize;
+    trimEffectCache(nv2aRenderer, currentFrame, &key);
 
-    return slot.texture;
+#if NV2A_PROFILE
+    ++s_fxBakes;
+    s_fxBakeCycles += fxTsc() - t0;
+#endif
+    return tex;
 }
 
 static inline void setNV2AVertexColor(NV2AVertex &v, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -1593,8 +1714,8 @@ void Image_NV2A::render(ImageRenderParams &params) {
 
     if (!hasEffects) {
         uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
-        if ((effectSlots[0].texture && currentFrame - effectSlots[0].lastUsedFrame > 60) ||
-            (effectSlots[1].texture && currentFrame - effectSlots[1].lastUsedFrame > 60)) {
+        // effectSlots[0].lastUsedFrame is stamped by acquireEffectTexture(): drop this image's baked data once idle
+        if (effectSlots[0].lastUsedFrame != 0 && currentFrame - effectSlots[0].lastUsedFrame > 60) {
             releaseEffects();
         }
         if (!tiles.empty()) {
