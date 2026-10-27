@@ -2,6 +2,9 @@
 
 [Game clips](#games-in-action) · [Key fixes](#fixes-worth-reviewing) · [Adding games](#what-i-meant-by-adding-games-is-tricky)
 
+This recap and its GIFs live on a feature branch. For the latest code and
+ongoing fixes, see **[main](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/tree/main)**.
+
 We've installed twenty games on a **128MB Xbox** using NXDK. The normal build
 opens the project browser, launches installed games and returns after exit.
 There is real gameplay progress below; twenty installed does not mean every
@@ -48,6 +51,7 @@ commits in our fork, not requests to pull the entire branch.
 | Xbox rendering | [Deterministic vertex setup](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/f217b0b1fcaaaf93fddcf7c808720b0d26378070); GPU allocations stay within the DMA-addressable range on expanded-RAM hardware. [Background](xbox-startup-rendering.md). |
 | Xbox color sensing | [Include pen pixels](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/b83fe88c6dae4a89cc77760ceeac3e053a460f83) and [sample exact bitmap texels](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/e0acbc881187907c1ee4a44ef0874e03445b78b6). Final 38-case fixture passed in xemu and on Xbox; earlier collision-mask edge retention is shared. |
 | Xbox input | [Controller switching/replay/reset](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/9d5e5adfe65ec834c893eec3a991c38e2e65e2b4), [SB2 profiles](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/985f0a72adc723a1795548d34865a0ee0b8536e6) and [menu confirmation isolation](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/54e668e1d9eab378f42b3e48535f9b99fd0e95c5). |
+| Xbox homebrew controls | Added the usual homebrew conveniences: [Return to launcher, Restart Xbox and Shut down Xbox](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/commit/7bd8152f0f8e9d031875e28ca50add7db9aaab9f), confirmation prompts, and an **LT + RT + Back + Start** reset shortcut. These are Xbox-specific; [hardware checks for the new system actions remain pending](https://github.com/ZacharyLeahan/scratcheverywhere-nxdk/blob/main/docs/xbox-menu-input.md#console-pause-and-system-actions). |
 | Individual games | Reproducible [preparation scripts](../scripts) repair the separate copies marked above. These are project adaptations, not engine fixes; keep them separate in upstream review. |
 
 Some commits mix shared and Xbox changes and would need splitting before an
