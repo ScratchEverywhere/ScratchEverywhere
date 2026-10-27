@@ -3,8 +3,8 @@
 The goal is twenty playable games, with actual Xbox testing and fixes until each
 works. Downloads, successful builds, and a title screen are not full passes.
 Twenty distinct projects are now packaged and installed with archive readback
-verification. Installation is not qualification; the additional ten still need
-the gameplay checks below. The current console has 128MB RAM; this does not
+verification. Installation is not qualification; outstanding gameplay checks
+remain listed below. The current console has 128MB RAM; this does not
 establish retail 64MB support.
 
 For each game, establish selection from the normal browser, correct visuals,
@@ -22,7 +22,7 @@ neutralize all reports afterwards.
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
 | Appel v1.4 (griffpatch) | Clone/GPU fixes; normal route reaches checkpoint two; controller-only diagnostic play completes Level 1 with 18 apples and actual WIN; hidden tunnel, short jumps, deaths/checkpoint respawns; win-menu Try Again resets to zero and permits movement/jumping; browser return; quick restart and repeat launch; 30s HDMI music/completion-sound capture; live watch agrees with pause snapshots | Repeat extended route with diagnostics disabled; lwmem loading; subjective listening and longer audio stability |
-| Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
+| [Tetris (Tech-Coder)](xbox-tetris.md) | Hardware color/pen fix; browser movement/rotation/hard drop; diagnostic run clears ten lines in 28 matched placements using all seven piece families; Score 400/Level 1, faster gravity and explicit Down soft drop; installed normal dashboard build repeats ten lines/400/Level 1 in 32 matched placements and scores a triple for 300; Green Flag replay, natural top-out/title, eight seconds of digital silence, short-Start replay to zero, renewed movement/hard drop and clean browser exit; 30s source-matched audio and 120s capture with two sampled music restarts; normal-build xemu seeded exact cap probes verify `Winner!`/title ending and Green Flag replay | Four-line scoring through controller play; subjective listening/capture-start sample anomaly. The 100-million-point cap was tested with diagnostic state seeding, not a normal playthrough |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; prepared win/replay repair passes targeted xemu collision probes; controller-only hardware river crossings score six pads in one live round; Green Flag replay scores the remaining far-right pad and two more, so all seven pad positions have scored across rounds; prepared copy passes two launches/two exits; 30s HDMI music has continuous source offsets, with one unresolved full-scale initial capture frame | Seven-pad win in one hardware round, replay from victory, extended normal-build repetition; initial audio-frame anomaly and subjective sound; shared KVM delivery |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
 | PacMan (cdaniels7088) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback | Power-pellet/ghost interaction, board win, repeat launch on combined build |
@@ -41,8 +41,33 @@ Sources, authors, instructions, packaging details and hashes for the additional
 five are in ignored `build-xbox/more-games/next-five-manifest.json`. Game scripts
 are unchanged; SB2 archives use numeric asset IDs assigned during packaging.
 Upload readback results are in `next-five-installed.json` in that directory.
-The browser visibly lists the new games; the first page shows Appel, Atari
-Breakout, Catch Apples, Frogger and Hopper.
+The current browser's first page shows 2048, Appel, Asteroids, Atari Breakout
+and Catch Apples.
+
+## Installed normal dashboard launcher — October 27, 2026
+
+The existing dashboard entry now launches normal diagnostics-off XBE SHA-256
+`2b8b57782fbff6363c413712f36cffdf37083fad48c77909bc866e02bb67eb6b`
+at `F:/Games/ScratchEverywhere/default.xbe`. The former `78d2fe17…` executable
+is preserved on the Xbox as `default-78d2fe17-20261027.bak` and in the local
+deployment evidence. Temporary upload, final executable and backup all passed
+full byte-for-byte FTP readback. All twenty games plus Xbox-Test remain in
+the project directory.
+
+Two fresh starts from the dashboard reached the populated browser. The second
+was observed by approximately 18.43 seconds after its launch request and later
+confirmed visually after the browser settled. The executable's retrieved
+normal-run log chapter has no variable-watch, menu-input or pause-state trace markers.
+The diagnostic receivers were confirmed live and recorded no packets from
+this normal executable.
+
+On this installed build, Tetris passed a triple-line clear for 300 points,
+ten-line/400-point/Level 1 progression, ending/short-Start replay, renewed
+movement/hard drop, clean browser return, fresh project launch and music resume
+after a pause longer than the clip. This deployment does not mark the other
+games' remaining qualification checks complete. Receipts, the previous XBE,
+runtime log and startup images are in ignored
+`build-xbox/primary-normal-20261027/`.
 
 ## Appel controller route follow-up — October 26, 2026
 
