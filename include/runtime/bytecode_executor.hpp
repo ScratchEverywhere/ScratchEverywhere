@@ -22,4 +22,8 @@ class SE_EXPORT BytecodeExecutor {
     static void runThreads();
 
     static void runThread(BytecodeThread &thread);
+
+#ifdef SE_BYTECODE_STATS
+    static std::string takeStatsReport();
+#endif
 };

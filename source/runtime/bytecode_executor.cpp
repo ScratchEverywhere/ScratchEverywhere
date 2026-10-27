@@ -13,6 +13,31 @@
 
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
+#ifdef SE_BYTECODE_STATS
+namespace {
+uint64_t statsOpCounts[256] = {};
+}
+
+std::string BytecodeExecutor::takeStatsReport() {
+    uint64_t total = 0;
+    for (uint64_t c : statsOpCounts) total += c;
+
+    std::vector<std::pair<uint64_t, unsigned>> ranked;
+    for (unsigned i = 0; i < 256; i++) {
+        if (statsOpCounts[i] != 0) ranked.emplace_back(statsOpCounts[i], i);
+    }
+    std::sort(ranked.rbegin(), ranked.rend());
+
+    std::string report = " instrs=" + std::to_string(total) + " top=";
+    for (size_t i = 0; i < ranked.size() && i < 6; i++) {
+        if (i != 0) report += ",";
+        report += std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+    }
+    std::fill(std::begin(statsOpCounts), std::end(statsOpCounts), 0);
+    return report;
+}
+#endif
+
 namespace {
 
 uint64_t randState0 = 0;
@@ -488,6 +513,9 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
         }
 
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
+#ifdef SE_BYTECODE_STATS
+        statsOpCounts[static_cast<uint8_t>(instr.op)]++;
+#endif
 
         switch (instr.op) {
 
