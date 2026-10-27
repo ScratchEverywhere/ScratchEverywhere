@@ -43,6 +43,8 @@ static size_t s_arenaBase = 0;
 static size_t s_arenaOffset = 0;
 static uint32_t s_frameIndex = 0;
 
+static void flushRetiredTextures(bool syncGpu); // deferred texture frees, defined below
+
 static inline void nv2a_cache_flush() {
 #ifdef __XBOX__
     __asm__ __volatile__ ("sfence" ::: "memory");
@@ -615,6 +617,7 @@ Renderer_NV2A::~Renderer_NV2A() {
     TextObject::cleanupText();
 
 #ifdef __XBOX__
+    flushRetiredTextures(true);
     if (s_vertexArena) {
         MmFreeContiguousMemory(s_vertexArena);
         s_vertexArena = nullptr;
@@ -628,6 +631,44 @@ Renderer_NV2A::~Renderer_NV2A() {
         delete window;
         window = nullptr;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Deferred texture destruction.
+// destroyTexture() used to push WAIT_FOR_IDLE and spin until the whole GPU drained - on *every* destroy
+// (costume changes, font atlas rebuilds, effect textures...). Instead, textures are retired and their memory is
+// released at the start of the next frame (the GPU is already idle there), or immediately - with a full sync -
+// if an allocation fails or the list grows large.
+// ---------------------------------------------------------------------------
+static std::vector<NV2ATexture *> s_retiredTextures;
+
+static void freeTextureStorage(NV2ATexture *t) {
+#ifdef __XBOX__
+    if (t->data) {
+        MmFreeContiguousMemory(t->data);
+        t->data = nullptr;
+    }
+#endif
+    delete t;
+}
+
+static void flushRetiredTextures(bool syncGpu) {
+    if (s_retiredTextures.empty()) return;
+#ifdef __XBOX__
+    if (syncGpu) {
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        pb_end(p);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+    }
+#else
+    (void)syncGpu;
+#endif
+    for (NV2ATexture *t : s_retiredTextures) freeTextureStorage(t);
+    s_retiredTextures.clear();
 }
 
 NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format, bool swizzled) {
@@ -673,8 +714,13 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
 
 #ifdef __XBOX__
     tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    if (!tex->data && !s_retiredTextures.empty()) {
+        flushRetiredTextures(true); // reclaim memory held by deferred frees
+        tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    }
     if (!tex->data) {
         Scratch::freeUnusedCostumeImages();
+        flushRetiredTextures(true);
         tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
     }
     if (!tex->data) {
@@ -714,19 +760,15 @@ void Renderer_NV2A::destroyTexture(NV2ATexture *&texture) {
         s_activeTexture = nullptr;
     }
 #ifdef __XBOX__
-    uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(p);
-    while (pb_busy()) {
-        __asm__ __volatile__("pause");
+    // The GPU may still be reading this texture from commands already queued this frame: retire it instead of
+    // freeing now. (The struct stays allocated until the flush, so the pointer can't be recycled under us.)
+    s_retiredTextures.push_back(texture);
+    if (s_retiredTextures.size() > 512) {
+        flushRetiredTextures(true);
     }
-    pb_wait_until_gr_not_busy();
-    if (texture->data) {
-        MmFreeContiguousMemory(texture->data);
-        texture->data = nullptr;
-    }
+#else
+    freeTextureStorage(texture);
 #endif
-    delete texture;
     texture = nullptr;
 }
 
@@ -742,10 +784,36 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
                    static_cast<const uint8_t *>(pixels) + static_cast<size_t>(r) * pitch, rowBytes);
         }
     } else if (texture->swizzled) {
-        swizzle_subrect(static_cast<const uint8_t *>(pixels),
-                        texture->texWidth, texture->texHeight,
-                        texture->dataWidth, texture->dataHeight,
-                        texture->data, pitch, texture->bytesPerPixel);
+        // Swizzling scatters writes in Z-order. Doing that straight into write-combined memory defeats the WC
+        // buffers (every store becomes a partial-line flush), so swizzle into cached RAM and stream it out.
+        static uint8_t *s_stage = nullptr;
+        static size_t s_stageCap = 0;
+        const size_t bytes = texture->allocationSize;
+        if (s_stageCap < bytes) {
+            free(s_stage);
+            s_stage = static_cast<uint8_t *>(malloc(bytes));
+            s_stageCap = s_stage ? bytes : 0;
+        }
+        if (s_stage) {
+            if (texture->texWidth != texture->dataWidth || texture->texHeight != texture->dataHeight) {
+                memset(s_stage, 0, bytes); // keep NPOT padding zeroed
+            }
+            swizzle_subrect(static_cast<const uint8_t *>(pixels),
+                            texture->texWidth, texture->texHeight,
+                            texture->dataWidth, texture->dataHeight,
+                            s_stage, pitch, texture->bytesPerPixel);
+            memcpy(texture->data, s_stage, bytes);
+            if (s_stageCap > 256 * 1024) { // don't pin big staging buffers on a 64MB console
+                free(s_stage);
+                s_stage = nullptr;
+                s_stageCap = 0;
+            }
+        } else {
+            swizzle_subrect(static_cast<const uint8_t *>(pixels),
+                            texture->texWidth, texture->texHeight,
+                            texture->dataWidth, texture->dataHeight,
+                            texture->data, pitch, texture->bytesPerPixel);
+        }
     } else {
         for (int r = 0; r < texture->texHeight; ++r) {
             memcpy(texture->data + static_cast<size_t>(r) * texture->pitch,
@@ -1185,6 +1253,8 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
             __asm__ __volatile__("pause");
         }
         pb_wait_until_gr_not_busy();
+
+        flushRetiredTextures(false); // GPU is idle here: safe to release textures retired last frame
 
         pb_reset();
         pb_target_back_buffer();

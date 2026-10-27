@@ -607,8 +607,13 @@ void Image_NV2A::releaseEffects() {
         effectSlots[i].whirl = 0.0f;
         effectSlots[i].pixelate = 0.0f;
         effectSlots[i].mosaic = 0.0f;
+        effectSlots[i].effW = 0;
+        effectSlots[i].effH = 0;
         effectSlots[i].lastUsedFrame = 0;
     }
+    hsvCache.clear();
+    hsvCache.shrink_to_fit();
+    hsvW = hsvH = 0;
     effectSource.clear();
     effectSource.shrink_to_fit();
 }
@@ -706,41 +711,98 @@ const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
     return nullptr;
 }
 
-static uint32_t s_colorLut[32768];
-static float s_lastColorShift = -9999.0f;
-static std::vector<uint8_t> s_scratch;
+// ---------------------------------------------------------------------------
+// Baked effect textures (color + pixelate)
+//
+// Everything below runs only when an effect *value changes*; a steady effect is a cache hit and costs nothing.
+//  * Effect textures are allocated once at a fixed pow2 capacity (<=128x128). Changing the pixelate grid size
+//    just changes uScale/vScale - no destroy/create (which used to force a full GPU idle every frame).
+//  * Color shift works on a cached 8-bit HSV copy of the downsampled source. Per texel it is one integer add
+//    and one integer HSV->RGB (no 32768-entry float LUT rebuild, no per-texel float math).
+//  * Texels are composed in cached RAM, swizzled in cached RAM, then streamed to write-combined VRAM-visible
+//    memory as one sequential copy (done inside Renderer_NV2A::updateTexture).
+// ---------------------------------------------------------------------------
+static constexpr int EFFECT_MAX_DIM = 128;
+static constexpr int PIXELATE_MESH_MAX_CELLS = 256; // grids this small are cheaper as a mesh than as a texture refill
 
-static void updateColorLut(float colorShift) {
-    if (std::abs(colorShift - s_lastColorShift) < 0.0001f) {
-        return;
-    }
-    for (int r5 = 0; r5 < 32; ++r5) {
-        float r = (r5 * 255.0f / 31.0f) * (1.0f / 255.0f);
-        for (int g5 = 0; g5 < 32; ++g5) {
-            float g = (g5 * 255.0f / 31.0f) * (1.0f / 255.0f);
-            for (int b5 = 0; b5 < 32; ++b5) {
-                float b = (b5 * 255.0f / 31.0f) * (1.0f / 255.0f);
-                float h, s, v;
-                rgb2hsv(r, g, b, h, s, v);
-                const float minLightness = 0.11f / 2.0f;
-                const float minSaturation = 0.09f;
-                if (v < minLightness) { h = 0.0f; s = 1.0f; v = minLightness; }
-                else if (s < minSaturation) { h = 0.0f; s = minSaturation; }
-                h = h + colorShift;
-                h -= std::floor(h);
-                float ro, go, bo;
-                hsv2rgb(h, s, v, ro, go, bo);
-                uint8_t outR = static_cast<uint8_t>(std::clamp(ro * 255.0f + 0.5f, 0.0f, 255.0f));
-                uint8_t outG = static_cast<uint8_t>(std::clamp(go * 255.0f + 0.5f, 0.0f, 255.0f));
-                uint8_t outB = static_cast<uint8_t>(std::clamp(bo * 255.0f + 0.5f, 0.0f, 255.0f));
-                s_colorLut[(r5 << 10) | (g5 << 5) | b5] = static_cast<uint32_t>(outR) |
-                                                           (static_cast<uint32_t>(outG) << 8) |
-                                                           (static_cast<uint32_t>(outB) << 16);
+static inline uint32_t div255(uint32_t x) {
+    x += 128;
+    return (x + (x >> 8)) >> 8;
+}
+
+// h: 0..1535 (6 sextants x 256), s/v: 0..255. Same clamps as the Scratch shader (v < 0.055, s < 0.09).
+static inline void rgb2hsvEffect(int r, int g, int b, uint16_t &h, uint8_t &s, uint8_t &v) {
+    const int mx = std::max({r, g, b});
+    const int mn = std::min({r, g, b});
+    const int d = mx - mn;
+    int hh = 0;
+    int sat = 0;
+    if (mx > 0) {
+        sat = (d * 255 + mx / 2) / mx;
+        if (d > 0) {
+            if (mx == r) {
+                hh = ((g - b) * 256) / d;
+                if (hh < 0) hh += 1536;
+            } else if (mx == g) {
+                hh = 512 + ((b - r) * 256) / d;
+            } else {
+                hh = 1024 + ((r - g) * 256) / d;
             }
+            if (hh >= 1536) hh -= 1536;
         }
     }
-    s_lastColorShift = colorShift;
+    int val = mx;
+    if (val * 1000 < 55 * 255) {
+        hh = 0;
+        sat = 255;
+        val = 14;
+    } else if (d * 100 < 9 * mx) {
+        hh = 0;
+        sat = 23;
+    }
+    h = static_cast<uint16_t>(hh);
+    s = static_cast<uint8_t>(sat);
+    v = static_cast<uint8_t>(val);
 }
+
+// Returns bytes in memory order R,G,B (little-endian: r | g<<8 | b<<16), alpha left to the caller.
+static inline uint32_t hsv2rgbEffect(uint32_t h, uint32_t s, uint32_t v) {
+    if (s == 0) return v | (v << 8) | (v << 16);
+    const uint32_t seg = h >> 8;
+    const uint32_t f = h & 255;
+    const uint32_t p = div255(v * (255 - s));
+    const uint32_t q = div255(v * (255 - div255(s * f)));
+    const uint32_t t = div255(v * (255 - div255(s * (255 - f))));
+    uint32_t r, g, b;
+    switch (seg) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    default: r = v; g = p; b = q; break;
+    }
+    return r | (g << 8) | (b << 16);
+}
+
+// Same grid-size rule as the pixelate mesh path. Returns false when the block is <= 1 texel (no visible pixelation).
+static bool computePixelateDims(const ImageRenderParams &params, int srcW, int srcH, float imgScale, int &effW, int &effH) {
+    const float texelScale = params.scale / (imgScale > 0.0f ? imgScale : 1.0f);
+    const float scaleFactor = std::max(1.0f, texelScale);
+    const float amount = (std::abs(params.pixelateEffect) / 10.0f) / scaleFactor;
+    if (amount <= 1.0f) return false;
+
+    effW = std::min(std::max(2, static_cast<int>(std::round(srcW / amount))), srcW);
+    effH = std::min(std::max(2, static_cast<int>(std::round(srcH / amount))), srcH);
+    if (effW > EFFECT_MAX_DIM || effH > EFFECT_MAX_DIM) {
+        const float g = std::min(static_cast<float>(EFFECT_MAX_DIM) / effW, static_cast<float>(EFFECT_MAX_DIM) / effH);
+        effW = std::max(2, static_cast<int>(std::round(effW * g)));
+        effH = std::max(2, static_cast<int>(std::round(effH * g)));
+    }
+    return true;
+}
+
+static uint32_t s_effectLinear[EFFECT_MAX_DIM * EFFECT_MAX_DIM];
 
 NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     if (imgData.width <= 0 || imgData.height <= 0) return nullptr;
@@ -749,123 +811,147 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     }
     if (!nv2aRenderer) return nullptr;
 
+    const int srcW = imgData.width;
+    const int srcH = imgData.height;
+    const bool hasColor = (std::abs(params.colorEffect) > 0.001f);
+
+    int effW = std::min(srcW, EFFECT_MAX_DIM);
+    int effH = std::min(srcH, EFFECT_MAX_DIM);
+    int pixW = 0, pixH = 0;
+    const bool hasPixelGrid = (std::abs(params.pixelateEffect) > 0.001f) &&
+                              computePixelateDims(params, srcW, srcH, imgData.scale, pixW, pixH);
+    if (hasPixelGrid) {
+        effW = pixW;
+        effH = pixH;
+    } else if (!hasColor) {
+        return texture; // nothing to bake
+    }
+
+    const float colorKey = hasColor ? params.colorEffect : 0.0f;
     const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
 
+    // 1) Cache hit: same color value and same grid -> reuse as-is (zero CPU work).
     for (int i = 0; i < 2; ++i) {
-        if (effectSlots[i].texture && effectSlots[i].matches(params)) {
-            effectSlots[i].lastUsedFrame = currentFrame;
-            return effectSlots[i].texture;
+        EffectCacheSlot &s = effectSlots[i];
+        if (s.texture && s.effW == effW && s.effH == effH && std::abs(s.color - colorKey) < 0.001f) {
+            s.lastUsedFrame = currentFrame;
+            return s.texture;
         }
     }
 
-    int chosenSlot = 0;
-    if (effectSlots[0].lastUsedFrame != currentFrame) {
-        chosenSlot = 0;
-    } else if (effectSlots[1].lastUsedFrame != currentFrame) {
-        chosenSlot = 1;
+    // 2) Pick a slot. A slot already used by a draw queued THIS frame may still be read by the GPU, so it must
+    //    never be rewritten in place; if both are in flight we retire the texture (freed after the GPU is idle)
+    //    and allocate a fresh one.
+    const bool busy0 = effectSlots[0].texture && effectSlots[0].lastUsedFrame == currentFrame;
+    const bool busy1 = effectSlots[1].texture && effectSlots[1].lastUsedFrame == currentFrame;
+    int chosen = 0;
+    bool replace = false;
+    if (!busy0) {
+        chosen = 0;
+    } else if (!busy1) {
+        chosen = 1;
     } else {
-        chosenSlot = (effectSlots[0].lastUsedFrame <= effectSlots[1].lastUsedFrame) ? 0 : 1;
+        chosen = (effectSlots[0].lastUsedFrame <= effectSlots[1].lastUsedFrame) ? 0 : 1;
+        replace = true;
     }
-
-    EffectCacheSlot &slot = effectSlots[chosenSlot];
+    EffectCacheSlot &slot = effectSlots[chosen];
 
     int srcPitch = 0;
     const uint8_t *src = getEffectSource(srcPitch);
     if (!src) return texture;
 
-    int srcW = imgData.width;
-    int srcH = imgData.height;
-
-    const float pixelate = params.pixelateEffect;
-    const float color = params.colorEffect;
-    const bool hasPixelate = (std::abs(pixelate) > 0.001f);
-    const bool hasColor = (std::abs(color) > 0.001f);
-
-    int effW = srcW;
-    int effH = srcH;
-
-    if (hasPixelate) {
-        float texelScale = params.scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
-        float scaleFactor = std::max(1.0f, texelScale);
-        float pixelateAmount = (std::abs(pixelate) / 10.0f) / scaleFactor;
-        if (pixelateAmount > 1.0f) {
-            effW = std::clamp(static_cast<int>(std::round(srcW / pixelateAmount)), 2, srcW);
-            effH = std::clamp(static_cast<int>(std::round(srcH / pixelateAmount)), 2, srcH);
-            if (effW > 96 || effH > 96) {
-                float gridScale = std::min(96.0f / effW, 96.0f / effH);
-                effW = std::max(2, static_cast<int>(std::round(effW * gridScale)));
-                effH = std::max(2, static_cast<int>(std::round(effH * gridScale)));
-            }
-        } else if (hasColor) {
-            effW = std::min(srcW, 96);
-            effH = std::min(srcH, 96);
-        }
-    } else if (hasColor) {
-        effW = std::min(srcW, 96);
-        effH = std::min(srcH, 96);
+    // 3) Fixed-capacity texture (never reallocated when only the grid size changes).
+    const int capW = toPowerOfTwo(std::min(srcW, EFFECT_MAX_DIM));
+    const int capH = toPowerOfTwo(std::min(srcH, EFFECT_MAX_DIM));
+    if (slot.texture && (replace || slot.texture->dataWidth != capW || slot.texture->dataHeight != capH)) {
+        nv2aRenderer->destroyTexture(slot.texture); // deferred free
+        slot.texture = nullptr;
+        slot.effW = slot.effH = 0;
     }
-    if (effW <= 0) effW = 1;
-    if (effH <= 0) effH = 1;
-
-    const uint32_t fmt = XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
-
-    if (!slot.texture || slot.texture->texWidth != effW || slot.texture->texHeight != effH) {
-        if (slot.texture) {
-            nv2aRenderer->destroyTexture(slot.texture);
-            slot.texture = nullptr;
-        }
-        slot.texture = nv2aRenderer->createTexture(effW, effH, fmt, true);
-        if (!slot.texture) {
-            return texture;
-        }
+    if (!slot.texture) {
+        slot.texture = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        if (!slot.texture) return texture;
     }
 
-    const float colorShift = color / 200.0f;
-    if (hasColor) {
-        updateColorLut(colorShift);
-    }
-
-    int sxArr[128];
+    int sxArr[EFFECT_MAX_DIM];
     for (int x = 0; x < effW; ++x) {
         sxArr[x] = std::clamp((x * srcW + (srcW / 2)) / effW, 0, srcW - 1);
     }
 
-    uint32_t mask_x = 0, mask_y = 0, mask_z = 0;
-    generate_swizzle_masks(slot.texture->dataWidth, slot.texture->dataHeight, 1, &mask_x, &mask_y, &mask_z);
+    uint32_t *lin = s_effectLinear;
 
-    auto *dst32 = reinterpret_cast<uint32_t *>(slot.texture->data);
-    uint32_t off_y = 0;
-
-    for (int y = 0; y < effH; ++y) {
-        int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
-        const uint8_t *sRow = src + sy * srcPitch;
-        uint32_t *dRow = dst32 + off_y;
-        uint32_t off_x = 0;
-
-        for (int x = 0; x < effW; ++x) {
-            int sx = sxArr[x];
-            const uint8_t *sPix = sRow + sx * 4;
-
-            uint8_t a = sPix[3];
-            if (a == 0) {
-                dRow[off_x] = 0;
-            } else if (hasColor) {
-                uint32_t rgb = s_colorLut[((sPix[0] >> 3) << 10) | ((sPix[1] >> 3) << 5) | (sPix[2] >> 3)];
-                dRow[off_x] = rgb | (static_cast<uint32_t>(a) << 24);
-            } else {
-                dRow[off_x] = *reinterpret_cast<const uint32_t *>(sPix);
+    if (hasColor) {
+        // Cached HSV of the downsampled source; only rebuilt when the grid size changes.
+        if (hsvW != effW || hsvH != effH || hsvCache.size() != static_cast<size_t>(effW) * effH) {
+            hsvCache.resize(static_cast<size_t>(effW) * effH);
+            for (int y = 0; y < effH; ++y) {
+                const int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
+                const uint8_t *sRow = src + static_cast<size_t>(sy) * srcPitch;
+                EffectHSVA *out = &hsvCache[static_cast<size_t>(y) * effW];
+                for (int x = 0; x < effW; ++x) {
+                    const uint8_t *p = sRow + sxArr[x] * 4;
+                    EffectHSVA &e = out[x];
+                    e.a = p[3];
+                    if (e.a) {
+                        rgb2hsvEffect(p[0], p[1], p[2], e.h, e.s, e.v);
+                    } else {
+                        e.h = 0;
+                        e.s = 0;
+                        e.v = 0;
+                    }
+                }
             }
-            off_x = (off_x - mask_x) & mask_x;
+            hsvW = effW;
+            hsvH = effH;
         }
-        off_y = (off_y - mask_y) & mask_y;
+
+        const float cs = params.colorEffect / 200.0f;
+        const float frac = cs - std::floor(cs);
+        const uint32_t shift = static_cast<uint32_t>(std::lround(frac * 1536.0f)) % 1536u;
+
+        for (int y = 0; y < effH; ++y) {
+            uint32_t *row = lin + static_cast<size_t>(y) * capW;
+            const EffectHSVA *hp = &hsvCache[static_cast<size_t>(y) * effW];
+            for (int x = 0; x < effW; ++x) {
+                const EffectHSVA &e = hp[x];
+                if (!e.a) {
+                    row[x] = 0;
+                } else {
+                    uint32_t h2 = e.h + shift;
+                    if (h2 >= 1536) h2 -= 1536;
+                    row[x] = hsv2rgbEffect(h2, e.s, e.v) | (static_cast<uint32_t>(e.a) << 24);
+                }
+            }
+        }
+    } else {
+        // Pixelate only: straight nearest-neighbour sample at cell centres.
+        for (int y = 0; y < effH; ++y) {
+            const int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
+            const uint8_t *sRow = src + static_cast<size_t>(sy) * srcPitch;
+            uint32_t *row = lin + static_cast<size_t>(y) * capW;
+            for (int x = 0; x < effW; ++x) {
+                memcpy(&row[x], sRow + sxArr[x] * 4, 4);
+            }
+        }
     }
 
-#ifdef __XBOX__
-    __asm__ __volatile__ ("sfence" ::: "memory");
-#endif
+    // Replicate the last column/row into the pow2 padding so bilinear filtering at the edge doesn't pull in
+    // transparent black.
+    for (int y = 0; y < effH; ++y) {
+        uint32_t *row = lin + static_cast<size_t>(y) * capW;
+        for (int x = effW; x < capW; ++x) row[x] = row[effW - 1];
+    }
+    for (int y = effH; y < capH; ++y) {
+        memcpy(lin + static_cast<size_t>(y) * capW, lin + static_cast<size_t>(effH - 1) * capW, static_cast<size_t>(capW) * 4);
+    }
 
-    slot.color = params.colorEffect;
-    slot.pixelate = params.pixelateEffect;
+    nv2aRenderer->updateTexture(slot.texture, lin, capW * 4);
+
+    slot.texture->uScale = static_cast<float>(effW) / static_cast<float>(capW);
+    slot.texture->vScale = static_cast<float>(effH) / static_cast<float>(capH);
+    slot.color = colorKey;
+    slot.effW = effW;
+    slot.effH = effH;
     slot.lastUsedFrame = currentFrame;
 
     return slot.texture;
@@ -1520,12 +1606,15 @@ void Image_NV2A::render(ImageRenderParams &params) {
     const bool hasMeshEffects = (hasWhirl || hasFisheye || hasMosaic);
     NV2ATexture *activeTex = texture;
     bool needsPixelateTexture = false;
-    if (hasPixelate && hasMeshEffects) {
-        float texelScale = params.scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
-        float scaleFactor = std::max(1.0f, texelScale);
-        float pixelateAmount = (std::abs(params.pixelateEffect) / 10.0f) / scaleFactor;
-        if (pixelateAmount > 1.0f) {
-            needsPixelateTexture = true;
+    bool pixelateBaked = false; // pixelate resolved by a (cached) low-res texture + 1 nearest-filtered quad
+    if (hasPixelate) {
+        int gw = 0, gh = 0;
+        if (computePixelateDims(params, imgData.width, imgData.height, imgData.scale, gw, gh)) {
+            const bool smallGrid = (gw * gh) <= PIXELATE_MESH_MAX_CELLS;
+            if (hasMeshEffects || hasColor || (params.subrect == nullptr && !smallGrid)) {
+                needsPixelateTexture = true;
+                pixelateBaked = !hasMeshEffects;
+            }
         }
     }
     if (hasColor || needsPixelateTexture) {
@@ -1552,7 +1641,7 @@ void Image_NV2A::render(ImageRenderParams &params) {
         return;
     }
 
-    if (hasPixelate) {
+    if (hasPixelate && !pixelateBaked) {
         renderPixelate(params, activeTex);
         return;
     }

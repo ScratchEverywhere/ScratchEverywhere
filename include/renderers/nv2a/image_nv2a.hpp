@@ -28,6 +28,8 @@ class SE_EXPORT Image_NV2A : public Image {
     void renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
                             bool hasWhirl, bool hasFisheye, bool hasMosaic);
 
+	struct EffectHSVA { uint16_t h; uint8_t s, v, a; };
+	
     // Looks effects (color/fisheye/whirl/pixelate/mosaic) are evaluated on the CPU into cached textures.
     struct EffectCacheSlot {
         NV2ATexture *texture = nullptr;
@@ -37,12 +39,17 @@ class SE_EXPORT Image_NV2A : public Image {
         float pixelate = 0.0f;
         float mosaic = 0.0f;
         uint32_t lastUsedFrame = 0;
+		int effW = 0, effH = 0;
 
         bool matches(const ImageRenderParams &p) const {
             return std::abs(color - p.colorEffect) < 0.001f &&
                    std::abs(pixelate - p.pixelateEffect) < 0.001f;
         }
     };
+
+	std::vector<EffectHSVA> hsvCache;
+	int hsvW = 0, hsvH = 0;
+
     EffectCacheSlot effectSlots[2];
     std::vector<uint8_t> effectSource;
     const uint8_t *getEffectSource(int &pitch);
