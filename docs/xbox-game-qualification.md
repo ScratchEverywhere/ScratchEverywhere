@@ -1,5 +1,8 @@
 # Twenty-game hardware qualification
 
+For a concise game list, source links, change-scope breakdown and explanation
+of the Xbox installation workflow, see [the handoff for Mike](xbox-handoff-for-mike.md).
+
 The goal is twenty playable games, with actual Xbox testing and fixes until each
 works. Downloads, successful builds, and a title screen are not full passes.
 Twenty distinct projects are now packaged and installed with archive readback
@@ -110,6 +113,33 @@ placements, ten lines, Score 420 and Level 1, including one double-line clear.
 Four-line scoring remains open. See [the Tetris evidence](xbox-tetris.md).
 These installation and regression checks do not complete the other games'
 remaining qualification requirements or the shared KVM input-delivery work.
+
+## Appel normal-build repeat before testing paused — October 27, 2026
+
+The installed diagnostics-off `b75e9beb…` launcher ran the unchanged full Appel
+archive `4affb3db…` through the browser. Controller-only play repeated seven
+apples and checkpoint two. After a fall, the player returned to that flag with
+seven apples retained. Testing paused at the ground edge before the first
+moving lift; this run does not establish a full normal-build level completion.
+The previously documented diagnostic Level 1 win remains a separate result.
+No game-state writes or diagnostic live-variable feedback were used for this
+normal repeat.
+
+Retained images in ignored `build-xbox/hardware/` include
+`appel-normal-overhead-landing2.jpg`,
+`appel-normal-checkpoint2-respawn-paused.jpg` and
+`appel-normal-cp2-edge1-live.jpg`. The final view was left in Appel's authored
+pause, and the owned camera observer was stopped when testing was paused.
+
+The associated 120-second HDMI capture contains exactly 5,760,000 stereo frames
+at 48kHz, with peak 0.24823 and no full-scale samples. Most sampled segments
+match the original music, but source offsets do not consistently advance with
+elapsed capture time; the 30-second probe is weak (correlation 0.418). The first
+frame is also the capture's peak. Cause is not isolated, and this is not a
+gapless-loop, continuity or subjective-listening pass. Metadata and sampled
+comparisons are `appel-normal-full-route-audio1.json` and
+`appel-normal-full-route-audio1-match.json`; PCM SHA-256 is
+`11822d22076c15bfa67d7bee4c151f8e9fcb159546e80a1e4238473f222fccb6`.
 
 ## Appel controller route follow-up — October 26, 2026
 
