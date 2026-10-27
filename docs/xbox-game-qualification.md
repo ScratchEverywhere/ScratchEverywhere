@@ -22,7 +22,7 @@ neutralize all reports afterwards.
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets; combined pen/exact-pixel normal build repeats blocked-wall check, full-route win, clean Green Flag replay, renewed movement and browser Exit | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
 | Appel v1.4 (griffpatch) | Clone/GPU fixes; normal route reaches checkpoint two; controller-only diagnostic play completes Level 1 with 18 apples and actual WIN; hidden tunnel, short jumps, deaths/checkpoint respawns; win-menu Try Again resets to zero and permits movement/jumping; browser return; quick restart and repeat launch; 30s HDMI music/completion-sound capture; live watch agrees with pause snapshots | Repeat extended route with diagnostics disabled; lwmem loading; subjective listening and longer audio stability |
-| [Tetris (Tech-Coder)](xbox-tetris.md) | Hardware color/pen fix; browser movement/rotation/hard drop; diagnostic run clears ten lines in 28 matched placements using all seven piece families; Score 400/Level 1, faster gravity and explicit Down soft drop; installed normal dashboard build repeats ten lines/400/Level 1 in 32 matched placements and scores a triple for 300; Green Flag replay, natural top-out/title, eight seconds of digital silence, short-Start replay to zero, renewed movement/hard drop and clean browser exit; 30s source-matched audio and 120s capture with two sampled music restarts; normal-build xemu seeded exact cap probes verify `Winner!`/title ending and Green Flag replay | Four-line scoring through controller play; subjective listening/capture-start sample anomaly. The 100-million-point cap was tested with diagnostic state seeding, not a normal playthrough |
+| [Tetris (Tech-Coder)](xbox-tetris.md) | Hardware color/pen fix; browser movement/rotation/hard drop; diagnostic run clears ten lines in 28 matched placements using all seven piece families; Score 400/Level 1, faster gravity and explicit Down soft drop; installed normal dashboard build repeats ten lines/400/Level 1 in 32 matched placements and scores a triple for 300; merged normal pen-color build repeats ten lines/420/Level 1 in 27 matched placements, including a double, with two fresh Green Flag resets; Green Flag replay, natural top-out/title, eight seconds of digital silence, short-Start replay to zero, renewed movement/hard drop and clean browser exit; 30s source-matched audio and 120s capture with two sampled music restarts; normal-build xemu seeded exact cap probes verify `Winner!`/title ending and Green Flag replay | Four-line scoring through controller play; subjective listening/capture-start sample anomaly. The 100-million-point cap was tested with diagnostic state seeding, not a normal playthrough |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; prepared win/replay repair passes targeted xemu collision probes; controller-only hardware river crossings score six pads in one live round; Green Flag replay scores the remaining far-right pad and two more, so all seven pad positions have scored across rounds; prepared copy passes two launches/two exits; 30s HDMI music has continuous source offsets, with one unresolved full-scale initial capture frame | Seven-pad win in one hardware round, replay from victory, extended normal-build repetition; initial audio-frame anomaly and subjective sound; shared KVM delivery |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route; combined pen-aware/exact-pixel engine passes the identical 38-case fixture in xemu and on the physical Xbox; prepared eraser clears all five bands through ordinary unseeded controller play at Score 1800/three lives, then 600 stable-score ceiling-traversal frames; native Green Flag replay to 0, Right to X=201 and browser Exit; physical prior prepared-copy run clears blue/green and reaches 1080 before normal Game Over; descending-only paddle repair passes eight clean-boot seeded contact cases and latest-copy unseeded xemu full clear at 1960/three lives plus 600 stable-score traversal frames; paddle-fix physical copy reaches 640, Green Flag restores 0/three lives, repeated round ends at 60; read-only-guided hardware reaches 1040/all three lives, then exposes impossible horizontal respawn at 1060; new serve guard passes seeded initial/respawn and four valid-angle probes; final serve-fixed ordinary unseeded xemu full clear at 1880/all three lives plus 600 stable-score traversal frames; final normal-copy hardware full clear at 1940/one life, three unobscured raw-zero images across 237 stable-score seconds and 1304 live observations with ceiling/paddle traversal; earlier rounds score 460, 180 and 720 with natural Game Over, and native Green Flag visibly restores 0/three lives/full field | Intermittent KVM navigation/confirmation/commanded paddle delivery; final-copy post-clear Green Flag reset and two fresh launch/steering/exit cycles now pass; faint scaled boundary line; no authored audio-playback blocks |
 | [PacMan (cdaniels7088)](xbox-pacman.md) | Browser selection/launch; turns/walls; 70 points before name fix; repaired Game Over; Start replay to Score 0, then 20 points; pause/exit; no authored sound playback; combined pen/exact-pixel normal build repeats wall blocking, corridor turns/pellet scoring, natural Game Over, short-Start reset to zero/renewed scoring, browser Exit and fresh launch with another 20 points | Power-pellet/ghost interaction and board win; failed bonus-route host detector positions excluded |
@@ -72,6 +72,44 @@ after a pause longer than the clip. This deployment does not mark the other
 games' remaining qualification checks complete. Receipts, the previous XBE,
 runtime log and startup images are in ignored
 `build-xbox/primary-normal-20261027/`.
+
+## Normal pen-color build installed — October 27, 2026
+
+The tested diagnostics-off executable `b75e9beb…` is now installed at
+`F:/Games/ScratchEverywhere/default.xbe`. Its preceding `2b8b5778…` version is
+preserved as `default-2b8b5778-20261027.bak`. The final prepared Breakout archive
+`fac657fc…` is now the ordinary `E:/ScratchEverywhere/Atari-Breakout-LVRS.sb2`
+entry; its preceding `98391a7b…` archive is preserved as
+`breakout-98391a7b-20261027.fixture`.
+
+Both uploads passed full temporary, promoted-file and backup readbacks.
+Breakout's controller sidecar and the prepared Sokoban archive remain
+byte-identical. The twenty games, Xbox-Test and two temporary regression
+projects remain installed; neither temporary project counts toward twenty.
+Two fresh starts of the regular launcher reached the populated browser. The
+second was observed about 15.46 seconds after its request, with the boot console
+also captured. Its retrieved normal runtime log has no menu-input, variable-watch
+or pause-state trace markers. Canonical Breakout launched from its visually
+selected entry. Green Flag restored 0/three lives/full field; a 65-second
+controller-only run retained Score 300/one life with actual paddle movement
+and brick removal. A later Score 320 Game Over was observed before pausing;
+that ending was not retained as a separate immutable image. Post-loss Green Flag
+returned the intro/full field, renewed Right moved the paddle, and Exit returned
+to the populated browser. A second fresh canonical launch showed 0/three lives
+and exited cleanly, but its 300 ms Right press produced no visible movement.
+A third fresh launch restored 0/three lives; a 1.2-second Right hold moved the
+paddle center from video X=359.5 to 527.5 while the ball moved. The short-command
+miss is retained. The third session also paused and returned to the browser.
+This is installation regression evidence, not another
+full-board clear. Deployment evidence is in ignored
+`build-xbox/primary-pen-color-20261027/`.
+
+Before promotion, the identical executable repeated Tetris's ordinary color,
+pen, rotation, movement, hard-drop and line-removal checks: 27 matching
+placements, ten lines, Score 420 and Level 1, including one double-line clear.
+Four-line scoring remains open. See [the Tetris evidence](xbox-tetris.md).
+These installation and regression checks do not complete the other games'
+remaining qualification requirements or the shared KVM input-delivery work.
 
 ## Appel controller route follow-up — October 26, 2026
 

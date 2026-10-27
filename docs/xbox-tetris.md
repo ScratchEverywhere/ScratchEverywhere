@@ -155,3 +155,36 @@ Four-line scoring through controller play and subjective listening remain
 open. The focused score-cap test above is not a normal-play score-cap victory.
 Earlier hardware checks and the other nineteen games remain in the
 [twenty-game qualification matrix](xbox-game-qualification.md).
+
+## Regression on the merged pen-color build
+
+The normal diagnostics-off executable `b75e9beb…` repeated line clearing on the
+physical 128 MB Xbox. After a visually selected pause-menu Green Flag replay,
+27 controller placements produced **Lines 10, Score 420 and Level 1**. Every
+locked board matched the modeled placement in the HDMI image. The clears were
+eight singles and one double; this run does not establish a four-line clear.
+The initial empty board and zero HUD, and the final HUD, were independently
+inspected in the original captures. No debugger or game-state writes were used.
+
+The host observer now separates the falling piece from previously verified
+locked cells even when they touch. It waits when a landed piece is visible
+before the next piece appears, and allows a partly hidden new piece time to
+enter the board. Static JPEG timestamps are checked against the KVM's live
+signal/frame age. These are test-helper corrections, not Tetris changes.
+The modeled locked cells assist classification; the final HUD is a separate
+visual check.
+
+A preceding Green Flag replay also exposed a fresh zero board. Its four-line
+well attempt verified 24 placements but ended with gaps and no lines cleared.
+Earlier attempts stopped because of observer errors or retained prior cells;
+none is counted as a four-line pass. An earlier 700 ms confirmation and a short
+Start attempt exposed only the title card; their cause is not isolated. Two
+later 300 ms Green Flag confirmations did replay successfully. The final
+400 ms Exit confirmation stayed on the pause menu. The controller reset combo
+then recovered XBMC and FTP, and the retrieved normal log records that reset.
+The shared KVM delivery concern therefore remains open.
+
+Ignored evidence: `build-xbox/hardware/tetris-pen-regression-verification.json`,
+`tetris-pen-normal-lines1*`, and `tetris-pen-normal-four{1,2,3,4,5}*`.
+The verification record identifies the executed helper hashes, original images,
+failed observations and remaining four-line/audio checks.
