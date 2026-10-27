@@ -85,3 +85,8 @@ It contains neither the embedded fixture nor a network bypass. It has not yet
 been installed on the physical Xbox. `SE_XBOX_DEBUG_SYMBOLS` was restored to
 OFF for that production build; ISO packaging remains disabled in the local CMake cache while the user
 emulator holds the original standard ISO open.
+
+The later [Mario death/restart investigation](xbox-mario.md) uses the combined
+normal dashboard launcher. It extends the hardware route beyond the third pipe
+and isolates a separate project-script restart-ordering problem. The calendar
+reporter repair and prepared game-copy repair address different failures.
