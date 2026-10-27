@@ -224,3 +224,68 @@ Preparation is deterministic. Ordinary full-board emulator and hardware
 regressions are running; the preceding 1960-point pass applies to `e6f533ce`.
 Evidence is in ignored `pen-color-20261027/horizontal-*` and
 `paddle-input-trace-20261027/horizontal-serve-verification.json`.
+
+
+### Serve-fixed copy: ordinary hardware replay checks
+
+The final `fac657fc` archive on normal diagnostics-off `b75e9beb` launched
+from its temporary browser entry, reached Score 460 and ended normally at
+Game Over after 47.22 seconds. Native pause-menu Green Flag replay visibly
+restored Score 0, three lives, a new ball and all five bands. The repeated
+ordinary round reached 180 and ended normally after 49.56 seconds. A third
+normal replay with the host ray predictor reached 720 and ended normally
+after 89.78 seconds. An alternate Player One KVM-route round reached 260
+and ended normally after 57.53 seconds, so switching ports did not establish
+a delivery fix. These rounds establish scored play, natural losses and replay for this copy; they
+do not establish full-board completion or a universal input-delivery fix.
+No debugger, diagnostic watch or game-state writes were used.
+
+The camera controller's falling intercept shifted during wall bounces, and
+observed paddle motion continued after neutral commands. Subsequent host-only
+helper changes retain a falling intercept across wall reflections, anticipate
+visible brick/ceiling contact and release early for measured paddle motion.
+Those changes affect the automated test controller, not game rules or the
+installed executable. In the third round, the paddle visibly continued left
+for roughly half a second after the host requested Right; the input layer
+responsible remains unresolved.
+
+The first ordinary emulator run reached Score 860 with all three lives, then
+its concurrent `pmemsave` observation stopped responding. A two-second host
+stack sample found the QMP memory-read thread waiting in
+`surface_access_callback`, with the CPU/main threads waiting on mutexes. GDB
+interrupt and a separate QMP status query could not recover control, and
+normal termination did not close the owned guest. Its complete evidence and
+stack sample were preserved before force-closing only that test process.
+This incomplete run does not prove a game deadlock or a full-board pass. A
+fresh independent unseeded run subsequently used the displayed host window
+for image observation instead of concurrent raw VRAM reads, as recorded below.
+
+Local receipts and original images are in ignored
+`pen-color-20261027/serve-fixed-hardware-rounds.json`,
+`hardware/breakout-serve-v4-normal-run{1,2,3}/`,
+`hardware/breakout-serve-v4-normal-p1-run1/` and
+`pen-color-20261027/serve-fullboard/`.
+
+
+### Final serve-fix copy: ordinary xemu full-board result
+
+Archive `fac657fc` with normal `b75e9beb` completed a fresh unseeded run at
+Score 1880 with all three lives. Three separate displayed-window captures,
+more than thirty seconds apart in total, show all five bands absent and the
+literal score/lives unchanged. The test then observed 600 additional input
+frames with Score 1880 unchanged and Ball Y spanning -156.07 through 176.
+Across 11,219 frames, the eraser was visible in zero frames and no movement
+occurred during consecutive erasure-pending observations.
+
+This run used only input vectors plus original key-hat dispatch; positions,
+headings, RNG, score, lives and brick state were not injected. Network startup
+was bypassed in GDB only. Screenshot analysis used a positive five-band
+baseline to account for the host window's color profile; raw native RGB
+masks do not match these screenshot bytes. The completed run's host-window
+captures avoid the concurrent VRAM read that stalled the earlier attempt.
+GDB detached and QMP quit returned successfully after evidence was saved.
+The owned guest exited with status 0, while emitting a GLib
+`g_source_destroy` reference-count assertion during teardown; that warning
+is retained separately from the gameplay pass. Receipt: ignored
+`pen-color-20261027/serve-fullboard-safe/completion-verification.json` and
+`full-board-stable-score.png`. Physical full-board completion remains open.
