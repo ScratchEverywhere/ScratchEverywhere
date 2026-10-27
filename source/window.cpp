@@ -22,6 +22,9 @@
 #ifdef WINDOWING_NDS
 #include <window_nds.hpp>
 #endif
+#ifdef WINDOWING_WIIU
+#include <window_wiiu.hpp>
+#endif
 #ifdef WINDOWING_LIBRETRO
 #include <window_libretro.hpp>
 #endif
@@ -81,6 +84,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
             break;
         case Renderers::GL2D:
             b = WindowingBackends::NDS;
+            break;
+        case Renderers::GX2:
+            b = WindowingBackends::WiiU;
             break;
         case Renderers::D3D9:
         case Renderers::GDI:
@@ -179,6 +185,14 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #endif
         break;
     }
+    case WindowingBackends::WiiU: {
+#ifdef WINDOWING_WIIU
+        WindowSE::currentWindowingBackend = WindowingBackends::WiiU;
+        window = new WindowWiiU(width, height, title);
+        break;
+#endif
+        break;
+    }
     case WindowingBackends::Win32: {
 #ifdef WINDOWING_WIN32
         WindowSE::currentWindowingBackend = WindowingBackends::Win32;
@@ -241,6 +255,9 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #endif
 #ifdef WINDOWING_NDS
     add(WindowingBackends::NDS);
+#endif
+#ifdef WINDOWING_WIIU
+    add(WindowingBackends::WiiU);
 #endif
 #ifdef WINDOWING_WIN32
     add(WindowingBackends::Win32);

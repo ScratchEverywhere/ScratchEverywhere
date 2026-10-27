@@ -37,6 +37,9 @@
 #ifdef RENDERER_OPENGL_CORE
 #include <renderers/opengl_core/text_gl_core.hpp>
 #endif
+#ifdef RENDERER_GX2
+#include <renderers/gx2/text_gx2.hpp>
+#endif
 #ifdef RENDERER_GDI
 #include <renderers/gdi/text_gdi.hpp>
 #endif
@@ -90,6 +93,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_OPENGL_CORE
     case Renderers::OpenGLCore:
         return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_GX2
+    case Renderers::GX2:
+        return std::make_unique<TextObjectGX2>(txt, posX, posY, fontPath);
 #endif
 #ifdef RENDERER_GDI
     case Renderers::GDI:

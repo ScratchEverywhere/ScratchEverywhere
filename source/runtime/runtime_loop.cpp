@@ -58,6 +58,11 @@ void Scratch::initializeScratchProject() {
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
+        // appShouldRun() only ever returns false when the platform wants the app
+        // to quit (OS::toExit, or the window/ProcUI saying so) -- never because
+        // the project merely ended. Mark it explicitly so mainLoop() goes straight
+        // to exitApp() instead of reconstructing the main menu just to discard it.
+        OS::toExit = true;
 #ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
             MenuManager::cleanup();

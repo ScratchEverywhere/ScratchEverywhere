@@ -477,7 +477,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
         }
     }
 
-    if (Render::currentRenderer == Renderers::Citro2D) {
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) {
         if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
             Render::renderMode = Render::BOTH_SCREENS;
         else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
