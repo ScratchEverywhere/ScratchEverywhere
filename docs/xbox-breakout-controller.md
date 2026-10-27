@@ -289,3 +289,58 @@ The owned guest exited with status 0, while emitting a GLib
 is retained separately from the gameplay pass. Receipt: ignored
 `pen-color-20261027/serve-fullboard-safe/completion-verification.json` and
 `full-board-stable-score.png`. Physical full-board completion remains open.
+
+
+### Final serve-fix copy: ordinary Xbox full-board result
+
+Final archive `fac657fc` on normal diagnostics-off `b75e9beb` cleared all five
+bands on the physical 128MB Xbox at **Score 1940 with one life remaining**.
+Three original HDMI images with the score unobscured show the same score,
+life and clear field over 236.95 seconds. Across that interval, 1,304 recorded
+live observations span Ball pixel Y=4.5 through 436.5; all 790 observations
+with the ball below the field have zero raw brick-color pixels. No debugger,
+watch variables, game-state access or writes were used. The host controller
+uses visible brick/ball prediction and a 35-pixel movement-engage tolerance;
+the game/executable and original physics remain unchanged.
+
+The automated acceptance rule did not trigger because its exact white-score
+pixel signature changes with paddle overlap and JPEG edges. Acceptance was
+verified independently from the three unobscured original images, live ball
+traversal, archive score writes (only +20 after startup), and 2,705 controller
+reports containing only Left, Right or neutral during the checked interval.
+One unexcluded 45-red-pixel sample has the ball straddling the field boundary
+at pixel Y=18; it is retained in the receipt. The three proof images have zero
+raw brick colors without masking. After the proof was saved, the bounded
+helper was intentionally interrupted and released all inputs; its interrupted
+status is not represented as an automatic pass.
+
+Evidence is in ignored
+`hardware/breakout-serve-v4-normal-deadband-run1/completion-verification.json`,
+`verified-clear-{1,2,3}.jpg`, the full observations/client reports and the
+executed helper-source snapshots. Post-clear native Green Flag visibly restored Score 0, three lives and the
+full field, with renewed steering. Two fresh browser project instances then
+launched, accepted steering and reached the exit menu. The first 200ms
+confirmation remained in the browser; its 700ms retry launched successfully.
+The second navigation initially stopped at Xbox-Test, was corrected and
+visually verified before confirmation. These missed inputs are retained as
+KVM-delivery concerns rather than counted as successful launches.
+
+
+Both fresh instances also returned to the populated browser through normal
+Exit Project confirmation. The second was paused while its field remained
+active, covering cleanup with pen contents present. Post-clear replay and
+two fresh project launch/steering/exit cycles are therefore verified on the
+normal candidate. The first fresh instance naturally reached Game Over/140
+before its exit. Source images and SHA-256 receipts are in ignored
+`hardware/breakout-serve-v4-relaunch-verification.json`. These passes do not
+resolve intermittent KVM confirmation/navigation delivery.
+
+
+The change-specific validation now covers the identical 38-case color fixture
+in both environments, final-copy full-board play in xemu and on hardware,
+post-clear replay, two fresh project launches/exits, and Maze/PacMan color
+regressions. The code diff does not change controller input handling. Shared
+KVM delivery concerns already existed in earlier installed builds and remain
+open in the overall twenty-game qualification; their affected layer is still
+uncertain. The verified color/Breakout fixes can be reviewed and merged with
+that limitation recorded, while regular-launcher deployment remains separate.
