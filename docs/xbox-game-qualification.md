@@ -21,7 +21,7 @@ neutralize all reports afterwards.
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; normal route reaches 7 apples and checkpoint two; diagnostic play crosses both lifts and the spike column, reaches checkpoint three and 13 apples, and exercises the hidden tunnel and short jumps; death/respawn; quick restart; music/effects including 30s matched music; pause/exit/relaunch; live position watch agrees with pause snapshot | Complete first level beyond checkpoint three; repeat extended route with diagnostics disabled; lwmem loading; subjective listening and audio stability beyond the captured interval |
+| Appel v1.4 (griffpatch) | Clone/GPU fixes; normal route reaches checkpoint two; controller-only diagnostic play completes Level 1 with 18 apples and actual WIN; hidden tunnel, short jumps, deaths/checkpoint respawns; win-menu Try Again resets to zero and permits movement/jumping; browser return; quick restart and repeat launch; 30s HDMI music/completion-sound capture; live watch agrees with pause snapshots | Repeat extended route with diagnostics disabled; lwmem loading; subjective listening and longer audio stability |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; road crossing/platform carrying; prepared prompt seven-pad win and ordered replay initialization pass targeted xemu collision probes; prepared copy passes hardware movement, traffic death/replay, two launches/two exits; 8s non-clipping HDMI audio | Complete river crossing/lily-pad scoring and seven-pad win through controller play on hardware; subjective/long-run audio |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
@@ -136,7 +136,44 @@ Local evidence is in the ignored `build-xbox/variable-watch/hardware-run2.jsonl`
 `build-xbox/hardware/appel-*-client.json` controller receipts and captures.
 The first watch period reached its documented 4,096-sample limit; Green Flag
 reset the counter and restarted the actual project before the checkpoint-three
-run. The complete first level and repetition on the normal build remain open.
+run. At that point, the complete first level and normal-build repetition were
+still open.
+
+### Level 1 completed on hardware — October 26 evening
+
+Further ordinary controller play completed the level labeled **LEVEL 1 / SPIKED**
+with eighteen apples. This followed several deaths and checkpoint-three
+respawns; it was not a deathless run. The original archive and diagnostic XBE
+are unchanged from the preceding checks. No debugger, position, score, map or
+checkpoint writes were used.
+
+The last route crossed the lower platforms, jumped back left to the higher
+platform, and cleared the final gap. Live records show seventeen apples at
+X=5528.0590/Y=557.01 before the finish. Entering the actual finish tile changed
+`GAME STATE` to `WIN`, `SPAWN IDX` to `1249`, and `APPLES` to `18` while
+`LEVEL #=2` (the project's internal number for displayed Level 1). The HDMI
+capture shows the finish flag and Continue/Try Again menu. The later runtime
+pause snapshot confirms WIN, an empty death value, and X=5803.0368/Y=557.01.
+
+The authored **Try Again** button reloaded Level 1 with zero apples and the
+starting position X=128/Y=197.01. New D-pad/Space input then moved and jumped
+to X=671.2711 with two apples and `GAME STATE=PLAY`. Exit returned to the
+populated browser, where Frogger could be selected and launched.
+
+A thirty-second, 48kHz stereo HDMI recording spans the finish and runtime
+pause: 1,440,000 frames, peak 0.09018, RMS 0.004165, without clipping. The
+original 1.10725-second Complete sound matches at capture time 7.231125s with
+correlation 0.90772 under the music. Music probes outside overlapping effects
+match above 0.99995. Their best source offset changes by 8ms between capture
+seconds 10 and 15, so this does not establish uninterrupted audio timing or
+subjective acceptance.
+
+Local evidence: `build-xbox/variable-watch/appel-level1-win-verification.json`,
+`hardware-run2.jsonl`, controller receipts `appel-finish{3,4}-route-client.json`,
+and captures `f4-level1-complete.jpg`, `f4-win-replay-gameplay.jpg`,
+`f4-exit-browser.jpg`, and `appel-level1-finish-audio{.wav,.json,-match.json}`
+under the ignored hardware directory. The complete first-level route now has
+hardware evidence; its repetition with diagnostics disabled remains open.
 
 ## October 25 continuation
 
