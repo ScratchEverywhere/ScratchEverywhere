@@ -785,9 +785,21 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     int effH = srcH;
 
     if (hasPixelate) {
-        float pixelateAmount = std::abs(pixelate) / 10.0f;
-        effW = std::clamp(static_cast<int>(srcW / std::max(pixelateAmount, 1.0f)), 2, 64);
-        effH = std::clamp(static_cast<int>(srcH / std::max(pixelateAmount, 1.0f)), 2, 64);
+        float texelScale = params.scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
+        float scaleFactor = std::max(1.0f, texelScale);
+        float pixelateAmount = (std::abs(pixelate) / 10.0f) / scaleFactor;
+        if (pixelateAmount > 1.0f) {
+            effW = std::clamp(static_cast<int>(std::round(srcW / pixelateAmount)), 2, srcW);
+            effH = std::clamp(static_cast<int>(std::round(srcH / pixelateAmount)), 2, srcH);
+            if (effW > 96 || effH > 96) {
+                float gridScale = std::min(96.0f / effW, 96.0f / effH);
+                effW = std::max(2, static_cast<int>(std::round(effW * gridScale)));
+                effH = std::max(2, static_cast<int>(std::round(effH * gridScale)));
+            }
+        } else if (hasColor) {
+            effW = std::min(srcW, 96);
+            effH = std::min(srcH, 96);
+        }
     } else if (hasColor) {
         effW = std::min(srcW, 96);
         effH = std::min(srcH, 96);
@@ -908,7 +920,10 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
     int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 16);
 
     // If texture is a full POT texture without subrect, use GPU texture WRAP (1 quad, 6 verts!)
-    if (params.subrect == nullptr && activeTex->uScale == 1.0f && activeTex->vScale == 1.0f) {
+    bool isFullTexture = (params.subrect == nullptr ||
+                          (params.subrect->x == 0 && params.subrect->y == 0 &&
+                           params.subrect->w == imgData.width && params.subrect->h == imgData.height));
+    if (isFullTexture && activeTex->uScale == 1.0f && activeTex->vScale == 1.0f) {
         auto p_tl = rotatePoint(renderX, renderY);
         auto p_tr = rotatePoint(renderX + renderW, renderY);
         auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
@@ -939,7 +954,8 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
             {{p_bl.first, p_bl.second}, {255, 255, 255, alpha}, {u0, v1}}
         };
 
-        nv2aRenderer->bindTexture(activeTex, activeTex->scaleMode, /*wrap=*/true);
+        const NV2AScaleMode mosaicScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+        nv2aRenderer->bindTexture(activeTex, mosaicScaleMode, /*wrap=*/true);
 
         if (brightness > 0) {
             float b = brightness * 0.01f;
@@ -1033,7 +1049,8 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
         }
     }
 
-    nv2aRenderer->bindTexture(activeTex, activeTex->scaleMode, /*wrap=*/false);
+    const NV2AScaleMode mosaicScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+    nv2aRenderer->bindTexture(activeTex, mosaicScaleMode, /*wrap=*/false);
     nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
     nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
 
@@ -1046,6 +1063,226 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
             }
             nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
             nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
+        }
+    }
+}
+
+void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTex) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        renderX = std::round(renderX);
+        renderY = std::round(renderY);
+        renderW = std::round(renderW);
+        renderH = std::round(renderH);
+    }
+
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
+
+    float baseU0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float baseU1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(baseU0, baseU1);
+    }
+
+    const float pixelate = params.pixelateEffect;
+    const float absPixelate = std::abs(pixelate);
+    const float texelScale = scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
+    const float scaleFactor = std::max(1.0f, texelScale);
+    const float pixelateAmount = absPixelate / 10.0f;
+    // Scale down block size by scaleFactor so scaled-up sprites don't balloon into massive blocks
+    const float blockSizeTexels = pixelateAmount / scaleFactor;
+    const float blockSizeScreen = blockSizeTexels * texelScale;
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    float cosA = 1.0f;
+    float sinA = 0.0f;
+    if (rotationRad != 0.0) {
+        cosA = static_cast<float>(std::cos(rotationRad));
+        sinA = static_cast<float>(std::sin(rotationRad));
+    }
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        if (rotationRad == 0.0) return {px, py};
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    auto drawSingleQuad = [&]() {
+        auto p_tl = rotatePoint(renderX, renderY);
+        auto p_tr = rotatePoint(renderX + renderW, renderY);
+        auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
+        auto p_bl = rotatePoint(renderX, renderY + renderH);
+
+        if (isCardinalRotation) {
+            p_tl.first = std::round(p_tl.first);
+            p_tl.second = std::round(p_tl.second);
+            p_tr.first = std::round(p_tr.first);
+            p_tr.second = std::round(p_tr.second);
+            p_br.first = std::round(p_br.first);
+            p_br.second = std::round(p_br.second);
+            p_bl.first = std::round(p_bl.first);
+            p_bl.second = std::round(p_bl.second);
+        }
+
+        uint8_t cr = 255, cg = 255, cb = 255;
+        if (brightness < 0) {
+            float b = brightness * 0.01f;
+            uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+            cr = cg = cb = dim;
+        }
+
+        NV2AVertex quadVerts[6] = {
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, alpha}, {baseU0, baseV0}},
+            {{p_tr.first, p_tr.second}, {cr, cg, cb, alpha}, {baseU1, baseV0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, alpha}, {baseU0, baseV0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
+            {{p_bl.first, p_bl.second}, {cr, cg, cb, alpha}, {baseU0, baseV1}}
+        };
+
+        nv2aRenderer->bindTexture(activeTex, NV2AScaleMode::Nearest, /*wrap=*/false);
+        nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+        nv2aRenderer->drawTriangles(quadVerts, 6);
+
+        if (brightness > 0) {
+            float b = brightness * 0.01f;
+            uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+            if (addA > 0) {
+                for (int i = 0; i < 6; ++i) {
+                    setNV2AVertexColor(quadVerts[i], 255, 255, 255, addA);
+                }
+                nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+                nv2aRenderer->drawTriangles(quadVerts, 6);
+            }
+        }
+    };
+
+    // In Scratch 3 WebGL shader:
+    // vec2 pixelTexelSize = u_tex_size / max(pixelateAmount, 1.0);
+    // When pixelate <= 10.0, max(pixelateAmount, 1.0) is 1.0, meaning block size is <= 1 texel.
+    // If block size is <= 1 texel or <= 1.25 screen pixels, the sprite is rendered at native
+    // resolution using hardware nearest-neighbor filtering on the GPU (1 quad, 6 vertices).
+    const bool isFinePixelation = (absPixelate <= 10.0f || blockSizeTexels <= 1.0f || blockSizeScreen <= 1.25f);
+    if (isFinePixelation) {
+        drawSingleQuad();
+        return;
+    }
+
+    constexpr int MAX_PIXELATE_GRID = 48;
+    int effW = std::max(2, static_cast<int>(std::round(subW / blockSizeTexels)));
+    int effH = std::max(2, static_cast<int>(std::round(subH / blockSizeTexels)));
+
+    if (effW >= static_cast<int>(subW) && effH >= static_cast<int>(subH)) {
+        drawSingleQuad();
+        return;
+    }
+
+    if (effW > MAX_PIXELATE_GRID || effH > MAX_PIXELATE_GRID) {
+        float gridScale = std::min(static_cast<float>(MAX_PIXELATE_GRID) / effW,
+                                   static_cast<float>(MAX_PIXELATE_GRID) / effH);
+        effW = std::max(2, static_cast<int>(std::round(effW * gridScale)));
+        effH = std::max(2, static_cast<int>(std::round(effH * gridScale)));
+    }
+
+    float stepW = renderW / static_cast<float>(effW);
+    float stepH = renderH / static_cast<float>(effH);
+    float stepUx = stepW * cosA;
+    float stepUy = stepW * sinA;
+    float stepVx = -stepH * sinA;
+    float stepVy = stepH * cosA;
+
+    auto p00 = rotatePoint(renderX, renderY);
+
+    static NV2AVertex s_pixelateVerts[MAX_PIXELATE_GRID * MAX_PIXELATE_GRID * 6];
+    size_t vertCount = 0;
+
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
+
+    const float invEffW = 1.0f / static_cast<float>(effW);
+    const float invEffH = 1.0f / static_cast<float>(effH);
+    const float uSpan = baseU1 - baseU0;
+    const float vSpan = baseV1 - baseV0;
+
+    for (int row = 0; row < effH; ++row) {
+        float rY_x = p00.first + row * stepVx;
+        float rY_y = p00.second + row * stepVy;
+        float rY1_x = rY_x + stepVx;
+        float rY1_y = rY_y + stepVy;
+
+        float vCenter = baseV0 + (static_cast<float>(row) + 0.5f) * invEffH * vSpan;
+
+        for (int col = 0; col < effW; ++col) {
+            float p_tl_x = rY_x + col * stepUx;
+            float p_tl_y = rY_y + col * stepUy;
+            float p_tr_x = p_tl_x + stepUx;
+            float p_tr_y = p_tl_y + stepUy;
+            float p_bl_x = rY1_x + col * stepUx;
+            float p_bl_y = rY1_y + col * stepUy;
+            float p_br_x = p_bl_x + stepUx;
+            float p_br_y = p_bl_y + stepUy;
+
+            float uCenter = baseU0 + (static_cast<float>(col) + 0.5f) * invEffW * uSpan;
+
+            s_pixelateVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_tr_x, p_tr_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+
+            s_pixelateVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_bl_x, p_bl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+        }
+    }
+
+    nv2aRenderer->bindTexture(activeTex, NV2AScaleMode::Nearest, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_pixelateVerts, vertCount);
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            for (size_t i = 0; i < vertCount; ++i) {
+                setNV2AVertexColor(s_pixelateVerts[i], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_pixelateVerts, vertCount);
         }
     }
 }
@@ -1100,10 +1337,15 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
 
     const float centerX = renderX + renderW / 2.0f;
     const float centerY = renderY + renderH / 2.0f;
-    const float cosA = static_cast<float>(std::cos(rotationRad));
-    const float sinA = static_cast<float>(std::sin(rotationRad));
+    float cosA = 1.0f;
+    float sinA = 0.0f;
+    if (rotationRad != 0.0) {
+        cosA = static_cast<float>(std::cos(rotationRad));
+        sinA = static_cast<float>(std::sin(rotationRad));
+    }
 
     auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        if (rotationRad == 0.0) return {px, py};
         float dx = px - centerX;
         float dy = py - centerY;
         return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
@@ -1126,6 +1368,68 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     };
     GridPt grid[M + 1][M + 1];
 
+    // Cache normalized UV grid for whirl and fisheye to avoid 81 sqrt/sin/cos/pow calls per frame
+    static float s_cachedWhirl = -99999.0f;
+    static float s_cachedFisheye = -99999.0f;
+    static float s_cachedMosaic = -99999.0f;
+    static float s_cachedU[M + 1][M + 1];
+    static float s_cachedV[M + 1][M + 1];
+
+    if (whirl != s_cachedWhirl || fisheye != s_cachedFisheye || mosaic != s_cachedMosaic) {
+        for (int j = 0; j <= M; ++j) {
+            float gy = static_cast<float>(j) * invM;
+            for (int i = 0; i <= M; ++i) {
+                float gx = static_cast<float>(i) * invM;
+                float u = gx;
+                float v = gy;
+
+                if (hasMosaic) {
+                    u = u * tiles;
+                    u -= std::floor(u);
+                    v = v * tiles;
+                    v -= std::floor(v);
+                }
+
+                float cx = u - 0.5f;
+                float cy = v - 0.5f;
+                float distSq = cx * cx + cy * cy;
+
+                if (distSq < 0.25f) {
+                    if (hasWhirl) {
+                        float dist = std::sqrt(distSq);
+                        float whirlFactor = 1.0f - (dist * 2.0f);
+                        float whirlActual = whirlRad * whirlFactor * whirlFactor;
+                        float s = std::sin(whirlActual);
+                        float c = std::cos(whirlActual);
+                        float ncx = c * cx - s * cy;
+                        float ncy = s * cx + c * cy;
+                        cx = ncx;
+                        cy = ncy;
+                    }
+
+                    if (doFisheye) {
+                        float vx = cx * 2.0f;
+                        float vy = cy * 2.0f;
+                        float vecLenSq = vx * vx + vy * vy;
+                        if (vecLenSq > 0.000001f) {
+                            float vecLen = std::sqrt(vecLenSq);
+                            float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
+                            float invLen = 1.0f / vecLen;
+                            cx = r * (vx * invLen) * 0.5f;
+                            cy = r * (vy * invLen) * 0.5f;
+                        }
+                    }
+                }
+
+                s_cachedU[j][i] = std::clamp(cx + 0.5f, 0.0f, 1.0f);
+                s_cachedV[j][i] = std::clamp(cy + 0.5f, 0.0f, 1.0f);
+            }
+        }
+        s_cachedWhirl = whirl;
+        s_cachedFisheye = fisheye;
+        s_cachedMosaic = mosaic;
+    }
+
     float stepUx = (renderW * invM) * cosA;
     float stepUy = (renderW * invM) * sinA;
     float stepVx = -(renderH * invM) * sinA;
@@ -1133,60 +1437,13 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     auto p00 = rotatePoint(renderX, renderY);
 
     for (int j = 0; j <= M; ++j) {
-        float gy = static_cast<float>(j) * invM;
         float rY_x = p00.first + j * stepVx;
         float rY_y = p00.second + j * stepVy;
 
         for (int i = 0; i <= M; ++i) {
-            float gx = static_cast<float>(i) * invM;
             grid[j][i].pos = {rY_x + i * stepUx, rY_y + i * stepUy};
-
-            float u = gx;
-            float v = gy;
-
-            if (hasMosaic) {
-                u = u * tiles;
-                u -= std::floor(u);
-                v = v * tiles;
-                v -= std::floor(v);
-            }
-
-            float cx = u - 0.5f;
-            float cy = v - 0.5f;
-            float distSq = cx * cx + cy * cy;
-
-            if (distSq < 0.25f) {
-                if (hasWhirl) {
-                    float dist = std::sqrt(distSq);
-                    float whirlFactor = 1.0f - (dist * 2.0f);
-                    float whirlActual = whirlRad * whirlFactor * whirlFactor;
-                    float s = std::sin(whirlActual);
-                    float c = std::cos(whirlActual);
-                    float ncx = c * cx - s * cy;
-                    float ncy = s * cx + c * cy;
-                    cx = ncx;
-                    cy = ncy;
-                }
-
-                if (doFisheye) {
-                    float vx = cx * 2.0f;
-                    float vy = cy * 2.0f;
-                    float vecLenSq = vx * vx + vy * vy;
-                    if (vecLenSq > 0.000001f) {
-                        float vecLen = std::sqrt(vecLenSq);
-                        float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
-                        float invLen = 1.0f / vecLen;
-                        cx = r * (vx * invLen) * 0.5f;
-                        cy = r * (vy * invLen) * 0.5f;
-                    }
-                }
-            }
-
-            u = std::clamp(cx + 0.5f, 0.0f, 1.0f);
-            v = std::clamp(cy + 0.5f, 0.0f, 1.0f);
-
-            grid[j][i].u = baseU0 + u * (baseU1 - baseU0);
-            grid[j][i].v = baseV0 + v * (baseV1 - baseV0);
+            grid[j][i].u = baseU0 + s_cachedU[j][i] * (baseU1 - baseU0);
+            grid[j][i].v = baseV0 + s_cachedV[j][i] * (baseV1 - baseV0);
         }
     }
 
@@ -1217,7 +1474,8 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
         }
     }
 
-    nv2aRenderer->bindTexture(activeTex, activeTex->scaleMode, /*wrap=*/false);
+    const NV2AScaleMode meshScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+    nv2aRenderer->bindTexture(activeTex, meshScaleMode, /*wrap=*/false);
     nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
     nv2aRenderer->drawTriangles(s_deformedVerts, vertCount);
 
@@ -1259,8 +1517,18 @@ void Image_NV2A::render(ImageRenderParams &params) {
         }
     }
 
+    const bool hasMeshEffects = (hasWhirl || hasFisheye || hasMosaic);
     NV2ATexture *activeTex = texture;
-    if (hasColor || hasPixelate) {
+    bool needsPixelateTexture = false;
+    if (hasPixelate && hasMeshEffects) {
+        float texelScale = params.scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
+        float scaleFactor = std::max(1.0f, texelScale);
+        float pixelateAmount = (std::abs(params.pixelateEffect) / 10.0f) / scaleFactor;
+        if (pixelateAmount > 1.0f) {
+            needsPixelateTexture = true;
+        }
+    }
+    if (hasColor || needsPixelateTexture) {
         NV2ATexture *effTex = acquireEffectTexture(params);
         if (effTex) {
             activeTex = effTex;
@@ -1281,6 +1549,11 @@ void Image_NV2A::render(ImageRenderParams &params) {
 
     if (hasMosaic) {
         renderMosaic(params, activeTex);
+        return;
+    }
+
+    if (hasPixelate) {
+        renderPixelate(params, activeTex);
         return;
     }
 

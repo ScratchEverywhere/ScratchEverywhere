@@ -24,6 +24,7 @@ class SE_EXPORT Image_NV2A : public Image {
     void destroyTiles();
     void renderTiled(ImageRenderParams &params);
     void renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex);
+    void renderPixelate(ImageRenderParams &params, NV2ATexture *activeTex);
     void renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
                             bool hasWhirl, bool hasFisheye, bool hasMosaic);
 
