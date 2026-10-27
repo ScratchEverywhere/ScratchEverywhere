@@ -86,3 +86,41 @@ completion remains pending.
 
 The second held-confirmation Exit also returned to the browser and stayed there
 (`breakout-fixed-second-exit-browser.jpg`).
+
+## Brick-hit eraser preparation
+
+The current preparation also repairs the authored eraser's grid selection.
+The original MarkOut loop rounds the ball center to a 22-unit cell; shallow
+hits can overlap a colored row while that center rounds to the row below.
+The pen-aware build exposed this at Y=53.31, which selected eraser Y=44 below
+the blue row at Y=56–78.
+
+The prepared copy pauses the ball's movement while its existing brick-contact
+branch broadcasts an erasure request. A warp procedure checks the five original
+rows and the three nearby columns, stamping only original-size cells that
+touch the ball and still contain the corresponding brick color. The probe is
+shown and hidden within the warp procedure, because hidden sprites correctly
+report no sprite contact. It is hidden during ordinary rendering. This keeps
+the original ball speed, score increments, lives, collision bounce expression,
+wait durations, backdrop and all sixteen assets. It requires the pen-aware
+color-sensing engine repair; it does not turn every backdrop hit into a score.
+
+Removing the movement gate and three erasure commands reconstructs the
+original Ball sprite exactly. The life, death-zone, ending, intro and overlay
+sprites are unchanged, as are the previous controller profile and paddle
+limits. Preparation is deterministic, accepts only the tested original source,
+and refuses an existing output/profile.
+
+Prepared archive SHA-256:
+`a087d771c3e45558af4da3cb5a6b99370bd9c862b5c67a873f9843c6a4cc525a`.
+The earlier `98391a7b` preparation above contains steering changes only.
+
+An ordinary controller run on the first pen-aware engine visually cleared all
+five rows and retained all three lives. That run exposed the separate exact-
+pixel sampling defect described in [color sensing](xbox-color-sensing.md), so
+it is not a full functional pass. A new normal run with the exact-pixel engine
+is checking complete erasure, score stability while crossing the cleared board,
+probe visibility and ball-position stability during erasure. Physical testing
+and replay remain pending. Local archives, asset comparisons, input histories,
+framebuffers and colored-pixel observations are under
+`build-xbox/pen-color-20261027/`.
