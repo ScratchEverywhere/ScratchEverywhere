@@ -64,14 +64,25 @@ UDP destination. It accepts up to 16 names, each 1–48 characters, using ASCII
 letters, digits, spaces, `_`, `#`, `:`, or `-`. Names are case-sensitive and
 outer spaces are trimmed. A generated header preserves names containing `#`.
 
-After ordinary script updates, the watcher reads the same stage-variable values
-as pause snapshots. It emits `Watch state {"sample":0,"tick_ms":1234,"variables":{...}}` at most
+The same list can observe original sprite fields with
+`sprite:NAME:x`, `sprite:NAME:y`, `sprite:NAME:direction`,
+`sprite:NAME:costume`, or `sprite:NAME:visible`. For example,
+`alive,score,sprite:frog:x,sprite:frog:y` observes Frogger without adding
+variables to its project. Sprite names are exact and case-sensitive. Costume
+numbers start at one, visibility is the string `true` or `false`, and position
+and direction values are numeric strings. Clones, stage objects and sprites
+pending deletion are excluded. A missing sprite, unsupported field, or
+non-finite coordinate/direction produces JSON `null`. A literal stage variable
+with the complete selector name takes precedence, preserving existing watches.
+
+After ordinary script updates, the watcher reads stage variables and the selected
+sprite fields. It emits `Watch state {"sample":0,"tick_ms":1234,"variables":{...}}` at most
 once every 100 ms, skips unchanged values, and stops after 4,096 changed samples.
 Green Flag resets that budget. Runtime pause suspends sampling. Values are
 strings; a missing variable is JSON `null`, and invalid UTF-8 is replaced in the
 diagnostic output. `tick_ms` is the runtime's SDL timestamp before logging.
 The watcher neither assigns game
-variables nor sends controller input. An absent message can mean unchanged
+variables or sprite state, nor sends controller input. An absent message can mean unchanged
 state, a pause, the sample limit or UDP loss. Diagnostic logging can affect
 timing; use the normal build for final performance checks.
 
@@ -106,7 +117,8 @@ python3 tests/xbox_log_receiver_test.py
 The watch header also has host checks using the real JSON dependency and a
 controlled stage and clock. They cover both compile modes, rate limiting,
 unchanged-state suppression, missing variables, invalid UTF-8, the sample cap,
-reset and preservation of source values under ASan/UBSan:
+reset, original-sprite selection, finite coordinates, literal-name priority,
+and preservation of source values under ASan/UBSan:
 
 ```sh
 python3 tests/xbox_variable_watch_test.py
@@ -180,3 +192,32 @@ and whitespace normalization with `#`. Host watch tests pass with ASan/UBSan.
 Local manifests, logs and comparisons are in ignored
 `build-xbox/variable-watch/`, including `diagnostic-build.json`,
 `configuration-validation.json` and `hardware-verification.json`.
+
+## Original-sprite field verification
+
+The sprite-field extension passes the watch header's ASan/UBSan checks with
+both compile modes. Checks cover position, direction, costume and visibility
+changes; clone/stage/deletion exclusion; missing fields; non-finite values;
+literal stage-name priority; and preservation of source values. The disabled
+test deliberately has no sprite collection available to the header.
+
+Separate diagnostic XBE
+`431b16c79e5cb61cbefd832eb599a8df637bdbbef9ce53f46e6e0be0dce012d7`
+booted the browser and launched the installed prepared Frogger archive without
+changing it. Sixteen selected fields reported the frog and thirteen carriers,
+plus stage `alive`. Ordinary controller Right/Left produced frog X values
+0, 10, 20, 30, then 0, with Y=-170. All fields were populated; sample intervals
+were at least 100ms, the largest packet was 557 bytes, and none were truncated.
+A later pause snapshot retained `alive=1` and `score=0`.
+
+Both NXDK modes build. The normal executable
+`2b8b57782fbff6363c413712f36cffdf37083fad48c77909bc866e02bb67eb6b`
+contains neither watch nor UDP format strings. Local manifests, build logs,
+full upload/readback results and `hardware-validation.json` are under ignored
+`build-xbox/sprite-watch/`.
+
+Installed separately with full readback, that normal executable also booted
+the browser, launched Frogger, moved right and left, opened runtime pause and
+returned to the populated browser. The receiving host stayed live and received
+no new packets throughout that run; `normal-off-hardware-validation.json`
+records the unchanged receiver file and controller/HDMI evidence.
