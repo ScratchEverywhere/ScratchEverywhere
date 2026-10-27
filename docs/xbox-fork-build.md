@@ -138,3 +138,50 @@ named-costume rendering, the installed D-pad profile (a crate push), physical
 Start-hold pause, and Exit Project back to the browser with an 800ms confirm.
 Images are `normal-browser.png`, `normal-sb2-moved.png`, `normal-pause.png` and
 `normal-browser-return.png`; `validation.json` records artifact hashes.
+
+## Upstream synchronization (October 27, 2026)
+
+Merged upstream `main` through
+[`0bacdb6d`](https://github.com/ScratchEverywhere/ScratchEverywhere/commit/0bacdb6d0d7d7285d4ca8f46ae59e5cd6fb3a174)
+(`feat: add wii u audio backend`) into the fork without conflicts. All existing
+Xbox fixes are retained. The new backend is guarded by `AUDIO_WIIU`; Xbox still
+builds SDL3 audio. Although the shared backend enum gains an entry, settings
+store `AudioEngine` by name, so an existing `"SDL3"` setting needs no migration.
+
+The separate NXDK build in
+`build-xbox/upstream-wiiu-audio-20261027/build` passed with the normal menu,
+forced 480p, native allocator, and renderer/game/menu tracing disabled. Debug
+symbols are retained for matching GDB sessions. Existing emulator images and
+previous matching symbols were preserved. The resulting artifacts are:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `default.xbe` | 9,699,328 | `e332255e51c0bed0847e5601b4e8abe2547ff56cc857187c704131829b413b69` |
+| `scratch-xbox.iso` | 10,289,152 | `7eb5a9d5a0306c2ad52324a41e3809c28386589c5c6eff38d88f111bb7a313f6` |
+| `scratch-xbox-symbols.elf` | 129,528,740 | `a36d536901e1f8dec17730a6ddbbaf6a4f0e3890f478b96262619835e45ae4d2` |
+
+A fresh dependency resolution also advanced dr_libs from `ea33eedd` to
+`a466dbe8` under the existing dependency specification. Its three changes fix
+AIFF decoding, WAV fact-chunk handling, and unsigned 8-bit PCM centering. Host
+probes verified the corrected 8-bit conversion and identical decoded samples
+for Sokoban's IMA ADPCM music against the previous decoder and FFmpeg
+(2,408,256 mono frames). Six other checked Git dependencies were unchanged.
+The host audio-resampler suite also passed all 160 cases and its EOF, gain,
+pitch-change and reset checks.
+
+The XBE was uploaded to a separate hardware test folder,
+`F:\scratch-upstream-wiiu-audio-20261027`, with complete temporary and final
+FTP readbacks. On the 128MB Xbox it reached the populated browser, selected
+Sokoban, completed puzzles 1–3 with all four D-pad directions, and restarted a
+puzzle with Black. Fifteen observed board states matched the independent
+model, ending at level 4 / moves 14. A 120-second HDMI capture matched the
+project's music across its loop, with no full-scale samples; the measured loop
+delay was approximately 94ms. Y mute produced eight seconds of exact digital
+silence. These are measured playback checks; subjective audio acceptance and
+qualification across all twenty games remain open.
+
+At this sync checkpoint the regular Games launcher remains the preceding
+`2b8b5778` build, confirmed by full FTP readback. No installed project archive
+was changed. Build/dependency manifests, decoder probes, and hardware evidence
+are retained under ignored `build-xbox/upstream-wiiu-audio-20261027` and
+`build-xbox/hardware/upstream-wiiu-*` paths.
