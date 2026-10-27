@@ -118,9 +118,12 @@ The earlier `98391a7b` preparation above contains steering changes only.
 An ordinary controller run on the first pen-aware engine visually cleared all
 five rows and retained all three lives. That run exposed the separate exact-
 pixel sampling defect described in [color sensing](xbox-color-sensing.md), so
-it is not a full functional pass. A new normal run with the exact-pixel engine
-is checking complete erasure, score stability while crossing the cleared board,
-probe visibility and ball-position stability during erasure. Physical testing
-and replay remain pending. Local archives, asset comparisons, input histories,
+it is not a full functional pass. The exact-pixel engine then passed ordinary unseeded full-board play at Score
+1800 with all three lives. Three successive captures showed all five bands
+clear, followed by 600 stable-score frames crossing the empty field. No eraser
+visibility or erasure-pending movement violations occurred across 15,269 frames.
+Native keyboard-controller Green Flag replay reset Score/mode/pending to zero;
+Right moved the paddle to X=201, and native Exit reached the populated browser.
+Physical testing remains pending. Local archives, asset comparisons, input histories,
 framebuffers and colored-pixel observations are under
 `build-xbox/pen-color-20261027/`.

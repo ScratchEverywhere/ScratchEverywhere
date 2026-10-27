@@ -133,3 +133,24 @@ The earlier `2141b1a0` build and symbols are preserved in
 coordinates, both edge-test counter snapshots and images are retained beside
 it. Ordinary full-board play, stable scoring after clear, and physical Xbox
 regression remain separate qualification gates.
+
+### Combined normal-game check
+
+The `b75e9beb` candidate with the prepared `a087d771` Breakout archive completed
+an ordinary unseeded round through controller inputs in xemu. All five colored
+bands cleared at Score 1800 with all three lives; three successive framebuffer
+captures found no remaining brick-color pixels. The score then stayed at 1800
+for another 600 input frames while the ball traversed Y=-154.65 through Y=176.
+Across 15,269 observed frames, the warp eraser was never visible at a drawn
+frame and no ball-position changes occurred during consecutive erasure-pending
+frames. A faint one-pixel scaled boundary remains in the framebuffer; the
+cleared field has no remaining brick collisions.
+
+After releasing the bot, the round reached its original Game Over. The private
+app's actual keyboard-controller Start hold, Down and A opened pause and
+selected Green Flag. A read-only breakpoint captured Score 0, controller mode
+0 and erasure-pending 0 after replay; native Right then moved the paddle to
+X=201 and restored direct-key mode. Native Exit returned to the populated
+browser. No positions, scores, lives or brick state were injected. Networking
+initialization was bypassed under GDB only. These are emulator results; the
+separate hardware candidate still needs its regression and gameplay checks.
