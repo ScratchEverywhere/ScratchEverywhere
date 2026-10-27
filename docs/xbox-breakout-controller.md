@@ -105,8 +105,8 @@ the original ball speed, score increments, lives, collision bounce expression,
 wait durations, backdrop and all sixteen assets. It requires the pen-aware
 color-sensing engine repair; it does not turn every backdrop hit into a score.
 
-Removing the movement gate and three erasure commands reconstructs the
-original Ball sprite exactly. The life, death-zone, ending, intro and overlay
+Removing the movement gate, three erasure commands and descending-only
+paddle guard reconstructs the original Ball sprite exactly. The life, death-zone, ending, intro and overlay
 sprites are unchanged, as are the previous controller profile and paddle
 limits. Preparation is deterministic, accepts only the tested original source,
 and refuses an existing output/profile.
@@ -127,3 +127,40 @@ Right moved the paddle to X=201, and native Exit reached the populated browser.
 Physical testing remains pending. Local archives, asset comparisons, input histories,
 framebuffers and colored-pixel observations are under
 `build-xbox/pen-color-20261027/`.
+
+
+### Shallow paddle contact follow-up
+
+The `a087d771` copy on the physical `b75e9beb` candidate reached Score 1080,
+fully erased blue and green, partially erased yellow, and ended normally at
+Game Over after 845.87 seconds. This was not a full-board pass. The controller
+reset chord returned to XBMC, and the normal run log was retrieved; there was
+no pen-readback error. The regular installed Breakout archive remains unchanged.
+
+A separate seeded xemu diagnostic reproduced consecutive paddle reflections:
+at 91 degrees, the original contact branch alternated between 89 and 91 on
+eight consecutive frames while the ball remained in the paddle. This turns an
+already departing ball back downward. The prepared copy now additionally
+requires `cos(direction) < 0` before the original paddle reflection. It keeps
+the reflection expression, movement speed, assets, score, lives and ending.
+Removing this one condition from `e6f533ce` restores the entire preceding
+`a087d771` project JSON exactly. All eight independent clean-boot contact probes passed incoming and departing
+angles (91, 92, 96, 120, 180, 89, -91 and -89 degrees), with no upward-to-downward
+paddle reflection, consecutive vertical flips or life loss; ordinary hardware replay and
+full-board completion remain pending. Seeded contact diagnostics are not
+ordinary gameplay qualification.
+
+The first diagnostic used a stale input breakpoint and is excluded. A later
+direct-inferior-call replay harness also failed to return normally; its cases
+after the first are excluded. Current probes resolve the input function from
+the exact ELF and reset the system between cases. Source and evidence are in
+ignored `pen-color-20261027/paddle-contact-*` and `paddle-fixed-case-*`.
+
+Prepared paddle-fix archive SHA-256:
+`e6f533ce810736703aba365b35973d41c5301cbe68273c62b63bb917434aced8`.
+All sixteen assets and the controller profile are unchanged; deterministic
+preparation, wrong-source rejection and overwrite refusal passed. This copy
+is installed only as the temporary `Z-Breakout-Brick-Hits-Test.sb2`; the prior
+`a087d771` test copy is preserved as `pen-breakout-v2.fixture`. Temporary,
+backup and final files passed full readback, as did the unchanged normal
+launcher, candidate executable and canonical Breakout/Sokoban archives.

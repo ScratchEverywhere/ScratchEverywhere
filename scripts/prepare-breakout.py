@@ -5,6 +5,8 @@ Mouse steering remains active until the first Left/Right press. Green Flag
 restores mouse mode. Erase only brick cells touched by a real ball collision,
 including shallow-angle hits. Keep the original assets, ball speed, score
 increments, lives and ending behavior. Requires pen-aware color sensing.
+Reflect paddle contacts only while descending, so a shallow hit cannot turn
+an already departing ball back down on the next frame.
 """
 import argparse
 import copy
@@ -70,6 +72,13 @@ with zipfile.ZipFile(args.source) as original:
     project["variables"].append(dict(name=pending, value=0, isPersistent=False))
     reset = next(s[2] for s in scripts if s[2][0] == ["whenGreenFlag"])
     reset.append(["setVar:to:", pending, 0])
+    paddle_contact = next(s[-1][1][0] for s in ball_starts if s[1] == ["show"])
+    if paddle_contact != ["doIf", ["touching:", "Paddle"], [["heading:", ["-", 180, ["heading"]]]]]:
+        parser.error("Unexpected original paddle-contact script.")
+    # A shallow bounce may leave the ball overlapping the paddle for several
+    # frames. Reflect only a descending ball, so contact cannot flip an
+    # already departing ball back down into the paddle on the next frame.
+    paddle_contact[1] = ["&", paddle_contact[1], ["<", ["computeFunction:of:", "cos", ["heading"]], 0]]
     original_movement = copy.deepcopy(movement)
     movement[:] = [["doIf", ["=", ["readVariable", pending], 0], original_movement]]
     collision[2][:0] = [["setVar:to:", pending, 1], ["doBroadcastAndWait", event], ["setVar:to:", pending, 0]]
