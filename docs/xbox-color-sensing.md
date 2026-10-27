@@ -154,3 +154,14 @@ X=201 and restored direct-key mode. Native Exit returned to the populated
 browser. No positions, scores, lives or brick state were injected. Networking
 initialization was bypassed under GDB only. These are emulator results; the
 separate hardware candidate still needs its regression and gameplay checks.
+
+### Physical Xbox regression
+
+The same `b75e9beb` executable and identical 38-case fixture (`184676cb…`)
+now pass on the physical 128MB Xbox: PASSES=38, ERRORS=0, FAIL CASE=0.
+The temporary project launched from the normal browser and returned through
+its regular pause/Exit path. The candidate remains in its separate test folder;
+the regular dashboard executable has not been replaced. Screenshot and
+full-hash receipt: ignored `pen-color-20261027/hardware-regression-38-pass.jpg`
+and `hardware-regression-verification.json`. This proves the color regression,
+not full Breakout gameplay or acceptance of all twenty games.
