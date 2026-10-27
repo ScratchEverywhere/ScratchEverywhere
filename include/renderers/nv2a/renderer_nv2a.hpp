@@ -15,6 +15,32 @@
 #define AV_PACK_SVIDEO 6
 #endif
 
+#ifndef VENC_MODE_WIDESCREEN
+#define VENC_MODE_WIDESCREEN VIDEO_WIDESCREEN
+#endif
+#ifndef VENC_MODE_720P
+#define VENC_MODE_720P VIDEO_MODE_720P
+#endif
+#ifndef VENC_MODE_1080I
+#define VENC_MODE_1080I VIDEO_MODE_1080I
+#endif
+#ifndef VENC_MODE_480P
+#define VENC_MODE_480P VIDEO_MODE_480P
+#endif
+
+#ifndef NV_PFB_WC_CACHE
+#define NV_PFB_WC_CACHE 0x00100410
+#endif
+#ifndef NV_PFB_WC_CACHE_FLUSH_TRIGGER
+#define NV_PFB_WC_CACHE_FLUSH_TRIGGER 0x00010000
+#endif
+#ifndef NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS
+#define NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS 0x00010000
+#endif
+#ifndef NV097_BREAK_VERTEX_BUFFER_CACHE
+#define NV097_BREAK_VERTEX_BUFFER_CACHE 0x00001710
+#endif
+
 enum class NV2AScaleMode {
     Nearest,
     Linear,
@@ -62,7 +88,7 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
         bool supports720p = false;
         bool supports480p = false;
         bool supports1080i = false;
-        float overscanRatio = 0.04f;
+        float overscanRatio = 0.05f;
         uint32_t avPackType = 0;
     };
 

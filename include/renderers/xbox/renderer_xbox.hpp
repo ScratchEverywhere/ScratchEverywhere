@@ -27,7 +27,7 @@ class SE_EXPORT Renderer_Xbox : public Renderer {
         bool supports720p = false;
         bool supports480p = false;
         bool supports1080i = false;
-        float overscanRatio = 0.04f;
+        float overscanRatio = 0.05f;
         uint32_t avPackType = 0;
     };
 

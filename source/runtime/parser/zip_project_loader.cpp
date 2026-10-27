@@ -42,8 +42,14 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
 }
 #endif
 
+#ifdef __XBOX__
+static constexpr size_t MAX_ITEMS = 10000;
+#else
+static constexpr size_t MAX_ITEMS = 1000;
+#endif
+
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
+static std::string truncateLargeJsonLists(const std::string &raw) {
     std::string result;
     result.reserve(raw.size());
     size_t pos = 0;
@@ -102,7 +108,7 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
                     if (depth == 0) break;
                 } else if (ch == ',' && depth == 1) {
                     items_count++;
-                    if (items_count == max_items) {
+                    if (items_count == MAX_ITEMS) {
                         trunc_pos = cur;
                     }
                 }
@@ -126,7 +132,7 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
 
 static nlohmann::json parseProjectJson(const std::string &rawJson) {
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
+    std::string sanitized = truncateLargeJsonLists(rawJson);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");

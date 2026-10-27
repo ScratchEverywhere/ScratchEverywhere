@@ -22,7 +22,6 @@
 #include <types.hpp>
 #include <vector>
 
-#ifdef __XBOX__
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -32,20 +31,6 @@
 
 #undef min
 #undef max
-
-#ifndef VENC_MODE_WIDESCREEN
-#define VENC_MODE_WIDESCREEN VIDEO_WIDESCREEN
-#endif
-#ifndef VENC_MODE_720P
-#define VENC_MODE_720P VIDEO_MODE_720P
-#endif
-#ifndef VENC_MODE_1080I
-#define VENC_MODE_1080I VIDEO_MODE_1080I
-#endif
-#ifndef VENC_MODE_480P
-#define VENC_MODE_480P VIDEO_MODE_480P
-#endif
-#endif
 
 // Ring buffer arena size for direct vertex streaming (3 partitions for triple-buffering)
 static constexpr size_t ARENA_PER_FRAME_SIZE = 1024 * 1024;
@@ -57,6 +42,16 @@ static uint32_t s_vertexArenaPhys = 0;
 static size_t s_arenaBase = 0;
 static size_t s_arenaOffset = 0;
 static uint32_t s_frameIndex = 0;
+
+static inline void nv2a_cache_flush() {
+#ifdef __XBOX__
+    __asm__ __volatile__ ("sfence" ::: "memory");
+    VIDEOREG(NV_PFB_WC_CACHE) |= NV_PFB_WC_CACHE_FLUSH_TRIGGER;
+    while (VIDEOREG(NV_PFB_WC_CACHE) & NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS) {
+        __asm__ __volatile__("pause");
+    }
+#endif
+}
 
 extern "C" unsigned int pb_ColorFmt;
 
@@ -134,14 +129,14 @@ void Renderer_NV2A::initVideo() {
             break;
         case AV_PACK_HDTV:
             if (s_nv2aVideoSettings.width == 640 && s_nv2aVideoSettings.height == 480 && !s_nv2aVideoSettings.supports480p) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
             break;
         default:
             if (s_nv2aVideoSettings.width == 640 && s_nv2aVideoSettings.height == 480) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
@@ -599,6 +594,14 @@ Renderer_NV2A::Renderer_NV2A() {
 
     applyVideoSettings();
 
+    uint32_t *pInit = pb_begin();
+    pInit = pb_push1(pInit, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+    pb_end(pInit);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+
     Log::log("Renderer_NV2A hardware initialized: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
 #endif
 }
@@ -715,7 +718,7 @@ void Renderer_NV2A::destroyTexture(NV2ATexture *&texture) {
     p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
     pb_end(p);
     while (pb_busy()) {
-        Sleep(0);
+        __asm__ __volatile__("pause");
     }
     pb_wait_until_gr_not_busy();
     if (texture->data) {
@@ -752,7 +755,7 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
     }
 
 #ifdef __XBOX__
-    __asm__ __volatile__ ("sfence" ::: "memory");
+    nv2a_cache_flush();
 #endif
     return true;
 }
@@ -903,9 +906,10 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
 #ifdef __XBOX__
         uint32_t *p = pb_begin();
         p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
         pb_end(p);
         while (pb_busy()) {
-            Sleep(0);
+            __asm__ __volatile__("pause");
         }
         pb_wait_until_gr_not_busy();
 #endif
@@ -931,15 +935,17 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     s_arenaOffset += byteSize;
 
 #ifdef __XBOX__
-    __asm__ __volatile__ ("sfence" ::: "memory");
-    const uint32_t curPhys = s_vertexArenaPhys + static_cast<uint32_t>(vertOffset);
+    nv2a_cache_flush();
+    const uint32_t memMask = OS::isEnhancedPlatform() ? 0x07FFFFFF : 0x03FFFFFF;
+    const uint32_t curPhys = (s_vertexArenaPhys + static_cast<uint32_t>(vertOffset)) & memMask;
 #else
-    const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset));
+    const uint32_t memMask = 0x03FFFFFF;
+    const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset)) & memMask;
 #endif
 
-    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & 0x0FFFFFFF;
-    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & 0x0FFFFFFF;
-    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & 0x0FFFFFFF;
+    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & memMask;
+    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & memMask;
+    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & memMask;
 
     uint32_t *p = pb_begin();
     p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
@@ -953,10 +959,14 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     unsigned int curStart = 0;
     unsigned int remaining = static_cast<unsigned int>(count);
     while (remaining > 0) {
-        unsigned int batch = (remaining > 255) ? 255 : remaining;
+        unsigned int batch = std::min(remaining, static_cast<unsigned int>(MAX_BATCH));
         p = xgu_draw_arrays(p, curStart, batch);
         curStart += batch;
         remaining -= batch;
+        if (remaining > 0) {
+            pb_end(p);
+            p = pb_begin();
+        }
     }
     p = xgu_end(p);
     pb_end(p);
@@ -971,13 +981,19 @@ static void ensureMainTarget() {
     if (!s_penTargetActive) return;
     s_penTargetActive = false;
 
-    uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(p);
+#ifdef __XBOX__
+    uint32_t *pWait = pb_begin();
+    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWait);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
 
     pb_target_back_buffer();
 
-    p = pb_begin();
+    uint32_t *p = pb_begin();
     p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, DMA_CHANNEL_PIXEL_RENDERER);
     p = pb_push1(p, NV097_SET_SURFACE_PITCH,
                  XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pb_back_buffer_pitch()) |
@@ -1009,6 +1025,16 @@ static void ensureMainTarget() {
 static void ensurePenTarget() {
     if (s_penTargetActive || !s_hasPenTexture) return;
     s_penTargetActive = true;
+
+#ifdef __XBOX__
+    uint32_t *pWaitPen = pb_begin();
+    pWaitPen = pb_push1(pWaitPen, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWaitPen);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
 
     uint32_t *p = pb_begin();
     p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, s_penDmaCtx.ChannelID);
@@ -1153,6 +1179,13 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
 #ifdef __XBOX__
         pb_wait_for_vbl();
+
+        // Wait for prior pushbuffer DMA and graphics pipeline to be completely idle before resetting pushbuffer head
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+
         pb_reset();
         pb_target_back_buffer();
         pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
@@ -1164,10 +1197,17 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), clearColor);
 
         uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
         p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
         p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
         p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
         pb_end(p);
+
+        // Wait for 2D clear operations to complete before 3D vertex processing begins
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
 #endif
 
         s_activeTexture = nullptr;
@@ -1194,12 +1234,19 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
     pb_end(p);
 
     while (pb_busy()) {
-        Sleep(0);
+        __asm__ __volatile__("pause");
     }
+    pb_wait_until_gr_not_busy();
 
     while (pb_finished()) {
-        Sleep(0);
+        __asm__ __volatile__("pause");
     }
+
+    // Ensure screen swap and next backbuffer commands are fully flushed
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
 #endif
 
     hasFrameBegan = false;
@@ -1498,6 +1545,12 @@ void Renderer_NV2A::penClear() {
 
     ensurePenTarget();
     pb_fill(0, 0, s_penTexture.texWidth, s_penTexture.texHeight, 0x00000000);
+#ifdef __XBOX__
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
 }
 
 void Renderer_NV2A::renderPenLayer() {

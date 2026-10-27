@@ -272,9 +272,9 @@ void Renderer_Xbox::initVideo() {
         case AV_PACK_HDTV:
             // Component (HDTV):
             // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
-            // Standard 480i through component may be on early HD CRTs with overscan (4%).
+            // Standard 480i through component may be on early HD CRTs with overscan (5%).
             if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
@@ -286,9 +286,9 @@ void Renderer_Xbox::initVideo() {
         case AV_PACK_SCART:    // Advanced SCART (RGB)
         default:
             // Standard-definition analog CRT formats:
-            // Almost all consumer CRTs crop borders by ~3-5%. Apply 4% centered safe margin.
+            // Almost all consumer CRTs crop borders by ~3-5%. Apply 5% centered safe margin.
             if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
