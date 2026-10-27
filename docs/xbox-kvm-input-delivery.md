@@ -163,3 +163,45 @@ aligned explicitly, rather than treating the outer UDP tick and inner SDL
 timestamp as the same clock. Raw evidence and analysis remain in ignored
 `paddle-input-trace-20261027/run1-analysis.json`, `latency-probes.json` and
 `hardware-run1-file-verification.json`.
+
+## Fixed-pulse and adapter-status comparison, October 27
+
+Diagnostic executable `486d6e4c` and final Breakout archive `fac657fc` passed
+complete FTP readback before launch. A 64-phase Left/Right/neutral baseline
+and a 160-phase repetition used fixed aperiodic holds, independent of vision
+player decisions. Both helpers released control. During the repetition, 487
+read-only requests sampled Player Two's last USB-submitted state. Request and
+response times bound each sample; this traffic may perturb networking. No KVM
+firmware or configuration was changed, and no game-state values were injected.
+
+All 1,530 relevant input/watch/controller-selection records in the retrieved
+467,927-byte console file matched the UDP records exactly. Packets 0 through
+1575 were contiguous. Six initial file-only startup lines precede UDP
+initialization. The receiver was closed after the comparison. An additional
+normal/diagnostic SDL comparison checks 1,554 source, header and configuration
+files, all byte-identical, including the NXDK USB joystick driver. The earlier
+eleven-package receipt did not cover this SDL tree.
+
+Longer matched holds reached the runtime after an estimated 29–87ms in the
+baseline and 36–114ms in the polled repetition. The baseline also contains
+brief mismatches after a 200ms command guard, so polling is not established
+as the sole cause. The runtime stayed neutral throughout one 713ms Right
+hold in the polled repetition; Right appeared later, after release.
+Main KVM WebSocket acknowledgements stayed at 1–3ms, while the only slow
+adapter status request spanned that interval and took 1.785 seconds. That
+long request prevents a precise adapter-state observation during the anomaly;
+it does not isolate Wi-Fi, receiver scheduling, USB or SDL as the cause.
+The watch gap coincides with the authored Ball respawn at `(0, 0)`;
+unchanged-state suppression means the gap is not freeze evidence. The ball
+was advancing during the earlier missing-Right samples.
+
+All 169 adapter samples entirely inside stable host holds after a 200ms guard
+matched the requested direction. Across 326 sampled intervals with stable
+received directional input, the paddle neither moved opposite to that input
+nor remained stationary in the interior. These bounded diagnostics reproduce
+delayed delivery without establishing a general fix or qualifying normal
+gameplay. Raw samples, complete source-file comparison and clock assumptions
+are in ignored `paddle-input-trace-20261027/run3-analysis.json`,
+`run3-correlated-delay.json`, `hardware-run3-file-verification.json`,
+`sdl-source-comparison.json` and the corresponding
+`hardware/paddle-delivery3-*` controller/adapter records.
