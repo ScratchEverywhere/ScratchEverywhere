@@ -64,3 +64,44 @@ approximately X=362 to X=416 after the full repair, versus X=390 before culling
 measured FPS benchmark; ghost paths and collision workload vary. Evidence:
 `pacman-cull-start.jpg`, `pacman-cull-right-1200.jpg`,
 `pacman-moving-score.jpg`, and `pacman-cull-comparison.json`.
+
+## Pen-layer collision repair (October 27)
+
+Breakout's visually erased blue row still bounced the ball and awarded points.
+In an isolated normal-build run, controller inputs kept all three lives through
+Score 1100, while successive hits stayed at the erased row. Color sensing
+composited sprite/backdrop pixels but omitted the pen canvas, which this game
+uses for black eraser stamps.
+
+The Xbox renderer now prepares a regional readback of the pen render target
+for each color-query area. Pending line geometry is flushed first. Repeated
+queries reuse the region until a line, dot, stamp or clear changes the canvas;
+cleanup and resize discard the cache. Both color reporters composite the
+premultiplied pen pixels above the backdrop and below sprites. Other renderers
+retain their existing behavior through optional no-op renderer methods.
+
+`examples/make-color-sensing-test.py` now generates 34 checks, retaining the
+previous fourteen and adding opaque/transparent stamps, persistence after the
+stamper moves, dots, lines, clear invalidation, masked queries and sprite
+layering. The identical fixture returned PASSES=23 / ERRORS=11 on the preceding
+normal executable and PASSES=34 / ERRORS=0 on the candidate. For the translucent
+case, texture opacity truncates 50% to 127/255: the measured stored green and
+alpha bytes are both 127, yielding RGB (11,130,128) over the blue backdrop.
+The expected fixture color uses that measured conversion.
+
+The separate NXDK build passed. Candidate XBE SHA-256:
+`2141b1a044f9d08c40286d02f52de72dec8c9e0894c9938223e725cb529763e4`.
+Matching ELF SHA-256:
+`5b06fca7511bb1a0d3a6eb1c82a7020993ac19f9add36417f26f56d6be638b1b`.
+Evidence is retained under ignored `build-xbox/pen-color-20261027/`, including
+identical-fixture manifests, counters and framebuffer captures. The GDB tests
+bypass network initialization only; fixture game state is not overridden.
+The candidate has not yet been installed on the physical Xbox.
+
+Full-board Breakout completion remains open. A subsequent ordinary-controller
+run with a shallow random launch angle exposed a separate project-script issue:
+the ball hits the blue band near Y=53.31, while the eraser rounds its center to
+Y=44 and stamps below the band (which spans Y=56–78). All three lives remained
+at Score 320, but the blue row stayed intact. A full pen-canvas readback found
+no alpha pixels in that band. The eraser's grid selection needs a separate
+repair; the pen-layer engine fix alone does not qualify the full game.

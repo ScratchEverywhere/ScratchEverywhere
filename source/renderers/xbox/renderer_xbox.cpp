@@ -54,6 +54,17 @@ static bool hasOverrideTarget = false;
 static int overrideWidth = 0;
 static int overrideHeight = 0;
 static SDL_Texture *penTexture = nullptr;
+static SDL_Surface *penColorSurface = nullptr;
+static SDL_Rect penColorRect = {};
+static bool penColorDirty = true;
+static bool penColorReadFailed = false;
+
+static void clearPenColorReadback() {
+    SDL_DestroySurface(penColorSurface);
+    penColorSurface = nullptr;
+    penColorDirty = true;
+    penColorReadFailed = false;
+}
 
 static std::vector<SDL_Vertex> penVerts;
 
@@ -628,6 +639,7 @@ Renderer_Xbox::Renderer_Xbox() {
 }
 
 Renderer_Xbox::~Renderer_Xbox() {
+    clearPenColorReadback();
     if (speechManager) {
         delete speechManager;
         speechManager = nullptr;
@@ -700,6 +712,7 @@ float Renderer_Xbox::getPixelDensity() {
 
 bool Renderer_Xbox::initPen() {
     if (penTexture != nullptr) return true;
+    clearPenColorReadback();
 
     constexpr auto penFormat = SDL_PIXELFORMAT_ARGB8888;
 
@@ -745,6 +758,7 @@ bool Renderer_Xbox::initPen() {
 
 void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (!penTexture) return;
+    penColorDirty = true;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -807,6 +821,7 @@ void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, 
 }
 
 void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -834,6 +849,7 @@ void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
 }
 
 void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -882,6 +898,7 @@ void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Spri
 }
 
 void Renderer_Xbox::penDotFast(Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -920,6 +937,7 @@ void Renderer_Xbox::penDotFast(Sprite *sprite) {
 
 void Renderer_Xbox::penStamp(Sprite *sprite) {
     if (!penTexture) return;
+    penColorDirty = true;
     lastCapValid = false;
 
     // Queued lines must be drawn first so the stamp lands on top of them.
@@ -982,6 +1000,7 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
 void Renderer_Xbox::penClear() {
     if (!penTexture) return;
+    penColorDirty = true;
     penVerts.clear(); // pending lines would be erased by the clear anyway
     lastCapValid = false;
 
@@ -995,6 +1014,7 @@ void Renderer_Xbox::penClear() {
 }
 
 void Renderer_Xbox::cleanupPen() {
+    clearPenColorReadback();
     if (penTexture != nullptr) {
         ensureMainTarget(Sdlrenderer);
         SDL_DestroyTexture(penTexture);
@@ -1004,6 +1024,47 @@ void Renderer_Xbox::cleanupPen() {
     lastCapValid = false;
     penVerts.clear();
     penVerts.shrink_to_fit();
+}
+
+void Renderer_Xbox::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    if (!penTexture || penColorReadFailed) return;
+    // Match the line/stamp mapping, including HQ-pen resolution. Read only the
+    // source sprite's query area, rather than synchronizing the whole canvas
+    // for each color in a nested touching-color expression.
+    const int width = static_cast<int>(penTexW);
+    const int height = static_cast<int>(penTexH);
+    const int x0 = std::clamp(static_cast<int>(std::floor(minX * penScaleY + penTexW / 2)) - 1, 0, width);
+    const int y0 = std::clamp(static_cast<int>(std::floor(-maxY * penScaleY + penTexH / 2)) - 1, 0, height);
+    const int x1 = std::clamp(static_cast<int>(std::ceil(maxX * penScaleY + penTexW / 2)) + 2, 0, width);
+    const int y1 = std::clamp(static_cast<int>(std::ceil(-minY * penScaleY + penTexH / 2)) + 2, 0, height);
+    if (!penColorDirty && penColorSurface && x0 >= penColorRect.x && y0 >= penColorRect.y &&
+        x1 <= penColorRect.x + penColorRect.w && y1 <= penColorRect.y + penColorRect.h) return;
+
+    SDL_DestroySurface(penColorSurface);
+    penColorSurface = nullptr;
+    penColorRect = {x0, y0, x1 - x0, y1 - y0};
+    penColorDirty = false;
+    if (penColorRect.w <= 0 || penColorRect.h <= 0) return;
+
+    flushPenVerts(Sdlrenderer);
+    SDL_Texture *previous = SDL_GetRenderTarget(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    penColorSurface = SDL_RenderReadPixels(Sdlrenderer, &penColorRect);
+    SDL_SetRenderTarget(Sdlrenderer, previous);
+    penTargetActive = previous == penTexture;
+    stampsSinceFlush = 0;
+    if (!penColorSurface) {
+        penColorReadFailed = true;
+        Log::logError(std::string("Failed to read pen colors: ") + SDL_GetError());
+    }
+}
+
+bool Renderer_Xbox::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (!penColorSurface || penColorDirty || penColorReadFailed) return false;
+    const int px = static_cast<int>(std::floor(x * penScaleY + penTexW / 2)) - penColorRect.x;
+    const int py = static_cast<int>(std::floor(-y * penScaleY + penTexH / 2)) - penColorRect.y;
+    if (px < 0 || py < 0 || px >= penColorRect.w || py >= penColorRect.h) return false;
+    return SDL_ReadSurfacePixel(penColorSurface, px, py, &r, &g, &b, &a) && a != 0;
 }
 
 void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
