@@ -86,3 +86,261 @@ completion remains pending.
 
 The second held-confirmation Exit also returned to the browser and stayed there
 (`breakout-fixed-second-exit-browser.jpg`).
+
+## Brick-hit eraser preparation
+
+The current preparation also repairs the authored eraser's grid selection.
+The original MarkOut loop rounds the ball center to a 22-unit cell; shallow
+hits can overlap a colored row while that center rounds to the row below.
+The pen-aware build exposed this at Y=53.31, which selected eraser Y=44 below
+the blue row at Y=56–78.
+
+The prepared copy pauses the ball's movement while its existing brick-contact
+branch broadcasts an erasure request. A warp procedure checks the five original
+rows and the three nearby columns, stamping only original-size cells that
+touch the ball and still contain the corresponding brick color. The probe is
+shown and hidden within the warp procedure, because hidden sprites correctly
+report no sprite contact. It is hidden during ordinary rendering. This keeps
+the original ball speed, score increments, lives, collision bounce expression,
+wait durations, backdrop and all sixteen assets. It requires the pen-aware
+color-sensing engine repair; it does not turn every backdrop hit into a score.
+
+Removing the movement gate, three erasure commands and descending-only
+paddle guard reconstructs the original Ball sprite exactly. The life, death-zone, ending, intro and overlay
+sprites are unchanged, as are the previous controller profile and paddle
+limits. Preparation is deterministic, accepts only the tested original source,
+and refuses an existing output/profile.
+
+Prepared archive SHA-256:
+`a087d771c3e45558af4da3cb5a6b99370bd9c862b5c67a873f9843c6a4cc525a`.
+The earlier `98391a7b` preparation above contains steering changes only.
+
+An ordinary controller run on the first pen-aware engine visually cleared all
+five rows and retained all three lives. That run exposed the separate exact-
+pixel sampling defect described in [color sensing](xbox-color-sensing.md), so
+it is not a full functional pass. The exact-pixel engine then passed ordinary unseeded full-board play at Score
+1800 with all three lives. Three successive captures showed all five bands
+clear, followed by 600 stable-score frames crossing the empty field. No eraser
+visibility or erasure-pending movement violations occurred across 15,269 frames.
+Native keyboard-controller Green Flag replay reset Score/mode/pending to zero;
+Right moved the paddle to X=201, and native Exit reached the populated browser.
+Physical testing remains pending. Local archives, asset comparisons, input histories,
+framebuffers and colored-pixel observations are under
+`build-xbox/pen-color-20261027/`.
+
+
+### Shallow paddle contact follow-up
+
+The `a087d771` copy on the physical `b75e9beb` candidate reached Score 1080,
+fully erased blue and green, partially erased yellow, and ended normally at
+Game Over after 845.87 seconds. This was not a full-board pass. The controller
+reset chord returned to XBMC, and the normal run log was retrieved; there was
+no pen-readback error. The regular installed Breakout archive remains unchanged.
+
+A separate seeded xemu diagnostic reproduced consecutive paddle reflections:
+at 91 degrees, the original contact branch alternated between 89 and 91 on
+eight consecutive frames while the ball remained in the paddle. This turns an
+already departing ball back downward. The prepared copy now additionally
+requires `cos(direction) < 0` before the original paddle reflection. It keeps
+the reflection expression, movement speed, assets, score, lives and ending.
+Removing this one condition from `e6f533ce` restores the entire preceding
+`a087d771` project JSON exactly. All eight independent clean-boot contact probes passed incoming and departing
+angles (91, 92, 96, 120, 180, 89, -91 and -89 degrees), with no upward-to-downward
+paddle reflection, consecutive vertical flips or life loss; ordinary hardware replay and
+full-board completion remain pending. Seeded contact diagnostics are not
+ordinary gameplay qualification.
+
+The first diagnostic used a stale input breakpoint and is excluded. A later
+direct-inferior-call replay harness also failed to return normally; its cases
+after the first are excluded. Current probes resolve the input function from
+the exact ELF and reset the system between cases. Source and evidence are in
+ignored `pen-color-20261027/paddle-contact-*` and `paddle-fixed-case-*`.
+
+Prepared paddle-fix archive SHA-256:
+`e6f533ce810736703aba365b35973d41c5301cbe68273c62b63bb917434aced8`.
+All sixteen assets and the controller profile are unchanged; deterministic
+preparation, wrong-source rejection and overwrite refusal passed. This copy
+is installed only as the temporary `Z-Breakout-Brick-Hits-Test.sb2`; the prior
+`a087d771` test copy is preserved as `pen-breakout-v2.fixture`. Temporary,
+backup and final files passed full readback, as did the unchanged normal
+launcher, candidate executable and canonical Breakout/Sokoban archives.
+
+
+### Paddle-fix copy: normal xemu full-board result
+
+The `e6f533ce` copy with the same normal `b75e9beb` executable completed an
+unseeded controller-only run at Score 1960 with all three lives. All five
+bands were absent in three successive native framebuffers. The score then
+remained 1960 for 600 input frames while the ball traversed Y=-157.13 through
+176. The eraser was visible in zero observed frames, and no ball-position
+changes occurred during consecutive erasure-pending frames. The run observed
+10,019 frames and changed only input vectors/key dispatch; game positions,
+headings, score, lives and brick state were not injected. Network initialization
+was bypassed under GDB only. The earlier seeded contact cases are separate.
+
+Receipts, original framebuffer and per-frame state histories are in ignored
+`pen-color-20261027/paddle-fullboard/`. The faint scaled boundary line remains
+cosmetic. On physical hardware, the new copy's first ordinary round reached
+640 and ended normally. Native Green Flag replay visibly restored Score 0,
+three lives, the full field and a new ball; the repeated round ended normally
+at 60. Commanded direction changes sometimes failed to produce visible paddle
+movement while the ball continued. The affected layer is not yet isolated;
+see [input delivery](xbox-kvm-input-delivery.md). Full physical completion and
+subsequent browser regression remain open.
+
+
+### Prevent non-progressing horizontal serves
+
+An unseeded physical run of `e6f533ce` reached Score 1040 with all three lives
+using controller reports guided by read-only UDP positions. After the bounded
+helper released and a camera-guided helper continued the same round, one life
+was lost at Score 1060. The original random respawn then selected 90 degrees.
+Across 1,065 watch samples spanning 130.116 seconds, the ball stayed at world
+Y approximately zero while travelling horizontally; HDMI likewise showed
+constant Y=240 for over three minutes. The paddle stayed at Y=-158 and the
+bricks above Y=56, so this serve could neither score nor reach the paddle or
+death zone. The app was responsive to the controller dashboard chord.
+All 4,621 input/watch records in the authoritative file were present in the
+4,667 received packets with no sequence gaps.
+
+The preparation now rerolls only exactly horizontal random headings in both
+the initial serve and death/respawn paths. Every other random angle, speed,
+score increment, life rule and original asset is preserved. Removing the two
+new repeat-until guards restores the entire `e6f533ce` project JSON exactly;
+all sixteen assets and the controller profile remain byte-identical.
+
+A deterministic GDB RNG diagnostic supplies 90, -90 and then -14 degrees. The
+preceding copy stalls after the first draw for 150 observed frames. The new
+copy rejects both impossible draws and accepts -14 on initial launch and on
+a natural death/respawn, then resumes vertical movement. No positions, scores
+or life counters were written; RNG state was explicitly seeded for this
+regression. Four independent clean-boot probes preserve valid 89, 91, -89 and
+-91 degree serves with a single random draw and ten following frames checked.
+These are targeted diagnostics, not an ordinary full-board playthrough.
+
+The new archive is SHA-256
+`fac657fc899a7a6ca2534fee05d1227a847271bc9b23a654e0e73bf3a9e99e82`.
+Preparation is deterministic. Ordinary full-board emulator and hardware
+regressions are running; the preceding 1960-point pass applies to `e6f533ce`.
+Evidence is in ignored `pen-color-20261027/horizontal-*` and
+`paddle-input-trace-20261027/horizontal-serve-verification.json`.
+
+
+### Serve-fixed copy: ordinary hardware replay checks
+
+The final `fac657fc` archive on normal diagnostics-off `b75e9beb` launched
+from its temporary browser entry, reached Score 460 and ended normally at
+Game Over after 47.22 seconds. Native pause-menu Green Flag replay visibly
+restored Score 0, three lives, a new ball and all five bands. The repeated
+ordinary round reached 180 and ended normally after 49.56 seconds. A third
+normal replay with the host ray predictor reached 720 and ended normally
+after 89.78 seconds. An alternate Player One KVM-route round reached 260
+and ended normally after 57.53 seconds, so switching ports did not establish
+a delivery fix. These rounds establish scored play, natural losses and replay for this copy; they
+do not establish full-board completion or a universal input-delivery fix.
+No debugger, diagnostic watch or game-state writes were used.
+
+The camera controller's falling intercept shifted during wall bounces, and
+observed paddle motion continued after neutral commands. Subsequent host-only
+helper changes retain a falling intercept across wall reflections, anticipate
+visible brick/ceiling contact and release early for measured paddle motion.
+Those changes affect the automated test controller, not game rules or the
+installed executable. In the third round, the paddle visibly continued left
+for roughly half a second after the host requested Right; the input layer
+responsible remains unresolved.
+
+The first ordinary emulator run reached Score 860 with all three lives, then
+its concurrent `pmemsave` observation stopped responding. A two-second host
+stack sample found the QMP memory-read thread waiting in
+`surface_access_callback`, with the CPU/main threads waiting on mutexes. GDB
+interrupt and a separate QMP status query could not recover control, and
+normal termination did not close the owned guest. Its complete evidence and
+stack sample were preserved before force-closing only that test process.
+This incomplete run does not prove a game deadlock or a full-board pass. A
+fresh independent unseeded run subsequently used the displayed host window
+for image observation instead of concurrent raw VRAM reads, as recorded below.
+
+Local receipts and original images are in ignored
+`pen-color-20261027/serve-fixed-hardware-rounds.json`,
+`hardware/breakout-serve-v4-normal-run{1,2,3}/`,
+`hardware/breakout-serve-v4-normal-p1-run1/` and
+`pen-color-20261027/serve-fullboard/`.
+
+
+### Final serve-fix copy: ordinary xemu full-board result
+
+Archive `fac657fc` with normal `b75e9beb` completed a fresh unseeded run at
+Score 1880 with all three lives. Three separate displayed-window captures,
+more than thirty seconds apart in total, show all five bands absent and the
+literal score/lives unchanged. The test then observed 600 additional input
+frames with Score 1880 unchanged and Ball Y spanning -156.07 through 176.
+Across 11,219 frames, the eraser was visible in zero frames and no movement
+occurred during consecutive erasure-pending observations.
+
+This run used only input vectors plus original key-hat dispatch; positions,
+headings, RNG, score, lives and brick state were not injected. Network startup
+was bypassed in GDB only. Screenshot analysis used a positive five-band
+baseline to account for the host window's color profile; raw native RGB
+masks do not match these screenshot bytes. The completed run's host-window
+captures avoid the concurrent VRAM read that stalled the earlier attempt.
+GDB detached and QMP quit returned successfully after evidence was saved.
+The owned guest exited with status 0, while emitting a GLib
+`g_source_destroy` reference-count assertion during teardown; that warning
+is retained separately from the gameplay pass. Receipt: ignored
+`pen-color-20261027/serve-fullboard-safe/completion-verification.json` and
+`full-board-stable-score.png`. Physical full-board completion remains open.
+
+
+### Final serve-fix copy: ordinary Xbox full-board result
+
+Final archive `fac657fc` on normal diagnostics-off `b75e9beb` cleared all five
+bands on the physical 128MB Xbox at **Score 1940 with one life remaining**.
+Three original HDMI images with the score unobscured show the same score,
+life and clear field over 236.95 seconds. Across that interval, 1,304 recorded
+live observations span Ball pixel Y=4.5 through 436.5; all 790 observations
+with the ball below the field have zero raw brick-color pixels. No debugger,
+watch variables, game-state access or writes were used. The host controller
+uses visible brick/ball prediction and a 35-pixel movement-engage tolerance;
+the game/executable and original physics remain unchanged.
+
+The automated acceptance rule did not trigger because its exact white-score
+pixel signature changes with paddle overlap and JPEG edges. Acceptance was
+verified independently from the three unobscured original images, live ball
+traversal, archive score writes (only +20 after startup), and 2,705 controller
+reports containing only Left, Right or neutral during the checked interval.
+One unexcluded 45-red-pixel sample has the ball straddling the field boundary
+at pixel Y=18; it is retained in the receipt. The three proof images have zero
+raw brick colors without masking. After the proof was saved, the bounded
+helper was intentionally interrupted and released all inputs; its interrupted
+status is not represented as an automatic pass.
+
+Evidence is in ignored
+`hardware/breakout-serve-v4-normal-deadband-run1/completion-verification.json`,
+`verified-clear-{1,2,3}.jpg`, the full observations/client reports and the
+executed helper-source snapshots. Post-clear native Green Flag visibly restored Score 0, three lives and the
+full field, with renewed steering. Two fresh browser project instances then
+launched, accepted steering and reached the exit menu. The first 200ms
+confirmation remained in the browser; its 700ms retry launched successfully.
+The second navigation initially stopped at Xbox-Test, was corrected and
+visually verified before confirmation. These missed inputs are retained as
+KVM-delivery concerns rather than counted as successful launches.
+
+
+Both fresh instances also returned to the populated browser through normal
+Exit Project confirmation. The second was paused while its field remained
+active, covering cleanup with pen contents present. Post-clear replay and
+two fresh project launch/steering/exit cycles are therefore verified on the
+normal candidate. The first fresh instance naturally reached Game Over/140
+before its exit. Source images and SHA-256 receipts are in ignored
+`hardware/breakout-serve-v4-relaunch-verification.json`. These passes do not
+resolve intermittent KVM confirmation/navigation delivery.
+
+
+The change-specific validation now covers the identical 38-case color fixture
+in both environments, final-copy full-board play in xemu and on hardware,
+post-clear replay, two fresh project launches/exits, and Maze/PacMan color
+regressions. The code diff does not change controller input handling. Shared
+KVM delivery concerns already existed in earlier installed builds and remain
+open in the overall twenty-game qualification; their affected layer is still
+uncertain. The verified color/Breakout fixes can be reviewed and merged with
+that limitation recorded, while regular-launcher deployment remains separate.

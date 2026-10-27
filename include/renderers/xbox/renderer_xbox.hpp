@@ -87,4 +87,6 @@ class SE_EXPORT Renderer_Xbox : public Renderer {
     void penStamp(Sprite *sprite) override;
     void penClear() override;
     void cleanupPen() override;
+    void preparePenColorQuery(float minX, float minY, float maxX, float maxY) override;
+    bool samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) override;
 };

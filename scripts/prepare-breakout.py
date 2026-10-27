@@ -1,11 +1,16 @@
-"""Prepare a separate LVRS Breakout copy with direct controller paddle steering.
+"""Prepare a separate LVRS Breakout copy with controller steering and brick erasure.
 
 Usage: prepare-breakout.py ORIGINAL.sb2 NEW.sb2
 Mouse steering remains active until the first Left/Right press. Green Flag
-restores mouse mode. Only paddle input/bounds change; assets and ball, scoring,
-lives and ending scripts are preserved.
+restores mouse mode. Erase only brick cells touched by a real ball collision,
+including shallow-angle hits. Keep the original assets, ball speed, score
+increments, lives and ending behavior. Requires pen-aware color sensing.
+Reflect paddle contacts only while descending, so a shallow hit cannot turn
+an already departing ball back down on the next frame.
+Reroll exactly horizontal serves, which otherwise never reach a brick or paddle.
 """
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +23,9 @@ args = parser.parse_args()
 profile = Path(str(args.output) + ".json")
 if args.source.resolve() == args.output.resolve() or args.output.exists() or profile.exists():
     parser.error("Choose new output paths; the original archive is preserved.")
+source_sha = hashlib.sha256(args.source.read_bytes()).hexdigest()
+if source_sha != "944130addd4e809eeb992d6e4a5d6e9619d5d9c11af7026b238a348fd4a03c1d":
+    parser.error("Expected the tested original LVRS Atari Breakout archive.")
 
 with zipfile.ZipFile(args.source) as original:
     project = json.loads(original.read("project.json"))
@@ -45,6 +53,69 @@ with zipfile.ZipFile(args.source) as original:
             ["doIf", [">", ["xpos"], 201], [["xpos:", 201]]],
             ["doIf", ["<", ["xpos"], -201], [["xpos:", -201]]],
         ]]
+
+    # The original eraser rounds the ball center to a 22-unit cell. An 8-unit
+    # ball can hit a row while its center still rounds to the row below it.
+    # Probe the original brick cells at the contact instead of widening the
+    # eraser or changing the ball, scoring or life rules.
+    ball = next(c for c in project["children"] if c.get("objName") == "Ball")
+    eraser = next(c for c in project["children"] if c.get("objName") == "MarkOut")
+    ball_starts = [s[2] for s in ball["scripts"] if s[2][0] == ["whenIReceive", "Start"]]
+    movement = next(s[-1][1] for s in ball_starts if s[1] == ["wait:elapsed:from:", 1])
+    collision = next(s[-1][1][-1] for s in ball_starts if s[1] == ["show"])
+    if movement[0] != ["forward:", 10] or collision[0] != "doIf" or collision[2] != [
+        ["wait:elapsed:from:", 0.001], ["changeVar:by:", "Score", 20],
+        ["heading:", ["-", 180, ["heading"]]], ["wait:elapsed:from:", 0.5],
+    ]:
+        parser.error("Unexpected original ball movement or brick-collision script.")
+    pending = "_xboxErasePending"
+    event = "_xboxEraseBrickHit"
+    project["variables"].append(dict(name=pending, value=0, isPersistent=False))
+    reset = next(s[2] for s in scripts if s[2][0] == ["whenGreenFlag"])
+    reset.append(["setVar:to:", pending, 0])
+    paddle_contact = next(s[-1][1][0] for s in ball_starts if s[1] == ["show"])
+    if paddle_contact != ["doIf", ["touching:", "Paddle"], [["heading:", ["-", 180, ["heading"]]]]]:
+        parser.error("Unexpected original paddle-contact script.")
+    # A shallow bounce may leave the ball overlapping the paddle for several
+    # frames. Reflect only a descending ball, so contact cannot flip an
+    # already departing ball back down into the paddle on the next frame.
+    paddle_contact[1] = ["&", paddle_contact[1], ["<", ["computeFunction:of:", "cos", ["heading"]], 0]]
+    serve_script = next(s for s in ball_starts if s[1] == ["show"])
+    death_script = movement[2][2]
+    random_heading = ["heading:", ["randomFrom:to:", -180, 180]]
+    if (serve_script[3] != random_heading or
+            movement[2][:2] != ["doIf", ["touching:", "DeathZone"]] or
+            death_script[2] != random_heading):
+        parser.error("Unexpected original initial/respawn heading selection.")
+    # A +/-90-degree serve stays between the bricks and paddle indefinitely.
+    # Reroll only those two angles, preserving every playable random heading.
+    horizontal_guard = ["doUntil", ["not", ["=", ["computeFunction:of:", "cos", ["heading"]], 0]],
+                        [random_heading]]
+    serve_script.insert(4, copy.deepcopy(horizontal_guard))
+    death_script.insert(3, copy.deepcopy(horizontal_guard))
+    original_movement = copy.deepcopy(movement)
+    movement[:] = [["doIf", ["=", ["readVariable", pending], 0], original_movement]]
+    collision[2][:0] = [["setVar:to:", pending, 1], ["doBroadcastAndWait", event], ["setVar:to:", pending, 0]]
+    eraser_start = next(s[2] for s in eraser["scripts"] if s[2][0] == ["whenIReceive", "Start"])
+    eraser_start[:] = [["whenIReceive", "Start"], ["hide"]]
+    base_x, column = "_xboxBrickBaseX", "_xboxBrickColumn"
+    eraser.setdefault("variables", []).extend(dict(name=n, value=0, isPersistent=False) for n in [base_x, column])
+    # Touching-sprite reporters deliberately ignore hidden sprites. Make the
+    # probe visible only inside this warp procedure; hide it before any frame
+    # is drawn, so it remains an invisible eraser during ordinary play.
+    erase = [["procDef", "Erase touched bricks", [], [], True], ["show"],
+             ["setVar:to:", base_x, ["*", ["rounded", ["/", ["getAttribute:of:", "x position", "Ball"], 22]], 22]]]
+    for row_y, color in [(66, -16758074), (88, -15690752), (110, -1587712), (132, -36047), (154, -46526)]:
+        erase.extend([
+            ["setVar:to:", column, ["-", ["readVariable", base_x], 22]],
+            ["doRepeat", 3, [
+                ["gotoX:y:", ["readVariable", column], row_y],
+                ["doIf", ["&", ["touching:", "Ball"], ["touchingColor:", color]], [["stampCostume"]]],
+                ["changeVar:by:", column, 22],
+            ]],
+        ])
+    erase.append(["hide"])
+    eraser["scripts"].extend([[400, 100, [["whenIReceive", event], ["call", "Erase touched bricks"]]], [400, 300, erase]])
     with zipfile.ZipFile(args.output, "w") as prepared:
         for info in original.infolist():
             data = json.dumps(project, separators=(",", ":")).encode() if info.filename == "project.json" else original.read(info)

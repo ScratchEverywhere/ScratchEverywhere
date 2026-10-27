@@ -65,3 +65,20 @@ Ignored local evidence in `build-xbox/hardware/` includes
 `maze-fixed-{first,second}-replay.jpg`, `maze-fixed-post-release-browser.jpg`,
 `maze-normal-fixed-{route-end,replay,browser}.jpg`, the corresponding route
 position logs, and `maze-prepared-{trace,normal}-runtime.log`.
+
+
+## Combined pen/exact-pixel engine regression, October 27
+
+Normal candidate `b75e9beb` selected and launched the same prepared project
+from the browser. Two Right holds into the first blue wall (1,600ms then
+800ms) left the ball at the identical HDMI position `(83.5, 44)`, after moving
+from `(53, 44)`. The complete seven-waypoint route displayed a new **You win!**
+message. Native Green Flag replay restored the exact start image with the
+old bubble absent; Down moved the ball to `(53, 84.5)`, and Exit returned to
+the populated game browser. This used only HDMI observation and ordinary
+Player Two controller reports, with no diagnostic state access or writes.
+The shared intermittent KVM delivery concern remains separate.
+
+Ignored local evidence: `hardware/pen-regression-maze-verification.json`,
+`pen-regression-maze-route-inputs.json` and the corresponding
+`pen-regression-maze-*.jpg` images/client reports.

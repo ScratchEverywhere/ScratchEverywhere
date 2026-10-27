@@ -327,11 +327,23 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
 
+#ifdef __XBOX__
+    // Alpha collision grids may skip every other source pixel. Color sensing
+    // must sample the actual texel, matching the pen canvas, rather than snap
+    // to that reduced grid. NXDK roundf also rounds -0.5 to zero, which made a
+    // query one unit outside a backdrop read its first colored column.
+    const auto &image = mask->image;
+    if (!image || !image->ensureColorData()) return false;
+    const int px = static_cast<int>(std::floor((localX + costume.rotationCenterX) * mask->sourceScale));
+    const int py = static_cast<int>(std::floor((localY + costume.rotationCenterY) * mask->sourceScale));
+    if (px < 0 || py < 0 || px >= image->getPixelWidth() || py >= image->getPixelHeight() || image->getAlphaAt(px, py) == 0) return false;
+    image->getColorAt(px, py, outR, outG, outB);
+#else
     const float invertedScaleFactor = 1.0f / mask->scaleFactor;
     const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
-
     if (!mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB)) return false;
+#endif
     ScratchColorTransform(sprite->colorEffect, sprite->brightnessEffect).apply(outR, outG, outB);
     return true;
 }
@@ -362,19 +374,33 @@ static std::vector<Sprite *> colorEnvironment(Sprite *self, float selfRadius) {
 static bool environmentColorAt(const std::vector<Sprite *> &environment, float x, float y,
                                uint8_t &r, uint8_t &g, uint8_t &b) {
     float accR = 0, accG = 0, accB = 0, accAlpha = 0;
+    bool penApplied = false;
+    auto compositePen = [&]() {
+        penApplied = true;
+        uint8_t pr, pg, pb, pa;
+        if (!globalRenderer || !globalRenderer->samplePenColor(x, y, pr, pg, pb, pa)) return;
+        const float alpha = pa / 255.0f;
+        // Render-target RGB already contains alpha. Applying it again would
+        // darken translucent pen strokes and stamps a second time.
+        accR = pr + accR * (1 - alpha);
+        accG = pg + accG * (1 - alpha);
+        accB = pb + accB * (1 - alpha);
+        accAlpha = alpha + accAlpha * (1 - alpha);
+    };
 
     for (Sprite *candidate : environment) {
+        if (!candidate->isStage && !penApplied) compositePen();
         uint8_t cr, cg, cb;
-        if (!colorAt(candidate, x, y, cr, cg, cb)) continue;
-
-        const float ghostAlpha = 1.0f - std::clamp(candidate->ghostEffect, 0.0f, 100.0f) / 100.0f;
-        if (ghostAlpha <= 0.0f) continue;
-
-        accR = cr * ghostAlpha + accR * (1 - ghostAlpha);
-        accG = cg * ghostAlpha + accG * (1 - ghostAlpha);
-        accB = cb * ghostAlpha + accB * (1 - ghostAlpha);
-        accAlpha = ghostAlpha + accAlpha * (1 - ghostAlpha);
+        if (colorAt(candidate, x, y, cr, cg, cb)) {
+            const float ghostAlpha = 1.0f - std::clamp(candidate->ghostEffect, 0.0f, 100.0f) / 100.0f;
+            accR = cr * ghostAlpha + accR * (1 - ghostAlpha);
+            accG = cg * ghostAlpha + accG * (1 - ghostAlpha);
+            accB = cb * ghostAlpha + accB * (1 - ghostAlpha);
+            accAlpha = ghostAlpha + accAlpha * (1 - ghostAlpha);
+        }
+        if (candidate->isStage && !penApplied) compositePen();
     }
+    if (!penApplied) compositePen();
 
     if (accAlpha <= 0.0f) return false;
 
@@ -410,6 +436,8 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
     const float minY = std::floor(sprite->yPosition - scaledRadius);
     const float maxY = std::ceil(sprite->yPosition + scaledRadius);
 
+    if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
+
     uint8_t er, eg, eb;
     for (float y = minY; y <= maxY; y++) {
         for (float x = minX; x <= maxX; x++) {
@@ -440,6 +468,8 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
     const float minY = std::floor(sprite->yPosition - scaledRadius);
     const float maxY = std::ceil(sprite->yPosition + scaledRadius);
+
+    if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
 
     uint8_t sr, sg, sb, er, eg, eb;
     for (float y = minY; y <= maxY; y++) {
