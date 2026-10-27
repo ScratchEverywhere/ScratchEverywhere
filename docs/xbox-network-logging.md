@@ -49,6 +49,32 @@ sizes and clone populations. Inspect `GAME STATE` too: a menu scene is not a
 level-completion result. Release Start, then B resumes without a dashboard
 restart. An authored in-game pause is separate from this runtime pause menu.
 
+For movement that cannot be interrupted by a pause, a diagnostic build can
+also watch a small set of stage variables continuously:
+
+```sh
+bash scripts/build-xbox.sh \
+  -DFETCHCONTENT_UPDATES_DISCONNECTED=ON \
+  -DSE_XBOX_TRACE_LOG_HOST=192.168.1.100 \
+  -DSE_XBOX_TRACE_WATCH_VARIABLES="PLAYER X,PLAYER Y,PLAYER SX,PLAYER SY,PLAYER DEATH,PLAYER WALL,GAME STATE,SPAWN IDX,APPLES,LEVEL #,TICK"
+```
+
+The comma-separated watch list is empty by default and requires an explicit
+UDP destination. It accepts up to 16 names, each 1–48 characters, using ASCII
+letters, digits, spaces, `_`, `#`, `:`, or `-`. Names are case-sensitive and
+outer spaces are trimmed. A generated header preserves names containing `#`.
+
+After ordinary script updates, the watcher reads the same stage-variable values
+as pause snapshots. It emits `Watch state {"sample":0,"tick_ms":1234,"variables":{...}}` at most
+once every 100 ms, skips unchanged values, and stops after 4,096 changed samples.
+Green Flag resets that budget. Runtime pause suspends sampling. Values are
+strings; a missing variable is JSON `null`, and invalid UTF-8 is replaced in the
+diagnostic output. `tick_ms` is the runtime's SDL timestamp before logging.
+The watcher neither assigns game
+variables nor sends controller input. An absent message can mean unchanged
+state, a pause, the sample limit or UDP loss. Diagnostic logging can affect
+timing; use the normal build for final performance checks.
+
 The console opens a nonblocking socket only after its network stack is ready
 and closes it before normal network shutdown. It sends no more than 1023 bytes
 per datagram, including the sequence/tick prefix; longer messages are
@@ -65,6 +91,7 @@ Restore the ordinary build options after diagnosing:
 bash scripts/build-xbox.sh \
   -DFETCHCONTENT_UPDATES_DISCONNECTED=ON \
   -DSE_XBOX_TRACE_LOG_HOST= \
+  -DSE_XBOX_TRACE_WATCH_VARIABLES= \
   -DSE_XBOX_TRACE_GAME_STATE=OFF -DSE_XBOX_TRACE_MENU_INPUT=OFF
 ```
 
@@ -75,6 +102,18 @@ no replies and refusal to overwrite:
 ```sh
 python3 tests/xbox_log_receiver_test.py
 ```
+
+The watch header also has host checks using the real JSON dependency and a
+controlled stage and clock. They cover both compile modes, rate limiting,
+unchanged-state suppression, missing variables, invalid UTF-8, the sample cap,
+reset and preservation of source values under ASan/UBSan:
+
+```sh
+python3 tests/xbox_variable_watch_test.py
+```
+
+This uses the dependency from a configured `build-xbox`, or accepts
+`--json-include` pointing at another directory containing `nlohmann/json.hpp`.
 
 ## Physical Xbox verification — October 26, 2026
 
@@ -111,3 +150,33 @@ opened runtime pause and returned to the browser. The listening host received
 no packets from this normal-build run. Initial short menu clicks remained on
 the level picker; a later click entered Level 1. The shared KVM delivery issue
 remains separate from UDP logging.
+
+## Continuous variable-watch verification
+
+Diagnostic XBE SHA-256
+`27be430775992917670a5bbdeca0969d237b35770ce0b67e9c6c200460d2e547`
+was installed separately with full readback. On hardware, 2048 produced one
+all-null watch record for the Appel-specific names and suppressed subsequent
+unchanged records. Loading Appel reset the sample counter to zero and produced
+the selected stage values, including the name `LEVEL #`.
+
+In the first 2,081 watch records, sample timestamps were at least 100 ms apart;
+the largest datagram was 338 bytes and none had a truncation flag. Ordinary
+controller input guided by those observations passed Appel's opening steps,
+first pit, ground spikes and deep pit to checkpoint two. The authored pause
+froze the game there, then the runtime-pause snapshot exactly matched all eleven
+watched values: X=2230.022102454115, Y=197.01, APPLES=7 and SPAWN IDX=421,
+with no death state. This establishes observation accuracy and useful gameplay
+feedback, not a completed first level.
+
+Both NXDK modes build. Normal XBE
+`b9d31b58cb415c6e40cee31d206688c5ba405dc0eeefbe0b3635a47848258333`
+contains neither watch nor UDP packet-format strings; the disabled host test
+also performs zero variable reads and log calls. Hardware gameplay in this
+watch follow-up used the diagnostic executable. Eight configuration cases
+exercise malformed names, empty fields, length/count bounds, the required host,
+and whitespace normalization with `#`. Host watch tests pass with ASan/UBSan.
+
+Local manifests, logs and comparisons are in ignored
+`build-xbox/variable-watch/`, including `diagnostic-build.json`,
+`configuration-validation.json` and `hardware-verification.json`.

@@ -5,6 +5,7 @@
 #include "runtime.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
+#include "xbox_variable_watch.hpp"
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -132,6 +133,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        XboxVariableWatch::sample();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
@@ -225,6 +227,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
 void Scratch::greenFlagClicked() {
     stopClicked();
+    XboxVariableWatch::reset();
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
