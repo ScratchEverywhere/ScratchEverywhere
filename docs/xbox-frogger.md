@@ -112,6 +112,60 @@ Hardware evidence is under ignored `build-xbox/hardware/`:
 `frogger-win-v2-browser-after-exit.jpg`,
 `frogger-win-v2-{relaunch-selected,fresh-relaunch,fresh-movement,second-browser}.jpg`.
 
-Full river crossings, seven-pad completion through controller play, and the
-physical console's victory path remain unverified. The emulator probes alone
-do not establish those requirements.
+At that stage, full river crossings, seven-pad completion through controller
+play, and the physical console's victory path remained unverified. The emulator
+probes alone do not establish those requirements.
+
+## Controller-only river scoring — October 26 evening
+
+The same prepared archive subsequently reached six points in one live round on
+the physical Xbox. Diagnostic XBE `431b16c7…` exposed the original frog and moving
+platform positions through the optional read-only sprite watch. Host helpers
+sent ordinary Player Two D-pad reports and inspected those observations and
+HDMI video. No debugger, score, position, costume or map writes were used.
+
+Each scoring check below is a full runtime-pause snapshot, rather than an
+inference from a delayed video frame. All six snapshots have `alive=1`.
+Times are UTC on October 27 (October 26 local time).
+
+| Snapshot time | Score | Newly occupied pad X |
+| --- | ---: | ---: |
+| 02:04:20.037535 | 1 | 2 |
+| 02:08:05.921045 | 2 | 71 |
+| 02:11:43.821941 | 3 | -203 |
+| 02:19:08.045844 | 4 | 140 |
+| 02:24:18.787020 | 5 | -137 |
+| 02:28:12.556994 | 6 | -67 |
+
+The sixth crossing used HDMI tracking after the bounded watcher reached its
+4,096-sample limit. The game continued normally; the limit did not restart the
+project. `frog-video-pad6-after-river.jpg` shows six occupied pads and the frog
+back on the starting strip. The next road attempt ended in a traffic death at
+score six. A normal pause-menu Green Flag replay then scored the far-right
+pad at X=208, followed by X=-203 and X=-137, before another river death.
+Thus every pad has scored through controller play across these two rounds,
+but seven points and the victory display in a single round remain unverified.
+
+The temporary host route model initially used the literal offscreen reset
+coordinates from the project. Actual sprite fencing places some resets farther
+inside the stage; the host forecast was adjusted from observed positions.
+No-window timeouts released input and preserved the round on the bank. Those
+timeouts and the two deaths are retained as failed attempts, not game crashes.
+
+A 30-second HDMI recording contains 1,440,000 stereo frames at 48 kHz. Six
+one-second probes at five-second intervals match the original music asset
+`f6ae0b03d27e33cfc1ed1fed4274661a.wav` with correlations 0.97658–0.99380
+and source offsets advancing by exactly five seconds. Both channels of the
+first captured frame are -32768; no later frame reaches either integer limit.
+The origin of that initial full-scale frame is unresolved, so this recording
+does not establish clean capture startup or subjective audio acceptance.
+
+Local evidence is under ignored `build-xbox/`: sprite-watch
+`frogger-six-pad-hardware-verification.json` and
+`frogger-round2-verification.json`; variable-watch `hardware-run4.jsonl` and
+`hardware-run5.jsonl`; hardware `frog-watch-staged2`, `frog-watch-pad2`,
+`frog-watch-pad3`, `frog-watch-pad4d`, `frog-watch-pad5`, `frog-video-pad6`, and
+`frog-round2-pad*` observations/controller receipts/captures, plus
+`frogger-river-long-audio{.wav,.json,-match.json}`. The diagnostic build does
+not establish a complete normal-build playthrough. Seven-pad victory, replay
+from victory, and subjective sound checks remain open.
