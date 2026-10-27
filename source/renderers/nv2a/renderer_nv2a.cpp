@@ -690,10 +690,20 @@ static uint32_t s_frameCounter = 1;
 uint32_t Renderer_NV2A::getFrameCounter() {
     return s_frameCounter;
 }
-static bool s_activeLinear = false;
+static NV2AScaleMode s_activeScaleMode = NV2AScaleMode::Nearest;
 static bool s_activeWrap = false;
 static NV2ABlendMode s_activeBlendMode = NV2ABlendMode::None;
 static int s_activeShader = -1; // 0 = unlit, 1 = texture
+
+void Renderer_NV2A::setTextureScaleMode(NV2ATexture *texture, NV2AScaleMode scaleMode) {
+    if (texture) {
+        texture->scaleMode = scaleMode;
+    }
+}
+
+NV2AScaleMode Renderer_NV2A::getTextureScaleMode(const NV2ATexture *texture) const {
+    return texture ? texture->scaleMode : NV2AScaleMode::PixelArt;
+}
 
 void Renderer_NV2A::destroyTexture(NV2ATexture *&texture) {
     if (!texture) return;
@@ -747,7 +757,16 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
     return true;
 }
 
+void Renderer_NV2A::bindTexture(const NV2ATexture *texture) {
+    if (!texture) return;
+    bindTexture(texture, texture->scaleMode, false);
+}
+
 void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear, bool wrap) {
+    bindTexture(texture, linear ? NV2AScaleMode::Linear : NV2AScaleMode::Nearest, wrap);
+}
+
+void Renderer_NV2A::bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleMode, bool wrap) {
     if (!texture || !texture->data) return;
 
     if (s_activeShader != 1) {
@@ -755,7 +774,7 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear, bool wr
         s_activeShader = 1;
     }
 
-    if (s_activeTexture != texture || s_activeLinear != linear || s_activeWrap != wrap) {
+    if (s_activeTexture != texture || s_activeScaleMode != scaleMode || s_activeWrap != wrap) {
         uint32_t *p = pb_begin();
         p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
         p = xgu_set_texture_format(p, 0, 2, false, XGU_SOURCE_COLOR, 2,
@@ -766,14 +785,32 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear, bool wr
         p = xgu_set_texture_control1(p, 0, std::max(64, texture->pitch));
         p = xgu_set_texture_image_rect(p, 0, texture->texWidth, texture->texHeight);
 
-        XguTexFilter filter = linear ? XGU_TEXTURE_FILTER_LINEAR : XGU_TEXTURE_FILTER_NEAREST;
+        XguTexFilter filterMin = XGU_TEXTURE_FILTER_NEAREST;
+        XguTexFilter filterMag = XGU_TEXTURE_FILTER_NEAREST;
+
+        switch (scaleMode) {
+            case NV2AScaleMode::Linear:
+                filterMin = XGU_TEXTURE_FILTER_LINEAR;
+                filterMag = XGU_TEXTURE_FILTER_LINEAR;
+                break;
+            case NV2AScaleMode::PixelArt:
+                filterMin = XGU_TEXTURE_FILTER_LINEAR;
+                filterMag = XGU_TEXTURE_FILTER_NEAREST;
+                break;
+            case NV2AScaleMode::Nearest:
+            default:
+                filterMin = XGU_TEXTURE_FILTER_NEAREST;
+                filterMag = XGU_TEXTURE_FILTER_NEAREST;
+                break;
+        }
+
         p = xgu_set_texture_filter(p, 0, 0, XGU_TEXTURE_CONVOLUTION_GAUSSIAN,
-                                   filter, filter, false, false, false, false);
+                                   filterMin, filterMag, false, false, false, false);
         XguTextureAddress addr = wrap ? XGU_WRAP : XGU_CLAMP_TO_EDGE;
         p = xgu_set_texture_address(p, 0, addr, false, addr, false, addr, false, false);
         pb_end(p);
         s_activeTexture = texture;
-        s_activeLinear = linear;
+        s_activeScaleMode = scaleMode;
         s_activeWrap = wrap;
     }
 }
@@ -1137,7 +1174,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         s_activeShader = -1;
         s_activeBlendMode = NV2ABlendMode::None;
         s_activeWrap = false;
-        s_activeLinear = false;
+        s_activeScaleMode = NV2AScaleMode::Nearest;
         s_frameIndex = (s_frameIndex + 1) % 3;
         s_arenaBase = s_frameIndex * ARENA_PER_FRAME_SIZE;
         s_arenaOffset = s_arenaBase;

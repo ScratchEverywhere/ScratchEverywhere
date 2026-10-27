@@ -15,6 +15,12 @@
 #define AV_PACK_SVIDEO 6
 #endif
 
+enum class NV2AScaleMode {
+    Nearest,
+    Linear,
+    PixelArt,
+};
+
 struct NV2ATexture {
     int texWidth = 0;
     int texHeight = 0;
@@ -27,6 +33,7 @@ struct NV2ATexture {
     uint32_t format = 0;
     float uScale = 1.0f;
     float vScale = 1.0f;
+    NV2AScaleMode scaleMode = NV2AScaleMode::PixelArt;
     uint8_t *data = nullptr;
     uint8_t *dataPhysicalAddress = nullptr;
     size_t allocationSize = 0;
@@ -82,9 +89,13 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     NV2ATexture *createTexture(int width, int height, uint32_t format, bool swizzled);
     void destroyTexture(NV2ATexture *&texture);
     bool updateTexture(NV2ATexture *texture, const void *pixels, int pitch);
+    void setTextureScaleMode(NV2ATexture *texture, NV2AScaleMode scaleMode);
+    NV2AScaleMode getTextureScaleMode(const NV2ATexture *texture) const;
 
     // Direct GPU Rendering Helpers
-    void bindTexture(const NV2ATexture *texture, bool linear = false, bool wrap = false);
+    void bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleMode, bool wrap = false);
+    void bindTexture(const NV2ATexture *texture, bool linear, bool wrap = false);
+    void bindTexture(const NV2ATexture *texture);
     void unbindTexture();
     void setBlendMode(NV2ABlendMode mode);
     void setScissor(int x, int y, int w, int h);
