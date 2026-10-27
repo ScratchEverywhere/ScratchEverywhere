@@ -101,3 +101,23 @@ no route configuration or firmware was changed to bypass it. Local evidence is
 `appel-player2-input-latency.json` and `s3-direct-report-check.json`. All 2,750
 messages across the two Appel receive windows were found in the retrieved
 console file log, with contiguous sequences within and between those windows.
+
+## Frogger held-Start interruption — October 26 evening
+
+Player Two reproduced the interrupted hold during a separate Frogger run on
+diagnostic XBE `431b16c7…`. The host commanded Start continuously for 5,025 ms:
+all 51 raw reports contained Start, and their largest interval was 103 ms.
+The Xbox instead logged Start at tick 2591618, neutral at 2593611, Start again
+at 2594109, and final neutral at 2596635. The intervening 498 ms release split
+the hold into intervals shorter than the three seconds required to open pause.
+That attempt did not open the pause menu. A later bounded ten-second Start
+command did, exposing the already-ended round's score six and `alive=0`.
+
+This extends the delivery evidence to Player Two and a non-confirmation button.
+It does not isolate the radio/adapter/USB cause or establish that the same gap
+caused the traffic death preceding the pause request. Longer host holds and
+checking the actual pause snapshot are test-harness recovery measures, not a
+runtime or firmware fix. Evidence is ignored
+`build-xbox/hardware/frogger-start-delivery-gap.json`, the corresponding
+`frog-video-pad7-client.json`, and
+`build-xbox/variable-watch/hardware-run5.jsonl`.
