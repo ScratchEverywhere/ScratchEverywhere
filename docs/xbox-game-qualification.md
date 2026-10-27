@@ -21,7 +21,7 @@ neutralize all reports afterwards.
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; normal route reaches 7 apples and checkpoint two; diagnostic play crosses both lifts, roof and spike column, reaching 9 apples before ground-enemy death; death/respawn; quick restart; music/effects including 30s matched music; pause/exit/relaunch; live position watch agrees with pause snapshot | Full first level beyond the spike column; lwmem loading; subjective listening and audio stability beyond the captured interval |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; normal route reaches 7 apples and checkpoint two; diagnostic play crosses both lifts and the spike column, reaches checkpoint three and 13 apples, and exercises the hidden tunnel and short jumps; death/respawn; quick restart; music/effects including 30s matched music; pause/exit/relaunch; live position watch agrees with pause snapshot | Complete first level beyond checkpoint three; repeat extended route with diagnostics disabled; lwmem loading; subjective listening and audio stability beyond the captured interval |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; road crossing/platform carrying; prepared prompt seven-pad win and ordered replay initialization pass targeted xemu collision probes; prepared copy passes hardware movement, traffic death/replay, two launches/two exits; 8s non-clipping HDMI audio | Complete river crossing/lily-pad scoring and seven-pad win through controller play on hardware; subjective/long-run audio |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
@@ -103,6 +103,40 @@ across the recording match the original music asset
 continuous source offsets. Evidence is
 `appel-gated2-long-audio{.wav,.json,-match.json}` under the ignored hardware
 directory. This is signal/timing verification, not a subjective listening pass.
+
+### Checkpoint three and lower route — October 26 evening
+
+The optional variable-watch build `27be4307…` subsequently reached the actual
+third checkpoint through ordinary Player Two D-pad/A input. The original
+archive's SHA-256 remains `4affb3db…`; no debugger or project-state writes were
+used. A fresh Green Flag run repeated the two earlier checkpoints and both
+moving lifts without a death. A later running takeoff from the roof cleared
+the column and landed at X=3198.7185/Y=317.01. Hopping over the ledge enemy,
+the following spikes and the next step reached X=4020.1610/Y=317.01,
+`SPAWN IDX=707`, ten apples, and an empty `PLAYER DEATH`.
+
+Subsequent controller play reached thirteen apples and a lower platform at
+X=4872.2746/Y=377.01. A 200ms A press followed by continued Right cleared
+the overhead obstacle that a held jump hit. Those durations describe host
+commands, not precise durations observed by the console. Later attempts
+reached the ceiling at X=5241.9099/Y=432.99, but did not finish the level.
+Spike and enemy deaths returned the player to checkpoint three while retaining
+collected apples. Failed routes and movement-goal timeouts are retained as
+failures; they do not establish additional successful landings.
+
+The apparently invisible player inside the green ledge was an authored hidden
+tunnel. The Player sprite sets `Player Substance=hidden` for tiles 79–82;
+tiles 79 and 80 have passable `1111` masks. Ordinary leftward jumping escaped
+the tunnel, collected additional apples and restored the visible player.
+Holding jump against a ceiling also deliberately sets `PLAYER WALL=0` and
+`PLAYER SY=4`. Neither observation alone establishes a runtime collision bug.
+
+Local evidence is in the ignored `build-xbox/variable-watch/hardware-run2.jsonl`,
+`appel-hidden-tunnel-verification.json`, and the corresponding
+`build-xbox/hardware/appel-*-client.json` controller receipts and captures.
+The first watch period reached its documented 4,096-sample limit; Green Flag
+reset the counter and restarted the actual project before the checkpoint-three
+run. The complete first level and repetition on the normal build remain open.
 
 ## October 25 continuation
 
