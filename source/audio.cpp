@@ -18,6 +18,9 @@
 #ifdef AUDIO_NDS
 #include "audio_nds.hpp"
 #endif
+#ifdef AUDIO_WIIU
+#include "audio_wiiu.hpp"
+#endif
 #ifdef AUDIO_SDL3
 #include "audio_sdl3.hpp"
 #endif
@@ -57,6 +60,9 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
 #endif
 #ifdef AUDIO_NDS
     add(AudioBackends::NDS);
+#endif
+#ifdef AUDIO_WIIU
+    add(AudioBackends::WiiU);
 #endif
 #ifdef AUDIO_SDL3
     add(AudioBackends::SDL3);
@@ -145,6 +151,15 @@ bool SoundPlayer::init() {
 #ifdef AUDIO_NDS
             currentSoundBackend = AudioBackends::NDS;
             globalSoundDevice = new SoundDevice_NDS;
+            break;
+#else
+            continue;
+#endif
+        }
+        case AudioBackends::WiiU: {
+#ifdef AUDIO_WIIU
+            currentSoundBackend = AudioBackends::WiiU;
+            globalSoundDevice = new SoundDevice_WiiU;
             break;
 #else
             continue;
