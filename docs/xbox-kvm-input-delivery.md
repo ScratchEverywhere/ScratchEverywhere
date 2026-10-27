@@ -121,3 +121,30 @@ runtime or firmware fix. Evidence is ignored
 `build-xbox/hardware/frogger-start-delivery-gap.json`, the corresponding
 `frog-video-pad7-client.json`, and
 `build-xbox/variable-watch/hardware-run5.jsonl`.
+
+
+## Breakout fast-steering follow-up — October 27
+
+With the normal `b75e9beb` build and prepared `e6f533ce` archive, the first
+physical round ended normally at Score 640. Near its final loss, the visible
+paddle stayed at the right limit while fresh frames showed the ball crossing
+the field. The host sent Left reports for more than a second. This establishes
+a command/movement mismatch, not whether the cause is remote delivery, SDL
+input selection or project-thread execution. Cached adapter labels were too
+old to establish the actual USB state during that segment.
+
+A separate bounded Game Over probe used fresh Player Two `/status` reads and
+four two-second direction holds, separated by neutral intervals. Every hold
+showed the expected adapter state and moved the paddle to its corresponding
+edge; neutral stopped it. This small probe sampled the adapter HTTP server,
+unlike the ordinary gameplay run, and does not rule out intermittent failures.
+No KVM firmware or route configuration was changed. Removing redundant
+immediate host reports while retaining 100ms refreshes did not establish a fix:
+the next native Green Flag replay restored 0/three lives but ended at Score 60.
+
+Original video, client reports, adapter samples and summaries are in ignored
+`hardware/breakout-paddle-v3-vision-run{1,2}` and
+`hardware/breakout-paddle-v3-delivery`. A separate diagnostic build is being
+prepared to correlate received input transitions with read-only Ball/Paddle
+positions and the controller-mode variable. Normal gameplay acceptance remains
+separate from that timing-sensitive diagnostic run.

@@ -164,3 +164,26 @@ is installed only as the temporary `Z-Breakout-Brick-Hits-Test.sb2`; the prior
 `a087d771` test copy is preserved as `pen-breakout-v2.fixture`. Temporary,
 backup and final files passed full readback, as did the unchanged normal
 launcher, candidate executable and canonical Breakout/Sokoban archives.
+
+
+### Latest prepared copy: normal xemu full-board result
+
+The `e6f533ce` copy with the same normal `b75e9beb` executable completed an
+unseeded controller-only run at Score 1960 with all three lives. All five
+bands were absent in three successive native framebuffers. The score then
+remained 1960 for 600 input frames while the ball traversed Y=-157.13 through
+176. The eraser was visible in zero observed frames, and no ball-position
+changes occurred during consecutive erasure-pending frames. The run observed
+10,019 frames and changed only input vectors/key dispatch; game positions,
+headings, score, lives and brick state were not injected. Network initialization
+was bypassed under GDB only. The earlier seeded contact cases are separate.
+
+Receipts, original framebuffer and per-frame state histories are in ignored
+`pen-color-20261027/paddle-fullboard/`. The faint scaled boundary line remains
+cosmetic. On physical hardware, the new copy's first ordinary round reached
+640 and ended normally. Native Green Flag replay visibly restored Score 0,
+three lives, the full field and a new ball; the repeated round ended normally
+at 60. Commanded direction changes sometimes failed to produce visible paddle
+movement while the ball continued. The affected layer is not yet isolated;
+see [input delivery](xbox-kvm-input-delivery.md). Full physical completion and
+subsequent browser regression remain open.
