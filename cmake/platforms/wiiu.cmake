@@ -1,7 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-wiiu")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl2" "gx2")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "wiiu")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
