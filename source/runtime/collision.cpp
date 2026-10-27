@@ -327,11 +327,23 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
 
+#ifdef __XBOX__
+    // Alpha collision grids may skip every other source pixel. Color sensing
+    // must sample the actual texel, matching the pen canvas, rather than snap
+    // to that reduced grid. NXDK roundf also rounds -0.5 to zero, which made a
+    // query one unit outside a backdrop read its first colored column.
+    const auto &image = mask->image;
+    if (!image || !image->ensureColorData()) return false;
+    const int px = static_cast<int>(std::floor((localX + costume.rotationCenterX) * mask->sourceScale));
+    const int py = static_cast<int>(std::floor((localY + costume.rotationCenterY) * mask->sourceScale));
+    if (px < 0 || py < 0 || px >= image->getPixelWidth() || py >= image->getPixelHeight() || image->getAlphaAt(px, py) == 0) return false;
+    image->getColorAt(px, py, outR, outG, outB);
+#else
     const float invertedScaleFactor = 1.0f / mask->scaleFactor;
     const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
-
     if (!mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB)) return false;
+#endif
     ScratchColorTransform(sprite->colorEffect, sprite->brightnessEffect).apply(outR, outG, outB);
     return true;
 }

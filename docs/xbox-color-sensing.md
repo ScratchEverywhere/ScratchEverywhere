@@ -105,3 +105,31 @@ Y=44 and stamps below the band (which spans Y=56–78). All three lives remained
 at Score 320, but the blue row stayed intact. A full pen-canvas readback found
 no alpha pixels in that band. The eraser's grid selection needs a separate
 repair; the pen-layer engine fix alone does not qualify the full game.
+
+### Exact bitmap sample positions
+
+After the pen repair, a normal controller run visually erased every Breakout
+row with all three lives, but the score kept increasing. GDB stopped at a true
+red-color result for world point (-241,160), one unit outside the 480-unit
+backdrop. The reduced collision grid snapped that coordinate to the first
+source column. A direct call confirmed this NXDK's `roundf(-0.5)` returns zero
+(the SDK implements rounding to nearest/even). The pen sampler correctly
+rejected the out-of-canvas point, so the uncovered backdrop sample became a
+phantom brick.
+
+Xbox color queries now sample the full-resolution source texel with `floor`
+and explicit image bounds. Alpha-only collision grids remain unchanged. This
+also fixes a color boundary inside the image where reduced-grid rounding read
+the neighboring color. Four one-pixel masked-reporter checks extend the fixture
+to 38: the preceding pen-aware build returns PASSES=35 / ERRORS=3, while the
+exact-pixel build returns PASSES=38 / ERRORS=0 on the identical archive.
+
+The new normal-build XBE is
+`b75e9beb9e910071dadb90654d66f90ef4e8570b313f3650fc2adaa7fbed475f`;
+its matching symbols are
+`08b51e5cf338a3e73c8245c3acf9d27bc6a38cbe47e7f2892d79e38811919bb0`.
+The earlier `2141b1a0` build and symbols are preserved in
+`build-xbox/pen-color-20261027/revision-2141`. New-build manifests, exact contact
+coordinates, both edge-test counter snapshots and images are retained beside
+it. Ordinary full-board play, stable scoring after clear, and physical Xbox
+regression remain separate qualification gates.

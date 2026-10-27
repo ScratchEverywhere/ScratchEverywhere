@@ -1,6 +1,6 @@
 """Build a runtime regression for cached/backdrop color sensing and culling.
 
-Expected on Xbox: PASSES=34, ERRORS=0. This fixture is not a qualification game.
+Expected on Xbox: PASSES=38, ERRORS=0. This fixture is not a qualification game.
 Uses only the Python standard library. Includes 90 distant visible sprites to
 exercise query culling, opaque PNG cache restoration, an uploaded SVG backdrop,
 masked colors, layered colors, transparent candidates and pen composition.
@@ -33,6 +33,11 @@ svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect w
 vector_background = asset('SVG',svg,'svg',240,180)
 red = asset('red',b'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="#ff0000"/></svg>','svg',10,10)
 green = asset('green',b'<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#00ff00"/></svg>','svg',20,20)
+# A single opaque pixel at the costume origin makes a one-point masked
+# reporter. It exposes reduced-grid snapping at the backdrop's exact edges.
+probe_rows = b'\x00'+bytes([255,0,0,255])+bytes(19*4)+(b'\x00'+bytes(20*4))*19
+probe_png = b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',20,20,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(probe_rows))+chunk(b'IEND',b'')
+pixel_probe = asset('Pixel probe',probe_png,'png',0,0)
 num = lambda n: [1,[4,str(n)]]
 text = lambda t: [1,[10,t]]
 color = lambda c: [1,[9,c]]
@@ -108,6 +113,15 @@ check('sprite-over-pen',True,'#00ff00');check('sprite-hides-pen',False,'#ff0000'
 command('hide-front','event_broadcastandwait',{'BROADCAST_INPUT':[1,[11,'transparent-overlay','transparent-overlay']]})
 check('transparent-sprite-reveals-pen',True,'#ff0000')
 command('clear-last','pen_clear');check('final-blue',True,'#1505ff');check('final-not-red',False,'#ff0000')
+command('edge-png','looks_switchbackdropto',{'BACKDROP':text('PNG')})
+command('edge-costume','looks_switchcostumeto',{'COSTUME':text('Pixel probe')})
+command('edge-home','motion_gotoxy',{'X':num(-1),'Y':num(0)})
+command('edge-settle','control_wait',{'DURATION':num(.2)})
+check('exact-left-blue',True,'#1505ff','#ff0000')
+check('exact-left-not-white',False,'#ffffff','#ff0000')
+command('outside-left','motion_setx',{'X':num(-241)})
+check('outside-not-blue',False,'#1505ff','#ff0000')
+check('outside-not-white',False,'#ffffff','#ff0000')
 command('done','control_stop',fields={'STOP_OPTION':['all',None]})
 for i,key in enumerate(chain):
     blocks[key]['next']=chain[i+1] if i+1<len(chain) else None
@@ -117,7 +131,7 @@ common=dict(variables={},lists={},broadcasts={},blocks={},comments={},currentCos
 stage=dict(common,isStage=True,name='Stage',costumes=[background,vector_background],layerOrder=0,tempo=60,videoTransparency=50,videoState='off',textToSpeechLanguage=None)
 stage['variables']={n:[n,0] for n in ['PASSES','ERRORS','FAIL CASE']}
 stage['broadcasts']={n:n for n in ['show-overlay','transparent-overlay','far-overlay']}
-subject=dict(common,isStage=False,name='Subject',blocks=blocks,costumes=[red],layerOrder=100,visible=True,x=-100,y=0,size=100,direction=90,draggable=False,rotationStyle='all around')
+subject=dict(common,isStage=False,name='Subject',blocks=blocks,costumes=[red,pixel_probe],layerOrder=100,visible=True,x=-100,y=0,size=100,direction=90,draggable=False,rotationStyle='all around')
 overlay=dict(common,isStage=False,name='Overlay',costumes=[green],layerOrder=1,visible=False,x=100,y=0,size=100,direction=135,draggable=False,rotationStyle='all around')
 overlay['blocks']={
     'flag':block('event_whenflagclicked','reset-hide',top=True),
