@@ -21,7 +21,7 @@ neutralize all reports afterwards.
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; current normal-build route reaches 7 apples and the second checkpoint, with death/respawn there; quick restart; music/effects capture; pause/exit/relaunch; optional live pause snapshots verified on hardware | Full first level, including moving blue platforms after checkpoint two; lwmem loading; long-run audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; current normal-build route reaches 7 apples and checkpoint two; diagnostic controller run reaches both moving lifts, 8 apples and the roof beyond them; death/respawn; quick restart; music/effects capture; pause/exit/relaunch; live pause snapshots verified | Full first level beyond the roof after checkpoint two; lwmem loading; long-run audio |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; road crossing/platform carrying; prepared prompt seven-pad win and ordered replay initialization pass targeted xemu collision probes; prepared copy passes hardware movement, traffic death/replay, two launches/two exits; 8s non-clipping HDMI audio | Complete river crossing/lily-pad scoring and seven-pad win through controller play on hardware; subjective/long-run audio |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
@@ -61,6 +61,32 @@ remain incomplete; an authored pause obscured the landing in one attempt.
 The [optional live log mirror](xbox-network-logging.md) now exposes existing
 runtime-pause position and checkpoint snapshots without returning to FTP.
 Neither those snapshots nor this route establish a complete first level.
+
+The subsequent diagnostic run used the same original archive, SHA-256
+`4affb3db57373d2b301e0ce7d405971451a9adff62c936ec7092fc6964f1260b`,
+and XBE `debed504…` from the live-logging checks. Ordinary controller play
+reached checkpoint two again, crossed both moving blue lifts, collected an
+eighth apple, and landed on the roof beyond them. A temporary host helper
+timed jumps from fresh HDMI frames while the target lift descended. It sent
+controller reports; no debugger or game-state writes were used.
+
+| Live pause snapshot | PLAYER X | PLAYER Y | APPLES | SPAWN IDX | PLAYER DEATH |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Checkpoint two | 2220.1045 | 197.01 | 7 | 421 | empty |
+| First moving lift | 2346.1524 | 339.01 | 7 | 421 | empty |
+| Second moving lift | 2490.2296 | 497.01 | 8 | 421 | empty |
+| Roof beyond lifts | 2693.6018 | 497.01 | 8 | 421 | empty |
+
+`PLAYER SY=0` in those landing snapshots. Captures
+`appel-gated-ride2.jpg`, `appel-gated-lift2-ride.jpg` and
+`appel-gated-roof-jump.jpg` accompany the ignored
+`build-xbox/network-log/appel-route1.jsonl` and labeled snapshot JSON files.
+The roof-jump image is airborne; the later pause snapshot establishes landing.
+The next roof attempt hit an enemy (`PLAYER DEATH=1`) during pause/resume.
+Earlier failed lift attempts reached its side (`PLAYER WALL=1`), fell onto
+spikes, or wall-jumped back toward the checkpoint. These failures are retained
+and do not count as successful crossings. The complete first level, later
+checkpoint and finish remain unverified.
 
 ## October 25 continuation
 
