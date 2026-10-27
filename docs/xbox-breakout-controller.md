@@ -166,7 +166,7 @@ backup and final files passed full readback, as did the unchanged normal
 launcher, candidate executable and canonical Breakout/Sokoban archives.
 
 
-### Latest prepared copy: normal xemu full-board result
+### Paddle-fix copy: normal xemu full-board result
 
 The `e6f533ce` copy with the same normal `b75e9beb` executable completed an
 unseeded controller-only run at Score 1960 with all three lives. All five
@@ -187,3 +187,40 @@ at 60. Commanded direction changes sometimes failed to produce visible paddle
 movement while the ball continued. The affected layer is not yet isolated;
 see [input delivery](xbox-kvm-input-delivery.md). Full physical completion and
 subsequent browser regression remain open.
+
+
+### Prevent non-progressing horizontal serves
+
+An unseeded physical run of `e6f533ce` reached Score 1040 with all three lives
+using controller reports guided by read-only UDP positions. After the bounded
+helper released and a camera-guided helper continued the same round, one life
+was lost at Score 1060. The original random respawn then selected 90 degrees.
+Across 1,065 watch samples spanning 130.116 seconds, the ball stayed at world
+Y approximately zero while travelling horizontally; HDMI likewise showed
+constant Y=240 for over three minutes. The paddle stayed at Y=-158 and the
+bricks above Y=56, so this serve could neither score nor reach the paddle or
+death zone. The app was responsive to the controller dashboard chord.
+All 4,621 input/watch records in the authoritative file were present in the
+4,667 received packets with no sequence gaps.
+
+The preparation now rerolls only exactly horizontal random headings in both
+the initial serve and death/respawn paths. Every other random angle, speed,
+score increment, life rule and original asset is preserved. Removing the two
+new repeat-until guards restores the entire `e6f533ce` project JSON exactly;
+all sixteen assets and the controller profile remain byte-identical.
+
+A deterministic GDB RNG diagnostic supplies 90, -90 and then -14 degrees. The
+preceding copy stalls after the first draw for 150 observed frames. The new
+copy rejects both impossible draws and accepts -14 on initial launch and on
+a natural death/respawn, then resumes vertical movement. No positions, scores
+or life counters were written; RNG state was explicitly seeded for this
+regression. Four independent clean-boot probes preserve valid 89, 91, -89 and
+-91 degree serves with a single random draw and ten following frames checked.
+These are targeted diagnostics, not an ordinary full-board playthrough.
+
+The new archive is SHA-256
+`fac657fc899a7a6ca2534fee05d1227a847271bc9b23a654e0e73bf3a9e99e82`.
+Preparation is deterministic. Ordinary full-board emulator and hardware
+regressions are running; the preceding 1960-point pass applies to `e6f533ce`.
+Evidence is in ignored `pen-color-20261027/horizontal-*` and
+`paddle-input-trace-20261027/horizontal-serve-verification.json`.

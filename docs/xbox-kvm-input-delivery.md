@@ -148,3 +148,18 @@ Original video, client reports, adapter samples and summaries are in ignored
 prepared to correlate received input transitions with read-only Ball/Paddle
 positions and the controller-mode variable. Normal gameplay acceptance remains
 separate from that timing-sensitive diagnostic run.
+
+
+The first correlated input/sprite trace ended naturally at Score 200. Its
+console-file comparison verified all 990 relevant input/watch records and
+1,036 UDP packets, with contiguous sequence numbers. Across 144 sampled
+intervals with a stable received directional input, the interior paddle neither
+stayed stationary nor moved opposite to that input. This did not reproduce the
+earlier stall. Most longer host-command transitions appeared in the received
+trace after roughly 40–115ms; one commanded release appeared about 521ms later.
+That measurement includes the controller path and console polling; it does not
+isolate a radio, queue, USB or SDL fault. Input and watch clock origins were
+aligned explicitly, rather than treating the outer UDP tick and inner SDL
+timestamp as the same clock. Raw evidence and analysis remain in ignored
+`paddle-input-trace-20261027/run1-analysis.json`, `latency-probes.json` and
+`hardware-run1-file-verification.json`.

@@ -7,6 +7,7 @@ including shallow-angle hits. Keep the original assets, ball speed, score
 increments, lives and ending behavior. Requires pen-aware color sensing.
 Reflect paddle contacts only while descending, so a shallow hit cannot turn
 an already departing ball back down on the next frame.
+Reroll exactly horizontal serves, which otherwise never reach a brick or paddle.
 """
 import argparse
 import copy
@@ -79,6 +80,19 @@ with zipfile.ZipFile(args.source) as original:
     # frames. Reflect only a descending ball, so contact cannot flip an
     # already departing ball back down into the paddle on the next frame.
     paddle_contact[1] = ["&", paddle_contact[1], ["<", ["computeFunction:of:", "cos", ["heading"]], 0]]
+    serve_script = next(s for s in ball_starts if s[1] == ["show"])
+    death_script = movement[2][2]
+    random_heading = ["heading:", ["randomFrom:to:", -180, 180]]
+    if (serve_script[3] != random_heading or
+            movement[2][:2] != ["doIf", ["touching:", "DeathZone"]] or
+            death_script[2] != random_heading):
+        parser.error("Unexpected original initial/respawn heading selection.")
+    # A +/-90-degree serve stays between the bricks and paddle indefinitely.
+    # Reroll only those two angles, preserving every playable random heading.
+    horizontal_guard = ["doUntil", ["not", ["=", ["computeFunction:of:", "cos", ["heading"]], 0]],
+                        [random_heading]]
+    serve_script.insert(4, copy.deepcopy(horizontal_guard))
+    death_script.insert(3, copy.deepcopy(horizontal_guard))
     original_movement = copy.deepcopy(movement)
     movement[:] = [["doIf", ["=", ["readVariable", pending], 0], original_movement]]
     collision[2][:0] = [["setVar:to:", pending, 1], ["doBroadcastAndWait", event], ["setVar:to:", pending, 0]]
