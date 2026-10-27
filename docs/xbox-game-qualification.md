@@ -21,7 +21,7 @@ neutralize all reports afterwards.
 | [Catch Apples](xbox-catch-apples.md) | Fixed missing D-pad profile; synchronized build D-pad/stick steering, directed collection to Score 22/Timer 0, short Start replay to 0/30, pause/exit, fresh launch and second exit; 8s non-clipping HDMI audio | Intermittent exit launches 2048; isolated bonus/rotten-apple scoring; subjective/long-run audio |
 | [Maze Starter](xbox-maze-replay.md) | D-pad/stick profile; repaired color wall collision; prepared one-frame Goal startup yield fixes stale win text; three full-route wins across traced and normal builds, three clean Green Flag replays, browser return and fresh launch; no authored sound blocks/assets | Shared intermittent browser handoff remains open |
 | [Snake](xbox-snake.md) | Four stick directions in prior trace; synchronized build browser launch, sustained D-pad movement in all four directions, fruit collection/Score 125 and loss screen, Green Flag replay to later Score 0, pause/exit, fresh browser launch with four D-pad directions and second exit; 8s non-clipping HDMI audio | Explicit self-collision, clock/blade pickups, subjective/long-run audio |
-| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; current normal-build route reaches 7 apples and checkpoint two; diagnostic controller run reaches both moving lifts, 8 apples and the roof beyond them; death/respawn; quick restart; music/effects capture; pause/exit/relaunch; live pause snapshots verified | Full first level beyond the roof after checkpoint two; lwmem loading; long-run audio |
+| Appel v1.4 (griffpatch) | Empty-input clone fix + GPU address-range fix; visible terrain/scrolling/platforms; movement/jump; earlier 10 apples; normal route reaches 7 apples and checkpoint two; diagnostic play crosses both lifts, roof and spike column, reaching 9 apples before ground-enemy death; death/respawn; quick restart; music/effects including 30s matched music; pause/exit/relaunch; live position watch agrees with pause snapshot | Full first level beyond the spike column; lwmem loading; subjective listening and audio stability beyond the captured interval |
 | Tetris (Tech-Coder) | Hardware color/pen fix; normal browser launch, movement/rotation/hard drop; one line and Score 40; top-out, Start replay to 0, pause/exit and repeat launch; 7.99s non-clipping HDMI audio | Subjective/long-run audio; full game win |
 | [Frogger (cs50)](xbox-frogger.md) | SB2 profile fixed; D-pad/stick movement, collision/death, pause Green Flag restart, exit and repeat launch; road crossing/platform carrying; prepared prompt seven-pad win and ordered replay initialization pass targeted xemu collision probes; prepared copy passes hardware movement, traffic death/replay, two launches/two exits; 8s non-clipping HDMI audio | Complete river crossing/lily-pad scoring and seven-pad win through controller play on hardware; subjective/long-run audio |
 | Atari Breakout (LVRS) | Localized stage monitor crash and bitmap text layers fixed; prepared D-pad/stick controls; hardware browser launch, Score 100, life loss/full Game Over, Green Flag replay, held-confirmation exit and second browser launch; Player One pause works after delayed Player Three KVM route | Full board; no authored audio-playback blocks |
@@ -87,6 +87,22 @@ Earlier failed lift attempts reached its side (`PLAYER WALL=1`), fell onto
 spikes, or wall-jumped back toward the checkpoint. These failures are retained
 and do not count as successful crossings. The complete first level, later
 checkpoint and finish remain unverified.
+
+Player Two subsequently repeated the lifts and roof, then cleared the spike
+column and collected a ninth apple. A ground enemy caught the landing at
+X=3067.1522/Y=197.01 (`PLAYER DEATH=1`), so the third checkpoint and finish
+remain open. The successful roof approach sent two A presses while moving
+right; its safe landing was confirmed separately. A Player One attempt observed A about 699 ms after its
+host command; this is an end-to-end timing measurement, not proof of a radio
+or firmware cause. See the [input-delivery evidence](xbox-kvm-input-delivery.md).
+
+A thirty-second stereo HDMI recording contains exactly 1,440,000 frames at
+48 kHz, peak 0.03769 and RMS 0.00586, without clipping. Seven one-second probes
+across the recording match the original music asset
+`0246e9901bdf5c2aa8c45d2464bd1e1f.mp3` at correlations 0.99584–0.99810 and
+continuous source offsets. Evidence is
+`appel-gated2-long-audio{.wav,.json,-match.json}` under the ignored hardware
+directory. This is signal/timing verification, not a subjective listening pass.
 
 ## October 25 continuation
 

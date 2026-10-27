@@ -76,3 +76,28 @@ behaves during the same transition. KVM transport diagnostics and a direct-pad
 comparison remain necessary before claiming reliable delivery or a universal
 menu-handoff fix. Full normal-play 2048 victory and the other checks in the
 [twenty-game qualification matrix](xbox-game-qualification.md) remain open.
+
+## Appel timing observations — October 26, 2026
+
+The separate Appel diagnostic run also observed delayed transitions during
+platform play. For the spike-column approach, the host commanded Right for
+602 ms; Xbox trace timestamps span 964 ms from Right to neutral. A combined
+Right+A command began at 00:08:45.409 UTC; its A/Space transition was received
+in the diagnostic stream at 00:08:46.108, about 699 ms later. An older Right
+state was observed first. This timing can change a jump into walking off a
+ledge, but the measurement includes controller transport, console polling and
+UDP transit; it does not isolate a firmware defect.
+
+Comparing each inner SDL trace tick with the outer Xbox send tick gives only
+0–17 ms of excess logging time in this interval, above the minimum clock-origin
+offset. File logging alone therefore does not explain the 699 ms measurement.
+Four later Player Two Down/A presses were observed after approximately 195,
+102, 148 and 123 ms. That small sample is not proof that switching ports fixes
+the shared fault. Both routes still need broader delivery testing.
+
+The S3 direct-report endpoint returned HTTP 409 while the main KVM owned input;
+no route configuration or firmware was changed to bypass it. Local evidence is
+`build-xbox/network-log/appel-column-input-delay.json`,
+`appel-player2-input-latency.json` and `s3-direct-report-check.json`. All 2,750
+messages across the two Appel receive windows were found in the retrieved
+console file log, with contiguous sequences within and between those windows.
