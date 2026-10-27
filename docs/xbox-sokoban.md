@@ -39,7 +39,7 @@ Prepared SHA-256:
 
 A backward pull search generated the saved route. A separate forward replay
 then checked ordinary walking and pushing, without pulling, against every
-inaccessible cell and occupied destination. The route takes 711 moves and
+inaccessible cell and occupied destination. The route takes 698 moves and
 171 pushes and fills all eleven goals. The checked-in read-only verifier
 repeats that forward check directly from the prepared archive. On the original
 archive, the same route fails at step three when Down tries to push the trapped
@@ -58,12 +58,21 @@ from the distributable prepared archive. This is a targeted puzzle test, not
 a playthrough of the preceding nine puzzles.
 
 Earlier failed debugger input harnesses are excluded from completion evidence.
-The corrected input-poll bypass is being checked against independently predicted
-player positions and all 120 map cells. It passed 78 moves, after which the
-original R key restored the initial player position and every crate/map cell.
-The cumulative move counter correctly remained 83, including five preceding
-walks. The complete 711-move route is now being repeated from that restart.
-Full runtime completion and physical Xbox testing remain pending.
+The corrected input-poll bypass verified every player position and all 120 map
+cells across 698 moves and 171 pushes, filling all eleven goals. The runtime
+then advanced naturally to level eleven. After an earlier 78-move prefix,
+the original R key restored the initial player position and every crate/map
+cell; the cumulative move counter correctly remained 83, including five
+preceding walks. No player positions, maps, scores or goals were written by
+the debugger.
+
+The backward-search route originally included thirteen unnecessary walks after
+all goals were filled. The runtime correctly advanced during that tail, causing
+the old assertion at step 699. The saved route now ends at first completion;
+the independent verifier rejects trailing moves after completion. The original
+assertion and all 698 preceding matched states remain in the evidence, alongside
+the completed level-ten state and the level-eleven framebuffer capture.
+Physical Xbox testing of the prepared level remains pending.
 
 Local preparation, solver, archive-comparison and runtime evidence is in ignored
 `build-xbox/hardware/sokoban-*` and `build-xbox/xemu-sokoban-level10/`.

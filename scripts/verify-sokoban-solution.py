@@ -31,6 +31,8 @@ if player not in floor or player in crates or len(crates) != len(goals):
 directions = {"U": (0, -1), "D": (0, 1), "L": (-1, 0), "R": (1, 0)}
 pushes = 0
 for step, direction in enumerate(solution["directions"], 1):
+    if crates == goals:
+        parser.error(f"Step {step} occurs after puzzle completion.")
     if direction not in directions:
         parser.error("Unknown solution direction.")
     dx, dy = directions[direction]
