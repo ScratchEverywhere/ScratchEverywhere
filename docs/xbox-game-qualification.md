@@ -32,15 +32,19 @@ neutralize all reports afterwards.
 | [2048 (JereTheJuggler)](xbox-2048.md) | Browser launch; four directions; extended play to 1024/Score 14456; new 631-command hardware trace confirms duplicate Down input at Score 11700, with matching legal grid/score; prepared A victory acknowledgement passes seeded xemu and hardware tests; normal prepared game reaches natural Game Over/Score 260, A replays to 0 and Up scores 4; clean reboot/browser launch, movement and short-confirmation Exit pass | Intermittent KVM missed/duplicate delivery and held-confirmation browser handoff; full normal-play win; no authored sound playback |
 | Retro Racing (griffpatch) | Hardware browser launch, car/road/HUD/map, acceleration to 108 MPH, A braking to 27, D-pad/stick steering, off-road slowdown, Green Flag replay, two launches/two exits and controller dashboard reset; 8s non-clipping HDMI audio; xemu clone count 191 across replay and zero after exit; audio-fix build reaches 100 MPH, Y pause/resume and Green Flag to zero pass, extended driving progresses around opening bend | Full lap/traffic/drift; subjective/long-run audio |
 | Hill Climb Racing (griffpatch) | Hardware jeep Score 1,000, motorcycle Score 420/+200 airtime; crash and fuel loss; A replay, X vehicle swap, active Black/R restart; repaired full messages; pause/exit and repeat launch; HDMI audio signal | Extended terrain, precise brake/air control, fuel pickup, authored Y pause, subjective/long-run audio |
-| Super Mario Bros. (Will_Wam) | Archive uploaded/readback verified; arrow/Space profile; hardware startup fault reproduced in GDB and calendar reporter fixed; xemu movement/jump, block hit and Green Flag; fixed hardware launch, movement/jump, first two pipes crossed and browser exit | Diagnose return to start near third pipe; level completion, loss/recovery, repeat launch and audio |
+| [Super Mario Bros. (Will_Wam)](xbox-mario.md) | Calendar startup fix; normal-build controller play crosses four opening pipes; prepared-copy death/restart and audio ordering repair; final normal build passes ordinary Goomba and first-pit deaths across two browser launches, automatic visible recovery and renewed walk/jump/landing; two clean browser exits; complete death cues in 120s/60s non-clipping recordings match at 0.96033/0.99994, with resumed music; GDB verifies two recovery cycles, ordered cue starts and stable controls | Full level and subjective audio |
 | Doodle Jump (xamuil2) | Hardware browser launch, left/right platform steering, at least 1,044 m; fall and automatic replay; pause/exit, fresh launch and second exit; HDMI audio signal | Edge wrapping, monsters, extended play and subjective audio |
 | Jumper (Depicklator) | Fixed SVG bounds; hardware A-to-play/jump, levels 1–4 cleared, level 5 rendered, lava death/respawn, Black level restart, Green Flag full replay, fresh launch and Y+Black full restart, browser exit and HDMI audio signal | Intermittent second Exit launches 2048; new readiness guard passes quick A start and two subsequent exits; later levels, subjective/long-run audio |
 | Connect Four (aaronzoll) | Archive uploaded/readback verified; arrows/WASD profile; computed-list loader fix passes 19 checks in both engines; prepared initial state/monitor repair; hardware both control sets/colors, stacking, vertical/horizontal/diagonal wins, full-column rejection, Green Flag replay and repeated browser launch; exit | One initial mouse-mode launch remains unexplained; no authored sound-playback blocks |
 
 Sources, authors, instructions, packaging details and hashes for the additional
-five are in ignored `build-xbox/more-games/next-five-manifest.json`. Game scripts
-are unchanged; SB2 archives use numeric asset IDs assigned during packaging.
+five are in ignored `build-xbox/more-games/next-five-manifest.json`. Downloaded
+originals retain their scripts; prepared copies and their changes are identified
+in the linked game notes. SB2 archives use numeric asset IDs assigned during
+packaging.
 Upload readback results are in `next-five-installed.json` in that directory.
+Mario now has a verified prepared-copy restart/audio repair; see its linked
+qualification notes for the original/prepared hashes and preserved assets.
 The current browser's first page shows 2048, Appel, Asteroids, Atari Breakout
 and Catch Apples.
 
