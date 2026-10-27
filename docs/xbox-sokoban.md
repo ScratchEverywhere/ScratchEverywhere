@@ -51,8 +51,7 @@ as incomplete results. They are not proofs that those candidates are impossible.
 
 ## Runtime qualification
 
-The candidate has not been installed on the physical Xbox. An isolated xemu
-test uses the normal diagnostics-off executable and a separate fixture with
+An isolated xemu test uses the normal diagnostics-off executable and a separate fixture with
 an explicitly added delayed level-ten selection script. That script is absent
 from the distributable prepared archive. This is a targeted puzzle test, not
 a playthrough of the preceding nine puzzles.
@@ -72,7 +71,42 @@ the old assertion at step 699. The saved route now ends at first completion;
 the independent verifier rejects trailing moves after completion. The original
 assertion and all 698 preceding matched states remain in the evidence, alongside
 the completed level-ten state and the level-eleven framebuffer capture.
-Physical Xbox testing of the prepared level remains pending.
+
+## Physical Xbox qualification
+
+The separate level-ten fixture passed on the 128MB Xbox using the normal
+upstream-synchronized `e332255e` executable, with renderer/game/menu tracing
+disabled. Only controller inputs were supplied. After twenty verified moves,
+Black restored the original player position and every crate/map cell. A fresh
+698-move route then matched every observed player position and all 120 cells,
+filled all eleven goals, and advanced naturally to level eleven. The final
+physical screen showed level 11 / moves 718 (20 before restart plus 698 after).
+The full route took about 64 minutes. This is a targeted tenth-puzzle test,
+not a playthrough of puzzles one through nine.
+
+Start-hold pause and a short A confirmation returned to the populated browser.
+After the controller dashboard reset, the prepared archive was installed as
+`E:\ScratchEverywhere\Sokoban-Gammastr20.sb2`. Temporary upload, final archive
+and original-backup readbacks all matched. The original is retained as
+`sokoban-original-6b2ea446.fixture`; the existing controller profile is unchanged
+(SHA-256 `7bf8c7b14210d9d1fc3ebeaf232f7265db7d0815e048f1de5b7e9d2d6d77dac3`).
+The temporary level-ten project and profile were removed, restoring twenty
+games plus XboxTest in the browser. The regular Games launcher remains the
+preceding `2b8b5778` executable.
+
+The installed prepared archive then passed ordinary browser selection,
+puzzles one through three, Black restart and a short-confirmation Exit.
+A fresh browser launch showed level one / moves zero; a crate push and Black
+restart again matched the complete first-puzzle map and player position.
+A repeated short-confirmation Exit returned to the populated browser.
+Later puzzles, complete normal playthrough, and subjective audio remain open.
+
+An eight-second music capture contained one full-scale stereo frame at index
+zero, followed by normal levels (peak 0.06983); the raw file is retained.
+A repeat eight-second capture had peak 0.04514 and no full-scale frames.
+The initial capture-frame anomaly remains a shared audio-capture investigation,
+not a claimed music or decoder failure. The earlier 120-second source-matched
+loop check uses the same unchanged music asset.
 
 Local preparation, solver, archive-comparison and runtime evidence is in ignored
 `build-xbox/hardware/sokoban-*` and `build-xbox/xemu-sokoban-level10/`.
