@@ -235,11 +235,7 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-#ifdef __XBOX__
-    constexpr size_t loaderStackSize = 0x40000; // 256 KB stack is plenty and safe for 64MB RAM
-#else
-    constexpr size_t loaderStackSize = 0x262144;
-#endif
+	constexpr size_t loaderStackSize = 0x262144;
     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
