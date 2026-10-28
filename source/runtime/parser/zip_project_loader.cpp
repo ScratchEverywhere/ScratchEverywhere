@@ -143,7 +143,7 @@ static nlohmann::json parseProjectJson(const std::string &rawJson) {
     }
     std::string sanitized = rawJson;
 #else
-    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
+    std::string sanitized = truncateLargeJsonLists(rawJson);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");
