@@ -4,7 +4,7 @@ set(SE_RENDERER_VALID_OPTIONS "sdl2")
 set(SE_WINDOWING_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
-set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
+set(SE_LUA_BACKEND_VALID_OPTIONS "")
 
 set(SE_CACHING_DEFAULT ON)
 set(SE_DECTALK_DEFAULT OFF)
@@ -23,9 +23,13 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
+# still dont know how to make svg work
+set(SE_SVG OFF CACHE BOOL "Enable support for SVG images." FORCE)
+
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-exceptions -fno-rtti")
 
 macro(package_platform)
+	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".elf")
 	# Packaging is done manually via gfx/ps3/makepkg.sh for now.
 endmacro()

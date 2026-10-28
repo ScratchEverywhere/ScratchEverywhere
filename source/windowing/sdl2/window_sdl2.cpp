@@ -73,7 +73,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 #ifdef WEBOS
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
 #elif defined(__PS3__)
-    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_FULLSCREEN_DESKTOP;
+    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
@@ -110,7 +110,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 
 #ifdef PLATFORM_HAS_CONTROLLER
 #ifdef __PS3__
-    while (SDL_NumJoysticks() == 0) { SDL_PumpEvents(); }
+    for (int i = 0; i < 100 && SDL_NumJoysticks() == 0; ++i) { SDL_PumpEvents(); SDL_Delay(10); }
 #endif
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 #endif
