@@ -132,6 +132,8 @@ struct CallDescriptor {
     uint32_t argCount = 0;
     bool wantsValue = false;
     uint32_t calleeEntry = 0;
+    bool leanKinds = false;
+    mutable int8_t leanCallee = -1;
 };
 
 struct ReturnDescriptor {
@@ -153,6 +155,7 @@ struct alignas(64) Context {
     uint32_t booleanBase = 0;
     uint32_t valueBase = 0;
     uint32_t nativeDepth = 0;
+    uint32_t saveTop = 0;
     uint32_t tempHigh = 0;
     uint64_t shadowUsed[2] = {0, 0};
     uint64_t warp = 0;
@@ -238,6 +241,14 @@ std::string readVariableString(Context *ctx, uint32_t k);
 constexpr uint32_t kMaxTemps = 64;
 alignas(64) Value gTemps[kMaxTemps];
 alignas(64) Value gShadows[kMaxPromoted];
+std::vector<double> gSave;
+struct LeanFrame {
+    uint64_t returnAndBase;
+    uint64_t saved;
+    uint64_t flags;
+};
+constexpr uint64_t kLeanFlag = uint64_t(1) << 34;
+LeanFrame gLean[MAX_CALL_DEPTH + 1];
 constexpr uint32_t kMaxStrs = 64;
 std::string gStrs[kMaxStrs];
 std::string gStringVariables[kMaxPromoted];
@@ -355,6 +366,7 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
     }
 
     ctx->nativeDepth = 0;
+    ctx->saveTop = 0;
 }
 
 void syncStacks(Context *ctx, const ExitDescriptor *state) {
@@ -416,10 +428,114 @@ sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
     return result;
 }
 
+bool leanCall(Context *ctx, const CallDescriptor *call) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
+    const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
+    if (!(thread.withoutScreenRefresh || proc.runWithoutScreenRefresh)) return false;
+    if (thread.callStack.size() >= MAX_CALL_DEPTH) return false;
+
+    const ExitDescriptor *state = call->state;
+    const EntryDescriptor &entry = code.entries[call->calleeEntry];
+    const uint32_t argc = call->argCount;
+    if (call->leanCallee < 0) {
+        bool lean = entry.numbers == 0 && entry.booleans == 0 && entry.strings == 0 && entry.valueIsNumber.size() == argc;
+        for (uint8_t isNumber : entry.valueIsNumber)
+            lean = lean && isNumber;
+        call->leanCallee = lean ? 1 : 0;
+    }
+    const uint32_t n = state->numbers, b = state->booleans, v = static_cast<uint32_t>(state->values.size());
+    if (call->leanCallee == 0) return false;
+    if (argc > v || n > 0xFFFF || b > 0xFFFF || v > 0xFFFF) return false;
+
+    auto &numbers = thread.numberStack;
+    auto &booleans = thread.boolStack;
+    auto &values = thread.valueStack;
+    if (numbers.size() < ctx->numberBase) return false;
+    if (booleans.size() < ctx->booleanBase) return false;
+    if (values.size() < ctx->valueBase) return false;
+    if (thread.stringStack.size() != ctx->stringBase) return false;
+    for (uint32_t i = 0; i < v; i++) {
+        const ValueEntry::Kind kind = state->values[i].kind;
+        if ((kind == ValueEntry::Opaque || kind == ValueEntry::Like) && ctx->valueBase + i >= values.size()) return false;
+    }
+
+    const uint32_t kept = v - argc;
+    const size_t need = static_cast<size_t>(n) + b + kept;
+    if (ctx->saveTop + need > gSave.size()) gSave.resize(std::max<size_t>(gSave.size() * 2, ctx->saveTop + need + 256));
+
+    while (numbers.size() > ctx->numberBase)
+        numbers.pop_back();
+    for (uint32_t i = 0; i < n; i++)
+        numbers.push_back(ctx->slots[i]);
+    while (booleans.size() > ctx->booleanBase)
+        booleans.pop_back();
+    for (uint32_t i = 0; i < b; i++)
+        booleans.push_back(bitsOf(ctx->slots[code.slotBooleans + i]) != 0);
+    double *valueSlots = ctx->slots + code.slotValues;
+    for (uint32_t i = 0; i < v; i++) {
+        const ValueEntry &entryKind = state->values[i];
+        const size_t index = ctx->valueBase + i;
+        if (index >= values.size()) values.emplace_back();
+        switch (entryKind.kind) {
+        case ValueEntry::Number:
+            values[index].setNumber(valueSlots[i]);
+            break;
+        case ValueEntry::Constant:
+            values[index] = ctx->chunk->constants[entryKind.constant];
+            break;
+        case ValueEntry::Temp:
+            values[index] = gTemps[i];
+            break;
+        default:
+            break;
+        }
+    }
+    while (values.size() > ctx->valueBase + v)
+        values.pop_back();
+
+    BytecodeCallFrame &frame = thread.callStack.emplace_back();
+    frame.procedureIndex = call->procedure;
+    frame.returnInstruction = call->callPc + 1;
+    frame.stackBase = static_cast<BytecodeIndex>(values.size());
+    frame.argCount = argc;
+    frame.wantsValue = call->wantsValue;
+    frame.previousWarp = thread.withoutScreenRefresh;
+    thread.pendingRecursiveCallPc = invalidBytecodeIndex;
+    thread.withoutScreenRefresh = thread.withoutScreenRefresh || proc.runWithoutScreenRefresh;
+    thread.pc = proc.entryInstruction;
+
+    LeanFrame &record = gLean[ctx->nativeDepth];
+    record.returnAndBase = static_cast<uint64_t>(call->callPc + 1) | (static_cast<uint64_t>(frame.stackBase) << 32);
+    record.saved = static_cast<uint64_t>(n) | (static_cast<uint64_t>(b) << 16) | (static_cast<uint64_t>(kept) << 32);
+    record.flags = static_cast<uint64_t>(argc) | (static_cast<uint64_t>(call->wantsValue) << 32) | (static_cast<uint64_t>(frame.previousWarp) << 33) | kLeanFlag;
+    double *save = gSave.data() + ctx->saveTop;
+    for (uint32_t i = 0; i < n; i++)
+        save[i] = ctx->slots[i];
+    save += n;
+    for (uint32_t i = 0; i < b; i++)
+        save[i] = ctx->slots[code.slotBooleans + i];
+    save += b;
+    for (uint32_t i = 0; i < kept; i++)
+        save[i] = valueSlots[i];
+    ctx->saveTop += static_cast<uint32_t>(need);
+    ctx->nativeDepth++;
+
+    ctx->numberBase += n;
+    ctx->booleanBase += b;
+    ctx->valueBase += kept;
+    for (uint32_t i = 0; i < argc; i++)
+        valueSlots[i] = valueSlots[kept + i];
+    ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
+    return true;
+}
+
 sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
+    if (call->leanKinds && leanCall(ctx, call)) return 0;
+    gLean[ctx->nativeDepth].flags = 0;
     syncStacks(ctx, call->state);
 
     if (thread.callStack.size() >= MAX_CALL_DEPTH) {
@@ -457,9 +573,91 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     return 0;
 }
 
+sljit_sw leanReturn(Context *ctx, const ReturnDescriptor *ret) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
+    const ExitDescriptor *state = ret->state;
+
+    const LeanFrame record = gLean[ctx->nativeDepth - 1];
+    const BytecodeIndex returnInstruction = static_cast<BytecodeIndex>(record.returnAndBase & 0xFFFFFFFFu), stackBase = static_cast<BytecodeIndex>(record.returnAndBase >> 32);
+    const uint32_t argCount = static_cast<uint32_t>(record.flags & 0xFFFFFFFFu);
+    const bool wantsValue = (record.flags >> 32) & 1, previousWarp = (record.flags >> 33) & 1;
+
+    enum { NoResult,
+           Direct,
+           Built } result = NoResult;
+    double directNumber = 0.0;
+    uint32_t directConstant = 0;
+    bool directIsNumber = false;
+    Value value;
+    if (wantsValue) {
+        result = Direct;
+        if (ret->isReturn && !state->values.empty()) {
+            const ValueEntry &top = state->values.back();
+            if (top.kind == ValueEntry::Number) {
+                directIsNumber = true;
+                directNumber = ctx->slots[code.slotValues + state->values.size() - 1];
+            } else if (top.kind == ValueEntry::Constant) {
+                directConstant = top.constant;
+            } else {
+                result = Built;
+                value = materializeEntry(ctx, top, static_cast<uint32_t>(state->values.size()) - 1);
+            }
+        } else {
+            directNumber = 0.0;
+            directIsNumber = false;
+            directConstant = 0xFFFFFFFFu;
+        }
+    }
+    thread.callStack.pop_back();
+    thread.withoutScreenRefresh = previousWarp;
+
+    const size_t base = stackBase >= argCount ? static_cast<size_t>(stackBase - argCount) : 0;
+    while (thread.valueStack.size() > base)
+        thread.valueStack.pop_back();
+    if (result == Built) {
+        thread.valueStack.push_back(std::move(value));
+    } else if (result == Direct) {
+        thread.valueStack.emplace_back();
+        if (directIsNumber) thread.valueStack.back().setNumber(directNumber);
+        else if (directConstant != 0xFFFFFFFFu) thread.valueStack.back() = ctx->chunk->constants[directConstant];
+    }
+    thread.pc = returnInstruction;
+
+    ctx->nativeDepth--;
+    const uint32_t saved = static_cast<uint32_t>(record.saved & 0xFFFF), sb = static_cast<uint32_t>((record.saved >> 16) & 0xFFFF), sv = static_cast<uint32_t>(record.saved >> 32);
+    ctx->saveTop -= saved + sb + sv;
+
+    const int32_t entryId = returnInstruction < code.entryIdAt.size() ? code.entryIdAt[returnInstruction] : -1;
+    if (entryId < 0) return -1;
+
+    const EntryDescriptor &entry = code.entries[entryId];
+    if (entry.numbers == saved && entry.booleans == sb && entry.valueIsNumber.size() == sv + (wantsValue ? 1 : 0)) {
+        const double *src = gSave.data() + ctx->saveTop;
+        for (uint32_t i = 0; i < saved; i++)
+            ctx->slots[i] = src[i];
+        src += saved;
+        for (uint32_t i = 0; i < sb; i++)
+            ctx->slots[code.slotBooleans + i] = src[i];
+        src += sb;
+        for (uint32_t i = 0; i < sv; i++)
+            ctx->slots[code.slotValues + i] = src[i];
+        ctx->numberBase -= saved;
+        ctx->booleanBase -= sb;
+        ctx->valueBase -= sv;
+        if (wantsValue && entry.valueIsNumber[sv]) ctx->slots[code.slotValues + sv] = thread.valueStack.back().numberRaw();
+        ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
+        return entryId;
+    }
+    loadFrame(ctx, entry);
+    return entryId;
+}
+
 sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
+
+    if (ctx->nativeDepth > 0 && !thread.callStack.empty() && (gLean[ctx->nativeDepth - 1].flags & kLeanFlag)) return leanReturn(ctx, ret);
 
     syncStacks(ctx, ret->state);
 
@@ -2305,6 +2503,10 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         call.argCount = instr.b;
         call.wantsValue = instr.op == BytecodeOp::CallProcedureValue;
         call.calleeEntry = static_cast<uint32_t>(plan_.entryOf[proc.entryInstruction]);
+        call.leanKinds = state_.strings.empty();
+        for (const AbsValue &value : state_.values) {
+            if (value.kind != ValueEntry::Number && value.kind != ValueEntry::Constant && value.kind != ValueEntry::Temp && value.kind != ValueEntry::Opaque && value.kind != ValueEntry::Like) call.leanKinds = false;
+        }
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
         callHelper(reinterpret_cast<void *>(&jitCall), SLJIT_ARGS2(W, P, P));
