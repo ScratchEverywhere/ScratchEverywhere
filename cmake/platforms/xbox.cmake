@@ -221,9 +221,9 @@ list(REMOVE_ITEM SE_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_BASIC_OPTIM
 list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES})
 
 # Apply optimization rules
-set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3;-ffast-math;-fno-finite-math-only")
-set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2;-ffast-math;-fno-finite-math-only")
-set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-ffast-math;-fno-finite-math-only")
+set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3")
+set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
 
 # HACK: Force CMake to skip failing network checks for libcurl on Xbox
 set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")
