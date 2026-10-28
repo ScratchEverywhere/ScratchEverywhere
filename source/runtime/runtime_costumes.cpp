@@ -83,7 +83,11 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     auto onErr = [&](std::string error) -> bool {
         const std::string missingName = "SE__Missingno";
-        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
+        // Allocation failures surface under several wordings ("Failed to allocate SVG pixels buffer",
+        // "LunaSVG failed to render SVG to bitmap" when plutovg cannot get its surface, ...). All of them are memory
+        // pressure, not a broken asset, so they must not blacklist the costume forever in failedCostumeImages.
+        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos ||
+                               error.find("llocate") != std::string::npos || error.find("failed to render SVG") != std::string::npos;
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
             if (!transient) failedCostumeImages.insert(costumeName);
