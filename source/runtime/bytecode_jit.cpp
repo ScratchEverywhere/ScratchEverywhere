@@ -37,7 +37,8 @@ struct ValueEntry {
                           Number,
                           Constant,
                           Like,
-                          VarValue
+                          VarValue,
+                          Argument
     };
     Kind kind = Opaque;
     uint32_t constant = 0;
@@ -58,6 +59,21 @@ struct ExitDescriptor {
     std::vector<ValueEntry> values;
 };
 
+struct CallDescriptor {
+    ExitDescriptor *state = nullptr;
+    uint32_t callPc = 0;
+    uint32_t procedure = 0;
+    uint32_t argCount = 0;
+    bool wantsValue = false;
+    uint32_t calleeEntry = 0;
+};
+
+struct ReturnDescriptor {
+    ExitDescriptor *state = nullptr;
+    uint32_t pc = 0;
+    bool isReturn = false;
+};
+
 struct Code;
 
 struct Context {
@@ -71,6 +87,7 @@ struct Context {
     uint32_t booleanBase = 0;
     uint32_t valueBase = 0;
     uint32_t poll = 0;
+    uint32_t nativeDepth = 0;
     uint64_t warp = 0;
     int64_t dirty[kMaxPromoted];
     double slots[kMaxSlots];
@@ -83,6 +100,9 @@ struct Code {
     std::vector<EntryDescriptor> entries;
     std::deque<ExitDescriptor> exits;
     std::deque<ListOpDescriptor> listOps;
+    std::deque<CallDescriptor> calls;
+    std::deque<ReturnDescriptor> returns;
+    std::vector<int32_t> entryIdAt;
     std::vector<void *> entryTable;
     std::vector<uint32_t> promoted;
     uint32_t slotBooleans = 0;
@@ -155,6 +175,14 @@ Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position)
         return ctx->chunk->constants[entry.constant];
     case ValueEntry::VarValue:
         return materializeVariable(ctx, entry.constant);
+    case ValueEntry::Argument: {
+        const BytecodeThread &thread = *ctx->thread;
+        if (thread.callStack.empty()) return Value();
+        const BytecodeCallFrame &frame = thread.callStack.back();
+        if (frame.stackBase < frame.argCount || entry.constant >= frame.argCount) return Value();
+        const size_t index = static_cast<size_t>(frame.stackBase - frame.argCount) + entry.constant;
+        return index < thread.valueStack.size() ? thread.valueStack[index] : Value();
+    }
     default:
         return ctx->thread->valueStack[ctx->valueBase + position];
     }
@@ -185,10 +213,9 @@ double fromBits(int64_t bits) {
     return d;
 }
 
-void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
+void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
-    const EntryDescriptor &entry = code.entries[entryId];
 
     if (thread.numberStack.size() < entry.numbers || thread.boolStack.size() < entry.booleans || thread.valueStack.size() < entry.valueIsNumber.size()) {
         Log::logCritical("JIT: the thread's stacks are shallower than the analysis of the bytecode says", true);
@@ -208,34 +235,48 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
         if (entry.valueIsNumber[i]) ctx->slots[code.slotValues + i] = thread.valueStack[ctx->valueBase + i].numberRaw();
     }
 
+    ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
+}
+
+void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
+    const EntryDescriptor &entry = code.entries[entryId];
+
+    loadFrame(ctx, entry);
+
     std::memset(ctx->dirty, 0, code.promoted.size() * sizeof(int64_t));
     for (uint32_t k : entry.loadVariables) {
         ctx->slots[code.slotVariables + k] = rawVariableNumber(variableAt(thread, code.promoted[k]));
     }
 
-    ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
     ctx->poll = kPollInterval;
+    ctx->nativeDepth = 0;
 }
 
-sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
+void syncStacks(Context *ctx, const ExitDescriptor *state) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
-    thread.numberStack.resize(ctx->numberBase + exit->numbers);
-    for (uint32_t i = 0; i < exit->numbers; i++)
+    thread.numberStack.resize(ctx->numberBase + state->numbers);
+    for (uint32_t i = 0; i < state->numbers; i++)
         thread.numberStack[ctx->numberBase + i] = ctx->slots[i];
 
-    thread.boolStack.resize(ctx->booleanBase + exit->booleans);
-    for (uint32_t i = 0; i < exit->booleans; i++)
+    thread.boolStack.resize(ctx->booleanBase + state->booleans);
+    for (uint32_t i = 0; i < state->booleans; i++)
         thread.boolStack[ctx->booleanBase + i] = bitsOf(ctx->slots[code.slotBooleans + i]) != 0;
 
-    thread.valueStack.resize(ctx->valueBase + exit->values.size());
-    for (uint32_t i = 0; i < exit->values.size(); i++) {
-        const ValueEntry &entry = exit->values[i];
-        if (entry.kind == ValueEntry::Number) thread.valueStack[ctx->valueBase + i] = Value(ctx->slots[code.slotValues + i]);
-        else if (entry.kind == ValueEntry::Constant) thread.valueStack[ctx->valueBase + i] = ctx->chunk->constants[entry.constant];
-        else if (entry.kind == ValueEntry::VarValue) thread.valueStack[ctx->valueBase + i] = materializeVariable(ctx, entry.constant);
+    thread.valueStack.resize(ctx->valueBase + state->values.size());
+    for (uint32_t i = 0; i < state->values.size(); i++) {
+        const ValueEntry &entry = state->values[i];
+        if (entry.kind == ValueEntry::Opaque || entry.kind == ValueEntry::Like) continue;
+        thread.valueStack[ctx->valueBase + i] = materializeEntry(ctx, entry, i);
     }
+}
+
+void commitVariables(Context *ctx) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
 
     for (uint32_t k = 0; k < code.promoted.size(); k++) {
         const int64_t kind = ctx->dirty[k];
@@ -247,9 +288,94 @@ sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
         else if (kind == 2) var->value = Value(value);
         else var->value = ctx->chunk->constants[kind - 3];
     }
+}
 
-    thread.pc = exit->pc;
+sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
+    syncStacks(ctx, exit);
+    commitVariables(ctx);
+    ctx->thread->pc = exit->pc;
     return static_cast<sljit_sw>(exit->result);
+}
+
+sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
+    commitVariables(ctx);
+    return result;
+}
+
+sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
+
+    syncStacks(ctx, call->state);
+
+    if (thread.callStack.size() >= MAX_CALL_DEPTH) {
+        thread.pc = call->callPc + 1;
+        return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Interpret);
+    }
+
+    const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
+
+    if (!thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh && thread.pendingRecursiveCallPc != call->callPc) {
+        for (const BytecodeCallFrame &existing : thread.callStack) {
+            if (existing.procedureIndex == call->procedure) {
+                thread.pendingRecursiveCallPc = call->callPc;
+                thread.pc = call->callPc;
+                return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Yield);
+            }
+        }
+    }
+    thread.pendingRecursiveCallPc = invalidBytecodeIndex;
+
+    BytecodeCallFrame frame;
+    frame.procedureIndex = call->procedure;
+    frame.returnInstruction = call->callPc + 1;
+    frame.stackBase = static_cast<BytecodeIndex>(thread.valueStack.size());
+    frame.argCount = call->argCount;
+    frame.wantsValue = call->wantsValue;
+    frame.previousWarp = thread.withoutScreenRefresh;
+    thread.callStack.push_back(frame);
+
+    thread.withoutScreenRefresh = thread.withoutScreenRefresh || proc.runWithoutScreenRefresh;
+    thread.pc = proc.entryInstruction;
+
+    ctx->nativeDepth++;
+    loadFrame(ctx, code.entries[call->calleeEntry]);
+    return 0;
+}
+
+sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
+    BytecodeThread &thread = *ctx->thread;
+    const Code &code = *ctx->code;
+
+    syncStacks(ctx, ret->state);
+
+    if (thread.callStack.empty()) {
+        thread.pc = ret->pc;
+        return -1;
+    }
+
+    const BytecodeCallFrame frame = thread.callStack.back();
+    thread.callStack.pop_back();
+
+    Value value;
+    if (ret->isReturn && frame.wantsValue && !thread.valueStack.empty()) {
+        value = std::move(thread.valueStack.back());
+        thread.valueStack.pop_back();
+    }
+    thread.withoutScreenRefresh = frame.previousWarp;
+
+    const size_t base = frame.stackBase >= frame.argCount ? static_cast<size_t>(frame.stackBase - frame.argCount) : 0;
+    if (thread.valueStack.size() > base) thread.valueStack.resize(base);
+    if (frame.wantsValue) thread.valueStack.push_back(std::move(value));
+    thread.pc = frame.returnInstruction;
+
+    if (ctx->nativeDepth == 0) return -1;
+    ctx->nativeDepth--;
+
+    const int32_t entry = frame.returnInstruction < code.entryIdAt.size() ? code.entryIdAt[frame.returnInstruction] : -1;
+    if (entry < 0) return -1;
+    loadFrame(ctx, code.entries[entry]);
+    return entry;
 }
 
 double SLJIT_FUNC jitListItemNumber(Context *ctx, const ListOpDescriptor *op) {
@@ -371,6 +497,10 @@ bool isJump(BytecodeOp op) {
     }
 }
 
+bool isCall(BytecodeOp op) {
+    return op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue;
+}
+
 bool isTerminal(BytecodeOp op) {
     return op == BytecodeOp::Halt || op == BytecodeOp::Return || op == BytecodeOp::EscapeToLegacyThread;
 }
@@ -403,6 +533,7 @@ struct Planner {
     std::vector<int32_t> entryOf;
     std::vector<BytecodeIndex> entryPcs;
     std::unordered_map<uint8_t, uint32_t> loopBlockers;
+    std::vector<uint8_t> visible;
     std::vector<std::vector<BytecodeIndex>> entryReads;
 
     static constexpr uint32_t kMinRegionInstructions = 40;
@@ -578,6 +709,27 @@ struct Planner {
         case BytecodeOp::LengthOfList:
         case BytecodeOp::DeleteAllOfList:
             return listValid(instr);
+
+        case BytecodeOp::CallProcedure:
+        case BytecodeOp::CallProcedureValue: {
+            if (instr.a >= chunk.procedures.size()) return false;
+            const BytecodeProcedure &proc = chunk.procedures[instr.a];
+            BytecodeAbstractState state;
+            return proc.argCount == instr.b && proc.entryInstruction < count && analysis.stateBefore(pc, state) && state.values.size() >= instr.b;
+        }
+        case BytecodeOp::Return: {
+            BytecodeAbstractState state;
+            return analysis.stateBefore(pc, state) && !state.values.empty();
+        }
+        case BytecodeOp::Halt:
+            return true;
+        case BytecodeOp::PushArg: {
+            const int procedure = analysis.procedureAt(pc);
+            if (procedure < 0 || instr.a >= chunk.procedures[procedure].argCount || !consumedInBlock(pc, -1)) return false;
+            BytecodeAbstractState before, after;
+            if (!analysis.stateBefore(pc, before) || !analysis.stateBefore(pc + 1, after) || instr.a >= before.values.size() || after.values.empty()) return false;
+            return !numericLike(after.values.back()) || numericLike(before.values[instr.a]);
+        }
         case BytecodeOp::ValueEquals:
         case BytecodeOp::ValueLess:
         case BytecodeOp::ValueGreater:
@@ -614,6 +766,13 @@ struct Planner {
         for (bool changed = true; changed;) {
             changed = false;
             for (BytecodeIndex pc = 0; pc < count; pc++) {
+                if (!supported[pc] || !isCall(chunk.instructions[pc].op)) continue;
+                if (!supported[chunk.procedures[chunk.instructions[pc].a].entryInstruction]) {
+                    supported[pc] = 0;
+                    changed = true;
+                }
+            }
+            for (BytecodeIndex pc = 0; pc < count; pc++) {
                 const BytecodeInstruction &instr = chunk.instructions[pc];
                 if (!isJump(instr.op) || instr.a >= count || instr.a > pc) continue;
                 bool allSupported = true;
@@ -649,6 +808,7 @@ struct Planner {
                 const BytecodeInstruction &here = chunk.instructions[pc];
                 if (isJump(here.op) && here.a <= pc && here.a < count && supported[here.a]) addEntry(here.a);
                 if (chunk.instructions[pc].op == BytecodeOp::Yield && pc + 1 < count && supported[pc + 1]) addEntry(pc + 1);
+                if (isCall(here.op) && pc + 1 < count && supported[pc + 1]) addEntry(pc + 1);
             } else {
                 for (BytecodeIndex s : next) {
                     if (analysis.isReachable(s) && supported[s]) addEntry(s);
@@ -659,7 +819,7 @@ struct Planner {
             if (root < count && supported[root]) addEntry(root);
         }
 
-        keepWorthwhileEntries();
+        measureEntries();
     }
 
     void measureRegion(BytecodeIndex entry, uint32_t &instructions, bool &hasLoop, std::vector<BytecodeIndex> &reads) const {
@@ -682,27 +842,22 @@ struct Planner {
                 if (instr.a <= pc) hasLoop = true;
                 stack.push_back(instr.a);
             }
+            if (isCall(instr.op)) stack.push_back(chunk.procedures[instr.a].entryInstruction);
             if (instr.op != BytecodeOp::Jump) stack.push_back(pc + 1);
         }
     }
 
-    void keepWorthwhileEntries() {
-        std::vector<BytecodeIndex> kept;
-        std::vector<std::vector<BytecodeIndex>> keptReads;
+    void measureEntries() {
+        entryReads.clear();
+        visible.clear();
         for (BytecodeIndex pc : entryPcs) {
             uint32_t instructions;
             bool hasLoop;
             std::vector<BytecodeIndex> reads;
             measureRegion(pc, instructions, hasLoop, reads);
-            if (!hasLoop && instructions < kMinRegionInstructions) continue;
-            kept.push_back(pc);
-            keptReads.push_back(std::move(reads));
+            entryReads.push_back(std::move(reads));
+            visible.push_back(hasLoop || instructions >= kMinRegionInstructions ? 1 : 0);
         }
-        std::fill(entryOf.begin(), entryOf.end(), -1);
-        for (size_t i = 0; i < kept.size(); i++)
-            entryOf[kept[i]] = static_cast<int32_t>(i);
-        entryPcs = std::move(kept);
-        entryReads = std::move(keptReads);
     }
 
     void addEntry(BytecodeIndex pc) {
@@ -741,6 +896,7 @@ class Emitter {
     std::vector<sljit_label *> labels_;
     std::vector<std::pair<sljit_jump *, BytecodeIndex>> pending_;
     std::vector<sljit_jump *> exitJumps_;
+    std::vector<sljit_jump *> leaveJumps_;
     std::vector<std::function<void()>> cold_;
     std::vector<int32_t> promotedIndex_;
 
@@ -1144,6 +1300,62 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::PushArg: {
+        BytecodeAbstractState s;
+        analysis_.stateBefore(pc, s);
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        if (instr.a < s.values.size() && Planner::numericLike(s.values[instr.a])) {
+            loadF(SLJIT_FR0, valueSlot(instr.a));
+            storeF(valueSlot(depth), SLJIT_FR0);
+        }
+        AbsValue v;
+        v.kind = ValueEntry::Argument;
+        v.constant = instr.a;
+        state_.values.push_back(v);
+        maxValues_ = std::max(maxValues_, depth + 1);
+        return;
+    }
+
+    case BytecodeOp::CallProcedure:
+    case BytecodeOp::CallProcedureValue: {
+        const BytecodeProcedure &proc = chunk_.procedures[instr.a];
+        CallDescriptor &call = code_.calls.emplace_back();
+        call.state = &makeExit(pc, 0, state_);
+        call.callPc = pc;
+        call.procedure = instr.a;
+        call.argCount = instr.b;
+        call.wantsValue = instr.op == BytecodeOp::CallProcedureValue;
+        call.calleeEntry = static_cast<uint32_t>(plan_.entryOf[proc.entryInstruction]);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
+        callHelper(reinterpret_cast<void *>(&jitCall), SLJIT_ARGS2(W, P, P));
+        sljit_jump *native = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        leaveJumps_.push_back(sljit_emit_jump(c_, SLJIT_JUMP));
+        sljit_set_label(native, sljit_emit_label(c_));
+        pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), proc.entryInstruction});
+        return;
+    }
+
+    case BytecodeOp::Return:
+    case BytecodeOp::Halt: {
+        ReturnDescriptor &ret = code_.returns.emplace_back();
+        ret.state = &makeExit(pc, 0, state_);
+        ret.pc = pc;
+        ret.isReturn = instr.op == BytecodeOp::Return;
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&ret));
+        callHelper(reinterpret_cast<void *>(&jitReturn), SLJIT_ARGS2(W, P, P));
+        sljit_jump *leave = sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_R0, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
+        sljit_emit_ijump(c_, SLJIT_JUMP, SLJIT_MEM2(SLJIT_R1, SLJIT_R0), SLJIT_WORD_SHIFT);
+        cold_.push_back([this, leave]() {
+            sljit_set_label(leave, sljit_emit_label(c_));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 1 + static_cast<sljit_sw>(BytecodeJit::Result::Interpret));
+            leaveJumps_.push_back(sljit_emit_jump(c_, SLJIT_JUMP));
+        });
+        return;
+    }
+
     case BytecodeOp::ItemOfList: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         ListOpDescriptor &op = code_.listOps.emplace_back();
@@ -1358,6 +1570,8 @@ bool Emitter::emit() {
 
         if (compiled) {
             emitInstruction(pc);
+            const BytecodeOp op = chunk_.instructions[pc].op;
+            if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
         } else {
             emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), state_);
             havePrevious = false;
@@ -1374,6 +1588,14 @@ bool Emitter::emit() {
         sljit_set_label(j, exitLabel);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     callHelper(reinterpret_cast<void *>(&jitExit), SLJIT_ARGS2(W, P, P));
+    sljit_emit_return(c_, SLJIT_MOV, SLJIT_R0, 0);
+
+    sljit_label *leaveLabel = sljit_emit_label(c_);
+    for (sljit_jump *j : leaveJumps_)
+        sljit_set_label(j, leaveLabel);
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+    callHelper(reinterpret_cast<void *>(&jitLeave), SLJIT_ARGS2(W, P, W));
     sljit_emit_return(c_, SLJIT_MOV, SLJIT_R0, 0);
 
     for (auto &[jump, target] : pending_) {
@@ -1507,7 +1729,18 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         }
     }
 
-    chunk.jitEntryAt = planner.entryOf;
+    code->entryIdAt = planner.entryOf;
+    chunk.jitEntryAt.assign(chunk.instructions.size(), -1);
+    bool anyVisible = false;
+    for (size_t i = 0; i < planner.entryPcs.size(); i++) {
+        if (!planner.visible[i]) continue;
+        chunk.jitEntryAt[planner.entryPcs[i]] = static_cast<int32_t>(i);
+        anyVisible = true;
+    }
+    if (!anyVisible) {
+        chunk.jitEntryAt.clear();
+        return;
+    }
     chunk.jit = code;
 
     if (const char *log = std::getenv("SE_JIT_LOG"); log != nullptr && std::string(log) != "0") {

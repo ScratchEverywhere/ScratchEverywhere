@@ -348,7 +348,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         return true;
     case BytecodeOp::PushArg: {
         VType type = VType::Unknown;
-        if (policy_.interprocedural && procedure >= 0 && static_cast<size_t>(procedure) < params_.size() && instr.a < params_[procedure].size()) {
+        if (policy_.interprocedural && procedure >= 0 && static_cast<size_t>(procedure) < params_.size() && instr.a < params_[procedure].size() && called_[procedure]) {
             type = params_[procedure][instr.a];
         }
         push(s, K::Value, type);
@@ -739,7 +739,7 @@ void BytecodeAnalysis::runDataflow() {
         state.values.assign(argCount, VType::Unknown);
         if (isProcedure && policy_.interprocedural && index < params_.size() && params_[index].size() == argCount) {
             for (uint32_t i = 0; i < argCount; i++) {
-                state.values[i] = callSeen_[index] ? params_[index][i] : VType::Unknown;
+                state.values[i] = called_[index] ? params_[index][i] : VType::Unknown;
             }
         }
         const int entry = static_cast<int>(entries_.size());
@@ -1062,6 +1062,7 @@ bool BytecodeAnalysis::run() {
     params_.assign(procedureCount, {});
     returns_.assign(procedureCount, VType::Unreached);
     callSeen_.assign(procedureCount, false);
+    called_.assign(procedureCount, false);
     for (size_t p = 0; p < procedureCount; p++)
         params_[p].assign(chunk_.procedures[p].argCount, VType::Unreached);
 
@@ -1078,6 +1079,10 @@ bool BytecodeAnalysis::run() {
 
         bool changed = false;
         for (size_t p = 0; p < procedureCount; p++) {
+            if (callSeen_[p] && !called_[p]) {
+                called_[p] = true;
+                changed = true;
+            }
             for (size_t i = 0; i < params_[p].size(); i++) {
                 const VType joined = join(params_[p][i], nextParams_[p][i]);
                 if (joined != params_[p][i]) {
@@ -1223,6 +1228,11 @@ bool BytecodeAnalysis::isReachable(BytecodeIndex pc) const {
     if (pc >= chunk_.instructions.size()) return false;
     const Block &block = blocks_[blockOfInstruction_[pc]];
     return block.reached && block.entry >= 0 && entries_[block.entry].ok;
+}
+
+int BytecodeAnalysis::procedureAt(BytecodeIndex pc) const {
+    if (!isReachable(pc)) return -1;
+    return blocks_[blockOfInstruction_[pc]].procedure;
 }
 
 bool BytecodeAnalysis::isBlockStart(BytecodeIndex pc) const {

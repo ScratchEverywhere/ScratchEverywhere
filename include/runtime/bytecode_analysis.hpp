@@ -80,6 +80,7 @@ class SE_EXPORT BytecodeAnalysis {
 
     bool stateBefore(BytecodeIndex pc, BytecodeAbstractState &out) const;
     bool isBlockStart(BytecodeIndex pc) const;
+    int procedureAt(BytecodeIndex pc) const;
     bool isReachable(BytecodeIndex pc) const;
 
     static uint8_t typeBit(BytecodeValueType type);
@@ -126,6 +127,7 @@ class SE_EXPORT BytecodeAnalysis {
     mutable std::vector<std::vector<BytecodeValueType>> nextParams_;
     mutable std::vector<BytecodeValueType> nextReturns_;
     mutable std::vector<bool> callSeen_;
+    std::vector<bool> called_;
     mutable std::vector<uint8_t> written_;
     std::vector<BytecodeValueType> readFacts_;
 
