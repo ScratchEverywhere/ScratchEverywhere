@@ -1,4 +1,7 @@
 #include "bytecode_executor.hpp"
+#ifdef SE_JIT
+#include "bytecode_jit.hpp"
+#endif
 #include "blockExecutor.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
@@ -561,12 +564,24 @@ double mathOpApply(BytecodeMathOp op, double value) {
 
 } // namespace
 
+double bytecodeMathOpApply(BytecodeMathOp op, double value) {
+    return mathOpApply(op, value);
+}
+
+
 void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;
 
     Timer executionTimer(false);
     bool timerStarted = false;
     unsigned int blocksSinceTimeCheck = 0;
+#ifdef SE_JIT
+    const int32_t *jitEntries = nullptr;
+    if (BytecodeJit::enabled() && thread.chunk != nullptr && thread.link != nullptr) {
+        if (!thread.chunk->jitTried) BytecodeJit::compile(*thread.chunk, *thread.link);
+        if (thread.chunk->jit) jitEntries = thread.chunk->jitEntryAt.data();
+    }
+#endif
 #ifdef SE_BYTECODE_STATS
     const std::vector<BytecodeValueType> *facts = nullptr;
     if (const auto it = factTables.find(thread.chunk); it != factTables.end()) facts = &it->second;
@@ -578,6 +593,16 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             thread.finished = true;
             goto done;
         }
+
+#ifdef SE_JIT
+        if (jitEntries != nullptr) {
+            const int32_t jitEntry = jitEntries[thread.pc];
+            if (jitEntry >= 0) {
+                if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
+                continue;
+            }
+        }
+#endif
 
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
 #ifdef SE_BYTECODE_STATS

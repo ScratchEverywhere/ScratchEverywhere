@@ -940,7 +940,7 @@ void BytecodeAnalysis::computeProcedureEffects() {
         for (size_t q = 0; q < procedureCount; q++) {
             if (!callees[p][q]) continue;
             if (!chunk_.procedures[p].runWithoutScreenRefresh && !chunk_.procedures[q].runWithoutScreenRefresh && (p == q || procedureReaches_[q][p])) {
-                procedureSuspends_[p] = true; // the call can yield
+                procedureSuspends_[p] = true;
             }
         }
     }
@@ -965,10 +965,95 @@ void BytecodeAnalysis::computeProcedureEffects() {
     }
 }
 
+void BytecodeAnalysis::computeEscapeTaint() {
+    const size_t slotCount = chunk_.variableSlots.size();
+    const size_t count = chunk_.instructions.size();
+    escapeTaint_.assign(slotCount, false);
+
+    const auto scan = [&](BytecodeIndex entryPc) {
+        if (entryPc >= count) return;
+        std::vector<bool> writes(slotCount, false);
+        std::vector<BytecodeIndex> callees, escapes;
+
+        std::vector<bool> seen(blocks_.size(), false);
+        std::vector<uint32_t> stack{blockOfInstruction_[entryPc]};
+        while (!stack.empty()) {
+            const uint32_t b = stack.back();
+            stack.pop_back();
+            if (seen[b]) continue;
+            seen[b] = true;
+            const Block &block = blocks_[b];
+
+            for (BytecodeIndex pc = block.start; pc < block.end; pc++) {
+                const BytecodeInstruction &instr = chunk_.instructions[pc];
+                switch (instr.op) {
+                case BytecodeOp::StoreVarNumber:
+                case BytecodeOp::StoreVarString:
+                case BytecodeOp::StoreVarBoolean:
+                case BytecodeOp::StoreVarColor:
+                case BytecodeOp::StoreVarValue:
+                case BytecodeOp::AppendVarString:
+                case BytecodeOp::ChangeVarNumber:
+                    if (instr.a < slotCount) writes[instr.a] = true;
+                    break;
+                case BytecodeOp::ForEachCheck:
+                    if (instr.b < slotCount) writes[instr.b] = true;
+                    break;
+                case BytecodeOp::CallProcedure:
+                case BytecodeOp::CallProcedureValue:
+                    callees.push_back(instr.a);
+                    break;
+                case BytecodeOp::CallLegacyReporter:
+                case BytecodeOp::CallLegacyStatement:
+                case BytecodeOp::EscapeToLegacyThread:
+                    escapes.push_back(instr.a);
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            if (block.end == 0 || block.end > count) continue;
+            const BytecodeInstruction &last = chunk_.instructions[block.end - 1];
+            if (isTerminal(last.op)) continue;
+            if (hasJumpTarget(last.op) && last.a < count) stack.push_back(blockOfInstruction_[last.a]);
+            if (!isUnconditionalJump(last.op) && block.end < count) stack.push_back(blockOfInstruction_[block.end]);
+        }
+
+        if (escapes.empty()) return;
+
+        for (size_t slot = 0; slot < slotCount; slot++) {
+            if (writes[slot]) escapeTaint_[slot] = true;
+        }
+        for (BytecodeIndex callee : callees) {
+            if (callee >= procedureWrites_.size()) continue;
+            for (size_t slot = 0; slot < slotCount; slot++) {
+                if (procedureWrites_[callee][slot]) escapeTaint_[slot] = true;
+            }
+        }
+        for (BytecodeIndex escape : escapes) {
+            if (escape >= chunk_.escapeWriteStart.size() || escape >= chunk_.escapeWriteCount.size()) {
+                escapeTaint_.assign(slotCount, true);
+                return;
+            }
+            for (BytecodeIndex i = 0; i < chunk_.escapeWriteCount[escape]; i++) {
+                const BytecodeIndex slot = chunk_.escapeWrittenVariables[chunk_.escapeWriteStart[escape] + i];
+                if (slot < slotCount) escapeTaint_[slot] = true;
+            }
+        }
+    };
+
+    for (const BytecodeScript &script : chunk_.scripts)
+        scan(script.entryInstruction);
+    for (const BytecodeProcedure &proc : chunk_.procedures)
+        scan(proc.entryInstruction);
+}
+
 bool BytecodeAnalysis::run() {
     buildBlocks();
     declareVariables();
     computeProcedureEffects();
+    computeEscapeTaint();
     stats_ = {};
     stats_.instructions = static_cast<uint32_t>(chunk_.instructions.size());
     stats_.blocks = static_cast<uint32_t>(blocks_.size());
@@ -1020,6 +1105,10 @@ bool BytecodeAnalysis::run() {
             runDataflow();
             break;
         }
+    }
+
+    for (size_t slot = 0; slot < escapeTaint_.size() && slot < written_.size(); slot++) {
+        if (escapeTaint_[slot] && declared_[slot] == VType::Unknown) written_[slot] |= typeBit(VType::Unknown);
     }
 
     for (const Block &block : blocks_) {
@@ -1130,6 +1219,27 @@ void BytecodeAnalysis::countStats() {
     }
 }
 
+bool BytecodeAnalysis::isReachable(BytecodeIndex pc) const {
+    if (pc >= chunk_.instructions.size()) return false;
+    const Block &block = blocks_[blockOfInstruction_[pc]];
+    return block.reached && block.entry >= 0 && entries_[block.entry].ok;
+}
+
+bool BytecodeAnalysis::isBlockStart(BytecodeIndex pc) const {
+    return pc < chunk_.instructions.size() && blocks_[blockOfInstruction_[pc]].start == pc;
+}
+
+bool BytecodeAnalysis::stateBefore(BytecodeIndex pc, BytecodeAbstractState &out) const {
+    if (!isReachable(pc)) return false;
+    const Block &block = blocks_[blockOfInstruction_[pc]];
+    out = block.in;
+    std::string error;
+    for (BytecodeIndex i = block.start; i < pc; i++) {
+        if (!step(out, chunk_.instructions[i], block.warp, block.procedure, error)) return false;
+    }
+    return true;
+}
+
 BytecodeValueType BytecodeAnalysis::variableTypeBefore(BytecodeIndex pc, BytecodeIndex variableSlot) const {
     if (pc >= chunk_.instructions.size()) return VType::Unreached;
     const Block &block = blocks_[blockOfInstruction_[pc]];
@@ -1198,15 +1308,6 @@ bool BytecodeProgramAnalysis::run() {
     const uint8_t unknownBit = BytecodeAnalysis::typeBit(BytecodeValueType::Unknown);
     variableTypes_.clear();
 
-    bool anyLegacy = false;
-    for (const Input &input : inputs_) {
-        for (const BytecodeInstruction &instr : input.chunk->instructions) {
-            if (instr.op == BytecodeOp::CallLegacyReporter || instr.op == BytecodeOp::CallLegacyStatement || instr.op == BytecodeOp::EscapeToLegacyThread) {
-                anyLegacy = true;
-            }
-        }
-    }
-
     for (const Input &input : inputs_) {
         const BytecodeChunk &chunk = *input.chunk;
         for (size_t slot = 0; slot < chunk.variableSlots.size(); slot++) {
@@ -1230,7 +1331,7 @@ bool BytecodeProgramAnalysis::run() {
                 default:
                     if (const Value *initial = std::get_if<Value>(&var->value)) bits = valueTypeBit(*initial);
                     else bits = unknownBit;
-                    if (environment_.customExtensions || anyLegacy) bits |= unknownBit;
+                    if (environment_.customExtensions) bits |= unknownBit;
                     if (environment_.sliderVariables.count(id) != 0) bits |= BytecodeAnalysis::typeBit(BytecodeValueType::Number);
                     break;
                 }

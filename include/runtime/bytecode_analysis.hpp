@@ -78,6 +78,10 @@ class SE_EXPORT BytecodeAnalysis {
 
     static bool isCanonicalNumericString(const std::string &text);
 
+    bool stateBefore(BytecodeIndex pc, BytecodeAbstractState &out) const;
+    bool isBlockStart(BytecodeIndex pc) const;
+    bool isReachable(BytecodeIndex pc) const;
+
     static uint8_t typeBit(BytecodeValueType type);
     static BytecodeValueType collapse(uint8_t typeBits);
 
@@ -117,6 +121,7 @@ class SE_EXPORT BytecodeAnalysis {
     std::vector<bool> procedureSuspends_;
     std::vector<std::vector<bool>> procedureWrites_;
     std::vector<std::vector<bool>> procedureReaches_;
+    std::vector<bool> escapeTaint_;
 
     mutable std::vector<std::vector<BytecodeValueType>> nextParams_;
     mutable std::vector<BytecodeValueType> nextReturns_;
@@ -127,6 +132,7 @@ class SE_EXPORT BytecodeAnalysis {
     void buildBlocks();
     void declareVariables();
     void computeProcedureEffects();
+    void computeEscapeTaint();
     void runDataflow();
     bool step(BytecodeAbstractState &state, const BytecodeInstruction &instr, bool warp, int procedure, std::string &error) const;
     void forgetVariables(BytecodeAbstractState &state) const;

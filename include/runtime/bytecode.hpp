@@ -14,7 +14,7 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-inline constexpr uint16_t bytecodeCacheVersion = 2;
+inline constexpr uint16_t bytecodeCacheVersion = 3;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 
@@ -177,6 +177,8 @@ struct SE_EXPORT BytecodeScript {
     BytecodeIndex blockOrdinal = invalidBytecodeIndex;
 };
 
+struct BytecodeJitCode;
+
 struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeInstruction> instructions;
 
@@ -201,6 +203,16 @@ struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeScript> scripts;
 
     std::vector<BytecodeIndex> escapeBlockOrdinals;
+
+    std::vector<BytecodeIndex> escapeWriteStart;
+    std::vector<BytecodeIndex> escapeWriteCount;
+    std::vector<BytecodeIndex> escapeWrittenVariables;
+
+#ifdef SE_JIT
+    mutable bool jitTried = false;
+    mutable std::shared_ptr<BytecodeJitCode> jit;
+    mutable std::vector<int32_t> jitEntryAt;
+#endif
 
     BytecodeIndex internString(const std::string &s) {
         for (BytecodeIndex i = 0; i < strings.size(); ++i) {
