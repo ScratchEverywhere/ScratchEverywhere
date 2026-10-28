@@ -108,7 +108,7 @@ static std::string truncateLargeJsonLists(const std::string &raw) {
                     if (depth == 0) break;
                 } else if (ch == ',' && depth == 1) {
                     items_count++;
-                    if (items_count == max_items) {
+                    if (items_count == MAX_ITEMS) {
                         trunc_pos = cur;
                     }
                 }
