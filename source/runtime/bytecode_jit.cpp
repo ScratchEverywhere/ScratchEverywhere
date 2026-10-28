@@ -1814,6 +1814,8 @@ class Emitter {
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     void emitInlineMod(const BytecodeInstruction &instr);
+    bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
+    BytecodeIndex currentPc_ = 0;
     ExitDescriptor &makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state);
     uint32_t promoted(BytecodeIndex variable) const { return static_cast<uint32_t>(promotedIndex_[variable]); }
     double constantNumber(BytecodeIndex index) const { return chunk_.constants[index].get<double>(); }
@@ -2038,7 +2040,71 @@ bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape sha
     return true;
 }
 
+bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) {
+    if (!(std::fabs(divisor) >= 2.0 && std::fabs(divisor) < 2147483648.0) || divisor != std::floor(divisor)) return false;
+    const BytecodePositionalFn &fn = link_.positional[instr.a];
+    const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
+    const uint64_t d = static_cast<uint64_t>(std::fabs(divisor));
+    const uint64_t magic = UINT64_C(0xFFFFFFFFFFFFFFFF) / d + 1;
+    const bool negativeDivisor = divisor < 0;
+
+    loadF(SLJIT_FR0, a);
+    std::vector<sljit_jump *> slow;
+    sljit_emit_fop1(c_, SLJIT_CONV_S32_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR2, 0, SLJIT_R0, 0);
+    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR2, 0));
+
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R0, 0);
+    sljit_jump *nonNegative = sljit_emit_cmp(c_, SLJIT_SIG_GREATER_EQUAL | SLJIT_32, SLJIT_R0, 0, SLJIT_IMM, 0);
+    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R1, 0, SLJIT_IMM, 0, SLJIT_R0, 0);
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R1, 0);
+    sljit_set_label(nonNegative, sljit_emit_label(c_));
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(magic));
+    sljit_emit_op0(c_, SLJIT_LMUL_UW); // R0 = low(magic * n)
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
+    sljit_emit_op0(c_, SLJIT_LMUL_UW); // R1 = high(low * d) = |a| mod d
+
+    sljit_jump *zero = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R1, 0);
+    sljit_emit_fset64(c_, SLJIT_FR2, static_cast<double>(d));
+    sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
+    sljit_jump *negativeA = sljit_emit_fcmp(c_, SLJIT_ORDERED_LESS, SLJIT_FR0, 0, SLJIT_FR3, 0);
+    // a >= 0
+    if (negativeDivisor) sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+    else sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_FR1, 0);
+    sljit_jump *joinFromPositive = sljit_emit_jump(c_, SLJIT_JUMP);
+    // a < 0
+    sljit_set_label(negativeA, sljit_emit_label(c_));
+    if (negativeDivisor) sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR3, 0, SLJIT_FR1, 0);
+    else sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR2, 0, SLJIT_FR1, 0);
+    sljit_jump *joinFromNegative = sljit_emit_jump(c_, SLJIT_JUMP);
+    // a multiple of the divisor: zero with the sign of a
+    sljit_set_label(zero, sljit_emit_label(c_));
+    sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
+    sljit_emit_fop2(c_, SLJIT_MUL_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR3, 0);
+    sljit_label *joined = sljit_emit_label(c_);
+    sljit_set_label(joinFromPositive, joined);
+    sljit_set_label(joinFromNegative, joined);
+    storeF(a, SLJIT_FR0);
+
+    addCold([this, slow, joined, a, b, &fn]() {
+        sljit_label *here = sljit_emit_label(c_);
+        for (sljit_jump *jump : slow)
+            sljit_set_label(jump, here);
+        loadF(SLJIT_FR0, a);
+        loadF(SLJIT_FR1, b);
+        callHelper(reinterpret_cast<void *>(fn.nn_n), SLJIT_ARGS2(F64, F64, F64));
+        storeF(a, SLJIT_FR0);
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
+    });
+    return true;
+}
+
 void Emitter::emitInlineMod(const BytecodeInstruction &instr) {
+    if (currentPc_ > 0 && !analysis_.isBlockStart(currentPc_) && chunk_.instructions[currentPc_ - 1].op == BytecodeOp::PushConstNumber) {
+        if (emitConstantMod(instr, chunk_.numberConstants[chunk_.instructions[currentPc_ - 1].a])) return;
+    }
     const BytecodePositionalFn &fn = link_.positional[instr.a];
     const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
     loadF(SLJIT_FR0, a);
@@ -2325,6 +2391,7 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
 }
 
 void Emitter::emitInstruction(BytecodeIndex pc) {
+    currentPc_ = pc;
     const BytecodeInstruction &instr = chunk_.instructions[pc];
     switch (instr.op) {
     case BytecodeOp::Nop:
@@ -2430,12 +2497,43 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             shadow.variable = k;
             shadow.entry = describe(top);
             shadow.position = position;
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&shadow));
-            callHelper(reinterpret_cast<void *>(&jitStoreShadow), SLJIT_ARGS2V(P, P));
-            loadF(SLJIT_FR0, valueSlot(position));
-            storeF(variableSlot(k), SLJIT_FR0);
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3);
+
+            sljit_jump *copy = nullptr;
+            std::vector<sljit_jump *> boxed;
+            sljit_label *done = nullptr;
+            if (top.kind == ValueEntry::VarValue && top.constant < code_.promoted.size()) {
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(top.constant));
+                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 3));
+                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 4));
+                copy = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 1);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 2);
+                sljit_set_label(copy, sljit_emit_label(c_));
+                loadF(SLJIT_FR0, valueSlot(position));
+                storeF(variableSlot(k), SLJIT_FR0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_R0, 0);
+                done = sljit_emit_label(c_);
+            }
+
+            const auto emitBoxed = [this, k, position, &shadow]() {
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&shadow));
+                callHelper(reinterpret_cast<void *>(&jitStoreShadow), SLJIT_ARGS2V(P, P));
+                loadF(SLJIT_FR0, valueSlot(position));
+                storeF(variableSlot(k), SLJIT_FR0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3);
+            };
+            if (boxed.empty()) {
+                emitBoxed();
+            } else {
+                addCold([this, boxed, done, emitBoxed]() {
+                    sljit_label *here = sljit_emit_label(c_);
+                    for (sljit_jump *jump : boxed)
+                        sljit_set_label(jump, here);
+                    emitBoxed();
+                    sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+                });
+            }
         }
         return;
     }
