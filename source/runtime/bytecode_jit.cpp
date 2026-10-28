@@ -21,8 +21,8 @@
 
 namespace BytecodeJitInternal {
 
-constexpr uint32_t kMaxSlots = 224;
-constexpr uint32_t kMaxPromoted = 48;
+constexpr uint32_t kMaxSlots = 480;
+constexpr uint32_t kMaxPromoted = 128;
 constexpr uint32_t kPollInterval = 64;
 
 struct EntryDescriptor {
@@ -38,10 +38,23 @@ struct ValueEntry {
                           Constant,
                           Like,
                           VarValue,
-                          Argument
+                          Argument,
+                          Temp
     };
     Kind kind = Opaque;
     uint32_t constant = 0;
+};
+
+struct ShadowDescriptor {
+    uint32_t variable = 0;
+    ValueEntry entry;
+    uint32_t position = 0;
+};
+
+struct CompareDescriptor {
+    BytecodeCompareKind kind = BytecodeCompareKind::Equals;
+    ValueEntry a, b;
+    uint32_t aPosition = 0, bPosition = 0;
 };
 
 struct ValueCallDescriptor {
@@ -94,6 +107,8 @@ struct Context {
     uint32_t valueBase = 0;
     uint32_t poll = 0;
     uint32_t nativeDepth = 0;
+    uint32_t tempHigh = 0;
+    uint64_t shadowUsed[2] = {0, 0};
     uint64_t warp = 0;
     int64_t dirty[kMaxPromoted];
     double slots[kMaxSlots];
@@ -107,6 +122,8 @@ struct Code {
     std::deque<ExitDescriptor> exits;
     std::deque<ListOpDescriptor> listOps;
     std::deque<ValueCallDescriptor> valueCalls;
+    std::deque<ShadowDescriptor> shadows;
+    std::deque<CompareDescriptor> compares;
     std::deque<CallDescriptor> calls;
     std::deque<ReturnDescriptor> returns;
     std::vector<int32_t> entryIdAt;
@@ -166,12 +183,17 @@ double rawVariableNumber(const Variable *var) {
 
 Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position);
 
+constexpr uint32_t kMaxTemps = 64;
+Value gTemps[kMaxTemps];
+Value gShadows[kMaxPromoted];
+
 Value materializeVariable(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
     if (kind == 0) return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
     if (kind == 1 || kind == 2) return Value(ctx->slots[code.slotVariables + k]);
-    return ctx->chunk->constants[kind - 3];
+    if (kind == 3) return gShadows[k];
+    return ctx->chunk->constants[kind - 4];
 }
 
 Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position) {
@@ -190,6 +212,8 @@ Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position)
         const size_t index = static_cast<size_t>(frame.stackBase - frame.argCount) + entry.constant;
         return index < thread.valueStack.size() ? thread.valueStack[index] : Value();
     }
+    case ValueEntry::Temp:
+        return gTemps[position];
     default:
         return ctx->thread->valueStack[ctx->valueBase + position];
     }
@@ -293,7 +317,8 @@ void commitVariables(Context *ctx) {
         const double value = ctx->slots[code.slotVariables + k];
         if (kind == 1) var->value = value;
         else if (kind == 2) var->value = Value(value);
-        else var->value = ctx->chunk->constants[kind - 3];
+        else if (kind == 3) var->value = gShadows[k];
+        else var->value = ctx->chunk->constants[kind - 4];
     }
 }
 
@@ -390,12 +415,34 @@ void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) 
     call->fn(static_cast<Sprite *>(ctx->sprite), value);
 }
 
-double SLJIT_FUNC jitListItemNumber(Context *ctx, const ListOpDescriptor *op) {
+void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
-    if (list == nullptr || list->items.empty()) return 0.0;
-    const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
-    if (position >= list->items.size()) return 0.0;
-    return list->items[position].get<double>();
+    Value item;
+    if (list != nullptr && !list->items.empty()) {
+        const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
+        if (position < list->items.size()) item = list->items[position];
+    }
+    ctx->slots[ctx->code->slotValues + op->indexPosition] = item.numberRaw();
+    gTemps[op->indexPosition] = std::move(item);
+    ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
+}
+
+void SLJIT_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow) {
+    gShadows[shadow->variable] = materializeEntry(ctx, shadow->entry, shadow->position);
+    ctx->shadowUsed[shadow->variable >> 6] |= uint64_t(1) << (shadow->variable & 63);
+}
+
+sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
+    const Value a = materializeEntry(ctx, compare->a, compare->aPosition);
+    const Value b = materializeEntry(ctx, compare->b, compare->bPosition);
+    switch (compare->kind) {
+    case BytecodeCompareKind::Equals:
+        return a == b;
+    case BytecodeCompareKind::Less:
+        return a < b;
+    default:
+        return a > b;
+    }
 }
 
 void SLJIT_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op) {
@@ -634,10 +681,11 @@ struct Planner {
         return true;
     }
 
-    bool consumedInBlock(BytecodeIndex pc, int64_t variable) const {
+    bool consumedInBlock(BytecodeIndex pc, int64_t variable, int positionOffset = 0) const {
         BytecodeAbstractState pushed;
         if (!analysis.stateBefore(pc, pushed)) return false;
-        const size_t position = pushed.values.size();
+        if (static_cast<int>(pushed.values.size()) + positionOffset < 0) return false;
+        const size_t position = pushed.values.size() + positionOffset;
         for (BytecodeIndex q = pc + 1; q < count; q++) {
             if (analysis.isBlockStart(q)) return false;
             const BytecodeInstruction &between = chunk.instructions[q - 1];
@@ -667,16 +715,6 @@ struct Planner {
     }
 
     bool listValid(const BytecodeInstruction &instr) const { return instr.a < chunk.listSlots.size(); }
-
-    bool itemOfListPair(BytecodeIndex pc) const {
-        const BytecodeInstruction &instr = chunk.instructions[pc];
-        return instr.op == BytecodeOp::ItemOfList && listValid(instr) && pc + 1 < count && !analysis.isBlockStart(pc + 1) &&
-               chunk.instructions[pc + 1].op == BytecodeOp::ConvertValueToNumber && topValuesAreNumeric(pc, 1);
-    }
-
-    bool followsItemOfList(BytecodeIndex pc) const {
-        return pc > 0 && !analysis.isBlockStart(pc) && itemOfListPair(pc - 1);
-    }
 
     static bool isNumericConstant(const Value &value) {
         return value.isDouble() || (value.isString() && BytecodeAnalysis::isCanonicalNumericString(value.asString()));
@@ -712,7 +750,7 @@ struct Planner {
         case BytecodeOp::ForEachCheck:
             return instr.b < variableCount && topValuesAreNumeric(pc, 2);
         case BytecodeOp::PopValue:
-            return topValuesAreNumeric(pc, 1);
+            return true;
         case BytecodeOp::PushConstValue: {
             if (instr.a >= chunk.constants.size()) return false;
             if (chunk.constants[instr.a].isDouble()) return true;
@@ -726,7 +764,7 @@ struct Planner {
             return instr.a < variableCount && consumedInBlock(pc, instr.a);
 
         case BytecodeOp::ItemOfList:
-            return itemOfListPair(pc);
+            return listValid(instr) && topValuesAreNumeric(pc, 1) && consumedInBlock(pc, -1, -1);
         case BytecodeOp::ReplaceInList:
         case BytecodeOp::DeleteFromList:
         case BytecodeOp::InsertInList:
@@ -756,19 +794,15 @@ struct Planner {
             return true;
         case BytecodeOp::PushArg: {
             const int procedure = analysis.procedureAt(pc);
-            if (procedure < 0 || instr.a >= chunk.procedures[procedure].argCount || !consumedInBlock(pc, -1)) return false;
-            BytecodeAbstractState before, after;
-            if (!analysis.stateBefore(pc, before) || !analysis.stateBefore(pc + 1, after) || instr.a >= before.values.size() || after.values.empty()) return false;
-            return !numericLike(after.values.back()) || numericLike(before.values[instr.a]);
+            return procedure >= 0 && instr.a < chunk.procedures[procedure].argCount && consumedInBlock(pc, -1);
         }
         case BytecodeOp::ValueEquals:
         case BytecodeOp::ValueLess:
         case BytecodeOp::ValueGreater:
-            return topValuesAreNumeric(pc, 2);
         case BytecodeOp::ConvertValueToNumber:
-            return followsConstant(pc) || followsItemOfList(pc) || topValuesAreNumeric(pc, 1);
+            return true;
         case BytecodeOp::StoreVarValue:
-            return instr.a < variableCount && (followsConstant(pc) || topValueIsNumber(pc));
+            return instr.a < variableCount;
         case BytecodeOp::CallNative:
         case BytecodeOp::CallNativeNumber:
         case BytecodeOp::CallNativeBoolean:
@@ -786,6 +820,7 @@ struct Planner {
         for (BytecodeIndex pc = 0; pc < count; pc++) {
             if (analysis.isReachable(pc)) supported[pc] = opSupported(pc) ? 1 : 0;
         }
+        limitPromotedVariables();
 
         for (BytecodeIndex pc = 0; pc < count; pc++) {
             const BytecodeInstruction &instr = chunk.instructions[pc];
@@ -879,6 +914,45 @@ struct Planner {
         }
     }
 
+    int64_t promotedVariable(const BytecodeInstruction &instr) const {
+        switch (instr.op) {
+        case BytecodeOp::PushVarNumber:
+        case BytecodeOp::StoreVarNumber:
+        case BytecodeOp::ChangeVarNumber:
+        case BytecodeOp::StoreVarValue:
+        case BytecodeOp::PushVarValue:
+            return instr.a;
+        case BytecodeOp::ForEachCheck:
+            return instr.b;
+        default:
+            return -1;
+        }
+    }
+
+    void limitPromotedVariables() {
+        std::unordered_map<int64_t, uint32_t> uses;
+        for (BytecodeIndex pc = 0; pc < count; pc++) {
+            if (!supported[pc]) continue;
+            const int64_t variable = promotedVariable(chunk.instructions[pc]);
+            if (variable >= 0) uses[variable]++;
+        }
+        if (uses.size() <= kMaxPromoted) return;
+
+        std::vector<std::pair<uint32_t, int64_t>> ranked;
+        for (const auto &[variable, n] : uses)
+            ranked.push_back({n, variable});
+        std::sort(ranked.begin(), ranked.end(), [](const auto &a, const auto &b) { return a.first != b.first ? a.first > b.first : a.second < b.second; });
+        std::unordered_map<int64_t, bool> kept;
+        for (size_t i = 0; i < kMaxPromoted; i++)
+            kept[ranked[i].second] = true;
+
+        for (BytecodeIndex pc = 0; pc < count; pc++) {
+            if (!supported[pc]) continue;
+            const int64_t variable = promotedVariable(chunk.instructions[pc]);
+            if (variable >= 0 && !kept.count(variable)) supported[pc] = 0;
+        }
+    }
+
     void measureEntries() {
         entryReads.clear();
         visible.clear();
@@ -916,6 +990,11 @@ class Emitter {
         : chunk_(chunk), link_(link), analysis_(analysis), plan_(planner), code_(code) {}
 
     bool emit();
+
+    bool giveUp(const std::string &why) const {
+        if (const char *log = std::getenv("SE_JIT_LOG"); log != nullptr && std::string(log) != "0") Log::log("[jit] not compiled: " + why);
+        return false;
+    }
 
   private:
     const BytecodeChunk &chunk_;
@@ -1307,7 +1386,6 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
     case BytecodeOp::ConvertValueToNumber: {
-        if (plan_.followsItemOfList(pc)) return;
         const AbsValue top = state_.values.back();
         state_.values.pop_back();
         if (top.kind == ValueEntry::Constant) {
@@ -1325,13 +1403,25 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t k = promoted(instr.a);
         const AbsValue top = state_.values.back();
         state_.values.pop_back();
+        const uint32_t position = static_cast<uint32_t>(state_.values.size());
         if (top.kind == ValueEntry::Constant) {
             storeImmF(variableSlot(k), constantNumber(top.constant));
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3 + static_cast<sljit_sw>(top.constant));
-        } else {
-            loadF(SLJIT_FR0, valueSlot(static_cast<uint32_t>(state_.values.size())));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 4 + static_cast<sljit_sw>(top.constant));
+        } else if (top.kind == ValueEntry::Number) {
+            loadF(SLJIT_FR0, valueSlot(position));
             storeF(variableSlot(k), SLJIT_FR0);
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
+        } else {
+            ShadowDescriptor &shadow = code_.shadows.emplace_back();
+            shadow.variable = k;
+            shadow.entry = describe(top);
+            shadow.position = position;
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&shadow));
+            callHelper(reinterpret_cast<void *>(&jitStoreShadow), SLJIT_ARGS2V(P, P));
+            loadF(SLJIT_FR0, valueSlot(position));
+            storeF(variableSlot(k), SLJIT_FR0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3);
         }
         return;
     }
@@ -1351,9 +1441,25 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     case BytecodeOp::ValueLess:
     case BytecodeOp::ValueGreater: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        emitCompareValue(instr.op == BytecodeOp::ValueEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::ValueLess ? BytecodeCompareKind::Less
-                                                                                                                               : BytecodeCompareKind::Greater,
-                         valueSlot(depth - 2), valueSlot(depth - 1));
+        const BytecodeCompareKind kind = instr.op == BytecodeOp::ValueEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::ValueLess ? BytecodeCompareKind::Less
+                                                                                                                                               : BytecodeCompareKind::Greater;
+        BytecodeAbstractState s;
+        analysis_.stateBefore(pc, s);
+        const bool bothNumeric = s.values.size() >= 2 && Planner::numericLike(s.values[s.values.size() - 1]) && Planner::numericLike(s.values[s.values.size() - 2]);
+        if (bothNumeric) {
+            emitCompareValue(kind, valueSlot(depth - 2), valueSlot(depth - 1));
+        } else {
+            CompareDescriptor &compare = code_.compares.emplace_back();
+            compare.kind = kind;
+            compare.a = describe(state_.values[depth - 2]);
+            compare.aPosition = depth - 2;
+            compare.b = describe(state_.values[depth - 1]);
+            compare.bPosition = depth - 1;
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&compare));
+            callHelper(reinterpret_cast<void *>(&jitCompareValues), SLJIT_ARGS2(W, P, P));
+            storeW(booleanSlot(state_.booleans), SLJIT_R0);
+        }
         state_.values.pop_back();
         state_.values.pop_back();
         state_.booleans++;
@@ -1362,13 +1468,9 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
 
     case BytecodeOp::PushArg: {
-        BytecodeAbstractState s;
-        analysis_.stateBefore(pc, s);
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (instr.a < s.values.size() && Planner::numericLike(s.values[instr.a])) {
-            loadF(SLJIT_FR0, valueSlot(instr.a));
-            storeF(valueSlot(depth), SLJIT_FR0);
-        }
+        loadF(SLJIT_FR0, valueSlot(instr.a));
+        storeF(valueSlot(depth), SLJIT_FR0);
         AbsValue v;
         v.kind = ValueEntry::Argument;
         v.constant = instr.a;
@@ -1422,11 +1524,8 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ListOpDescriptor &op = code_.listOps.emplace_back();
         op.list = instr.a;
         op.indexPosition = depth - 1;
-        state_.values.pop_back();
-        callListHelper(reinterpret_cast<void *>(&jitListItemNumber), op, SLJIT_ARGS2(F64, P, P));
-        storeF(numberSlot(state_.numbers), SLJIT_FR0);
-        state_.numbers++;
-        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
+        state_.values.back().kind = ValueEntry::Temp;
         return;
     }
     case BytecodeOp::ReplaceInList:
@@ -1617,7 +1716,7 @@ bool Emitter::emit() {
             code_.promoted.push_back(instr.a);
         }
     }
-    if (code_.promoted.size() > kMaxPromoted) return false;
+    if (code_.promoted.size() > kMaxPromoted) return giveUp("too many variables kept in slots: " + std::to_string(code_.promoted.size()));
 
     for (BytecodeIndex pc = 0; pc < count; pc++) {
         BytecodeAbstractState s;
@@ -1626,10 +1725,11 @@ bool Emitter::emit() {
         maxBooleans_ = std::max(maxBooleans_, s.booleans + 2);
         maxValues_ = std::max(maxValues_, static_cast<uint32_t>(s.values.size()) + 2);
     }
+    if (maxValues_ + 2 > kMaxTemps) return giveUp("value stack too deep for the temporaries: " + std::to_string(maxValues_));
     code_.slotBooleans = maxNumbers_;
     code_.slotValues = code_.slotBooleans + maxBooleans_;
     code_.slotVariables = code_.slotValues + maxValues_;
-    if (code_.slotVariables + code_.promoted.size() > kMaxSlots) return false;
+    if (code_.slotVariables + code_.promoted.size() > kMaxSlots) return giveUp("frame too large: " + std::to_string(code_.slotVariables + code_.promoted.size()) + " slots");
 
     c_ = sljit_create_compiler(nullptr);
     if (c_ == nullptr) return false;
@@ -1800,8 +1900,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         EntryDescriptor e;
         e.numbers = s.numbers;
         e.booleans = s.booleans;
-        for (BytecodeValueType type : s.values)
-            e.valueIsNumber.push_back(Planner::numericLike(type) ? 1 : 0);
+        e.valueIsNumber.assign(s.values.size(), 1);
         code->entries.push_back(std::move(e));
     }
 
@@ -1858,7 +1957,14 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
     ctx.timer = &sliceTimer;
     ctx.timerStarted = &sliceTimerStarted;
     const Code &code = *chunk.jit;
-    return static_cast<Result>(code.fn(&ctx, entryId));
+    const Result result = static_cast<Result>(code.fn(&ctx, entryId));
+
+    for (uint32_t i = 0; i < ctx.tempHigh; i++)
+        gTemps[i] = Value();
+    for (uint32_t k = 0; (ctx.shadowUsed[0] | ctx.shadowUsed[1]) != 0 && k < kMaxPromoted; k++) {
+        if (ctx.shadowUsed[k >> 6] & (uint64_t(1) << (k & 63))) gShadows[k] = Value();
+    }
+    return result;
 }
 
 } // namespace BytecodeJit
