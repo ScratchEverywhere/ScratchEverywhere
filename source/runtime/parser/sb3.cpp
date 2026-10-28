@@ -17,83 +17,101 @@
 
 #ifdef SE_BYTECODE_STATS
 #include "bytecode_analysis.hpp"
-#include <log.hpp>
 #include "bytecode_disassembler.hpp"
+#include "bytecode_executor.hpp"
 #include <cstdlib>
 #include <fstream>
+#include <log.hpp>
 #include <map>
 
 namespace {
-void logBytecodeAnalysis() {
-    BytecodeAnalysisStats total[3];
-    uint32_t failed[3] = {0, 0, 0};
-    uint32_t entries[3] = {0, 0, 0};
+std::string describe(const char *label, const BytecodeAnalysisStats &t, uint32_t entries, uint32_t failed) {
+    return std::string("[analysis total, ") + label + "] entries=" + std::to_string(entries) + " failed=" + std::to_string(failed) +
+           " instrs=" + std::to_string(t.reachable) +
+           " demotedAccesses=" + std::to_string(t.demotedAccessesKnown) + "/" + std::to_string(t.demotedAccesses) +
+           " pushVarValue=" + std::to_string(t.pushVarValueKnown) + "/" + std::to_string(t.pushVarValue) +
+           " storeVarValue=" + std::to_string(t.storeVarValueKnown) + "/" + std::to_string(t.storeVarValue) +
+           " convertValueTo*=" + std::to_string(t.convertValueToTypedKnown) + "/" + std::to_string(t.convertValueToTyped) +
+           " pushArg=" + std::to_string(t.pushArgKnown) + "/" + std::to_string(t.pushArg) +
+           " procCalls(keep facts)=" + std::to_string(t.procedureCallsKeepingFacts) + "/" + std::to_string(t.procedureCalls) +
+           " valueCalls(typed)=" + std::to_string(t.procedureValueCallsTyped) + "/" + std::to_string(t.procedureValueCalls);
+}
 
+void logBytecodeAnalysis() {
+    std::vector<BytecodeProgramAnalysis::Input> inputs;
     for (Sprite *sprite : Scratch::sprites) {
         if (!sprite->bytecode || !sprite->bytecodeLink) continue;
         if (const char *dumpPath = std::getenv("SE_DUMP_BYTECODE")) {
             std::ofstream(std::string(dumpPath) + "." + sprite->name + ".txt") << BytecodeDisassembler::disassemble(*sprite->bytecode, sprite->bytecodeLink.get());
         }
-        for (int mode = 0; mode < 3; mode++) {
-            BytecodeAnalysisPolicy policy;
-            policy.warpYieldForgets = mode == 0;
-            policy.genericNativeCallsForget = mode < 2;
-            BytecodeAnalysis analysis(*sprite->bytecode, *sprite->bytecodeLink, policy);
-            analysis.run();
-
-            if (mode == 0) Log::log("[analysis] " + sprite->name + ": " + analysis.report());
-            if (mode == 1) {
-                std::map<std::string, std::pair<int, int>> byVar; // name -> {unknown reads, known reads}
-                const BytecodeChunk &chunk = *sprite->bytecode;
-                for (BytecodeIndex pc = 0; pc < chunk.instructions.size(); pc++) {
-                    const BytecodeInstruction &in = chunk.instructions[pc];
-                    if (in.op != BytecodeOp::PushVarValue) continue;
-                    const BytecodeValueType t = analysis.variableTypeBefore(pc, in.a);
-                    const std::string name = in.a < chunk.variableSlots.size() ? chunk.strings[chunk.variableSlots[in.a]] : "?";
-                    const bool known = t != BytecodeValueType::Unknown && t != BytecodeValueType::Unreached;
-                    (known ? byVar[name].second : byVar[name].first)++;
-                }
-                for (const auto &[name, counts] : byVar) {
-                    Log::log("[analysis var] " + sprite->name + " " + name + ": unknown " + std::to_string(counts.first) + " known " + std::to_string(counts.second));
-                }
-            }
-
-            const BytecodeAnalysisStats &s = analysis.stats();
-            BytecodeAnalysisStats &t = total[mode];
-            t.instructions += s.instructions;
-            t.reachable += s.reachable;
-            t.pushVarValue += s.pushVarValue;
-            t.pushVarValueKnown += s.pushVarValueKnown;
-            t.storeVarValue += s.storeVarValue;
-            t.storeVarValueKnown += s.storeVarValueKnown;
-            t.convertValueToTyped += s.convertValueToTyped;
-            t.convertValueToTypedKnown += s.convertValueToTypedKnown;
-            t.convertValueToTypedIdentity += s.convertValueToTypedIdentity;
-            t.pushArg += s.pushArg;
-            t.demotedAccesses += s.demotedAccesses;
-            t.demotedAccessesKnown += s.demotedAccessesKnown;
-            entries[mode] += static_cast<uint32_t>(analysis.entries().size());
-            for (const BytecodeEntryResult &e : analysis.entries()) {
-                if (!e.ok) failed[mode]++;
-            }
-        }
+        inputs.push_back({sprite->name, sprite->bytecode.get(), sprite->bytecodeLink.get()});
     }
 
-    for (int mode = 0; mode < 3; mode++) {
-        const BytecodeAnalysisStats &t = total[mode];
-        Log::log(std::string("[analysis total, ") + (mode == 0 ? "conservative" : mode == 1 ? "warp yields keep variables" : "warp yields + generic natives keep variables") + "] entries=" + std::to_string(entries[mode]) +
-                 " failed=" + std::to_string(failed[mode]) + " instrs=" + std::to_string(t.reachable) +
-                 " pushVarValue=" + std::to_string(t.pushVarValueKnown) + "/" + std::to_string(t.pushVarValue) +
-                 " storeVarValue=" + std::to_string(t.storeVarValueKnown) + "/" + std::to_string(t.storeVarValue) +
-                 " convertValueTo*=" + std::to_string(t.convertValueToTypedKnown) + "/" + std::to_string(t.convertValueToTyped) +
-                 " (identity " + std::to_string(t.convertValueToTypedIdentity) + ")" +
-                 " pushArg=" + std::to_string(t.pushArg) +
-                 " demotedAccesses=" + std::to_string(t.demotedAccessesKnown) + "/" + std::to_string(t.demotedAccesses));
+    for (int mode = 0; mode < 2; mode++) {
+        BytecodeAnalysisStats total;
+        uint32_t entries = 0, failed = 0;
+        for (const auto &input : inputs) {
+            BytecodeAnalysisPolicy policy;
+            policy.interprocedural = mode == 1;
+            BytecodeAnalysis analysis(*input.chunk, *input.link, policy);
+            analysis.run();
+            const BytecodeAnalysisStats &st = analysis.stats();
+            total.reachable += st.reachable;
+            total.demotedAccesses += st.demotedAccesses;
+            total.demotedAccessesKnown += st.demotedAccessesKnown;
+            total.pushVarValue += st.pushVarValue;
+            total.pushVarValueKnown += st.pushVarValueKnown;
+            total.storeVarValue += st.storeVarValue;
+            total.storeVarValueKnown += st.storeVarValueKnown;
+            total.convertValueToTyped += st.convertValueToTyped;
+            total.convertValueToTypedKnown += st.convertValueToTypedKnown;
+            total.pushArg += st.pushArg;
+            total.pushArgKnown += st.pushArgKnown;
+            total.procedureCalls += st.procedureCalls;
+            total.procedureCallsKeepingFacts += st.procedureCallsKeepingFacts;
+            total.procedureValueCalls += st.procedureValueCalls;
+            total.procedureValueCallsTyped += st.procedureValueCallsTyped;
+            entries += static_cast<uint32_t>(analysis.entries().size());
+            for (const BytecodeEntryResult &e : analysis.entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(mode == 0 ? "per chunk, no procedure summaries" : "per chunk, procedure summaries", total, entries, failed));
+    }
+
+    for (int warpKeeps = 0; warpKeeps < 2; warpKeeps++) {
+        BytecodeProgramAnalysis::Environment environment;
+        environment.customExtensions = !Scratch::extensions.empty();
+        for (const auto &[id, monitor] : Render::monitors) {
+            if (monitor.mode == "slider") environment.sliderVariables.insert(id);
+        }
+        BytecodeAnalysisPolicy policy;
+        policy.warpYieldForgets = warpKeeps != 1;
+        BytecodeProgramAnalysis program(inputs, environment, policy);
+        const bool ok = program.run();
+
+        uint32_t entries = 0, failed = 0;
+        for (const auto &analysis : program.chunks()) {
+            entries += static_cast<uint32_t>(analysis->entries().size());
+            for (const BytecodeEntryResult &e : analysis->entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(warpKeeps == 0 ? "whole program" : "whole program, warp yields keep facts",
+                          program.totalStats(), entries, failed) +
+                 (ok ? "" : " NOT VERIFIED"));
+        if (const char *check = std::getenv("SE_FACT_CHECK")) {
+            if (warpKeeps == (std::string(check) == "warp" ? 1 : 0)) {
+                for (size_t i = 0; i < program.inputs().size(); i++) {
+                    BytecodeExecutor::factTables[program.inputs()[i].chunk] = program.chunks()[i]->readFacts();
+                }
+            }
+        }
+        if (warpKeeps == 0) Log::log("[analysis variables] " + program.variableReport().substr(0, program.variableReport().find('\n')));
     }
 }
 } // namespace
 #endif
-
 
 void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)

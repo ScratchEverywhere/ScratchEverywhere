@@ -112,15 +112,26 @@ void StringPool::ensureUtf16(Entry &entry) {
     entry.utf16State = Entry::Utf16State::INDEXED;
 }
 
+void StringPool::computeNumeric(Entry &e) {
+    const auto parsed = Math::parseNumber(e.data);
+    e.numericState = parsed.has_value() ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
+    e.numericValue = parsed.has_value() ? *parsed : 0.0;
+    e.hasDot = e.data.find('.') != std::string::npos;
+}
+
 bool StringPool::isNumeric(uint32_t id, bool &hasDot) {
     auto &pool = storageRef();
     Entry &e = pool[id < pool.size() ? id : 0];
-    if (e.numericState == Entry::NumericState::NOT_COMPUTED) {
-        e.numericState = Math::isNumber(e.data) ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
-        e.hasDot = e.data.find('.') != std::string::npos;
-    }
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
     hasDot = e.hasDot;
     return e.numericState == Entry::NumericState::NUMERIC;
+}
+
+double StringPool::toNumber(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
+    return e.numericState == Entry::NumericState::NUMERIC ? e.numericValue : 0.0;
 }
 
 size_t StringPool::utf16Length(uint32_t id) {

@@ -35,6 +35,7 @@ class SE_EXPORT StringPool {
                                             NOT_NUMERIC };
         NumericState numericState = NumericState::NOT_COMPUTED;
         bool hasDot = false;
+        double numericValue = 0.0;
 
         bool deduped = false;
 
@@ -57,6 +58,7 @@ class SE_EXPORT StringPool {
     };
 
     static void ensureUtf16(Entry &entry);
+    static void computeNumeric(Entry &entry);
 
     static std::deque<Entry> &storageRef();
     static std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> &lookupRef();
@@ -72,6 +74,7 @@ class SE_EXPORT StringPool {
     static std::string utf16CharAt(uint32_t id, size_t index);
 
     static bool isNumeric(uint32_t id, bool &hasDot);
+    static double toNumber(uint32_t id);
     static void resetAll();
 };
 
@@ -220,7 +223,7 @@ class SE_EXPORT Value {
         case Tag::NUMBER:
             return Conversions::numberToNumber(storage.d);
         case Tag::STRING_ID:
-            return Conversions::stringToNumber(StringPool::get(storage.stringId));
+            return StringPool::toNumber(storage.stringId);
         case Tag::COLOR:
             return Conversions::colorToNumber(storage.c);
         case Tag::BOOLEAN:

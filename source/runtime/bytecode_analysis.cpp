@@ -1,6 +1,8 @@
 #include "bytecode_analysis.hpp"
+#include "math.hpp"
 #include "runtime/data/blueprint.hpp"
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 #include <variant>
 
@@ -9,10 +11,17 @@ namespace {
 using VType = BytecodeValueType;
 using State = BytecodeAbstractState;
 
+bool isNumberLike(VType t) {
+    return t == VType::Number || t == VType::NumericString || t == VType::NumberLike;
+}
+
 VType join(VType a, VType b) {
     if (a == VType::Unreached) return b;
     if (b == VType::Unreached) return a;
-    return a == b ? a : VType::Unknown;
+    if (a == b) return a;
+    if (isNumberLike(a) && isNumberLike(b)) return VType::NumberLike;
+    if ((a == VType::String && b == VType::NumericString) || (a == VType::NumericString && b == VType::String)) return VType::String;
+    return VType::Unknown;
 }
 
 VType typeOfKind(BytecodeStackKind kind) {
@@ -43,10 +52,18 @@ const char *typeName(VType t) {
         return "boolean";
     case VType::Color:
         return "color";
+    case VType::NumericString:
+        return "numeric string";
+    case VType::NumberLike:
+        return "number-like";
     case VType::Unknown:
         break;
     }
     return "unknown";
+}
+
+bool isCanonicalNumber(const Value &value) {
+    return value.isString() && BytecodeAnalysis::isCanonicalNumericString(value.asString());
 }
 
 bool hasPositional(const BytecodePositionalFn &fn) {
@@ -135,10 +152,65 @@ bool isUnconditionalJump(BytecodeOp op) { return op == BytecodeOp::Jump; }
 
 } // namespace
 
-BytecodeAnalysis::BytecodeAnalysis(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysisPolicy policy)
-    : chunk_(chunk), link_(link), policy_(policy) {}
+BytecodeAnalysis::BytecodeAnalysis(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysisPolicy policy, std::vector<BytecodeValueType> variableSeed)
+    : chunk_(chunk), link_(link), policy_(policy), seed_(std::move(variableSeed)) {}
+
+bool BytecodeAnalysis::isCanonicalNumericString(const std::string &text) {
+    if (text.empty() || text.find_first_of("eE") != std::string::npos) return false;
+    const auto parsed = Math::parseNumber(text);
+    return parsed.has_value() && std::isfinite(*parsed) && Math::toString(*parsed) == text;
+}
+
+uint8_t BytecodeAnalysis::typeBit(BytecodeValueType type) {
+    switch (type) {
+    case VType::Number:
+        return 1;
+    case VType::String:
+        return 2;
+    case VType::Boolean:
+        return 4;
+    case VType::Color:
+        return 8;
+    case VType::Unknown:
+        return 16;
+    case VType::NumericString:
+        return 32;
+    case VType::NumberLike:
+        return 1 | 32;
+    case VType::Unreached:
+        break;
+    }
+    return 0;
+}
+
+BytecodeValueType BytecodeAnalysis::collapse(uint8_t bits) {
+    const uint8_t number = 1, string = 2, boolean = 4, color = 8, unknown = 16, numericString = 32;
+    if (bits & unknown) return VType::Unknown;
+    if (bits & string) {
+        return (bits & ~(string | numericString)) == 0 ? VType::String : VType::Unknown;
+    }
+    switch (bits) {
+    case number:
+        return VType::Number;
+    case numericString:
+        return VType::NumericString;
+    case number | numericString:
+        return VType::NumberLike;
+    case boolean:
+        return VType::Boolean;
+    case color:
+        return VType::Color;
+    default:
+        return VType::Unknown;
+    }
+}
+
+void BytecodeAnalysis::recordWrite(BytecodeIndex slot, VType type) const {
+    if (slot < written_.size()) written_[slot] |= typeBit(type);
+}
 
 void BytecodeAnalysis::declareVariables() {
+    std::vector<VType> &declaredVariableTypes_ = declared_;
     declaredVariableTypes_.assign(chunk_.variableSlots.size(), VType::Unknown);
     for (size_t i = 0; i < declaredVariableTypes_.size() && i < link_.variables.size(); i++) {
         const Variable *var = link_.variables[i];
@@ -157,6 +229,7 @@ void BytecodeAnalysis::declareVariables() {
             break;
         }
     }
+    if (seed_.size() != declared_.size()) seed_ = declared_;
 }
 
 void BytecodeAnalysis::buildBlocks() {
@@ -191,10 +264,10 @@ void BytecodeAnalysis::buildBlocks() {
 }
 
 void BytecodeAnalysis::forgetVariables(State &state) const {
-    state.variables = declaredVariableTypes_;
+    state.variables = seed_;
 }
 
-bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool warp, std::string &error) const {
+bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool warp, int procedure, std::string &error) const {
     using K = BytecodeStackKind;
     const BytecodeOp op = instr.op;
 
@@ -245,7 +318,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (instr.a < chunk_.constants.size()) {
             const Value &constant = chunk_.constants[instr.a];
             if (constant.isDouble()) type = VType::Number;
-            else if (constant.isString()) type = VType::String;
+            else if (constant.isString()) type = isCanonicalNumber(constant) ? VType::NumericString : VType::String;
             else if (constant.isBoolean()) type = VType::Boolean;
             else if (constant.isColor()) type = VType::Color;
         }
@@ -271,39 +344,53 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         return true;
     }
     case BytecodeOp::PushList:
-    case BytecodeOp::PushArg:
         push(s, K::Value);
         return true;
+    case BytecodeOp::PushArg: {
+        VType type = VType::Unknown;
+        if (policy_.interprocedural && procedure >= 0 && static_cast<size_t>(procedure) < params_.size() && instr.a < params_[procedure].size()) {
+            type = params_[procedure][instr.a];
+        }
+        push(s, K::Value, type);
+        return true;
+    }
 
     case BytecodeOp::StoreVarNumber:
         if (!pop(s, K::Number)) return fail("stack underflow (number)");
         setVar(instr.a, VType::Number);
+        recordWrite(instr.a, VType::Number);
         return true;
     case BytecodeOp::StoreVarString:
         if (!pop(s, K::String)) return fail("stack underflow (string)");
         setVar(instr.a, VType::String);
+        recordWrite(instr.a, VType::String);
         return true;
     case BytecodeOp::StoreVarBoolean:
         if (!pop(s, K::Boolean)) return fail("stack underflow (boolean)");
         setVar(instr.a, VType::Boolean);
+        recordWrite(instr.a, VType::Boolean);
         return true;
     case BytecodeOp::StoreVarColor:
         if (!pop(s, K::Color)) return fail("stack underflow (color)");
         setVar(instr.a, VType::Color);
+        recordWrite(instr.a, VType::Color);
         return true;
     case BytecodeOp::StoreVarValue: {
         VType type;
         if (!pop(s, K::Value, &type)) return fail("stack underflow (value)");
         setVar(instr.a, type);
+        recordWrite(instr.a, type);
         return true;
     }
     case BytecodeOp::AppendVarString:
         if (!pop(s, K::String)) return fail("stack underflow (string)");
         setVar(instr.a, VType::String);
+        recordWrite(instr.a, VType::String);
         return true;
     case BytecodeOp::ChangeVarNumber:
         if (!pop(s, K::Number)) return fail("stack underflow (number)");
         setVar(instr.a, VType::Number);
+        recordWrite(instr.a, VType::Number);
         return true;
 
     case BytecodeOp::AddToList:
@@ -376,16 +463,49 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
     }
 
     case BytecodeOp::CallProcedure:
-    case BytecodeOp::CallProcedureValue:
-        for (BytecodeIndex i = 0; i < instr.b; i++) {
-            if (!pop(s, K::Value)) return fail("stack underflow (procedure argument)");
+    case BytecodeOp::CallProcedureValue: {
+        if (instr.a >= chunk_.procedures.size()) return fail("bad procedure index");
+        const size_t argCount = instr.b;
+        if (s.values.size() < argCount) return fail("stack underflow (procedure argument)");
+
+        if (policy_.interprocedural) {
+            const bool shapeMatches = chunk_.procedures[instr.a].argCount == argCount && instr.a < nextParams_.size() && nextParams_[instr.a].size() == argCount;
+            for (size_t i = 0; i < argCount; i++) {
+                const VType argType = s.values[s.values.size() - argCount + i];
+                if (shapeMatches) nextParams_[instr.a][i] = join(nextParams_[instr.a][i], argType);
+            }
+            if (instr.a < callSeen_.size()) callSeen_[instr.a] = true;
+            if (!shapeMatches && instr.a < nextParams_.size()) {
+                for (VType &param : nextParams_[instr.a])
+                    param = VType::Unknown;
+            }
         }
-        if (op == BytecodeOp::CallProcedureValue) push(s, K::Value);
-        forgetVariables(s);
+        for (size_t i = 0; i < argCount; i++)
+            s.values.pop_back();
+
+        if (op == BytecodeOp::CallProcedureValue) {
+            push(s, K::Value, policy_.interprocedural && instr.a < returns_.size() ? returns_[instr.a] : VType::Unknown);
+        }
+
+        const bool recursionYields = policy_.interprocedural && procedure >= 0 && instr.a < procedureReaches_.size() &&
+                                     !chunk_.procedures[procedure].runWithoutScreenRefresh && !chunk_.procedures[instr.a].runWithoutScreenRefresh &&
+                                     (static_cast<int>(instr.a) == procedure || procedureReaches_[instr.a][procedure]);
+        if (!policy_.interprocedural || instr.a >= procedureSuspends_.size() || procedureSuspends_[instr.a] || recursionYields) {
+            forgetVariables(s);
+        } else {
+            const std::vector<bool> &writes = procedureWrites_[instr.a];
+            for (size_t slot = 0; slot < writes.size() && slot < s.variables.size(); slot++) {
+                if (writes[slot]) s.variables[slot] = seed_[slot];
+            }
+        }
         return true;
-    case BytecodeOp::Return:
-        if (!pop(s, K::Value)) return fail("stack underflow (return value)");
+    }
+    case BytecodeOp::Return: {
+        VType type;
+        if (!pop(s, K::Value, &type)) return fail("stack underflow (return value)");
+        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size()) nextReturns_[procedure] = join(nextReturns_[procedure], type);
         return true;
+    }
 
     case BytecodeOp::CallLegacyReporter:
         push(s, K::Value);
@@ -439,7 +559,6 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (!popN(K::Number, 2)) return fail("stack underflow (number)");
         return true;
 
-    // These two describe the path that stays in the loop; the exit edge is handled by the caller.
     case BytecodeOp::RepeatCheck:
         if (s.values.empty()) return fail("stack underflow (repeat counter)");
         s.values.back() = VType::Number;
@@ -448,6 +567,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (s.values.size() < 2) return fail("stack underflow (for each counter)");
         s.values.back() = VType::Number;
         setVar(instr.b, VType::Number);
+        recordWrite(instr.b, VType::Number);
         return true;
 
     case BytecodeOp::Wait:
@@ -545,6 +665,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (!warp || policy_.warpYieldForgets) forgetVariables(s);
         return true;
     case BytecodeOp::Halt:
+        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size()) nextReturns_[procedure] = join(nextReturns_[procedure], VType::String);
         return true;
     }
 
@@ -555,6 +676,7 @@ bool BytecodeAnalysis::merge(Block &target, const State &incoming, int entry, st
     if (!target.reached) {
         target.reached = true;
         target.entry = entry;
+        target.procedure = entries_[entry].isProcedure ? static_cast<int>(entries_[entry].index) : -1;
         target.in = incoming;
         return true;
     }
@@ -585,13 +707,15 @@ bool BytecodeAnalysis::merge(Block &target, const State &incoming, int entry, st
     return changed;
 }
 
-bool BytecodeAnalysis::run() {
-    buildBlocks();
-    declareVariables();
+void BytecodeAnalysis::runDataflow() {
     entries_.clear();
-    stats_ = {};
-    stats_.instructions = static_cast<uint32_t>(chunk_.instructions.size());
-    stats_.blocks = static_cast<uint32_t>(blocks_.size());
+    for (Block &b : blocks_) {
+        b.reached = false;
+        b.entry = -1;
+        b.procedure = -1;
+        b.warp = false;
+        b.in = {};
+    }
 
     const size_t count = chunk_.instructions.size();
     std::vector<uint32_t> worklist;
@@ -611,8 +735,13 @@ bool BytecodeAnalysis::run() {
         }
 
         State state;
-        state.variables = declaredVariableTypes_;
-        state.values.assign(argCount, VType::Unknown); // procedure arguments are already on the value stack
+        state.variables = seed_;
+        state.values.assign(argCount, VType::Unknown);
+        if (isProcedure && policy_.interprocedural && index < params_.size() && params_[index].size() == argCount) {
+            for (uint32_t i = 0; i < argCount; i++) {
+                state.values[i] = callSeen_[index] ? params_[index][i] : VType::Unknown;
+            }
+        }
         const int entry = static_cast<int>(entries_.size());
         entries_.push_back(std::move(result));
 
@@ -679,7 +808,7 @@ bool BytecodeAnalysis::run() {
             const BytecodeInstruction &instr = chunk_.instructions[pc];
             const bool last = pc + 1 == block.end;
             if (last && (instr.op == BytecodeOp::RepeatCheck || instr.op == BytecodeOp::ForEachCheck)) preLast = state;
-            if (!step(state, instr, warp, error)) {
+            if (!step(state, instr, warp, block.procedure, error)) {
                 fail(entry, error + " at instruction " + std::to_string(pc));
                 good = false;
                 break;
@@ -716,6 +845,182 @@ bool BytecodeAnalysis::run() {
         }
         propagate(entry, warp, block.end, state);
     }
+}
+
+void BytecodeAnalysis::computeProcedureEffects() {
+    const size_t procedureCount = chunk_.procedures.size();
+    const size_t slotCount = chunk_.variableSlots.size();
+    procedureSuspends_.assign(procedureCount, false);
+    procedureWrites_.assign(procedureCount, std::vector<bool>(slotCount, false));
+    std::vector<std::vector<bool>> callees(procedureCount, std::vector<bool>(procedureCount, false));
+
+    for (size_t p = 0; p < procedureCount; p++) {
+        const BytecodeIndex entryPc = chunk_.procedures[p].entryInstruction;
+        if (entryPc >= chunk_.instructions.size()) {
+            procedureSuspends_[p] = true;
+            continue;
+        }
+        const bool warp = chunk_.procedures[p].runWithoutScreenRefresh;
+
+        std::vector<bool> seen(blocks_.size(), false);
+        std::vector<uint32_t> stack{blockOfInstruction_[entryPc]};
+        while (!stack.empty()) {
+            const uint32_t b = stack.back();
+            stack.pop_back();
+            if (seen[b]) continue;
+            seen[b] = true;
+            const Block &block = blocks_[b];
+
+            for (BytecodeIndex pc = block.start; pc < block.end; pc++) {
+                const BytecodeInstruction &instr = chunk_.instructions[pc];
+                switch (instr.op) {
+                case BytecodeOp::StoreVarNumber:
+                case BytecodeOp::StoreVarString:
+                case BytecodeOp::StoreVarBoolean:
+                case BytecodeOp::StoreVarColor:
+                case BytecodeOp::StoreVarValue:
+                case BytecodeOp::AppendVarString:
+                case BytecodeOp::ChangeVarNumber:
+                    if (instr.a < slotCount) procedureWrites_[p][instr.a] = true;
+                    break;
+                case BytecodeOp::ForEachCheck:
+                    if (instr.b < slotCount) procedureWrites_[p][instr.b] = true;
+                    break;
+                case BytecodeOp::Wait:
+                case BytecodeOp::BroadcastAndWait:
+                case BytecodeOp::PlaySoundUntilDone:
+                case BytecodeOp::CallNativeBlocking:
+                case BytecodeOp::CallNativeBlockingValue:
+                case BytecodeOp::CallLegacyReporter:
+                case BytecodeOp::CallLegacyStatement:
+                case BytecodeOp::EscapeToLegacyThread:
+                    procedureSuspends_[p] = true;
+                    break;
+                case BytecodeOp::Yield:
+                    if (!warp || policy_.warpYieldForgets) procedureSuspends_[p] = true;
+                    break;
+                case BytecodeOp::CallNative:
+                case BytecodeOp::CallNativeNumber:
+                case BytecodeOp::CallNativeString:
+                case BytecodeOp::CallNativeBoolean:
+                case BytecodeOp::CallNativeColor:
+                case BytecodeOp::CallNativeValue: {
+                    const bool positional = instr.a < link_.positional.size() && hasPositional(link_.positional[instr.a]);
+                    if (positional ? policy_.positionalCallsForget : policy_.genericNativeCallsForget) procedureSuspends_[p] = true;
+                    break;
+                }
+                case BytecodeOp::CallProcedure:
+                case BytecodeOp::CallProcedureValue:
+                    if (instr.a < procedureCount) callees[p][instr.a] = true;
+                    else procedureSuspends_[p] = true;
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            if (block.end == 0 || block.end > chunk_.instructions.size()) continue;
+            const BytecodeInstruction &last = chunk_.instructions[block.end - 1];
+            if (isTerminal(last.op)) continue;
+            if (hasJumpTarget(last.op) && last.a < chunk_.instructions.size()) stack.push_back(blockOfInstruction_[last.a]);
+            if (!isUnconditionalJump(last.op) && block.end < chunk_.instructions.size()) stack.push_back(blockOfInstruction_[block.end]);
+        }
+    }
+
+    procedureReaches_ = callees;
+    for (size_t k = 0; k < procedureCount; k++) {
+        for (size_t i = 0; i < procedureCount; i++) {
+            if (!procedureReaches_[i][k]) continue;
+            for (size_t j = 0; j < procedureCount; j++) {
+                if (procedureReaches_[k][j]) procedureReaches_[i][j] = true;
+            }
+        }
+    }
+    for (size_t p = 0; p < procedureCount; p++) {
+        for (size_t q = 0; q < procedureCount; q++) {
+            if (!callees[p][q]) continue;
+            if (!chunk_.procedures[p].runWithoutScreenRefresh && !chunk_.procedures[q].runWithoutScreenRefresh && (p == q || procedureReaches_[q][p])) {
+                procedureSuspends_[p] = true; // the call can yield
+            }
+        }
+    }
+
+    for (bool changed = true; changed;) {
+        changed = false;
+        for (size_t p = 0; p < procedureCount; p++) {
+            for (size_t q = 0; q < procedureCount; q++) {
+                if (!callees[p][q]) continue;
+                if (procedureSuspends_[q] && !procedureSuspends_[p]) {
+                    procedureSuspends_[p] = true;
+                    changed = true;
+                }
+                for (size_t slot = 0; slot < slotCount; slot++) {
+                    if (procedureWrites_[q][slot] && !procedureWrites_[p][slot]) {
+                        procedureWrites_[p][slot] = true;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool BytecodeAnalysis::run() {
+    buildBlocks();
+    declareVariables();
+    computeProcedureEffects();
+    stats_ = {};
+    stats_.instructions = static_cast<uint32_t>(chunk_.instructions.size());
+    stats_.blocks = static_cast<uint32_t>(blocks_.size());
+
+    const size_t procedureCount = chunk_.procedures.size();
+    params_.assign(procedureCount, {});
+    returns_.assign(procedureCount, VType::Unreached);
+    callSeen_.assign(procedureCount, false);
+    for (size_t p = 0; p < procedureCount; p++)
+        params_[p].assign(chunk_.procedures[p].argCount, VType::Unreached);
+
+    constexpr int maxRounds = 16;
+    for (int round = 0;; round++) {
+        nextParams_.assign(procedureCount, {});
+        for (size_t p = 0; p < procedureCount; p++)
+            nextParams_[p].assign(chunk_.procedures[p].argCount, VType::Unreached);
+        nextReturns_.assign(procedureCount, VType::Unreached);
+        callSeen_.assign(procedureCount, false);
+        written_.assign(chunk_.variableSlots.size(), 0);
+
+        runDataflow();
+
+        bool changed = false;
+        for (size_t p = 0; p < procedureCount; p++) {
+            for (size_t i = 0; i < params_[p].size(); i++) {
+                const VType joined = join(params_[p][i], nextParams_[p][i]);
+                if (joined != params_[p][i]) {
+                    params_[p][i] = joined;
+                    changed = true;
+                }
+            }
+            const VType joined = join(returns_[p], nextReturns_[p]);
+            if (joined != returns_[p]) {
+                returns_[p] = joined;
+                changed = true;
+            }
+        }
+        if (!changed) break;
+        if (round + 1 >= maxRounds) {
+            for (auto &params : params_)
+                std::fill(params.begin(), params.end(), VType::Unknown);
+            std::fill(returns_.begin(), returns_.end(), VType::Unknown);
+            nextParams_.assign(procedureCount, {});
+            for (size_t p = 0; p < procedureCount; p++)
+                nextParams_[p].assign(chunk_.procedures[p].argCount, VType::Unreached);
+            nextReturns_.assign(procedureCount, VType::Unreached);
+            callSeen_.assign(procedureCount, false);
+            written_.assign(chunk_.variableSlots.size(), 0);
+            runDataflow();
+            break;
+        }
+    }
 
     for (const Block &block : blocks_) {
         if (!block.reached || block.entry < 0) continue;
@@ -731,6 +1036,7 @@ bool BytecodeAnalysis::run() {
 }
 
 void BytecodeAnalysis::countStats() {
+    readFacts_.assign(chunk_.instructions.size(), VType::Unreached);
     for (const Block &block : blocks_) {
         if (!block.reached || block.entry < 0 || !entries_[block.entry].ok) continue;
         stats_.reachable += block.end - block.start;
@@ -739,6 +1045,20 @@ void BytecodeAnalysis::countStats() {
         std::string error;
         for (BytecodeIndex pc = block.start; pc < block.end; pc++) {
             const BytecodeInstruction &instr = chunk_.instructions[pc];
+            switch (instr.op) {
+            case BytecodeOp::PushVarNumber:
+            case BytecodeOp::PushVarString:
+            case BytecodeOp::PushVarBoolean:
+            case BytecodeOp::PushVarColor:
+            case BytecodeOp::PushVarValue:
+            case BytecodeOp::ChangeVarNumber:
+            case BytecodeOp::LetterOfVar:
+            case BytecodeOp::LengthOfVar:
+                if (instr.a < state.variables.size()) readFacts_[pc] = state.variables[instr.a];
+                break;
+            default:
+                break;
+            }
             switch (instr.op) {
             case BytecodeOp::PushVarValue: {
                 stats_.pushVarValue++;
@@ -766,27 +1086,46 @@ void BytecodeAnalysis::countStats() {
             }
             case BytecodeOp::PushArg:
                 stats_.pushArg++;
+                if (block.procedure >= 0 && policy_.interprocedural && instr.a < params_[block.procedure].size()) {
+                    const VType t = params_[block.procedure][instr.a];
+                    if (t != VType::Unknown && t != VType::Unreached) stats_.pushArgKnown++;
+                }
+                break;
+            case BytecodeOp::CallProcedure:
+            case BytecodeOp::CallProcedureValue:
+                stats_.procedureCalls++;
+                if (policy_.interprocedural && instr.a < procedureSuspends_.size() && !procedureSuspends_[instr.a]) stats_.procedureCallsKeepingFacts++;
+                if (instr.op == BytecodeOp::CallProcedureValue) {
+                    stats_.procedureValueCalls++;
+                    if (policy_.interprocedural && instr.a < returns_.size() && returns_[instr.a] != VType::Unknown && returns_[instr.a] != VType::Unreached) stats_.procedureValueCallsTyped++;
+                }
                 break;
             case BytecodeOp::PushVarNumber:
             case BytecodeOp::PushVarString:
             case BytecodeOp::PushVarBoolean:
             case BytecodeOp::ChangeVarNumber: {
-                if (instr.a >= declaredVariableTypes_.size() || declaredVariableTypes_[instr.a] != VType::Unknown) break;
+                if (instr.a >= declared_.size() || declared_[instr.a] != VType::Unknown) break;
                 stats_.demotedAccesses++;
                 const VType wanted = instr.op == BytecodeOp::PushVarString    ? VType::String
                                      : instr.op == BytecodeOp::PushVarBoolean ? VType::Boolean
                                                                               : VType::Number;
-                if (instr.a < state.variables.size() && state.variables[instr.a] == wanted) stats_.demotedAccessesKnown++;
+                if (instr.a < state.variables.size()) {
+                    const VType fact = state.variables[instr.a];
+                    const bool compatible = wanted == VType::Number   ? isNumberLike(fact)
+                                            : wanted == VType::String ? (fact == VType::String || isNumberLike(fact))
+                                                                      : fact == wanted;
+                    if (compatible) stats_.demotedAccessesKnown++;
+                }
                 break;
             }
             default:
                 break;
             }
-            if (instr.op == BytecodeOp::StoreVarValue && instr.a < declaredVariableTypes_.size() && declaredVariableTypes_[instr.a] == VType::Unknown) {
+            if (instr.op == BytecodeOp::StoreVarValue && instr.a < declared_.size() && declared_[instr.a] == VType::Unknown) {
                 stats_.demotedAccesses++;
                 if (!state.values.empty() && state.values.back() != VType::Unknown) stats_.demotedAccessesKnown++;
             }
-            if (!step(state, instr, block.warp, error)) break;
+            if (!step(state, instr, block.warp, block.procedure, error)) break;
         }
     }
 }
@@ -799,7 +1138,7 @@ BytecodeValueType BytecodeAnalysis::variableTypeBefore(BytecodeIndex pc, Bytecod
     State state = block.in;
     std::string error;
     for (BytecodeIndex i = block.start; i < pc; i++) {
-        if (!step(state, chunk_.instructions[i], block.warp, error)) return VType::Unreached;
+        if (!step(state, chunk_.instructions[i], block.warp, block.procedure, error)) return VType::Unreached;
     }
     return variableSlot < state.variables.size() ? state.variables[variableSlot] : VType::Unknown;
 }
@@ -830,5 +1169,167 @@ std::string BytecodeAnalysis::report() const {
         << stats_.convertValueToTypedIdentity << " already the target type";
     out << "\n  PushArg:              " << stats_.pushArg << " (arguments are untyped)";
     out << "\n  demoted variables:    " << stats_.demotedAccessesKnown << "/" << stats_.demotedAccesses << " accesses have a proven type (" << pct(stats_.demotedAccessesKnown, stats_.demotedAccesses) << ")";
+    return out.str();
+}
+
+BytecodeProgramAnalysis::BytecodeProgramAnalysis(std::vector<Input> inputs, Environment environment, BytecodeAnalysisPolicy policy)
+    : inputs_(std::move(inputs)), environment_(std::move(environment)), policy_(policy) {}
+
+namespace {
+
+uint8_t valueTypeBit(const Value &value) {
+    if (isCanonicalNumber(value)) return BytecodeAnalysis::typeBit(BytecodeValueType::NumericString);
+    if (value.isDouble()) return BytecodeAnalysis::typeBit(BytecodeValueType::Number);
+    if (value.isString()) return BytecodeAnalysis::typeBit(BytecodeValueType::String);
+    if (value.isBoolean()) return BytecodeAnalysis::typeBit(BytecodeValueType::Boolean);
+    if (value.isColor()) return BytecodeAnalysis::typeBit(BytecodeValueType::Color);
+    return BytecodeAnalysis::typeBit(BytecodeValueType::Unknown);
+}
+
+const std::string &variableIdOf(const BytecodeChunk &chunk, size_t slot) {
+    static const std::string empty;
+    if (slot >= chunk.variableSlots.size() || chunk.variableSlots[slot] >= chunk.strings.size()) return empty;
+    return chunk.strings[chunk.variableSlots[slot]];
+}
+
+} // namespace
+
+bool BytecodeProgramAnalysis::run() {
+    const uint8_t unknownBit = BytecodeAnalysis::typeBit(BytecodeValueType::Unknown);
+    variableTypes_.clear();
+
+    bool anyLegacy = false;
+    for (const Input &input : inputs_) {
+        for (const BytecodeInstruction &instr : input.chunk->instructions) {
+            if (instr.op == BytecodeOp::CallLegacyReporter || instr.op == BytecodeOp::CallLegacyStatement || instr.op == BytecodeOp::EscapeToLegacyThread) {
+                anyLegacy = true;
+            }
+        }
+    }
+
+    for (const Input &input : inputs_) {
+        const BytecodeChunk &chunk = *input.chunk;
+        for (size_t slot = 0; slot < chunk.variableSlots.size(); slot++) {
+            const std::string &id = variableIdOf(chunk, slot);
+            const Variable *var = slot < input.link->variables.size() ? input.link->variables[slot] : nullptr;
+
+            uint8_t bits = 0;
+            if (var == nullptr) {
+                bits = unknownBit;
+            } else {
+                switch (var->value.index()) {
+                case 1:
+                    bits = BytecodeAnalysis::typeBit(BytecodeValueType::Number);
+                    break;
+                case 2:
+                    bits = BytecodeAnalysis::typeBit(BytecodeValueType::String);
+                    break;
+                case 3:
+                    bits = BytecodeAnalysis::typeBit(BytecodeValueType::Boolean);
+                    break;
+                default:
+                    if (const Value *initial = std::get_if<Value>(&var->value)) bits = valueTypeBit(*initial);
+                    else bits = unknownBit;
+                    if (environment_.customExtensions || anyLegacy) bits |= unknownBit;
+                    if (environment_.sliderVariables.count(id) != 0) bits |= BytecodeAnalysis::typeBit(BytecodeValueType::Number);
+                    break;
+                }
+#ifdef ENABLE_CLOUDVARS
+                if (var->cloud) bits |= unknownBit;
+#endif
+            }
+            variableTypes_[id] |= bits;
+        }
+    }
+
+    constexpr int maxRounds = 32;
+    bool allOk = true;
+    for (rounds_ = 1;; rounds_++) {
+        analyses_.clear();
+        allOk = true;
+        for (const Input &input : inputs_) {
+            const BytecodeChunk &chunk = *input.chunk;
+            std::vector<BytecodeValueType> seed(chunk.variableSlots.size(), BytecodeValueType::Unknown);
+            for (size_t slot = 0; slot < seed.size(); slot++) {
+                seed[slot] = BytecodeAnalysis::collapse(variableTypes_[variableIdOf(chunk, slot)]);
+            }
+            auto analysis = std::make_unique<BytecodeAnalysis>(chunk, *input.link, policy_, std::move(seed));
+            allOk = analysis->run() && allOk;
+            analyses_.push_back(std::move(analysis));
+        }
+
+        if (!allOk) {
+            for (auto &entry : variableTypes_)
+                entry.second = unknownBit;
+            if (rounds_ > maxRounds) break;
+        }
+
+        bool changed = false;
+        for (size_t i = 0; i < inputs_.size(); i++) {
+            const BytecodeChunk &chunk = *inputs_[i].chunk;
+            const std::vector<uint8_t> &written = analyses_[i]->writtenTypes();
+            for (size_t slot = 0; slot < written.size(); slot++) {
+                uint8_t &bits = variableTypes_[variableIdOf(chunk, slot)];
+                if ((bits | written[slot]) != bits) {
+                    bits |= written[slot];
+                    changed = true;
+                }
+            }
+        }
+        if (!changed) break;
+        if (rounds_ >= maxRounds) {
+            for (auto &entry : variableTypes_)
+                entry.second = unknownBit;
+        }
+    }
+    return allOk;
+}
+
+BytecodeAnalysisStats BytecodeProgramAnalysis::totalStats() const {
+    BytecodeAnalysisStats total;
+    for (const auto &analysis : analyses_) {
+        const BytecodeAnalysisStats &s = analysis->stats();
+        total.instructions += s.instructions;
+        total.reachable += s.reachable;
+        total.blocks += s.blocks;
+        total.pushVarValue += s.pushVarValue;
+        total.pushVarValueKnown += s.pushVarValueKnown;
+        total.storeVarValue += s.storeVarValue;
+        total.storeVarValueKnown += s.storeVarValueKnown;
+        total.convertValueToTyped += s.convertValueToTyped;
+        total.convertValueToTypedKnown += s.convertValueToTypedKnown;
+        total.convertValueToTypedIdentity += s.convertValueToTypedIdentity;
+        total.pushArg += s.pushArg;
+        total.pushArgKnown += s.pushArgKnown;
+        total.demotedAccesses += s.demotedAccesses;
+        total.demotedAccessesKnown += s.demotedAccessesKnown;
+        total.procedureCalls += s.procedureCalls;
+        total.procedureCallsKeepingFacts += s.procedureCallsKeepingFacts;
+        total.procedureValueCalls += s.procedureValueCalls;
+        total.procedureValueCallsTyped += s.procedureValueCallsTyped;
+    }
+    return total;
+}
+
+std::string BytecodeProgramAnalysis::variableReport() const {
+    uint32_t single[7] = {0, 0, 0, 0, 0, 0, 0};
+    uint32_t mixed = 0;
+    std::ostringstream mixedList;
+    for (const auto &[id, bits] : variableTypes_) {
+        const BytecodeValueType type = BytecodeAnalysis::collapse(bits);
+        if (type == BytecodeValueType::Unknown) {
+            mixed++;
+            mixedList << "\n    " << id << ":";
+            for (BytecodeValueType t : {BytecodeValueType::Number, BytecodeValueType::String, BytecodeValueType::Boolean, BytecodeValueType::Color, BytecodeValueType::Unknown}) {
+                if (bits & BytecodeAnalysis::typeBit(t)) mixedList << " " << (t == BytecodeValueType::Unknown ? "other" : typeName(t));
+            }
+        } else {
+            single[static_cast<int>(type) - 1]++;
+        }
+    }
+    std::ostringstream out;
+    out << variableTypes_.size() << " variables: " << single[0] << " number, " << single[1] << " string, " << single[2] << " boolean, "
+        << single[3] << " color, " << single[4] << " numeric string, " << single[5] << " number-like, " << mixed << " with several types or unknown writers (" << rounds_ << " rounds)";
+    out << mixedList.str();
     return out.str();
 }

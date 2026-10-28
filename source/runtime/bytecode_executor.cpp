@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <log.hpp>
 #include <random>
 #ifdef ENABLE_AUDIO
 #include <audiostack.hpp>
@@ -14,9 +15,70 @@
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
 #ifdef SE_BYTECODE_STATS
+std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> BytecodeExecutor::factTables;
+
 namespace {
 uint64_t statsOpCounts[256] = {};
+uint64_t factChecks = 0;
+uint64_t factViolations = 0;
+
+BytecodeValueType concreteTypeOf(const Variable &var, std::string &text) {
+    switch (var.value.index()) {
+    case 1:
+        return BytecodeValueType::Number;
+    case 2: {
+        const auto &str = std::get<std::shared_ptr<const std::string>>(var.value);
+        text = str ? *str : std::string();
+        return BytecodeValueType::String;
+    }
+    case 3:
+        return BytecodeValueType::Boolean;
+    default:
+        break;
+    }
+    const Value &value = std::get<Value>(var.value);
+    if (value.isDouble()) return BytecodeValueType::Number;
+    if (value.isString()) {
+        text = value.asString();
+        return BytecodeValueType::String;
+    }
+    if (value.isBoolean()) return BytecodeValueType::Boolean;
+    if (value.isColor()) return BytecodeValueType::Color;
+    return BytecodeValueType::Unknown;
 }
+
+bool factHolds(BytecodeValueType claimed, const Variable &var, BytecodeValueType &actual) {
+    std::string text;
+    actual = concreteTypeOf(var, text);
+    switch (claimed) {
+    case BytecodeValueType::NumericString:
+        return actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text);
+    case BytecodeValueType::NumberLike:
+        return actual == BytecodeValueType::Number || (actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text));
+    default:
+        return actual == claimed;
+    }
+}
+
+const char *factName(BytecodeValueType t) {
+    switch (t) {
+    case BytecodeValueType::Number:
+        return "number";
+    case BytecodeValueType::String:
+        return "string";
+    case BytecodeValueType::Boolean:
+        return "boolean";
+    case BytecodeValueType::Color:
+        return "color";
+    case BytecodeValueType::NumericString:
+        return "numeric string";
+    case BytecodeValueType::NumberLike:
+        return "number-like";
+    default:
+        return "unknown";
+    }
+}
+} // namespace
 
 std::string BytecodeExecutor::takeStatsReport() {
     uint64_t total = 0;
@@ -29,7 +91,7 @@ std::string BytecodeExecutor::takeStatsReport() {
     }
     std::sort(ranked.rbegin(), ranked.rend());
 
-    std::string report = " instrs=" + std::to_string(total) + " top=";
+    std::string report = " instrs=" + std::to_string(total) + " factChecks=" + std::to_string(factChecks) + " factViolations=" + std::to_string(factViolations) + " top=";
     for (size_t i = 0; i < ranked.size() && i < 6; i++) {
         if (i != 0) report += ",";
         report += std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
@@ -505,6 +567,10 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
     Timer executionTimer(false);
     bool timerStarted = false;
     unsigned int blocksSinceTimeCheck = 0;
+#ifdef SE_BYTECODE_STATS
+    const std::vector<BytecodeValueType> *facts = nullptr;
+    if (const auto it = factTables.find(thread.chunk); it != factTables.end()) facts = &it->second;
+#endif
 
     for (;;) {
         if (thread.finished || thread.escapedToLegacy || Scratch::shouldStop) goto done;
@@ -516,6 +582,19 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
 #ifdef SE_BYTECODE_STATS
         statsOpCounts[static_cast<uint8_t>(instr.op)]++;
+        if (facts != nullptr) {
+            const BytecodeValueType claimed = (*facts)[thread.pc];
+            if (claimed != BytecodeValueType::Unreached && claimed != BytecodeValueType::Unknown) {
+                if (const Variable *var = variableAt(thread, instr.a)) {
+                    factChecks++;
+                    BytecodeValueType actual;
+                    if (!factHolds(claimed, *var, actual) && factViolations++ < 20) {
+                        Log::logError(std::string("[fact check] instruction ") + std::to_string(thread.pc) + " (op " + std::to_string(static_cast<int>(instr.op)) + ") variable \"" +
+                                      variableIdAt(thread, instr.a) + "\": analysis said " + factName(claimed) + ", it is " + factName(actual));
+                    }
+                }
+            }
+        }
 #endif
 
         switch (instr.op) {
