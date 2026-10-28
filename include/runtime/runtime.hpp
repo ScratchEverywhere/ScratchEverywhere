@@ -60,6 +60,7 @@ class SE_EXPORT Scratch {
     static const std::string &getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
+    static std::vector<Value> *getListItems(const std::string &name, Sprite *sprite);
 
     static bool resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName);
 

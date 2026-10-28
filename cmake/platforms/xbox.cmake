@@ -40,6 +40,101 @@ set(SE_LWMEM_GPU_RESERVE_MB 32 CACHE STRING "Size in MB reserved for GPU and sys
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
+# Debugging flags
+option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
+option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
+option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
+set(SE_XBOX_TRACE_LOG_HOST "" CACHE STRING "Optional unicast IPv4 destination for diagnostic UDP logs")
+set(SE_XBOX_TRACE_LOG_PORT 18194 CACHE STRING "UDP port for optional Xbox diagnostic logs")
+set(SE_XBOX_TRACE_WATCH_VARIABLES "" CACHE STRING "Optional comma-separated stage variables or sprite fields for live diagnostic samples")
+option(SE_XBOX_TRACE_MENU_INPUT "Log bounded Xbox menu handoff input snapshots" OFF)
+option(SE_XBOX_TRACE_RENDERER "Log GPU pixel probes and render-cache statistics" OFF)
+option(SE_XBOX_DEBUG_SYMBOLS "Keep DWARF symbols for xemu guest debugging" OFF)
+
+if(NOT SE_XBOX_TRACE_LOG_HOST STREQUAL "")
+    if(NOT SE_XBOX_TRACE_LOG_HOST MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$")
+        message(FATAL_ERROR "SE_XBOX_TRACE_LOG_HOST must be a unicast IPv4 literal")
+    endif()
+    string(REPLACE "." ";" trace_log_octets "${SE_XBOX_TRACE_LOG_HOST}")
+    list(LENGTH trace_log_octets trace_log_octet_count)
+    if(NOT trace_log_octet_count EQUAL 4)
+        message(FATAL_ERROR "SE_XBOX_TRACE_LOG_HOST must be a unicast IPv4 literal")
+    endif()
+    foreach(octet IN LISTS trace_log_octets)
+        if(NOT octet MATCHES "^[0-9][0-9]?[0-9]?$" OR octet MATCHES "^0[0-9]" OR octet GREATER 255)
+            message(FATAL_ERROR "SE_XBOX_TRACE_LOG_HOST must be a unicast IPv4 literal")
+        endif()
+    endforeach()
+    list(GET trace_log_octets 0 trace_log_first_octet)
+    if(trace_log_first_octet EQUAL 0 OR trace_log_first_octet GREATER_EQUAL 224)
+        message(FATAL_ERROR "SE_XBOX_TRACE_LOG_HOST must be a unicast IPv4 literal")
+    endif()
+    if(NOT SE_XBOX_TRACE_LOG_PORT MATCHES "^[0-9]+$" OR SE_XBOX_TRACE_LOG_PORT MATCHES "^0[0-9]" OR SE_XBOX_TRACE_LOG_PORT LESS 1 OR SE_XBOX_TRACE_LOG_PORT GREATER 65535)
+        message(FATAL_ERROR "SE_XBOX_TRACE_LOG_PORT must be between 1 and 65535")
+    endif()
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/log.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/platforms/xbox/os.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS
+        "SE_XBOX_TRACE_LOG_HOST=\"${SE_XBOX_TRACE_LOG_HOST}\""
+        "SE_XBOX_TRACE_LOG_PORT=${SE_XBOX_TRACE_LOG_PORT}")
+endif()
+
+if(NOT SE_XBOX_TRACE_WATCH_VARIABLES STREQUAL "")
+    if(SE_XBOX_TRACE_LOG_HOST STREQUAL "")
+        message(FATAL_ERROR "SE_XBOX_TRACE_WATCH_VARIABLES requires SE_XBOX_TRACE_LOG_HOST")
+    endif()
+    string(LENGTH "${SE_XBOX_TRACE_WATCH_VARIABLES}" trace_watch_length)
+    if(trace_watch_length GREATER 512 OR NOT SE_XBOX_TRACE_WATCH_VARIABLES MATCHES "^[-A-Za-z0-9_ #:,]+$")
+        message(FATAL_ERROR "Watch names must use ASCII letters, digits, spaces, _, #, :, or -; separate names with commas")
+    endif()
+    string(REPLACE "," ";" trace_watch_names "${SE_XBOX_TRACE_WATCH_VARIABLES}")
+    list(LENGTH trace_watch_names trace_watch_count)
+    if(trace_watch_count GREATER 16)
+        message(FATAL_ERROR "At most 16 fields may be watched")
+    endif()
+    set(trace_watch_normalized)
+    foreach(name IN LISTS trace_watch_names)
+        string(STRIP "${name}" name)
+        string(LENGTH "${name}" name_length)
+        if(name_length LESS 1 OR name_length GREATER 48)
+            message(FATAL_ERROR "Each watched variable name must contain 1 to 48 characters")
+        endif()
+        list(APPEND trace_watch_normalized "${name}")
+    endforeach()
+    list(JOIN trace_watch_normalized "," trace_watch_definition)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/xbox_variable_watch_config.hpp.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/xbox_variable_watch_config.hpp" @ONLY)
+    set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/runtime_loop.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_WATCH_VARIABLES_ENABLED)
+    set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/runtime_loop.cpp"
+        APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/generated")
+endif()
+
+if(SE_XBOX_TRACE_MENU_INPUT)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/projectMenu.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/input_sdl3.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_MENU_INPUT)
+endif()
+
+if(SE_XBOX_TRACE_RENDERER)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/window_sdl3.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_RENDERER)
+endif()
+
+if(SE_XBOX_TRACE_GAME_STATE)
+    set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp" APPEND PROPERTY
+        COMPILE_DEFINITIONS SE_XBOX_TRACE_GAME_STATE)
+endif()
+
+if(SE_XBOX_FORCE_480P)
+    add_compile_definitions(SE_XBOX_FORCE_480P)
+endif()
+
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
 include_directories(
     ${NXDK_DIR}/lib/net/lwip/src/include
@@ -165,6 +260,19 @@ set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
 #set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
 
 macro(package_platform)
+    if(SE_XBOX_DEBUG_SYMBOLS)
+        target_compile_options(scratch-everywhere PRIVATE -g -gdwarf-4)
+        target_link_options(scratch-everywhere PRIVATE -debug:dwarf -opt:ref -opt:icf)
+        find_program(SE_XBOX_OBJCOPY NAMES i386-elf-objcopy i686-elf-objcopy
+            x86_64-elf-objcopy gobjcopy objcopy
+            HINTS /opt/homebrew/opt/binutils/bin /usr/local/opt/binutils/bin REQUIRED)
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${SE_XBOX_OBJCOPY}" -O elf32-i386
+            "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox-symbols.elf"
+            COMMAND "${SE_XBOX_OBJCOPY}" --strip-debug "$<TARGET_FILE:scratch-everywhere>"
+            COMMENT "Saving xemu/GDB guest symbols"
+        )
+    endif()
     target_link_libraries(scratch-everywhere PUBLIC
         ${NXDK_DIR}/lib/libnxdk_automount_d.lib
         ${NXDK_DIR}/lib/libnxdk_net.lib
@@ -187,27 +295,36 @@ macro(package_platform)
         COMMENT "Making default.xbe"
     )
 
+    if(SE_XBOX_ALLOW_EXPANDED_RAM)
+        find_program(SE_XBOX_PYTHON NAMES python3 python REQUIRED)
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${SE_XBOX_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/xbox/configure-xbox-memory.py"
+            "${CMAKE_CURRENT_BINARY_DIR}/default.xbe"
+            COMMENT "Allowing expanded Xbox RAM"
+        )
+    endif()
+
     find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/extract-xiso/build" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/extract-xiso/build")
     if(EXTRACT_XISO_BIN)
-    add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/default.xbe" "${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe"
-        COMMENT "Preparing ISO root directory..."
-    )
-    if(COPY_PROJECTS_TO_XBOX)
-    add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*.sb*" "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
-        COMMENT "Copying projects in romfs to ISO..."
-    )
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/default.xbe" "${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe"
+            COMMENT "Preparing ISO root directory..."
+        )
+        if(COPY_PROJECTS_TO_XBOX)
+            add_custom_command(TARGET scratch-everywhere POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*.sb*" "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+                COMMENT "Copying projects in romfs to ISO..."
+            )
+        endif()
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${EXTRACT_XISO_BIN}" -c "${CMAKE_CURRENT_BINARY_DIR}/iso_root" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.iso"
+            COMMENT "Building scratch-xbox.iso"
+        )
+        add_custom_command(TARGET scratch-everywhere POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
+            COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.exe"
+            COMMENT "Cleaning up"
+        )
     endif()
-    add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND "${EXTRACT_XISO_BIN}" -c "${CMAKE_CURRENT_BINARY_DIR}/iso_root" "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.iso"
-        COMMENT "Building scratch-xbox.iso"
-    )
-    add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/iso_root"
-        COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_CURRENT_BINARY_DIR}/scratch-xbox.exe"
-        COMMENT "Cleaning up"
-    )
-endif()
 endmacro()

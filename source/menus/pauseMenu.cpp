@@ -3,6 +3,13 @@
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
+#include <utility>
+#include <xbox_menu_trace.hpp>
+#include <algorithm>
+#ifdef SE_XBOX_TRACE_GAME_STATE
+#include <blockExecutor.hpp>
+#include <log.hpp>
+#endif
 
 PauseMenu::PauseMenu() {
     init();
@@ -19,6 +26,30 @@ static std::string getTurboString() {
 void PauseMenu::init() {
 #ifdef __XBOX__
     Scratch::freeUnusedCostumeImages();
+#endif
+#ifdef SE_XBOX_TRACE_GAME_STATE
+    if (Scratch::stageSprite) {
+        Log::log("Pause state snapshot:");
+        for (const auto &[id, variable] : Scratch::stageSprite->variables) {
+            Log::log(variable.name + "=" + BlockExecutor::getVariableValue(id, Scratch::stageSprite).asString());
+        }
+        Log::log("Runtime clones=" + std::to_string(Scratch::cloneCount) +
+                 " threads=" + std::to_string(BlockExecutor::threads.size()));
+        for (const auto &[id, list] : Scratch::stageSprite->lists) {
+            Log::log("List " + list.name + " size=" + std::to_string(list.items.size()));
+        }
+        std::unordered_map<std::string, unsigned> cloneCounts;
+        for (const auto *sprite : Scratch::sprites) {
+            if (sprite->isClone) ++cloneCounts[sprite->name];
+        }
+        for (const auto &[name, count] : cloneCounts) {
+            Log::log("Clone population " + name + "=" + std::to_string(count));
+        }
+    }
+#endif
+#ifdef __XBOX__
+    gameControls = Input::inputControls;
+    Input::applyControls();
 #endif
     constexpr int buttons = 4;
     constexpr int space = (180 - 60) / buttons;
@@ -59,37 +90,68 @@ void PauseMenu::init() {
     isInitialized = true;
 }
 
+void PauseMenu::finishAction(Action action) {
+    if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("pause released " + std::to_string(static_cast<int>(action)));
+    XboxMenuTrace::beginGameFrames();
+    pendingAction = Action::None;
+    if (action == Action::Exit) Scratch::shouldStop = true;
+    if (action == Action::GreenFlag) Scratch::greenFlagClicked();
+    if (action == Action::Stop) Scratch::stopClicked();
+    shouldUnpause = true;
+}
+
+void PauseMenu::requestAction(Action action) {
+#ifdef __XBOX__
+    // Keep UI controls installed until confirmation is released. Otherwise A
+    // becomes the game's Space key on the first frame after Green Flag/resume.
+    pendingAction = action;
+    if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("pause requested " + std::to_string(static_cast<int>(action)));
+#else
+    finishAction(action);
+#endif
+}
+
 void PauseMenu::render() {
     Input::getInput();
-    pauseControl->input();
+#ifdef __XBOX__
+    if (pendingAction != Action::None) {
+        const auto held = [](const char *key) {
+            return std::find(Input::inputKeys.begin(), Input::inputKeys.end(), key) != Input::inputKeys.end();
+        };
+        if (!held("a") && !held("x") && !held("b") && !held("y") && !Input::mousePointer.isPressed) {
+            finishAction(pendingAction);
+            return;
+        }
+    } else
+#endif
+    {
+        pauseControl->input();
 
-    if (backButton->isPressed({"b", "y"})) {
-        shouldUnpause = true;
-        return;
-    }
+        if (backButton->isPressed({"b", "y"})) {
+            requestAction(Action::Resume);
+            return;
+        }
 
-    if (exitProjectButton->isPressed()) {
-        Scratch::shouldStop = true;
-        shouldUnpause = true;
-        return;
-    }
+        if (exitProjectButton->isPressed()) {
+            requestAction(Action::Exit);
+            return;
+        }
 
-    if (flagButton->isPressed()) {
-        Scratch::greenFlagClicked();
-        shouldUnpause = true;
-        return;
-    }
+        if (flagButton->isPressed()) {
+            requestAction(Action::GreenFlag);
+            return;
+        }
 
-    if (stopButton->isPressed()) {
-        Scratch::stopClicked();
-        shouldUnpause = true;
-        return;
-    }
+        if (stopButton->isPressed()) {
+            requestAction(Action::Stop);
+            return;
+        }
 
-    if (turboButton->isPressed()) {
-        Scratch::turbo = !Scratch::turbo;
-        turboButton->text->setText(getTurboString());
-        return;
+        if (turboButton->isPressed()) {
+            Scratch::turbo = !Scratch::turbo;
+            turboButton->text->setText(getTurboString());
+            return;
+        }
     }
 
     Render::beginFrame(0, 108, 100, 128);
@@ -104,6 +166,9 @@ void PauseMenu::render() {
 void PauseMenu::cleanup() {
     if (!isInitialized) return;
     isInitialized = false;
+#ifdef __XBOX__
+    Input::inputControls = std::move(gameControls);
+#endif
 
     if (backButton != nullptr) {
         delete backButton;

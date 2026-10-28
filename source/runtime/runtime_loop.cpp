@@ -5,6 +5,7 @@
 #include "runtime.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
+#include "xbox_variable_watch.hpp"
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -132,6 +133,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        XboxVariableWatch::sample();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
@@ -175,7 +177,27 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
 #ifdef ENABLE_MENU
 
-        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+        const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
+#ifdef __XBOX__
+        // Count wall time, not game frames: slow projects must remain escapable.
+        static Timer pauseHoldTimer(false);
+        static bool holdingPauseStart = false;
+        bool pauseRequested = false;
+        const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+        if (browserProject && startHeld) {
+            if (!holdingPauseStart) {
+                pauseHoldTimer.start();
+                holdingPauseStart = true;
+            }
+            pauseRequested = pauseHoldTimer.hasElapsed(3000);
+        } else {
+            holdingPauseStart = false;
+        }
+        if (pauseRequested) holdingPauseStart = false;
+#else
+        const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
+        if (pauseRequested) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);
             return std::make_pair(true, false);
@@ -205,6 +227,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
 void Scratch::greenFlagClicked() {
     stopClicked();
+    XboxVariableWatch::reset();
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();

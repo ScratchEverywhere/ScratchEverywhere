@@ -69,6 +69,7 @@ std::vector<char> Unzip::zipBuffer;
 #endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
 bool Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
@@ -305,6 +306,7 @@ void Unzip::openScratchProject(void *arg) {
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
@@ -324,6 +326,7 @@ void Unzip::openScratchProject(void *arg) {
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
 #endif
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
     file = nullptr;
@@ -336,12 +339,16 @@ void Unzip::openScratchProject(void *arg) {
 
 #ifdef RENDERER_XBOX
     if (Render::currentRenderer == Renderers::Xbox) {
-        Image_Xbox::precacheProjectTextures();
+        Log::log("Precaching project textures...");
+		Image_Xbox::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
     }
 #endif
 #ifdef RENDERER_NV2A
     if (Render::currentRenderer == Renderers::NV2A) {
+		Log::log("Precaching project textures...");
         Image_NV2A::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
     }
 #endif
 

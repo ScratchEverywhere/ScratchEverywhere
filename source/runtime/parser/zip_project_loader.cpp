@@ -48,8 +48,8 @@ static constexpr size_t MAX_ITEMS = 10000;
 static constexpr size_t MAX_ITEMS = 1000;
 #endif
 
-#if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-static std::string truncateLargeJsonLists(const std::string &raw) {
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
     std::string result;
     result.reserve(raw.size());
     size_t pos = 0;
@@ -132,11 +132,23 @@ static std::string truncateLargeJsonLists(const std::string &raw) {
 
 static nlohmann::json parseProjectJson(const std::string &rawJson) {
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-    std::string sanitized = truncateLargeJsonLists(rawJson);
+#if defined(__XBOX__)
+    // Lists contain authored game data (Appel's maps have 6400 cells). Silently
+    // cutting them to 1000 entries changes the game rather than saving it.
+    if (rawJson.find("Infinity") == std::string::npos) {
+        Log::log("Parsing full project JSON: " + std::to_string(rawJson.size()) + " bytes");
+        auto parsed = nlohmann::json::parse(rawJson);
+        Log::log("Full project JSON parsed.");
+        return parsed;
+    }
+    std::string sanitized = rawJson;
+#else
+    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");
     }
+#endif
     size_t inf_pos;
     while ((inf_pos = sanitized.find("Infinity")) != std::string::npos) {
         sanitized.replace(inf_pos, 8, "1e9");
@@ -247,6 +259,7 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
+            Log::log("Project JSON parsed from in-RAM archive.");
 #else
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
@@ -373,8 +386,10 @@ bool ZipProjectLoader::load(std::istream *file) {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
     }
 
+    Log::log("Loading project extensions and sprites...");
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
+    Log::log("Project sprites loaded.");
     project_json.clear();
     return true;
 }

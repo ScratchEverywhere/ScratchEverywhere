@@ -9,6 +9,7 @@
 #include <os.hpp>
 #include <stdio.h>
 #include <windows.h>
+#include <xboxkrnl/xboxkrnl.h>
 
 #ifndef NXDK_CUSTOM_PATCHES_APPLIED
 #error "CRITICAL: NXDK was built without the required custom patches!"
@@ -34,6 +35,9 @@ bool initNetworking() {
         if (g_pnetif && netif_ip4_addr(g_pnetif)) {
             Log::log(std::string("IP address.. ") + ip4addr_ntoa(netif_ip4_addr(g_pnetif)));
         }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+        Log::initNetworkTrace();
+#endif
         return true;
     }
 
@@ -49,6 +53,9 @@ bool initNetworking() {
         Log::log(std::string("Mask........ ") + ip4addr_ntoa(netif_ip4_netmask(g_pnetif)));
         Log::log(std::string("Gateway..... ") + ip4addr_ntoa(netif_ip4_gw(g_pnetif)));
     }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    Log::initNetworkTrace();
+#endif
     Log::log("Network initialized successfully.");
     return true;
 }
@@ -108,12 +115,24 @@ bool OS::init() {
                  (unsigned int)((total_ram > heap_size ? (total_ram - heap_size) : 0) / (1024 * 1024)));
     }
     Log::log(memMsg);
+#else
+    // Expanded-RAM detection must not depend on the optional heap override.
+    MM_STATISTICS stats = {};
+    stats.Length = sizeof(stats);
+    if (NT_SUCCESS(MmQueryStatistics(&stats))) {
+        isExpanded = stats.TotalPhysicalPages > (64u * 1024u * 1024u / 4096u);
+        Log::log("NXDK native allocator; physical RAM: " + std::to_string(stats.TotalPhysicalPages / 256u) +
+                 " MB; available: " + std::to_string(stats.AvailablePages / 256u) + " MB");
+    }
 #endif
     initNetworking();
     return true;
 }
 
 void OS::deinit() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    Log::closeNetworkTrace();
+#endif
     nxNetShutdown();
     return;
 }

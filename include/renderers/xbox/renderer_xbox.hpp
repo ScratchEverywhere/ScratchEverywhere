@@ -16,6 +16,22 @@
 #define AV_PACK_SVIDEO 6
 #endif
 
+#ifndef VENC_MODE_WIDESCREEN
+#define VENC_MODE_WIDESCREEN VIDEO_WIDESCREEN
+#endif
+#ifndef VENC_MODE_720P
+#define VENC_MODE_720P VIDEO_MODE_720P
+#endif
+#ifndef VENC_MODE_1080I
+#define VENC_MODE_1080I VIDEO_MODE_1080I
+#endif
+#ifndef VENC_MODE_480P
+#define VENC_MODE_480P VIDEO_MODE_480P
+#endif
+#ifndef VENC_MODE_LETTERBOX
+#define VENC_MODE_LETTERBOX VIDEO_LETTERBOX
+#endif
+
 class SE_EXPORT Renderer_Xbox : public Renderer {
   public:
     struct VideoDisplaySettings {
@@ -87,4 +103,6 @@ class SE_EXPORT Renderer_Xbox : public Renderer {
     void penStamp(Sprite *sprite) override;
     void penClear() override;
     void cleanupPen() override;
+    void preparePenColorQuery(float minX, float minY, float maxX, float maxY) override;
+    bool samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) override;
 };
