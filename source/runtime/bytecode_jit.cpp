@@ -681,10 +681,13 @@ struct Planner {
             return instr.a < variableCount;
         case BytecodeOp::RepeatCheck:
             return topValueIsNumber(pc);
+        case BytecodeOp::ForEachCheck:
+            return instr.b < variableCount && topValuesAreNumeric(pc, 2);
         case BytecodeOp::PopValue:
             return topValuesAreNumeric(pc, 1);
         case BytecodeOp::PushConstValue: {
             if (instr.a >= chunk.constants.size()) return false;
+            if (chunk.constants[instr.a].isDouble()) return true; // exactly a boxed number, which may cross jump targets
             if (pc + 1 < count && !analysis.isBlockStart(pc + 1)) {
                 const BytecodeOp next = chunk.instructions[pc + 1].op;
                 if (next == BytecodeOp::ConvertValueToNumber || next == BytecodeOp::StoreVarValue) return true;
@@ -1228,7 +1231,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         storeImmF(valueSlot(depth), chunk_.constants[instr.a].numberRaw());
         AbsValue v;
-        v.kind = ValueEntry::Constant;
+        v.kind = chunk_.constants[instr.a].isDouble() ? ValueEntry::Number : ValueEntry::Constant;
         v.constant = instr.a;
         state_.values.push_back(v);
         maxValues_ = std::max(maxValues_, depth + 1);
@@ -1488,6 +1491,28 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::ForEachCheck: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        const uint32_t counter = valueSlot(depth - 1), bound = valueSlot(depth - 2);
+        const uint32_t k = promoted(instr.b);
+        loadF(SLJIT_FR0, counter);
+        nanToZero(SLJIT_FR0);
+        loadF(SLJIT_FR1, bound);
+        nanToZero(SLJIT_FR1);
+        AbsState exited = state_;
+        exited.values.pop_back();
+        exited.values.pop_back();
+        sljit_jump *done = sljit_emit_fcmp(c_, SLJIT_ORDERED_GREATER_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0);
+        sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+        storeF(counter, SLJIT_FR0);
+        storeF(variableSlot(k), SLJIT_FR0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
+        state_.values.back().kind = ValueEntry::Number;
+        emitJumpTo(done, instr.a, exited, instr.a <= pc);
+        return;
+    }
+
     case BytecodeOp::MathOp:
         loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(instr.b));
@@ -1523,6 +1548,10 @@ bool Emitter::emit() {
     for (BytecodeIndex pc = 0; pc < count; pc++) {
         if (!plan_.supported[pc]) continue;
         const BytecodeInstruction &instr = chunk_.instructions[pc];
+        if (instr.op == BytecodeOp::ForEachCheck && instr.b < promotedIndex_.size() && promotedIndex_[instr.b] < 0) {
+            promotedIndex_[instr.b] = static_cast<int32_t>(code_.promoted.size());
+            code_.promoted.push_back(instr.b);
+        }
         if (instr.op != BytecodeOp::PushVarNumber && instr.op != BytecodeOp::StoreVarNumber && instr.op != BytecodeOp::ChangeVarNumber && instr.op != BytecodeOp::StoreVarValue && instr.op != BytecodeOp::PushVarValue) continue;
         if (promotedIndex_[instr.a] < 0) {
             promotedIndex_[instr.a] = static_cast<int32_t>(code_.promoted.size());
