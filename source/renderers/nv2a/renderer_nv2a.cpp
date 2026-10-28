@@ -35,7 +35,8 @@
 // Ring buffer arena size for direct vertex streaming (3 partitions for triple-buffering)
 static constexpr size_t ARENA_PER_FRAME_SIZE = 1024 * 1024;
 static constexpr size_t VERTEX_ARENA_SIZE = ARENA_PER_FRAME_SIZE * 3;
-static constexpr size_t PEN_FLUSH_THRESHOLD = 4096;
+// Must be a multiple of 6 so triangles (3) and quads (6) are never split across flushes
+static constexpr size_t PEN_FLUSH_THRESHOLD = 4092;
 
 static uint8_t *s_vertexArena = nullptr;
 static uint32_t s_vertexArenaPhys = 0;
@@ -207,6 +208,7 @@ static float s_mainViewportScaleX = 1.0f;
 static float s_mainViewportScaleY = 1.0f;
 static float s_mainViewportOffsetX = 0.0f;
 static float s_mainViewportOffsetY = 0.0f;
+static bool s_penTargetActive = false;
 static int s_stageScissorX = 0;
 static int s_stageScissorY = 0;
 static int s_stageScissorW = 640;
@@ -257,6 +259,26 @@ bool Renderer_NV2A::supports480p() {
 bool Renderer_NV2A::supports1080i() {
     initVideo();
     return s_nv2aVideoSettings.supports1080i;
+}
+
+float Renderer_NV2A::getViewportScaleX() {
+    return s_mainViewportScaleX;
+}
+
+float Renderer_NV2A::getViewportScaleY() {
+    return s_mainViewportScaleY;
+}
+
+float Renderer_NV2A::getViewportOffsetX() {
+    return s_mainViewportOffsetX;
+}
+
+float Renderer_NV2A::getViewportOffsetY() {
+    return s_mainViewportOffsetY;
+}
+
+bool Renderer_NV2A::isPenTargetActive() {
+    return s_penTargetActive;
 }
 
 void Renderer_NV2A::getVideoMode(int &width, int &height, int &bpp, int &refresh) {
@@ -475,7 +497,6 @@ static inline void textureCombinerApply() {
 static NV2ATexture s_penTexture;
 static bool s_hasPenTexture = false;
 static s_CtxDma s_penDmaCtx;
-static bool s_penTargetActive = false;
 static float s_penScaleY = 1.0f;
 static std::vector<NV2AVertex> s_penVerts;
 static bool s_lastCapValid = false;
@@ -586,7 +607,7 @@ Renderer_NV2A::Renderer_NV2A() {
     pb_show_front_screen();
     pb_target_back_buffer();
 
-    // Allocate vertex ring buffer in write-combined memory (6MB triple-buffered)
+    // Allocate vertex ring buffer in write-combined memory (3MB triple-buffered)
     s_vertexArena = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(VERTEX_ARENA_SIZE, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
     if (s_vertexArena) {
         s_vertexArenaPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(MmGetPhysicalAddress(s_vertexArena)));
@@ -1109,6 +1130,7 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
     const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & memMask;
 
     uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
     p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
     p = xgu_set_vertex_data_array_offset(p, XGU_VERTEX_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(posAddr)));
     p = xgu_set_vertex_data_array_format(p, XGU_COLOR_ARRAY, XGU_UNSIGNED_BYTE_OGL, 4, sizeof(NV2AVertex));
@@ -1136,6 +1158,76 @@ void Renderer_NV2A::drawTriangles(const NV2AVertex *vertices, size_t count) {
 void Renderer_NV2A::drawColorTriangles(const NV2AVertex *vertices, size_t count) {
     unbindTexture();
     drawTriangles(vertices, count);
+}
+
+NV2AVertex *Renderer_NV2A::beginDirectVertices(size_t maxCount) {
+    if (!s_vertexArena || maxCount == 0) return nullptr;
+    size_t byteSize = maxCount * sizeof(NV2AVertex);
+    byteSize = (byteSize + 63) & ~63;
+
+    if (s_arenaOffset + byteSize > s_arenaBase + ARENA_PER_FRAME_SIZE) {
+#ifdef __XBOX__
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+        pb_end(p);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+#endif
+        s_arenaOffset = s_arenaBase;
+    }
+
+    return reinterpret_cast<NV2AVertex *>(s_vertexArena + s_arenaOffset);
+}
+
+void Renderer_NV2A::endDirectVertices(size_t actualCount) {
+    if (!s_vertexArena || actualCount == 0) return;
+    NV2A_PROF(++s_prof.draws; s_prof.verts += static_cast<uint32_t>(actualCount));
+
+    const size_t vertOffset = s_arenaOffset;
+    size_t byteSize = actualCount * sizeof(NV2AVertex);
+    byteSize = (byteSize + 63) & ~63;
+    s_arenaOffset += byteSize;
+
+#ifdef __XBOX__
+    nv2a_cache_flush();
+    const uint32_t memMask = OS::isEnhancedPlatform() ? 0x07FFFFFF : 0x03FFFFFF;
+    const uint32_t curPhys = (s_vertexArenaPhys + static_cast<uint32_t>(vertOffset)) & memMask;
+#else
+    const uint32_t memMask = 0x03FFFFFF;
+    const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset)) & memMask;
+#endif
+
+    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & memMask;
+    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & memMask;
+    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & memMask;
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+    p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_VERTEX_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(posAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_COLOR_ARRAY, XGU_UNSIGNED_BYTE_OGL, 4, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_COLOR_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(colAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_TEXCOORD0_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_TEXCOORD0_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(texAddr)));
+
+    p = xgu_begin(p, XGU_TRIANGLES);
+    unsigned int curStart = 0;
+    unsigned int remaining = static_cast<unsigned int>(actualCount);
+    while (remaining > 0) {
+        unsigned int batch = std::min(remaining, static_cast<unsigned int>(MAX_BATCH));
+        p = xgu_draw_arrays(p, curStart, batch);
+        curStart += batch;
+        remaining -= batch;
+        if (remaining > 0) {
+            pb_end(p);
+            p = pb_begin();
+        }
+    }
+    p = xgu_end(p);
+    pb_end(p);
 }
 
 static void ensureMainTarget() {
@@ -1229,6 +1321,27 @@ static void flushPenVerts(Renderer_NV2A *r) {
     r->setBlendMode(NV2ABlendMode::Blend);
     r->drawTriangles(s_penVerts.data(), s_penVerts.size());
     s_penVerts.clear();
+}
+
+static inline void pushPenTri(Renderer_NV2A *r, const NV2AVertex &v0, const NV2AVertex &v1, const NV2AVertex &v2) {
+    if (s_penVerts.size() + 3 > PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(r);
+    }
+    s_penVerts.push_back(v0);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v2);
+}
+
+static inline void pushPenQuad(Renderer_NV2A *r, const NV2AVertex &v0, const NV2AVertex &v1, const NV2AVertex &v2, const NV2AVertex &v3) {
+    if (s_penVerts.size() + 6 > PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(r);
+    }
+    s_penVerts.push_back(v0);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v2);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v3);
+    s_penVerts.push_back(v2);
 }
 
 bool Renderer_NV2A::initPen() {
@@ -1467,7 +1580,8 @@ static bool traceStartupPixels(Renderer_NV2A *renderer) {
         uint8_t r = 0, g = 0, b = 0, a = 0;
         bool read = readSurfacePixel(surface, x, y, r, g, b, a);
         bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
-                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance &&
+                       std::abs(int(g) - expectedG) <= tolerance &&
+                       std::abs(int(b) - expectedB) <= tolerance &&
                        (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
         Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
                  " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
@@ -1866,17 +1980,7 @@ void Renderer_NV2A::penMoveFast(double x1, double y1, double x2, double y2, Spri
     NV2AVertex v2 = {{sx2 + nx, sy2 + ny}, {cr, cg, cb, ca}, {0, 0}};
     NV2AVertex v3 = {{sx2 - nx, sy2 - ny}, {cr, cg, cb, ca}, {0, 0}};
 
-    s_penVerts.push_back(v0);
-    s_penVerts.push_back(v1);
-    s_penVerts.push_back(v2);
-
-    s_penVerts.push_back(v1);
-    s_penVerts.push_back(v3);
-    s_penVerts.push_back(v2);
-
-    if (s_penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(this);
-    }
+    pushPenQuad(this, v0, v1, v2, v3);
 }
 
 void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -1907,13 +2011,7 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
         NV2AVertex v2 = {{sx2 + nx, sy2 + ny}, {cr, cg, cb, ca}, {0, 0}};
         NV2AVertex v3 = {{sx2 - nx, sy2 - ny}, {cr, cg, cb, ca}, {0, 0}};
 
-        s_penVerts.push_back(v0);
-        s_penVerts.push_back(v1);
-        s_penVerts.push_back(v2);
-
-        s_penVerts.push_back(v1);
-        s_penVerts.push_back(v3);
-        s_penVerts.push_back(v2);
+        pushPenQuad(this, v0, v1, v2, v3);
     }
 
     float radius = static_cast<float>(drawW);
@@ -1922,9 +2020,10 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
 
     auto addCircle = [&](float cx, float cy) {
         for (unsigned int i = 0; i < segments; ++i) {
-            s_penVerts.push_back({{cx, cy}, {cr, cg, cb, ca}, {0, 0}});
-            s_penVerts.push_back({{cx + table[i].c * radius, cy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}});
-            s_penVerts.push_back({{cx + table[i + 1].c * radius, cy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
+            pushPenTri(this,
+                       {{cx, cy}, {cr, cg, cb, ca}, {0, 0}},
+                       {{cx + table[i].c * radius, cy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}},
+                       {{cx + table[i + 1].c * radius, cy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
         }
     };
 
@@ -1945,10 +2044,6 @@ void Renderer_NV2A::penMoveAccurate(double x1, double y1, double x2, double y2, 
     s_lastCapY = sy2;
     s_lastCapRadius = radius;
     s_lastCapColor = colorPacked;
-
-    if (s_penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(this);
-    }
 }
 
 void Renderer_NV2A::penDotFast(Sprite *sprite) {
@@ -1971,17 +2066,7 @@ void Renderer_NV2A::penDotFast(Sprite *sprite) {
     NV2AVertex v2 = {{sx + halfSize, sy - halfSize}, {cr, cg, cb, ca}, {0, 0}};
     NV2AVertex v3 = {{sx + halfSize, sy + halfSize}, {cr, cg, cb, ca}, {0, 0}};
 
-    s_penVerts.push_back(v0);
-    s_penVerts.push_back(v1);
-    s_penVerts.push_back(v2);
-
-    s_penVerts.push_back(v1);
-    s_penVerts.push_back(v3);
-    s_penVerts.push_back(v2);
-
-    if (s_penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(this);
-    }
+    pushPenQuad(this, v0, v1, v2, v3);
 }
 
 void Renderer_NV2A::penDotAccurate(Sprite *sprite) {
@@ -2003,13 +2088,10 @@ void Renderer_NV2A::penDotAccurate(Sprite *sprite) {
     const CirclePoint *table = getCircleTable(segments);
 
     for (unsigned int i = 0; i < segments; ++i) {
-        s_penVerts.push_back({{sx, sy}, {cr, cg, cb, ca}, {0, 0}});
-        s_penVerts.push_back({{sx + table[i].c * radius, sy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}});
-        s_penVerts.push_back({{sx + table[i + 1].c * radius, sy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
-    }
-
-    if (s_penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(this);
+        pushPenTri(this,
+                   {{sx, sy}, {cr, cg, cb, ca}, {0, 0}},
+                   {{sx + table[i].c * radius, sy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}},
+                   {{sx + table[i + 1].c * radius, sy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
     }
 }
 

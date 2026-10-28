@@ -39,5 +39,35 @@ SE_EXPORT std::string generateRandomString(int length);
 
 SE_EXPORT std::string removeQuotations(std::string value);
 
+#if defined(__XBOX__)
+constexpr uint32_t fnv1a_hash(const char *str, size_t len) {
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < len; ++i) {
+        hash ^= static_cast<uint8_t>(str[i]);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+constexpr uint32_t fnv1a_hash(std::string_view sv) {
+    return fnv1a_hash(sv.data(), sv.size());
+}
+
+constexpr uint32_t fnv1a_hash_case_insensitive(const char *str, size_t len) {
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < len; ++i) {
+        uint8_t c = static_cast<uint8_t>(str[i]);
+        if (c >= 'A' && c <= 'Z') c += ('a' - 'A');
+        hash ^= c;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+constexpr uint32_t fnv1a_hash_case_insensitive(std::string_view sv) {
+    return fnv1a_hash_case_insensitive(sv.data(), sv.size());
+}
+#endif
+
 SE_EXPORT const uint32_t next_pow2(uint32_t n);
 }; // namespace Math

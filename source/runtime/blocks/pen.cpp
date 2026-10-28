@@ -1,6 +1,7 @@
 #include "blockUtils.hpp"
 #include <image.hpp>
 #include <log.hpp>
+#include <math.hpp>
 #include <renderer.hpp>
 
 constexpr unsigned int minPenSize = 1;
@@ -45,6 +46,36 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
     if (!Scratch::getInputValueAs(block, "COLOR_PARAM", thread, sprite, option) ||
         !Scratch::getInputValueAs(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
 
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(option.data(), option.size())) {
+    case Math::fnv1a_hash("color", 5): {
+        double unwrappedColor = value;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("saturation", 10): {
+        sprite->penData.color.saturation = value;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("brightness", 10): {
+        sprite->penData.color.brightness = value;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("transparency", 12): {
+        sprite->penData.color.transparency = value;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return BlockResult::CONTINUE;
+    }
+    default:
+        Log::log("[Pen] Unknown pen option: " + option);
+        return BlockResult::CONTINUE;
+    }
+#else
     if (option == "color") {
         double unwrappedColor = value;
         sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -72,9 +103,40 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
     Log::log("[Pen] Unknown pen option: " + option);
 
     return BlockResult::CONTINUE;
+#endif
 }
 SCRATCH_BLOCK_SIGNATURE(pen, setPenColorParamTo, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
 SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, setPenColorParamTo) {
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(str.data(), str.size())) {
+    case Math::fnv1a_hash("color", 5): {
+        double unwrappedColor = num;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return;
+    }
+    case Math::fnv1a_hash("saturation", 10): {
+        sprite->penData.color.saturation = num;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return;
+    }
+    case Math::fnv1a_hash("brightness", 10): {
+        sprite->penData.color.brightness = num;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return;
+    }
+    case Math::fnv1a_hash("transparency", 12): {
+        sprite->penData.color.transparency = num;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return;
+    }
+    default:
+        Log::log("[Pen] Unknown pen option: " + str);
+        return;
+    }
+#else
     if (str == "color") {
         double unwrappedColor = num;
         sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -100,6 +162,7 @@ SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, setPenColorParamTo) {
     }
 
     Log::log("[Pen] Unknown pen option: " + str);
+#endif
 }
 
 SCRATCH_BLOCK(pen, changePenColorParamBy) {
@@ -109,6 +172,36 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
     if (!Scratch::getInputValueAs(block, "COLOR_PARAM", thread, sprite, option) ||
         !Scratch::getInputValueAs(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
 
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(option.data(), option.size())) {
+    case Math::fnv1a_hash("color", 5): {
+        double unwrappedColor = sprite->penData.color.hue + value;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("saturation", 10): {
+        sprite->penData.color.saturation += value;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("brightness", 10): {
+        sprite->penData.color.brightness += value;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return BlockResult::CONTINUE;
+    }
+    case Math::fnv1a_hash("transparency", 12): {
+        sprite->penData.color.transparency += value;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return BlockResult::CONTINUE;
+    }
+    default:
+        Log::log("[Pen] Unknown pen option: " + option);
+        return BlockResult::CONTINUE;
+    }
+#else
     if (option == "color") {
         double unwrappedColor = sprite->penData.color.hue + value;
         sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -135,9 +228,40 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
     Log::log("[Pen] Unknown pen option: " + option);
 
     return BlockResult::CONTINUE;
+#endif
 }
 SCRATCH_BLOCK_SIGNATURE(pen, changePenColorParamBy, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
 SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, changePenColorParamBy) {
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(str.data(), str.size())) {
+    case Math::fnv1a_hash("color", 5): {
+        double unwrappedColor = sprite->penData.color.hue + num;
+        sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+        return;
+    }
+    case Math::fnv1a_hash("saturation", 10): {
+        sprite->penData.color.saturation += num;
+        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+        return;
+    }
+    case Math::fnv1a_hash("brightness", 10): {
+        sprite->penData.color.brightness += num;
+        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+        return;
+    }
+    case Math::fnv1a_hash("transparency", 12): {
+        sprite->penData.color.transparency += num;
+        if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+        else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
+        return;
+    }
+    default:
+        Log::log("[Pen] Unknown pen option: " + str);
+        return;
+    }
+#else
     if (str == "color") {
         double unwrappedColor = sprite->penData.color.hue + num;
         sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -162,6 +286,7 @@ SCRATCH_BLOCK_POSITIONAL_SN_VOID(pen, changePenColorParamBy) {
         return;
     }
     Log::log("[Pen] Unknown pen option: " + str);
+#endif
 }
 
 SCRATCH_BLOCK(pen, setPenColorToColor) {

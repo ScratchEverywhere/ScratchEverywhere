@@ -122,6 +122,70 @@ void TextObjectNV2A::render(int xPos, int yPos) {
 
     const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
 
+#if defined(__XBOX__)
+    size_t totalGlyphs = 0;
+    for (const auto &glyphs : layoutLines) totalGlyphs += glyphs.size();
+    if (totalGlyphs == 0) return;
+
+    size_t totalVerts = totalGlyphs * 6;
+    NV2AVertex *dstVerts = renderer->beginDirectVertices(totalVerts);
+    if (!dstVerts) return;
+
+    const bool penActive = Renderer_NV2A::isPenTargetActive();
+    const float sx = Renderer_NV2A::getViewportScaleX();
+    const float sy = Renderer_NV2A::getViewportScaleY();
+    const float ox = Renderer_NV2A::getViewportOffsetX();
+    const float oy = Renderer_NV2A::getViewportOffsetY();
+    const bool applyViewport = !penActive && (sx != 1.0f || sy != 1.0f || ox != 0.0f || oy != 0.0f);
+
+    size_t vertIndex = 0;
+    for (size_t li = 0; li < layoutLines.size(); ++li) {
+        const auto &glyphs = layoutLines[li];
+        if (glyphs.empty()) continue;
+
+        float lineX = drawX;
+        float lineY = drawY + static_cast<float>(li) * lineHeight + gen.ascent * glyphScale;
+
+        for (const GlyphQuad &q : glyphs) {
+            float qx0 = lineX + q.x0 * glyphScale;
+            float qy0 = lineY + q.y0 * glyphScale;
+            float qx1 = lineX + q.x1 * glyphScale;
+            float qy1 = lineY + q.y1 * glyphScale;
+
+            if (applyViewport) {
+                qx0 = qx0 * sx + ox;
+                qy0 = qy0 * sy + oy;
+                qx1 = qx1 * sx + ox;
+                qy1 = qy1 * sy + oy;
+            }
+
+            // Normalized UV coordinates for the atlas
+            float u0 = q.s0 * tex->uScale;
+            float v0 = q.t0 * tex->vScale;
+            float u1 = q.s1 * tex->uScale;
+            float v1 = q.t1 * tex->vScale;
+
+            NV2AVertex v_tl = {{qx0, qy0}, {cr, cg, cb, ca}, {u0, v0}};
+            NV2AVertex v_tr = {{qx1, qy0}, {cr, cg, cb, ca}, {u1, v0}};
+            NV2AVertex v_br = {{qx1, qy1}, {cr, cg, cb, ca}, {u1, v1}};
+            NV2AVertex v_bl = {{qx0, qy1}, {cr, cg, cb, ca}, {u0, v1}};
+
+            dstVerts[vertIndex++] = v_tl;
+            dstVerts[vertIndex++] = v_tr;
+            dstVerts[vertIndex++] = v_br;
+
+            dstVerts[vertIndex++] = v_tl;
+            dstVerts[vertIndex++] = v_br;
+            dstVerts[vertIndex++] = v_bl;
+        }
+    }
+
+    if (vertIndex > 0) {
+        renderer->bindTexture(tex, true);
+        renderer->setBlendMode(NV2ABlendMode::Blend);
+        renderer->endDirectVertices(vertIndex);
+    }
+#else
     std::vector<NV2AVertex> verts;
 
     for (size_t li = 0; li < layoutLines.size(); ++li) {
@@ -165,4 +229,5 @@ void TextObjectNV2A::render(int xPos, int yPos) {
         renderer->setBlendMode(NV2ABlendMode::Blend);
         renderer->drawTriangles(verts.data(), verts.size());
     }
+#endif
 }

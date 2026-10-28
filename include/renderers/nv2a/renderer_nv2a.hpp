@@ -109,6 +109,11 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     static bool supports480p();
     static bool supports1080i();
     static void getVideoMode(int &width, int &height, int &bpp, int &refresh);
+    static float getViewportScaleX();
+    static float getViewportScaleY();
+    static float getViewportOffsetX();
+    static float getViewportOffsetY();
+    static bool isPenTargetActive();
 
     void applyVideoSettings();
     void applyOverscan(float overscanRatio);
@@ -133,6 +138,8 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     void drawTriangles(const NV2AVertex *vertices, size_t count);
     void drawIndexedTriangles(const NV2AVertex *vertices, const uint16_t *indices, size_t count);
     void drawColorTriangles(const NV2AVertex *vertices, size_t count);
+    NV2AVertex *beginDirectVertices(size_t maxCount);
+    void endDirectVertices(size_t actualCount);
 
     // Incremented once per beginFrame(); textures used during the current frame must not be overwritten.
     static uint32_t getFrameCounter();
