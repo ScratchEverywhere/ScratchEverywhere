@@ -16,6 +16,12 @@ class SE_EXPORT Image_NV2A : public Image {
         int x = 0, y = 0, w = 0, h = 0;
     };
 
+    struct EffectCacheStats {
+        size_t bytes, peakBytes, entries;
+        uint32_t created, evicted;
+    };
+    static EffectCacheStats getEffectCacheStats();
+
   private:
     std::vector<Tile> tiles;
 

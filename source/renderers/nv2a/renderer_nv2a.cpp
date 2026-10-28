@@ -139,6 +139,9 @@ void Renderer_NV2A::initVideo() {
         }
     }
 
+#ifdef SE_XBOX_FORCE_480P
+    can720p = false;
+#endif
     s_nv2aVideoSettings.width = can720p ? 1280 : 640;
     s_nv2aVideoSettings.height = can720p ? 720 : 480;
     s_nv2aVideoSettings.bpp = 32;
@@ -332,6 +335,8 @@ static inline void combinerInit() {
     pb_end(p);
 }
 
+static bool s_activePremultiply = false;
+
 static inline void unlitCombinerApply() {
     uint32_t *p = pb_begin();
     p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
@@ -371,10 +376,18 @@ static inline void unlitCombinerApply() {
         XGU_MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, 1));
 
     p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
 
     p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,
         XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_INVERSE, 0) |
@@ -423,10 +436,18 @@ static inline void textureCombinerApply() {
         XGU_MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, 1));
 
     p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
-        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
 
     p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,
         XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_INVERSE, 0) |
@@ -520,6 +541,11 @@ static unsigned int circleSegmentsFor(double base, double penSize) {
     const double wanted = std::max(8.0, base * (penSize / 150.0));
     return std::min(static_cast<unsigned int>(wanted), 128u);
 }
+
+#ifdef SE_XBOX_TRACE_RENDERER
+static void traceEffectCache();
+static bool traceStartupPixels(Renderer_NV2A *renderer);
+#endif
 
 Renderer_NV2A::Renderer_NV2A() {
     initVideo();
@@ -625,6 +651,9 @@ Renderer_NV2A::Renderer_NV2A() {
     pb_wait_until_gr_not_busy();
 
     Log::log("Renderer_NV2A hardware initialized: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceStartupPixels(this);
+#endif
 #endif
 }
 
@@ -919,25 +948,47 @@ void Renderer_NV2A::setBlendMode(NV2ABlendMode mode) {
     if (s_activeBlendMode == mode) return;
     s_activeBlendMode = mode;
 
-    XguBlendFactor sfactor = XGU_FACTOR_SRC_ALPHA;
-    XguBlendFactor dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+    XguBlendFactor sfactor = XGU_FACTOR_ONE;
+    XguBlendFactor dfactor = XGU_FACTOR_ZERO;
+    s_activePremultiply = false;
 
     switch (mode) {
         case NV2ABlendMode::None:
             sfactor = XGU_FACTOR_ONE;
             dfactor = XGU_FACTOR_ZERO;
+            s_activePremultiply = false;
             break;
         case NV2ABlendMode::Blend:
-            sfactor = XGU_FACTOR_SRC_ALPHA;
+            sfactor = XGU_FACTOR_ONE;
             dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+            s_activePremultiply = true;
+            break;
+        case NV2ABlendMode::Premultiplied:
+            sfactor = XGU_FACTOR_ONE;
+            dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+            s_activePremultiply = false;
             break;
         case NV2ABlendMode::Add:
             sfactor = XGU_FACTOR_SRC_ALPHA;
             dfactor = XGU_FACTOR_ONE;
+            s_activePremultiply = false;
             break;
     }
 
     uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+        XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
     p = xgu_set_blend_func_sfactor(p, sfactor);
     p = xgu_set_blend_func_dfactor(p, dfactor);
     pb_end(p);
@@ -1261,6 +1312,336 @@ float Renderer_NV2A::getPixelDensity() {
     return 1.0f;
 }
 
+#ifdef SE_XBOX_TRACE_RENDERER
+static void traceEffectCache() {
+    static unsigned frames = 0;
+    if (++frames % 120 != 0) return;
+    const auto stats = Image_NV2A::getEffectCacheStats();
+    Log::log("GPU effect cache bytes=" + std::to_string(stats.bytes) +
+             " peak=" + std::to_string(stats.peakBytes) + " entries=" + std::to_string(stats.entries) +
+             " created=" + std::to_string(stats.created) + " evicted=" + std::to_string(stats.evicted));
+}
+
+#ifdef __XBOX__
+struct ProbeRect {
+    int x, y, w, h;
+};
+
+struct ProbeSurface {
+    std::vector<uint8_t> pixels;
+    int w = 0;
+    int h = 0;
+    int pitch = 0;
+};
+
+static void waitForGpuIdle() {
+    uint32_t *pWait = pb_begin();
+    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWait);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+    XVideoFlushFB();
+    nv2a_cache_flush();
+}
+
+static void setCustomRenderTarget(NV2ATexture *target) {
+    uint32_t *pWait = pb_begin();
+    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWait);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, s_penDmaCtx.ChannelID);
+    p = pb_push1(p, NV097_SET_SURFACE_PITCH,
+                 XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, target->pitch) |
+                 XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
+    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(target->dataPhysicalAddress)));
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, target->texWidth) |
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, target->texHeight) |
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
+                 XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8) |
+                 XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
+                 XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+    p = xgu_set_scissor_rect(p, false, 0, 0, target->texWidth, target->texHeight);
+    pb_end(p);
+
+    s_penTargetActive = true;
+    s_activeTexture = nullptr;
+    s_activeShader = -1;
+}
+
+static void restoreMainTarget() {
+    s_penTargetActive = true;
+    ensureMainTarget();
+}
+
+static ProbeSurface readPixelsFromTarget(const uint8_t *srcData, int srcW, int srcH, int srcPitch, const ProbeRect *rect) {
+    waitForGpuIdle();
+    ProbeSurface surf;
+    if (!srcData) return surf;
+    int rx = 0, ry = 0, rw = srcW, rh = srcH;
+    if (rect) {
+        rx = std::clamp(rect->x, 0, srcW);
+        ry = std::clamp(rect->y, 0, srcH);
+        rw = std::clamp(rect->w, 0, srcW - rx);
+        rh = std::clamp(rect->h, 0, srcH - ry);
+    }
+    if (rw <= 0 || rh <= 0) return surf;
+    surf.w = rw;
+    surf.h = rh;
+    surf.pitch = rw * 4;
+    surf.pixels.resize(static_cast<size_t>(rh) * surf.pitch);
+    for (int row = 0; row < rh; ++row) {
+        memcpy(&surf.pixels[static_cast<size_t>(row) * surf.pitch],
+               srcData + static_cast<size_t>(ry + row) * srcPitch + static_cast<size_t>(rx) * 4,
+               static_cast<size_t>(rw) * 4);
+    }
+    return surf;
+}
+
+static ProbeSurface readMainPixels(const ProbeRect *rect) {
+    return readPixelsFromTarget(reinterpret_cast<const uint8_t *>(pb_back_buffer()),
+                                pb_back_buffer_width(), pb_back_buffer_height(),
+                                pb_back_buffer_pitch(), rect);
+}
+
+static ProbeSurface readTexturePixels(const NV2ATexture *tex, const ProbeRect *rect) {
+    if (!tex) return {};
+    return readPixelsFromTarget(tex->data, tex->texWidth, tex->texHeight, tex->pitch, rect);
+}
+
+static bool readSurfacePixel(const ProbeSurface &surface, int x, int y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (surface.pixels.empty() || x < 0 || y < 0 || x >= surface.w || y >= surface.h) return false;
+    const uint8_t *p = &surface.pixels[static_cast<size_t>(y) * surface.pitch + static_cast<size_t>(x) * 4];
+    b = p[0];
+    g = p[1];
+    r = p[2];
+    a = p[3];
+    return true;
+}
+#endif
+
+static bool traceStartupPixels(Renderer_NV2A *renderer) {
+    bool passed = true;
+#ifdef __XBOX__
+    float savedScaleX = s_mainViewportScaleX, savedScaleY = s_mainViewportScaleY;
+    float savedOffsetX = s_mainViewportOffsetX, savedOffsetY = s_mainViewportOffsetY;
+    s_mainViewportScaleX = 1.0f;
+    s_mainViewportScaleY = 1.0f;
+    s_mainViewportOffsetX = 0.0f;
+    s_mainViewportOffsetY = 0.0f;
+
+    auto pixel = [&](const ProbeSurface &surface, const char *test, int x, int y,
+                     int expectedR, int expectedG, int expectedB, int tolerance = 0, int expectedA = -1) {
+        uint8_t r = 0, g = 0, b = 0, a = 0;
+        bool read = readSurfacePixel(surface, x, y, r, g, b, a);
+        bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
+                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance &&
+                       (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
+        Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
+                 " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
+        passed &= matches;
+    };
+
+    auto clearBlue = [&] {
+        pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), 0xFF0000FF);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+    };
+
+    const NV2AVertex triangle[] = {
+        {{0, 0}, {255, 0, 0, 255}, {0, 0}},
+        {{64, 0}, {255, 0, 0, 255}, {0, 0}},
+        {{0, 64}, {255, 0, 0, 255}, {0, 0}}
+    };
+
+    NV2ATexture *texture = renderer->createTexture(2, 2, XGU_TEXTURE_FORMAT_A8R8G8B8, false);
+    const uint32_t green[] = {0xff00ff00, 0xff00ff00, 0xff00ff00, 0xff00ff00};
+    passed &= texture && renderer->updateTexture(texture, green, 8);
+
+    const float texU1 = texture ? texture->uScale : 2.0f;
+    const float texV1 = texture ? texture->vScale : 2.0f;
+    const NV2AVertex destinationQuad[] = {
+        {{64, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+        {{128, 0}, {255, 255, 255, 255}, {texU1, 0.0f}},
+        {{128, 64}, {255, 255, 255, 255}, {texU1, texV1}},
+        {{64, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+        {{128, 64}, {255, 255, 255, 255}, {texU1, texV1}},
+        {{64, 64}, {255, 255, 255, 255}, {0.0f, texV1}}
+    };
+
+    clearBlue();
+    renderer->setBlendMode(NV2ABlendMode::None);
+    renderer->drawColorTriangles(triangle, 3);
+    if (texture) {
+        renderer->bindTexture(texture, false);
+        renderer->setBlendMode(NV2ABlendMode::None);
+        renderer->drawTriangles(destinationQuad, 6);
+    }
+    ProbeSurface pixels = readMainPixels(nullptr);
+    pixel(pixels, "solid", 8, 8, 255, 0, 0);
+    pixel(pixels, "textured", 72, 8, 0, 255, 0);
+    pixel(pixels, "clear", 144, 8, 0, 0, 255);
+
+    clearBlue();
+    uint32_t *p = pb_begin();
+    p = xgu_set_viewport_offset(p, 32.0f, 32.0f, 0.0f, 0.0f);
+    p = xgu_set_scissor_rect(p, false, 32, 32, 64, 64);
+    pb_end(p);
+    renderer->drawColorTriangles(triangle, 3);
+    p = pb_begin();
+    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+    p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    pb_end(p);
+    pixels = readMainPixels(nullptr);
+    pixel(pixels, "viewport-offset", 40, 40, 255, 0, 0);
+    pixel(pixels, "viewport-outside", 8, 8, 0, 0, 255);
+
+    clearBlue();
+    NV2ATexture *target = renderer->createTexture(64, 64, XGU_TEXTURE_FORMAT_A8R8G8B8, false);
+    passed &= target != nullptr;
+    if (target) {
+        setCustomRenderTarget(target);
+        pb_fill(0, 0, target->texWidth, target->texHeight, 0xFF00FF00);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+        restoreMainTarget();
+
+        const float tgtU1 = target->uScale;
+        const float tgtV1 = target->vScale;
+        const NV2AVertex targetQuad[] = {
+            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+            {{192, 0}, {255, 255, 255, 255}, {tgtU1, 0.0f}},
+            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
+            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
+            {{128, 64}, {255, 255, 255, 255}, {0.0f, tgtV1}}
+        };
+        renderer->bindTexture(target, false);
+        renderer->setBlendMode(NV2ABlendMode::None);
+        renderer->drawTriangles(targetQuad, 6);
+        pixels = readMainPixels(nullptr);
+        pixel(pixels, "target-restore", 136, 8, 0, 255, 0);
+        pixel(pixels, "target-outside", 208, 8, 0, 0, 255);
+    }
+
+    clearBlue();
+    if (texture) {
+        const NV2AVertex alphaQuad[] = {
+            {{64, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
+            {{128, 0}, {255, 255, 255, 128}, {texU1, 0.0f}},
+            {{128, 64}, {255, 255, 255, 128}, {texU1, texV1}},
+            {{64, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
+            {{128, 64}, {255, 255, 255, 128}, {texU1, texV1}},
+            {{64, 64}, {255, 255, 255, 128}, {0.0f, texV1}}
+        };
+        renderer->bindTexture(texture, false);
+        renderer->setBlendMode(NV2ABlendMode::Blend);
+        renderer->drawTriangles(alphaQuad, 6);
+        pixels = readMainPixels(nullptr);
+        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1, 255);
+    }
+
+    if (texture && target) {
+        setCustomRenderTarget(target);
+        pb_fill(0, 0, target->texWidth, target->texHeight, 0x00000000);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+
+        const NV2AVertex entireTargetQuad[] = {
+            {{0, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
+            {{64, 0}, {255, 255, 255, 128}, {texU1, 0.0f}},
+            {{64, 64}, {255, 255, 255, 128}, {texU1, texV1}},
+            {{0, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
+            {{64, 64}, {255, 255, 255, 128}, {texU1, texV1}},
+            {{0, 64}, {255, 255, 255, 128}, {0.0f, texV1}}
+        };
+        renderer->bindTexture(texture, false);
+        renderer->setBlendMode(NV2ABlendMode::Blend);
+        renderer->drawTriangles(entireTargetQuad, 6);
+
+        const NV2AVertex halfTriangle[] = {
+            {{0, 0}, {255, 0, 0, 128}, {0, 0}},
+            {{64, 0}, {255, 0, 0, 128}, {0, 0}},
+            {{0, 64}, {255, 0, 0, 128}, {0, 0}}
+        };
+        renderer->unbindTexture();
+        renderer->setBlendMode(NV2ABlendMode::Blend);
+        renderer->drawTriangles(halfTriangle, 3);
+
+        pixels = readTexturePixels(target, nullptr);
+        pixel(pixels, "target-alpha", 52, 52, 0, 128, 0, 1, 128);
+        pixel(pixels, "target-alpha-overlap", 8, 8, 128, 64, 0, 1, 192);
+
+        const ProbeRect targetSample = {8, 8, 4, 4};
+        pixels = readTexturePixels(target, &targetSample);
+        pixel(pixels, "target-subrect", 0, 0, 128, 64, 0, 1, 192);
+
+        restoreMainTarget();
+        renderer->setBlendMode(NV2ABlendMode::None);
+        clearBlue();
+
+        const float tgtU1 = target->uScale;
+        const float tgtV1 = target->vScale;
+        const NV2AVertex targetCompositeQuad[] = {
+            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+            {{192, 0}, {255, 255, 255, 255}, {tgtU1, 0.0f}},
+            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
+            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
+            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
+            {{128, 64}, {255, 255, 255, 255}, {0.0f, tgtV1}}
+        };
+        renderer->bindTexture(target, false);
+        renderer->setBlendMode(NV2ABlendMode::Premultiplied);
+        renderer->drawTriangles(targetCompositeQuad, 6);
+
+        pixels = readMainPixels(nullptr);
+        pixel(pixels, "target-alpha-composite", 180, 52, 0, 128, 127, 1, 255);
+        pixel(pixels, "target-alpha-overlap-composite", 136, 8, 128, 64, 63, 1, 255);
+
+        const ProbeRect mainSample = {136, 8, 4, 4};
+        pixels = readMainPixels(&mainSample);
+        pixel(pixels, "main-subrect", 0, 0, 128, 64, 63, 1, 255);
+    }
+
+    if (target) renderer->destroyTexture(target);
+    if (texture) renderer->destroyTexture(texture);
+    flushRetiredTextures(true);
+
+    pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), 0xFF000000);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+
+    s_mainViewportScaleX = savedScaleX;
+    s_mainViewportScaleY = savedScaleY;
+    s_mainViewportOffsetX = savedOffsetX;
+    s_mainViewportOffsetY = savedOffsetY;
+#endif
+
+    Log::log(passed ? "GPU startup probe passed." : "GPU startup probe FAILED.");
+    return passed;
+}
+#endif
+
 void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
     (void)screen;
     if (!hasFrameBegan) {
@@ -1308,6 +1689,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         s_activeTexture = nullptr;
         s_activeShader = -1;
         s_activeBlendMode = NV2ABlendMode::None;
+        s_activePremultiply = false;
         s_activeWrap = false;
         s_activeScaleMode = NV2AScaleMode::Nearest;
         s_frameIndex = (s_frameIndex + 1) % 3;
@@ -1347,6 +1729,10 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
 #endif
 
     hasFrameBegan = false;
+
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceEffectCache();
+#endif
 
 #if NV2A_PROFILE
     s_prof.tEndExit = nv2aTsc();

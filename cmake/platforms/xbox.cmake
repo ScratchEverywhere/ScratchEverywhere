@@ -122,6 +122,8 @@ endif()
 if(SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/window_sdl3.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_RENDERER)
 endif()

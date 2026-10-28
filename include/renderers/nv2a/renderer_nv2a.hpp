@@ -75,6 +75,7 @@ enum class NV2ABlendMode {
     None,
     Blend,
     Add,
+    Premultiplied,
 };
 
 class SE_EXPORT Renderer_NV2A : public Renderer {

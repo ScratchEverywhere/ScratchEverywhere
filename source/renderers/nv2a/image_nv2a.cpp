@@ -839,8 +839,14 @@ struct EffectEntry {
 
 static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash> s_effectCache;
 static size_t s_effectCacheBytes = 0;
+static size_t s_effectPeakBytes = 0;
+static uint32_t s_effectCreated = 0, s_effectEvicted = 0;
 static uint32_t s_lastEffectSweep = 0;
 static size_t s_effectBudgetOverride = 0; // 0 = default budget
+
+Image_NV2A::EffectCacheStats Image_NV2A::getEffectCacheStats() {
+    return {s_effectCacheBytes, s_effectPeakBytes, s_effectCache.size(), s_effectCreated, s_effectEvicted};
+}
 
 static size_t effectCacheBudget() {
     if (s_effectBudgetOverride) return s_effectBudgetOverride;
@@ -854,6 +860,7 @@ evictEffectEntry(Renderer_NV2A *r, std::unordered_map<EffectKey, EffectEntry, Ef
         s_effectCacheBytes -= std::min(s_effectCacheBytes, t->allocationSize);
         if (r) r->destroyTexture(t); // deferred free
     }
+    ++s_effectEvicted;
     return s_effectCache.erase(it);
 }
 
@@ -1069,6 +1076,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
 
     s_effectCache.emplace(key, EffectEntry{tex, currentFrame});
     s_effectCacheBytes += tex->allocationSize;
+    if (s_effectCacheBytes > s_effectPeakBytes) s_effectPeakBytes = s_effectCacheBytes;
+    ++s_effectCreated;
     trimEffectCache(nv2aRenderer, currentFrame, &key);
 
 #if NV2A_PROFILE
