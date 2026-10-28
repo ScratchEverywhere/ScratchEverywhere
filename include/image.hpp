@@ -69,11 +69,13 @@ class SE_EXPORT Image {
 
     bool loadFont(const std::string &family);
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
-    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
-    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
+    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1, bool scratch2 = false);
+    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false,
+                                                                           const unsigned char *textData = nullptr, size_t textSize = 0);
 
   protected:
     ImageData imgData;
+    std::pair<float, float> svgViewOffset = {0, 0};
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
 
@@ -108,6 +110,9 @@ class SE_EXPORT Image {
     nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
     nonstd::expected<void, std::string> init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
+
+    // Color sensing needs CPU pixels even when a renderer keeps only GPU data.
+    virtual bool ensureColorData() { return imgData.pixels != nullptr; }
 
     virtual ImageData getPixels(ImageSubrect rect);
     inline ImageData getPixels() {
@@ -156,6 +161,7 @@ class SE_EXPORT Image {
     int getHeight();
 
     inline float getScale() const { return imgData.scale; }
+    inline std::pair<float, float> getSVGViewOffset() const { return svgViewOffset; }
 
     nonstd::expected<void, std::string> resizeSVG(float scale);
 

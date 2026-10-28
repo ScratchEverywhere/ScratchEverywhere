@@ -5,10 +5,12 @@
 #include "zip_project_loader.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <input.hpp>
 #include <log.hpp>
 #include <memory>
 #include <renderer.hpp>
 #include <runtime.hpp>
+#include <sb2_bitmap_layers.hpp>
 #include <unzip.hpp>
 
 namespace {
@@ -165,7 +167,11 @@ void applySb2Args(Block &block, const nlohmann::json &sb2block, const std::vecto
         const Sb2ArgSpec &arg = argMap[i];
         size_t argIndex = startIndex + i;
         nlohmann::json providedArg = argIndex < sb2block.size() ? sb2block[argIndex] : nlohmann::json();
-        if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
+        // Scratch 2 projects can use reporter expressions in list selectors.
+        // Preserve those as inputs instead of silently creating an empty field.
+        if (arg.kind == Sb2ArgSpec::Kind::Field && arg.name == "LIST" && providedArg.is_array()) {
+            applySb2Input(block, {Sb2ArgSpec::Kind::Input, "LIST", "text", ""}, providedArg, sprite);
+        } else if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
         else applySb2Input(block, arg, providedArg, sprite);
     }
 }
@@ -279,6 +285,13 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
         costume.bitmapResolution = c.value("bitmapResolution", 1);
 
         costume.fullName = std::to_string(c.value("baseLayerID", 0)) + "." + ext;
+        const int textId = c.value("textLayerID", -1);
+        if (!costume.isSVG && textId >= 0) {
+            const std::string textMD5 = c.value("textLayerMD5", std::string());
+            const auto textDot = textMD5.find_last_of('.');
+            const std::string textExt = textDot == std::string::npos ? "png" : textMD5.substr(textDot + 1);
+            costume.fullName = Sb2BitmapLayers::key(costume.fullName, std::to_string(textId) + "." + textExt);
+        }
 
         if (isStage) {
 #ifdef __XBOX__
@@ -304,6 +317,7 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
             costume.rotationCenterY = -6767.6767;
         }
 
+        sprite->costumeNameIndex.emplace(costume.name, sprite->costumes.size());
         sprite->costumes.push_back(costume);
     }
 }
@@ -439,7 +453,7 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::warpTimer = warpTimer.is_null() || !warpTimer.is_boolean() || warpTimer.get<bool>();
 }
 
-void parseSb2Monitor(const nlohmann::json &watcher) {
+void parseSb2Monitor(const nlohmann::json &watcher, const std::string &stageName) {
     std::string cmd;
     std::string param;
 
@@ -475,7 +489,9 @@ void parseSb2Monitor(const nlohmann::json &watcher) {
     monitor.id = (cmd == "getVar:" || cmd == "contentsOfList:") ? param : block->opcode;
 
     std::string target = watcher.value("target", std::string());
-    monitor.spriteName = (target.empty() || target == "Stage") ? "" : target;
+    // SB2 stages can have localized/custom names. parseSb2Object normalizes
+    // the stage to "Stage", so its watcher targets need the same mapping.
+    monitor.spriteName = (target.empty() || target == "Stage" || target == stageName) ? "" : target;
 
     switch (watcher.value("mode", 1)) {
     case 2:
@@ -593,8 +609,12 @@ void Parser::loadSpritesSb2(const nlohmann::json &json) {
 
     Scratch::sortSprites();
 
+    const std::string stageName = json.value("objName", std::string("Stage"));
     for (const auto &watcher : watcherObjects)
-        parseSb2Monitor(watcher);
+        parseSb2Monitor(watcher, stageName);
+
+    // SB2 games need the same per-project controller profiles as SB3 games.
+    Input::applyControls(Unzip::filePath + ".json");
 }
 
 namespace {

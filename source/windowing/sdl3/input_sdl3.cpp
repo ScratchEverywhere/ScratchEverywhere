@@ -12,6 +12,10 @@
 #include <string>
 #include <types.hpp>
 #include <vector>
+#include <xbox_menu_trace.hpp>
+#ifdef __XBOX__
+#include <log.hpp>
+#endif
 
 #ifdef __SWITCH__
 extern char nickname[0x21];
@@ -197,7 +201,24 @@ void InputDevice_SDL3::getInput() {
 
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
 
+#ifdef __XBOX__
+    // Supply an accessible replay action after a game ends with "stop all".
+    // Browser projects retain the long-press pause menu while running.
+    static bool previousStart = false;
+    const bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+    if (startPressed && !previousStart && Scratch::stageSprite != nullptr &&
+#ifdef ENABLE_MENU
+        Scratch::pauseMenu == nullptr &&
+#endif
+        BlockExecutor::stopClicked) {
+        Scratch::greenFlagClicked();
+        Log::log("Xbox Start: restarted stopped project.");
+    }
+    previousStart = startPressed;
+#endif
+
     BlockExecutor::executeKeyHats();
+    XboxMenuTrace::gameFrame();
 
 #ifdef PLATFORM_HAS_TOUCH
     int numDevices, numFingers;

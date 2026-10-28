@@ -6,6 +6,7 @@
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <log.hpp>
+#include <xbox_menu_trace.hpp>
 
 ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
     initProjectName = selectedProjectName;
@@ -17,6 +18,10 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+#ifdef __XBOX__
+    awaitingConfirmRelease = true;
+    pendingProjectLoad = false;
+#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -132,6 +137,27 @@ void ProjectMenu::init() {
 
 void ProjectMenu::render() {
     Input::getInput();
+#ifdef __XBOX__
+    if (pendingProjectLoad) {
+        // A small project can finish loading before A/X is released. Keep UI
+        // controls until release so launching cannot trigger a game key hat.
+        if (Input::keyHeldDuration["a"] != 0 || Input::keyHeldDuration["x"] != 0 || Input::mousePointer.isPressed) return;
+        pendingProjectLoad = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser load after release");
+        XboxMenuTrace::beginGameFrames();
+        MenuManager::loadProject();
+        return;
+    }
+    // A may still be held after confirming Exit Project, and remapping the
+    // game controls back to UI controls makes it look like a new key press.
+    if (awaitingConfirmRelease && Input::keyHeldDuration["a"] == 0 && Input::keyHeldDuration["x"] == 0) {
+        awaitingConfirmRelease = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser armed");
+    }
+    const bool acceptReady = !awaitingConfirmRelease;
+#else
+    const bool acceptReady = true;
+#endif
     projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
@@ -159,20 +185,29 @@ void ProjectMenu::render() {
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed()) {
+        if (acceptReady && projectControl->selectedObject->isPressed()) {
+            if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser accepted " + projectControl->selectedObject->text->getText());
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 std::string name = projectControl->selectedObject->text->getText();
                 Unzip::filePath = OS::getScratchFolderLocation() + name;
                 Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", name);
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
                 std::string name = projectControl->selectedObject->text->getText();
                 ProjectFormat format;
                 std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + name, format);
                 Unzip::filePath = !resolved.empty() ? resolved : (OS::getScratchFolderLocation() + name + ".sb3");
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else {
                 // Settings button
@@ -201,8 +236,11 @@ void ProjectMenu::render() {
         //     return;
         // }
     } else {
-        if (noProjectsButton->isPressed({"a"})) {
-            MenuManager::changeMenu(MenuManager::previousMenu);
+        if (acceptReady && noProjectsButton->isPressed({"a"})) {
+            // A browser opened directly at startup has no previous menu yet.
+            Menu *destination = MenuManager::previousMenu;
+            if (destination == nullptr) destination = new MainMenu();
+            MenuManager::changeMenu(destination);
             return;
         }
     }
