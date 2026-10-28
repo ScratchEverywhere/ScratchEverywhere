@@ -74,6 +74,8 @@ struct NV2AVertex {
 enum class NV2ABlendMode {
     None,
     Blend,
+    // Additive, using the *vertex* RGB scaled by (texture alpha * vertex alpha). The texture's own colour is not
+    // added; this is what the brightness effect needs (adds white shaped by the sprite's alpha).
     Add,
     Premultiplied,
 };

@@ -337,6 +337,13 @@ static inline void combinerInit() {
 
 static bool s_activePremultiply = false;
 
+// "Flat" texture combiner (used by NV2ABlendMode::Add): RGB comes from the vertex colour only and the texture just
+// supplies the alpha mask. Brightness is drawn as an additive pass of white * (texAlpha * vertexAlpha); the plain
+// textured combiner (tex.rgb * vertex.rgb) would add the sprite's *own* colour instead, so a dark UI never flashed
+// to white and bright-to-dark fades were invisible.
+static bool s_activeFlatColor = false;  // wanted by the current blend mode
+static bool s_appliedFlatColor = false; // flavour baked into the combiner currently loaded on the GPU
+
 static inline void unlitCombinerApply() {
     uint32_t *p = pb_begin();
     p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
@@ -402,9 +409,16 @@ static inline void textureCombinerApply() {
     p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
     p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE0, NV097_SET_SHADER_STAGE_PROGRAM_STAGE0_2D_PROJECTIVE));
 
+    // Normal:  rgb = tex.rgb * V0.rgb          (A = texture0, B = diffuse)
+    // Flat:    rgb = V0.rgb * 1                (A = diffuse,  B = constant 1 via "invert zero", as in unlitCombinerApply)
+    const uint32_t colorA = s_activeFlatColor ? 0x4 : 0x8;
+    const uint32_t colorBSource = s_activeFlatColor ? 0x0 : 0x4;
+    const uint32_t colorBMap = s_activeFlatColor ? 0x1 : 0x6;
+    s_appliedFlatColor = s_activeFlatColor;
+
     p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW + 0 * 4,
-        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, 0x8) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_MAP, 0x6) |
-        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_MAP, 0x6) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, colorA) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_MAP, 0x6) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, colorBSource) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_MAP, colorBMap) |
         XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_MAP, 0x0) |
         XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x0));
 
@@ -889,7 +903,7 @@ void Renderer_NV2A::bindTexture(const NV2ATexture *texture, bool linear, bool wr
 void Renderer_NV2A::bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleMode, bool wrap) {
     if (!texture || !texture->data) return;
 
-    if (s_activeShader != 1) {
+    if (s_activeShader != 1 || s_appliedFlatColor != s_activeFlatColor) {
         textureCombinerApply();
         s_activeShader = 1;
     }
@@ -951,6 +965,7 @@ void Renderer_NV2A::setBlendMode(NV2ABlendMode mode) {
     XguBlendFactor sfactor = XGU_FACTOR_ONE;
     XguBlendFactor dfactor = XGU_FACTOR_ZERO;
     s_activePremultiply = false;
+    s_activeFlatColor = (mode == NV2ABlendMode::Add);
 
     switch (mode) {
         case NV2ABlendMode::None:
@@ -992,6 +1007,11 @@ void Renderer_NV2A::setBlendMode(NV2ABlendMode mode) {
     p = xgu_set_blend_func_sfactor(p, sfactor);
     p = xgu_set_blend_func_dfactor(p, dfactor);
     pb_end(p);
+
+    // Callers bind the texture first and pick the blend mode second, so the combiner flavour may have to change now.
+    if (s_activeShader == 1 && s_appliedFlatColor != s_activeFlatColor) {
+        textureCombinerApply();
+    }
 }
 
 void Renderer_NV2A::setViewport(int x, int y, int w, int h) {
@@ -1690,6 +1710,8 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         s_activeShader = -1;
         s_activeBlendMode = NV2ABlendMode::None;
         s_activePremultiply = false;
+        s_activeFlatColor = false;
+        s_appliedFlatColor = false;
         s_activeWrap = false;
         s_activeScaleMode = NV2AScaleMode::Nearest;
         s_frameIndex = (s_frameIndex + 1) % 3;
