@@ -16,6 +16,7 @@
 #include <functional>
 #include <log.hpp>
 #include <map>
+#include <set>
 #include <sljitLir.h>
 #include <string>
 #include <unordered_map>
@@ -151,7 +152,6 @@ struct alignas(64) Context {
     uint32_t numberBase = 0;
     uint32_t booleanBase = 0;
     uint32_t valueBase = 0;
-    uint32_t poll = 0;
     uint32_t nativeDepth = 0;
     uint32_t tempHigh = 0;
     uint64_t shadowUsed[2] = {0, 0};
@@ -354,7 +354,6 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
         ctx->slots[code.slotVariables + k] = rawVariableNumber(variableAt(thread, code.promoted[k]));
     }
 
-    ctx->poll = kPollInterval;
     ctx->nativeDepth = 0;
 }
 
@@ -1443,6 +1442,23 @@ class Emitter {
     sljit_compiler *c_ = nullptr;
     std::vector<sljit_label *> labels_;
     std::vector<std::pair<sljit_jump *, BytecodeIndex>> pending_;
+
+    struct Region {
+        BytecodeIndex head = 0, tail = 0;
+        std::vector<uint32_t> slots;
+        sljit_label *body = nullptr;
+    };
+    static constexpr int kFirstPin = 4;
+    static constexpr size_t kMaxPins = 8;
+    std::deque<Region> regions_;
+    std::vector<int32_t> regionOf_;
+    const Region *active_ = nullptr;
+    std::vector<std::pair<sljit_jump *, const Region *>> pendingBody_;
+    bool pinViolation_ = false;
+    const bool poisonPins_ = [] {
+        const char *poison = std::getenv("SE_JIT_POISON");
+        return poison != nullptr && std::string(poison) != "0";
+    }();
     std::vector<sljit_jump *> exitJumps_;
     std::vector<sljit_jump *> leaveJumps_;
     std::vector<std::function<void()>> cold_;
@@ -1461,11 +1477,73 @@ class Emitter {
     uint32_t valueSlot(uint32_t depth) const { return code_.slotValues + depth; }
     uint32_t variableSlot(uint32_t k) const { return code_.slotVariables + k; }
 
-    void loadF(sljit_s32 reg, uint32_t slot) { sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot)); }
-    void storeF(uint32_t slot, sljit_s32 reg) { sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0); }
-    void loadW(sljit_s32 reg, uint32_t slot) { sljit_emit_op1(c_, SLJIT_MOV, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot)); }
-    void storeW(uint32_t slot, sljit_s32 reg) { sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0); }
-    void storeImmW(uint32_t slot, sljit_sw value) { sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), SLJIT_IMM, value); }
+    int pinOf(uint32_t slot) {
+        if (active_ == nullptr) return -1;
+        for (size_t i = 0; i < active_->slots.size(); i++) {
+            if (active_->slots[i] == slot) return kFirstPin + static_cast<int>(i);
+        }
+        return -1;
+    }
+    bool insideActive(BytecodeIndex target) const { return active_ != nullptr && target >= active_->head && target <= active_->tail; }
+
+    void emitSpill() {
+        if (active_ == nullptr) return;
+        for (size_t i = 0; i < active_->slots.size(); i++)
+            sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]), SLJIT_FR(kFirstPin + static_cast<int>(i)), 0);
+    }
+    void emitReload() {
+        if (active_ == nullptr) return;
+        for (size_t i = 0; i < active_->slots.size(); i++)
+            sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + static_cast<int>(i)), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]));
+    }
+
+    void addCold(std::function<void()> fn) {
+        const Region *region = active_;
+        cold_.push_back([this, region, fn = std::move(fn)]() {
+            active_ = region;
+            fn();
+            active_ = nullptr;
+        });
+    }
+
+    void pendJump(sljit_jump *jump, BytecodeIndex target) {
+        if (active_ != nullptr && !insideActive(target)) {
+            addCold([this, jump, target]() {
+                sljit_set_label(jump, sljit_emit_label(c_));
+                emitSpill();
+                pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), target});
+            });
+        } else if (active_ != nullptr && target == active_->head) {
+            pendingBody_.push_back({jump, active_});
+        } else {
+            pending_.push_back({jump, target});
+        }
+    }
+    void pendUnconditional(BytecodeIndex target) {
+        if (active_ != nullptr && !insideActive(target)) emitSpill();
+        pendJump(sljit_emit_jump(c_, SLJIT_JUMP), target);
+    }
+
+    void loadF(sljit_s32 reg, uint32_t slot) {
+        if (const int pin = pinOf(slot); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_FR(pin), 0);
+        else sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot));
+    }
+    void storeF(uint32_t slot, sljit_s32 reg) {
+        if (const int pin = pinOf(slot); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(pin), 0, reg, 0);
+        else sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0);
+    }
+    void loadW(sljit_s32 reg, uint32_t slot) {
+        if (pinOf(slot) >= 0) pinViolation_ = true;
+        sljit_emit_op1(c_, SLJIT_MOV, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot));
+    }
+    void storeW(uint32_t slot, sljit_s32 reg) {
+        if (pinOf(slot) >= 0) pinViolation_ = true;
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0);
+    }
+    void storeImmW(uint32_t slot, sljit_sw value) {
+        if (pinOf(slot) >= 0) pinViolation_ = true;
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), SLJIT_IMM, value);
+    }
     void storeImmF(uint32_t slot, double value) {
         sljit_emit_fset64(c_, SLJIT_FR0, value);
         storeF(slot, SLJIT_FR0);
@@ -1477,7 +1555,16 @@ class Emitter {
         sljit_set_label(notNan, sljit_emit_label(c_));
     }
 
-    void callHelper(void *fn, sljit_s32 argTypes) { sljit_emit_icall(c_, SLJIT_CALL, argTypes, SLJIT_IMM, reinterpret_cast<sljit_sw>(fn)); }
+    void callHelper(void *fn, sljit_s32 argTypes) {
+        emitSpill();
+        sljit_emit_icall(c_, SLJIT_CALL, argTypes, SLJIT_IMM, reinterpret_cast<sljit_sw>(fn));
+        if (poisonPins_ && active_ != nullptr) {
+            for (size_t i = 0; i < active_->slots.size(); i++)
+                sljit_emit_fset64(c_, SLJIT_FR(kFirstPin + static_cast<int>(i)), -123456.789);
+        }
+        emitReload();
+    }
+    void findRegions();
 
     void resetStateFromAnalysis(BytecodeIndex pc);
     AbsState stateAfterPop(const AbsState &s) const { return s; }
@@ -1511,7 +1598,7 @@ class Emitter {
         const uint32_t k = promoted(variable);
         sljit_jump *holdsString = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 4);
         sljit_label *back = sljit_emit_label(c_);
-        cold_.push_back([this, holdsString, back, k]() {
+        addCold([this, holdsString, back, k]() {
             sljit_set_label(holdsString, sljit_emit_label(c_));
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, k);
@@ -1568,15 +1655,15 @@ ExitDescriptor &Emitter::makeExit(BytecodeIndex pc, uint32_t result, const AbsSt
 
 void Emitter::emitExitAt(BytecodeIndex pc, uint32_t result, const AbsState &state) {
     ExitDescriptor &d = makeExit(pc, result, state);
+    emitSpill();
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&d));
     exitJumps_.push_back(sljit_emit_jump(c_, SLJIT_JUMP));
 }
 
 void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAtTarget) {
-    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, poll), SLJIT_IMM, 1);
-    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_MEM1(SLJIT_S0), offsetof(Context, poll), SLJIT_R0, 0);
-    sljit_jump *proceed = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL | SLJIT_32, SLJIT_R0, 0, SLJIT_IMM, 0);
-    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_MEM1(SLJIT_S0), offsetof(Context, poll), SLJIT_IMM, kPollInterval);
+    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_S2, 0, SLJIT_S2, 0, SLJIT_IMM, 1);
+    sljit_jump *proceed = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL | SLJIT_32, SLJIT_S2, 0, SLJIT_IMM, 0);
+    sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, kPollInterval);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     callHelper(reinterpret_cast<void *>(&jitPreempt), SLJIT_ARGS1(W, P));
     sljit_jump *keepGoing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
@@ -1584,15 +1671,15 @@ void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAt
     sljit_label *go = sljit_emit_label(c_);
     sljit_set_label(proceed, go);
     sljit_set_label(keepGoing, go);
-    pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), target});
+    pendUnconditional(target);
 }
 
 void Emitter::emitJumpTo(sljit_jump *jump, BytecodeIndex target, const AbsState &stateAtTarget, bool backEdge) {
     if (!backEdge) {
-        pending_.push_back({jump, target});
+        pendJump(jump, target);
         return;
     }
-    cold_.push_back([this, jump, target, stateAtTarget]() {
+    addCold([this, jump, target, stateAtTarget]() {
         sljit_set_label(jump, sljit_emit_label(c_));
         emitBackEdgeThenJump(target, stateAtTarget);
     });
@@ -1612,7 +1699,7 @@ void Emitter::emitCompareValue(BytecodeCompareKind kind, uint32_t a, uint32_t b)
     sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(out), flag);
     sljit_label *done = sljit_emit_label(c_);
 
-    cold_.push_back([this, unordered, done, kind, out]() {
+    addCold([this, unordered, done, kind, out]() {
         sljit_set_label(unordered, sljit_emit_label(c_));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
         callHelper(reinterpret_cast<void *>(&jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
@@ -1648,7 +1735,7 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
     emitJumpTo(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), instr.a, atTarget, backEdge);
     sljit_label *fall = sljit_emit_label(c_);
 
-    cold_.push_back([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target = instr.a]() {
+    addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target = instr.a]() {
         sljit_set_label(unordered, sljit_emit_label(c_));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
         callHelper(reinterpret_cast<void *>(&jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
@@ -1656,7 +1743,7 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
         if (backEdge) {
             emitBackEdgeThenJump(target, atTarget);
         } else {
-            pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), target});
+            pendUnconditional(target);
         }
         sljit_set_label(no, fall);
     });
@@ -1736,7 +1823,7 @@ bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape sha
     sljit_set_label(hidden, sljit_emit_label(c_));
     sljit_label *done = sljit_emit_label(c_);
 
-    cold_.push_back([this, slow, done, shape, first, second, &fn]() {
+    addCold([this, slow, done, shape, first, second, &fn]() {
         const sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, const_cast<sljit_label *>(here));
@@ -1786,7 +1873,7 @@ void Emitter::emitInlineMod(const BytecodeInstruction &instr) {
     sljit_label *done = sljit_emit_label(c_);
     storeF(a, SLJIT_FR0);
 
-    cold_.push_back([this, slow, done, a, b, &fn]() {
+    addCold([this, slow, done, a, b, &fn]() {
         sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, here);
@@ -2240,7 +2327,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         sljit_jump *leave = sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_R0, 0, SLJIT_IMM, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
         sljit_emit_ijump(c_, SLJIT_JUMP, SLJIT_MEM2(SLJIT_R1, SLJIT_R0), SLJIT_WORD_SHIFT);
-        cold_.push_back([this, leave]() {
+        addCold([this, leave]() {
             sljit_set_label(leave, sljit_emit_label(c_));
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 1 + static_cast<sljit_sw>(BytecodeJit::Result::Interpret));
             leaveJumps_.push_back(sljit_emit_jump(c_, SLJIT_JUMP));
@@ -2377,7 +2464,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
     case BytecodeOp::Jump:
         if (instr.a <= pc) emitBackEdgeThenJump(instr.a, state_);
-        else pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), instr.a});
+        else pendUnconditional(instr.a);
         return;
 
     case BytecodeOp::RepeatCheck: {
@@ -2389,7 +2476,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
         sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
         sljit_label *counted = sljit_emit_label(c_);
-        cold_.push_back([this, fractional, counted]() {
+        addCold([this, fractional, counted]() {
             sljit_set_label(fractional, sljit_emit_label(c_));
             callHelper(reinterpret_cast<void *>(&jitRepeatRemaining), SLJIT_ARGS1(F64, F64));
             sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), counted);
@@ -2588,6 +2675,149 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
 }
 
+void Emitter::findRegions() {
+    const size_t count = chunk_.instructions.size();
+    regionOf_.assign(count, -1);
+    if (const char *off = std::getenv("SE_JIT_NOPIN"); off != nullptr && std::string(off) != "0") return;
+
+    std::map<BytecodeIndex, BytecodeIndex> tails;
+    for (BytecodeIndex pc = 0; pc < count; pc++) {
+        const BytecodeInstruction &instr = chunk_.instructions[pc];
+        if (plan_.supported[pc] && isJump(instr.op) && instr.a <= pc && instr.a < count) tails[instr.a] = std::max(tails[instr.a], pc);
+    }
+
+    for (const auto &[head, tail] : tails) {
+        bool ok = true;
+        int hotCalls = 0;
+        std::map<uint32_t, int> uses;
+        std::set<uint32_t> disqualified;
+        std::vector<uint32_t> counters;
+
+        for (BytecodeIndex pc = head; pc <= tail && ok; pc++) {
+            if (!analysis_.isReachable(pc)) continue;
+            if (!plan_.supported[pc]) {
+                ok = false;
+                break;
+            }
+            const BytecodeInstruction &instr = chunk_.instructions[pc];
+            switch (instr.op) {
+            case BytecodeOp::CallProcedure:
+            case BytecodeOp::CallProcedureValue:
+            case BytecodeOp::Return:
+            case BytecodeOp::Halt:
+            case BytecodeOp::ForEachCheck:
+                ok = false;
+                break;
+            case BytecodeOp::AddToList:
+            case BytecodeOp::DeleteFromList:
+            case BytecodeOp::DeleteAllOfList:
+            case BytecodeOp::InsertInList:
+            case BytecodeOp::ReplaceInList:
+            case BytecodeOp::ItemOfList:
+            case BytecodeOp::ItemNumOfList:
+            case BytecodeOp::ListContainsItem:
+            case BytecodeOp::PushVarString:
+            case BytecodeOp::StoreVarString:
+            case BytecodeOp::AppendVarString:
+            case BytecodeOp::StrEquals:
+            case BytecodeOp::StrLess:
+            case BytecodeOp::StrGreater:
+            case BytecodeOp::LengthOfVar:
+            case BytecodeOp::LetterOfVar:
+            case BytecodeOp::LetterOf:
+            case BytecodeOp::LengthOf:
+            case BytecodeOp::ConvertStringToValue:
+            case BytecodeOp::ConvertValueToString:
+            case BytecodeOp::ValueEquals:
+            case BytecodeOp::ValueLess:
+            case BytecodeOp::ValueGreater:
+            case BytecodeOp::MathOp:
+                hotCalls++;
+                break;
+            case BytecodeOp::CallNative:
+            case BytecodeOp::CallNativeNumber:
+            case BytecodeOp::CallNativeString:
+            case BytecodeOp::CallNativeBoolean: {
+                const NativeShape shape = plan_.nativeShape(instr);
+                const std::string &name = plan_.opcodeName(instr.a);
+                const bool inlined = shape == NativeShape::Add || shape == NativeShape::Subtract || shape == NativeShape::Multiply || shape == NativeShape::Divide || shape == NativeShape::And || shape == NativeShape::Or || shape == NativeShape::Not || name == "operator_mod" || name == "motion_changexby" || name == "motion_changeyby" || name == "motion_setx" || name == "motion_sety" || name == "motion_gotoxy";
+                if (!inlined) hotCalls++;
+                break;
+            }
+            default:
+                break;
+            }
+            if (!ok) break;
+            if (isJump(instr.op) && instr.a <= pc && instr.a != head) ok = false;
+
+            const int64_t variable = plan_.promotedVariable(instr);
+            if (variable >= 0) {
+                switch (instr.op) {
+                case BytecodeOp::PushVarNumber:
+                case BytecodeOp::StoreVarNumber:
+                case BytecodeOp::ChangeVarNumber:
+                case BytecodeOp::PushVarValue:
+                case BytecodeOp::StoreVarValue:
+                    uses[static_cast<uint32_t>(variable)]++;
+                    break;
+                default:
+                    disqualified.insert(static_cast<uint32_t>(variable));
+                    break;
+                }
+            }
+            if (instr.op == BytecodeOp::RepeatCheck) {
+                BytecodeAbstractState state;
+                if (analysis_.stateBefore(pc, state) && !state.values.empty()) counters.push_back(valueSlot(static_cast<uint32_t>(state.values.size()) - 1));
+            }
+        }
+        const bool logRegions = [] {
+            const char *log = std::getenv("SE_JIT_LOG");
+            return log != nullptr && std::string(log) == "2";
+        }();
+        if (!ok || hotCalls > 2) {
+            if (logRegions) Log::log("[jit region] " + std::to_string(head) + ".." + std::to_string(tail) + " rejected: " + (ok ? "calls=" + std::to_string(hotCalls) : std::string("shape")));
+            continue;
+        }
+
+        for (BytecodeIndex pc = 0; pc < count && ok; pc++) {
+            if (pc >= head && pc <= tail) continue;
+            const BytecodeInstruction &instr = chunk_.instructions[pc];
+            if (plan_.supported[pc] && isJump(instr.op) && instr.a > head && instr.a <= tail) ok = false;
+        }
+        if (!ok) continue;
+
+        Region region;
+        region.head = head;
+        region.tail = tail;
+        for (uint32_t slot : counters) {
+            if (region.slots.size() < kMaxPins && std::find(region.slots.begin(), region.slots.end(), slot) == region.slots.end()) region.slots.push_back(slot);
+        }
+        uint32_t deepest = 0;
+        for (BytecodeIndex pc = head; pc <= tail; pc++) {
+            BytecodeAbstractState state;
+            if (analysis_.isReachable(pc) && analysis_.stateBefore(pc, state)) deepest = std::max(deepest, state.numbers + 1);
+        }
+        for (uint32_t slot = 0; slot < std::min<uint32_t>(deepest, 3) && region.slots.size() < kMaxPins; slot++)
+            region.slots.push_back(numberSlot(slot));
+        std::vector<std::pair<int, uint32_t>> ranked;
+        for (const auto &[variable, uses_] : uses) {
+            if (disqualified.count(variable) || variable >= promotedIndex_.size() || promotedIndex_[variable] < 0 || stringWritten_[variable]) continue;
+            ranked.push_back({-uses_, variableSlot(static_cast<uint32_t>(promotedIndex_[variable]))});
+        }
+        std::sort(ranked.begin(), ranked.end());
+        for (const auto &[negativeUses, slot] : ranked) {
+            if (region.slots.size() >= kMaxPins) break;
+            region.slots.push_back(slot);
+        }
+        if (logRegions) Log::log("[jit region] " + std::to_string(head) + ".." + std::to_string(tail) + " pins=" + std::to_string(region.slots.size()) + " uses=" + std::to_string(uses.size()) + " disq=" + std::to_string(disqualified.size()) + " calls=" + std::to_string(hotCalls));
+        if (region.slots.empty()) continue;
+
+        regions_.push_back(region);
+        for (BytecodeIndex pc = head; pc <= tail; pc++)
+            regionOf_[pc] = static_cast<int32_t>(regions_.size()) - 1;
+    }
+}
+
 bool Emitter::emit() {
     const size_t count = chunk_.instructions.size();
 
@@ -2624,14 +2854,21 @@ bool Emitter::emit() {
     c_ = sljit_create_compiler(nullptr);
     if (c_ == nullptr) return false;
 
-    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(3), 2, 0);
+    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins), 3, 0);
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
     callHelper(reinterpret_cast<void *>(&jitEnter), SLJIT_ARGS2V(P, W));
+    if (poisonPins_) {
+        for (size_t i = 0; i < kMaxPins; i++)
+            sljit_emit_fset64(c_, SLJIT_FR(kFirstPin + static_cast<int>(i)), -123456.789);
+    }
+    sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, kPollInterval);
     code_.entryTable.assign(plan_.entryPcs.size(), nullptr);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
     sljit_emit_ijump(c_, SLJIT_JUMP, SLJIT_MEM2(SLJIT_R1, SLJIT_S1), SLJIT_WORD_SHIFT);
+
+    findRegions();
 
     labels_.assign(count, nullptr);
     bool havePrevious = false;
@@ -2642,6 +2879,12 @@ bool Emitter::emit() {
 
         labels_[pc] = sljit_emit_label(c_);
 
+        active_ = regionOf_[pc] >= 0 ? &regions_[regionOf_[pc]] : nullptr;
+        if (active_ != nullptr && pc == active_->head) {
+            emitReload();
+            regions_[regionOf_[pc]].body = sljit_emit_label(c_);
+        }
+
         if (!(havePrevious && previous + 1 == pc && !analysis_.isBlockStart(pc))) resetStateFromAnalysis(pc);
         havePrevious = true;
         previous = pc;
@@ -2650,16 +2893,19 @@ bool Emitter::emit() {
             emitInstruction(pc);
             const BytecodeOp op = chunk_.instructions[pc].op;
             if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
+            if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill();
         } else {
             emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), state_);
             havePrevious = false;
         }
     }
 
+    active_ = nullptr;
     for (size_t i = 0; i < cold_.size(); i++) {
         auto emitCold = cold_[i];
         emitCold();
     }
+    active_ = nullptr;
 
     sljit_label *exitLabel = sljit_emit_label(c_);
     for (sljit_jump *j : exitJumps_)
@@ -2685,6 +2931,25 @@ bool Emitter::emit() {
         sljit_set_label(jump, labels_[target]);
     }
 
+    for (auto &[jump, region] : pendingBody_)
+        sljit_set_label(jump, region->body);
+
+    std::vector<sljit_label *> entryLabels(plan_.entryPcs.size(), nullptr);
+    for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
+        const BytecodeIndex pc = plan_.entryPcs[i];
+        if (pc >= count || regionOf_[pc] < 0 || pc == regions_[regionOf_[pc]].head) continue;
+        active_ = &regions_[regionOf_[pc]];
+        entryLabels[i] = sljit_emit_label(c_);
+        emitReload();
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), labels_[pc]);
+    }
+    active_ = nullptr;
+    if (pinViolation_) {
+        sljit_free_compiler(c_);
+        c_ = nullptr;
+        return giveUp("a slot kept in a register was accessed behind its back");
+    }
+
     code_.machine = sljit_generate_code(c_, 0, nullptr);
     if (code_.machine == nullptr) {
         sljit_free_compiler(c_);
@@ -2693,7 +2958,7 @@ bool Emitter::emit() {
     }
     code_.fn = reinterpret_cast<sljit_sw (*)(Context *, sljit_sw)>(code_.machine);
     for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
-        code_.entryTable[i] = reinterpret_cast<void *>(sljit_get_label_addr(labels_[plan_.entryPcs[i]]));
+        code_.entryTable[i] = reinterpret_cast<void *>(sljit_get_label_addr(entryLabels[i] != nullptr ? entryLabels[i] : labels_[plan_.entryPcs[i]]));
     }
     sljit_free_compiler(c_);
     c_ = nullptr;
