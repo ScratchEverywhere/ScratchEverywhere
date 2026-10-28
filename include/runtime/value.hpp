@@ -218,6 +218,10 @@ class SE_EXPORT Value {
         return isDouble() && std::isnan(storage.d);
     }
 
+    SE_FORCEINLINE double numberRaw() const {
+        return tag == Tag::NUMBER ? storage.d : asDouble();
+    }
+
     SE_FORCEINLINE double asDouble() const {
         switch (tag) {
         case Tag::NUMBER:
