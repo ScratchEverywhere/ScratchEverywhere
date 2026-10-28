@@ -111,7 +111,7 @@ class SE_EXPORT Value {
     } storage;
 
     SE_FORCEINLINE void destroyActive() {
-        if (tag == Tag::STRING_ID) {
+        if (tag == Tag::STRING_ID && storage.stringId != 0) {
             StringPool::release(storage.stringId);
         }
     }
@@ -216,6 +216,13 @@ class SE_EXPORT Value {
     bool isNumeric() const;
     inline bool isNaN() const {
         return isDouble() && std::isnan(storage.d);
+    }
+
+    SE_FORCEINLINE void setNumber(double d) {
+        destroyActive();
+        tag = Tag::NUMBER;
+        flags = 0;
+        storage.d = d;
     }
 
     SE_FORCEINLINE double numberRaw() const {

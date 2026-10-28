@@ -570,6 +570,10 @@ double bytecodeMathOpApply(BytecodeMathOp op, double value) {
     return mathOpApply(op, value);
 }
 
+size_t bytecodeResolveListIndex(const Value &index, size_t size) {
+    return resolveListIndex(index, size);
+}
+
 void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;
 

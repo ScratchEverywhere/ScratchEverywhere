@@ -172,6 +172,7 @@ struct Code {
     std::deque<ValueCallDescriptor> valueCalls;
     std::deque<ShadowDescriptor> shadows;
     std::deque<StringOp> stringOps;
+    std::deque<double> doubles;
     std::deque<CompareDescriptor> compares;
     std::deque<CallDescriptor> calls;
     std::deque<ReturnDescriptor> returns;
@@ -360,15 +361,15 @@ void syncStacks(Context *ctx, const ExitDescriptor *state) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
-    thread.numberStack.resize(ctx->numberBase + state->numbers);
+    if (thread.numberStack.size() != ctx->numberBase + state->numbers) thread.numberStack.resize(ctx->numberBase + state->numbers);
     for (uint32_t i = 0; i < state->numbers; i++)
         thread.numberStack[ctx->numberBase + i] = ctx->slots[i];
 
-    thread.boolStack.resize(ctx->booleanBase + state->booleans);
+    if (thread.boolStack.size() != ctx->booleanBase + state->booleans) thread.boolStack.resize(ctx->booleanBase + state->booleans);
     for (uint32_t i = 0; i < state->booleans; i++)
         thread.boolStack[ctx->booleanBase + i] = bitsOf(ctx->slots[code.slotBooleans + i]) != 0;
 
-    thread.stringStack.resize(ctx->stringBase + state->strings.size());
+    if (thread.stringStack.size() != ctx->stringBase + state->strings.size()) thread.stringStack.resize(ctx->stringBase + state->strings.size());
     for (uint32_t i = 0; i < state->strings.size(); i++) {
         const StrEntry &entry = state->strings[i];
         if (entry.kind == StrEntry::Const) thread.stringStack[ctx->stringBase + i] = ctx->chunk->stringConstants[entry.constant];
@@ -376,11 +377,12 @@ void syncStacks(Context *ctx, const ExitDescriptor *state) {
         else if (entry.kind == StrEntry::Variable) thread.stringStack[ctx->stringBase + i] = readVariableString(ctx, entry.constant);
     }
 
-    thread.valueStack.resize(ctx->valueBase + state->values.size());
+    if (thread.valueStack.size() != ctx->valueBase + state->values.size()) thread.valueStack.resize(ctx->valueBase + state->values.size());
     for (uint32_t i = 0; i < state->values.size(); i++) {
         const ValueEntry &entry = state->values[i];
         if (entry.kind == ValueEntry::Opaque || entry.kind == ValueEntry::Like) continue;
-        thread.valueStack[ctx->valueBase + i] = materializeEntry(ctx, entry, i);
+        if (entry.kind == ValueEntry::Number) thread.valueStack[ctx->valueBase + i].setNumber(ctx->slots[code.slotValues + i]);
+        else thread.valueStack[ctx->valueBase + i] = materializeEntry(ctx, entry, i);
     }
 }
 
@@ -500,6 +502,19 @@ void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
     Value item;
     if (list != nullptr && !list->items.empty()) {
         const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
+        if (position < list->items.size()) item = list->items[position];
+    }
+    ctx->slots[ctx->code->slotValues + op->indexPosition] = item.numberRaw();
+    gTemps[op->indexPosition] = std::move(item);
+    ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
+}
+
+void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
+    const List *list = listAt(*ctx->thread, op->list);
+    const Value index = materializeEntry(ctx, op->item, op->itemPosition);
+    Value item;
+    if (list != nullptr && !list->items.empty()) {
+        const size_t position = bytecodeResolveListIndex(index, list->items.size());
         if (position < list->items.size()) item = list->items[position];
     }
     ctx->slots[ctx->code->slotValues + op->indexPosition] = item.numberRaw();
@@ -1130,7 +1145,7 @@ struct Planner {
             return instr.a < variableCount && consumedInBlock(pc, instr.a);
 
         case BytecodeOp::ItemOfList:
-            return listValid(instr) && topValuesAreNumeric(pc, 1) && consumedInBlock(pc, -1, -1);
+            return listValid(instr) && consumedInBlock(pc, -1, -1);
         case BytecodeOp::ReplaceInList:
         case BytecodeOp::DeleteFromList:
         case BytecodeOp::InsertInList:
@@ -1492,6 +1507,7 @@ class Emitter {
     }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
+    bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     ExitDescriptor &makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state);
     uint32_t promoted(BytecodeIndex variable) const { return static_cast<uint32_t>(promotedIndex_[variable]); }
     double constantNumber(BytecodeIndex index) const { return chunk_.constants[index].get<double>(); }
@@ -1625,6 +1641,97 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
     });
 }
 
+bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape) {
+    enum Kind { ChangeX,
+                ChangeY,
+                SetX,
+                SetY,
+                GoTo } kind;
+    const std::string &name = plan_.opcodeName(instr.a);
+    if (shape == NativeShape::VoidNumber) {
+        if (name == "motion_changexby") kind = ChangeX;
+        else if (name == "motion_changeyby") kind = ChangeY;
+        else if (name == "motion_setx") kind = SetX;
+        else if (name == "motion_sety") kind = SetY;
+        else return false;
+    } else if (name == "motion_gotoxy") {
+        kind = GoTo;
+    } else {
+        return false;
+    }
+
+    const BytecodePositionalFn &fn = link_.positional[instr.a];
+    const uint32_t first = shape == NativeShape::VoidNumber ? state_.numbers - 1 : state_.numbers - 2;
+    const uint32_t second = state_.numbers - 1;
+
+    code_.doubles.push_back(Scratch::projectWidth * 0.3);
+    const double *limitX = &code_.doubles.back();
+    code_.doubles.push_back(Scratch::projectHeight * 0.3);
+    const double *limitY = &code_.doubles.back();
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
+    std::vector<sljit_jump *> slow;
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), offsetof(Sprite, isStage));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), offsetof(Sprite, penData.down));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0));
+
+    const sljit_sw xOffset = offsetof(Sprite, xPosition), yOffset = offsetof(Sprite, yPosition);
+    switch (kind) {
+    case ChangeX:
+        loadF(SLJIT_FR1, first);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R0), xOffset, SLJIT_FR1, 0);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR1, 0, SLJIT_MEM1(SLJIT_R0), yOffset);
+        break;
+    case ChangeY:
+        loadF(SLJIT_FR1, first);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR1, 0, SLJIT_MEM1(SLJIT_R0), yOffset, SLJIT_FR1, 0);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R0), xOffset);
+        break;
+    case SetX:
+        loadF(SLJIT_FR0, first);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR1, 0, SLJIT_MEM1(SLJIT_R0), yOffset);
+        break;
+    case SetY:
+        loadF(SLJIT_FR1, first);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R0), xOffset);
+        break;
+    case GoTo:
+        loadF(SLJIT_FR0, first);
+        loadF(SLJIT_FR1, second);
+        break;
+    }
+
+    sljit_emit_fop1(c_, SLJIT_ABS_F64, SLJIT_FR2, 0, SLJIT_FR0, 0);
+    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_GREATER_EQUAL, SLJIT_FR2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(limitX)));
+    sljit_emit_fop1(c_, SLJIT_ABS_F64, SLJIT_FR2, 0, SLJIT_FR1, 0);
+    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_GREATER_EQUAL, SLJIT_FR2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(limitY)));
+
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), xOffset, SLJIT_FR0, 0);
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), yOffset, SLJIT_FR1, 0);
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), offsetof(Sprite, visible));
+    sljit_jump *hidden = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&Scratch::forceRedraw), SLJIT_IMM, 1);
+    sljit_set_label(hidden, sljit_emit_label(c_));
+    sljit_label *done = sljit_emit_label(c_);
+
+    cold_.push_back([this, slow, done, shape, first, second, &fn]() {
+        const sljit_label *here = sljit_emit_label(c_);
+        for (sljit_jump *jump : slow)
+            sljit_set_label(jump, const_cast<sljit_label *>(here));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
+        loadF(SLJIT_FR0, first);
+        if (shape == NativeShape::VoidNumber) {
+            callHelper(reinterpret_cast<void *>(fn.n_void), SLJIT_ARGS2V(P, F64));
+        } else {
+            loadF(SLJIT_FR1, second);
+            callHelper(reinterpret_cast<void *>(fn.nn_void), SLJIT_ARGS3V(P, F64, F64));
+        }
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+    });
+    return true;
+}
+
 void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
     const BytecodePositionalFn &fn = link_.positional[instr.a];
     switch (shape) {
@@ -1714,12 +1821,20 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
         callHelper(reinterpret_cast<void *>(fn.voidFn), SLJIT_ARGS1V(P));
         break;
     case NativeShape::VoidNumber:
+        if (emitInlineMotion(instr, shape)) {
+            state_.numbers -= 1;
+            break;
+        }
         loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
         callHelper(reinterpret_cast<void *>(fn.n_void), SLJIT_ARGS2V(P, F64));
         state_.numbers -= 1;
         break;
     case NativeShape::VoidNumberNumber:
+        if (emitInlineMotion(instr, shape)) {
+            state_.numbers -= 2;
+            break;
+        }
         loadF(SLJIT_FR0, numberSlot(state_.numbers - 2));
         loadF(SLJIT_FR1, numberSlot(state_.numbers - 1));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
@@ -2068,7 +2183,13 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ListOpDescriptor &op = code_.listOps.emplace_back();
         op.list = instr.a;
         op.indexPosition = depth - 1;
-        callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
+        if (plan_.topValuesAreNumeric(pc, 1)) {
+            callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
+        } else {
+            op.item = describe(state_.values[depth - 1]);
+            op.itemPosition = depth - 1;
+            callListHelper(reinterpret_cast<void *>(&jitListItemAny), op, SLJIT_ARGS2V(P, P));
+        }
         state_.values.back().kind = ValueEntry::Temp;
         return;
     }

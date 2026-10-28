@@ -7,7 +7,10 @@
 
 #ifdef SE_JIT
 
+class Value;
+
 SE_EXPORT double bytecodeMathOpApply(BytecodeMathOp op, double value);
+SE_EXPORT size_t bytecodeResolveListIndex(const Value &index, size_t size);
 
 namespace BytecodeJit {
 
