@@ -43,13 +43,13 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
 #endif
 
 #ifdef __XBOX__
-static constexpr size_t MAX_ITEMS = 10000;
+static constexpr size_t MAX_ITEMS = 100000;
 #else
-static constexpr size_t MAX_ITEMS = 1000;
+static constexpr size_t MAX_ITEMS = 10000;
 #endif
 
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
+#if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
+static std::string truncateLargeJsonLists(const std::string &raw) {
     std::string result;
     result.reserve(raw.size());
     size_t pos = 0;
