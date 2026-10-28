@@ -29,14 +29,6 @@ set(SE_HAS_THREADS ON)
 # folder into the ISO image. This is helpful if you have a buggy Xemu FTP implementation.
 set(COPY_PROJECTS_TO_XBOX OFF)
 
-# - On 64MB retail consoles, SE_LWMEM_HEAP_SIZE_MB sets the baseline heap size.
-# - On 128MB expanded consoles, the runtime dynamically scales the heap to
-#   prioritize the runtime over the GPU.
-# - It is recommended to leave this enabled for the Xbox.
-set(SE_USE_LWMEM_DEFAULT ON)
-set(SE_LWMEM_HEAP_SIZE_MB 32 CACHE STRING "Baseline size in MB of the lwmem heap")
-set(SE_LWMEM_GPU_RESERVE_MB 32 CACHE STRING "Size in MB reserved for GPU and system buffers")
-
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
