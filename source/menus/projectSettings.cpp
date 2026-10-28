@@ -26,6 +26,78 @@ static const std::string createSettingsText(std::string translationKey, bool con
     return TranslationManager::getTranslation(translationKey) + ": " + (type == SettingType::Boolean ? (condition ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")) : (condition ? TranslationManager::getTranslation("ui.settings.accurate") : TranslationManager::getTranslation("ui.settings.fast")));
 }
 
+namespace {
+
+enum class RuntimeMode { Interpreter,
+                         Bytecode,
+                         Jit };
+
+RuntimeMode runtimeModeOf(const nlohmann::json &projectSettings) {
+    if (projectSettings.is_object() && projectSettings.contains("settings") && projectSettings["settings"].is_object()) {
+        const nlohmann::json &values = projectSettings["settings"];
+        if (values.contains("runtime") && values["runtime"].is_string()) {
+            const std::string runtime = values["runtime"].get<std::string>();
+            if (runtime == "interpreter") return RuntimeMode::Interpreter;
+            if (runtime == "jit") return RuntimeMode::Jit;
+            return RuntimeMode::Bytecode;
+        }
+        if (values.contains("useBytecode") && values["useBytecode"].is_boolean()) {
+            return values["useBytecode"].get<bool>() ? RuntimeMode::Bytecode : RuntimeMode::Interpreter;
+        }
+    }
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+    return RuntimeMode::Interpreter;
+#else
+    return RuntimeMode::Bytecode;
+#endif
+}
+
+RuntimeMode nextRuntimeMode(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return RuntimeMode::Bytecode;
+    case RuntimeMode::Bytecode:
+#ifdef SE_JIT
+        return RuntimeMode::Jit;
+#else
+        return RuntimeMode::Interpreter;
+#endif
+    case RuntimeMode::Jit:
+        break;
+    }
+    return RuntimeMode::Interpreter;
+}
+
+const char *runtimeModeKey(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return "interpreter";
+    case RuntimeMode::Bytecode:
+        return "bytecode";
+    case RuntimeMode::Jit:
+        break;
+    }
+    return "jit";
+}
+
+const char *runtimeModeName(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return "Interpreter";
+    case RuntimeMode::Bytecode:
+        return "Bytecode";
+    case RuntimeMode::Jit:
+        break;
+    }
+    return "JIT";
+}
+
+std::string runtimeText(RuntimeMode mode) {
+    return TranslationManager::getTranslation("ui.settings.runtime") + ": " + runtimeModeName(mode);
+}
+
+} // namespace
+
 void ProjectSettings::init() {
     // initialize
 
@@ -163,15 +235,7 @@ void ProjectSettings::init() {
         refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"].get<bool>()));
     } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
 
-    if (!settings["settings"]["useBytecode"].is_null()) {
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"].get<bool>()));
-    } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", false));
-#else
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", true));
-#endif
-    }
+    runtimeButton->text->setText(runtimeText(runtimeModeOf(settings)));
 
     isInitialized = true;
 }
@@ -233,13 +297,11 @@ void ProjectSettings::render() {
     }
     if (runtimeButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", false);
-#else
-        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", true);
-#endif
+        const RuntimeMode mode = nextRuntimeMode(runtimeModeOf(settings));
+        settings["settings"]["runtime"] = runtimeModeKey(mode);
+        settings["settings"]["useBytecode"] = mode != RuntimeMode::Interpreter; // for builds that only know the older setting
         SettingsManager::saveProjectSettings(settings, projectPath);
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"]));
+        runtimeButton->text->setText(runtimeText(mode));
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();

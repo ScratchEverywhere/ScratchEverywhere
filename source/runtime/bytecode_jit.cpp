@@ -44,6 +44,12 @@ struct ValueEntry {
     uint32_t constant = 0;
 };
 
+struct ValueCallDescriptor {
+    void (*fn)(Sprite *, const Value &) = nullptr;
+    ValueEntry item;
+    uint32_t itemPosition = 0;
+};
+
 struct ListOpDescriptor {
     uint32_t list = 0;
     uint32_t indexPosition = 0;
@@ -100,6 +106,7 @@ struct Code {
     std::vector<EntryDescriptor> entries;
     std::deque<ExitDescriptor> exits;
     std::deque<ListOpDescriptor> listOps;
+    std::deque<ValueCallDescriptor> valueCalls;
     std::deque<CallDescriptor> calls;
     std::deque<ReturnDescriptor> returns;
     std::vector<int32_t> entryIdAt;
@@ -378,6 +385,11 @@ sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     return entry;
 }
 
+void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
+    const Value value = materializeEntry(ctx, call->item, call->itemPosition);
+    call->fn(static_cast<Sprite *>(ctx->sprite), value);
+}
+
 double SLJIT_FUNC jitListItemNumber(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     if (list == nullptr || list->items.empty()) return 0.0;
@@ -520,6 +532,10 @@ enum class NativeShape {
     BoolBool,
     BoolUnary,
     SpriteBoolean,
+    VoidNone,
+    VoidNumber,
+    VoidNumberNumber,
+    VoidValue,
 };
 
 struct Planner {
@@ -578,8 +594,20 @@ struct Planner {
                 return opcodeName(slot) == "operator_not" ? NativeShape::Not : NativeShape::BoolUnary;
             }
             if (args == 0 && fn.sprite_b) return NativeShape::SpriteBoolean;
+        } else if (instr.op == BytecodeOp::CallNative && voidCallAllowed(opcodeName(slot))) {
+            if (args == 0 && fn.voidFn) return NativeShape::VoidNone;
+            if (args == 1 && kind(0) == K::Number && fn.n_void) return NativeShape::VoidNumber;
+            if (args == 2 && kind(0) == K::Number && kind(1) == K::Number && fn.nn_void) return NativeShape::VoidNumberNumber;
+            if (args == 1 && kind(0) == K::Value && fn.v_void) return NativeShape::VoidValue;
         }
         return NativeShape::None;
+    }
+
+    static bool voidCallAllowed(const std::string &opcode) {
+        for (const char *prefix : {"motion_", "looks_", "pen_", "music_", "sound_"}) {
+            if (opcode.rfind(prefix, 0) == 0) return true;
+        }
+        return opcode == "control_incr_counter" || opcode == "control_clear_counter" || opcode == "sensing_resettimer";
     }
 
     bool followsConstant(BytecodeIndex pc) const {
@@ -687,7 +715,7 @@ struct Planner {
             return topValuesAreNumeric(pc, 1);
         case BytecodeOp::PushConstValue: {
             if (instr.a >= chunk.constants.size()) return false;
-            if (chunk.constants[instr.a].isDouble()) return true; // exactly a boxed number, which may cross jump targets
+            if (chunk.constants[instr.a].isDouble()) return true;
             if (pc + 1 < count && !analysis.isBlockStart(pc + 1)) {
                 const BytecodeOp next = chunk.instructions[pc + 1].op;
                 if (next == BytecodeOp::ConvertValueToNumber || next == BytecodeOp::StoreVarValue) return true;
@@ -741,6 +769,7 @@ struct Planner {
             return followsConstant(pc) || followsItemOfList(pc) || topValuesAreNumeric(pc, 1);
         case BytecodeOp::StoreVarValue:
             return instr.a < variableCount && (followsConstant(pc) || topValueIsNumber(pc));
+        case BytecodeOp::CallNative:
         case BytecodeOp::CallNativeNumber:
         case BytecodeOp::CallNativeBoolean:
             return nativeShape(instr) != NativeShape::None;
@@ -1170,6 +1199,35 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
         state_.booleans += 1;
         break;
     }
+    case NativeShape::VoidNone:
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
+        callHelper(reinterpret_cast<void *>(fn.voidFn), SLJIT_ARGS1V(P));
+        break;
+    case NativeShape::VoidNumber:
+        loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
+        callHelper(reinterpret_cast<void *>(fn.n_void), SLJIT_ARGS2V(P, F64));
+        state_.numbers -= 1;
+        break;
+    case NativeShape::VoidNumberNumber:
+        loadF(SLJIT_FR0, numberSlot(state_.numbers - 2));
+        loadF(SLJIT_FR1, numberSlot(state_.numbers - 1));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, sprite));
+        callHelper(reinterpret_cast<void *>(fn.nn_void), SLJIT_ARGS3V(P, F64, F64));
+        state_.numbers -= 2;
+        break;
+    case NativeShape::VoidValue: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ValueCallDescriptor &call = code_.valueCalls.emplace_back();
+        call.fn = fn.v_void;
+        call.itemPosition = depth - 1;
+        call.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
+        callHelper(reinterpret_cast<void *>(&jitCallValueVoid), SLJIT_ARGS2V(P, P));
+        break;
+    }
     case NativeShape::None:
         break;
     }
@@ -1520,6 +1578,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         storeF(numberSlot(state_.numbers - 1), SLJIT_FR0);
         return;
 
+    case BytecodeOp::CallNative:
     case BytecodeOp::CallNativeNumber:
     case BytecodeOp::CallNativeBoolean: {
         emitNative(instr, plan_.nativeShape(instr));
@@ -1701,11 +1760,9 @@ BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk) {
 namespace BytecodeJit {
 
 bool enabled() {
-    static const bool on = [] {
-        const char *env = std::getenv("SE_JIT");
-        return env != nullptr && std::string(env) != "0";
-    }();
-    return on;
+    static const char *env = std::getenv("SE_JIT");
+    if (env != nullptr) return std::string(env) != "0";
+    return Scratch::useJit;
 }
 
 void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
