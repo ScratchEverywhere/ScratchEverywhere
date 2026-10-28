@@ -147,7 +147,7 @@ uint64_t fastRandomBelow(uint64_t bound) {
         continue;                                                                                               \
     }
 
-constexpr unsigned int MAX_LIST_ITEMS = 200000;
+constexpr unsigned int MAX_LIST_ITEMS = BYTECODE_MAX_LIST_ITEMS;
 
 Value popValue(BytecodeThread &thread, BytecodeStackKind kind) {
     switch (kind) {
@@ -243,9 +243,11 @@ const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot) {
 
 size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
-    std::string indexStr = indexValue.asString();
-    if (indexStr == "last") return size - 1;
-    if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    if (!indexValue.isDouble()) {
+        std::string indexStr = indexValue.asString();
+        if (indexStr == "last") return size - 1;
+        if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    }
 
     double d = indexValue.get<double>();
     if (!std::isfinite(d)) return size;
@@ -567,7 +569,6 @@ double mathOpApply(BytecodeMathOp op, double value) {
 double bytecodeMathOpApply(BytecodeMathOp op, double value) {
     return mathOpApply(op, value);
 }
-
 
 void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;

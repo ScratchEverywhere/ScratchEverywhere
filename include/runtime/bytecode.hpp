@@ -17,6 +17,7 @@ inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<Byteco
 inline constexpr uint16_t bytecodeCacheVersion = 3;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
+inline constexpr unsigned int BYTECODE_MAX_LIST_ITEMS = 200000;
 
 enum class BytecodeStackKind : uint8_t {
     Number,

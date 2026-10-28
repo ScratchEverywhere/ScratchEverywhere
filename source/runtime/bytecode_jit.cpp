@@ -43,6 +43,13 @@ struct ValueEntry {
     uint32_t constant = 0;
 };
 
+struct ListOpDescriptor {
+    uint32_t list = 0;
+    uint32_t indexPosition = 0;
+    ValueEntry item;
+    uint32_t itemPosition = 0;
+};
+
 struct ExitDescriptor {
     uint32_t pc = 0;
     uint32_t result = 0;
@@ -75,6 +82,7 @@ struct Code {
 
     std::vector<EntryDescriptor> entries;
     std::deque<ExitDescriptor> exits;
+    std::deque<ListOpDescriptor> listOps;
     std::vector<void *> entryTable;
     std::vector<uint32_t> promoted;
     uint32_t slotBooleans = 0;
@@ -129,12 +137,40 @@ double rawVariableNumber(const Variable *var) {
     }
 }
 
+Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position);
+
 Value materializeVariable(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
     if (kind == 0) return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
     if (kind == 1 || kind == 2) return Value(ctx->slots[code.slotVariables + k]);
     return ctx->chunk->constants[kind - 3];
+}
+
+Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position) {
+    switch (entry.kind) {
+    case ValueEntry::Number:
+        return Value(ctx->slots[ctx->code->slotValues + position]);
+    case ValueEntry::Constant:
+        return ctx->chunk->constants[entry.constant];
+    case ValueEntry::VarValue:
+        return materializeVariable(ctx, entry.constant);
+    default:
+        return ctx->thread->valueStack[ctx->valueBase + position];
+    }
+}
+
+List *listAt(const BytecodeThread &thread, uint32_t slot) {
+    if (thread.link == nullptr || slot >= thread.link->lists.size()) return nullptr;
+    return thread.link->lists[slot];
+}
+
+size_t listPosition(double index, size_t size) {
+    if (std::isnan(index)) index = 0.0;
+    if (!std::isfinite(index)) return size;
+    const double position = std::floor(index) - 1;
+    if (position < 0 || position >= static_cast<double>(size)) return size;
+    return static_cast<size_t>(position);
 }
 
 int64_t bitsOf(double d) {
@@ -214,6 +250,79 @@ sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
 
     thread.pc = exit->pc;
     return static_cast<sljit_sw>(exit->result);
+}
+
+double SLJIT_FUNC jitListItemNumber(Context *ctx, const ListOpDescriptor *op) {
+    const List *list = listAt(*ctx->thread, op->list);
+    if (list == nullptr || list->items.empty()) return 0.0;
+    const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
+    if (position >= list->items.size()) return 0.0;
+    return list->items[position].get<double>();
+}
+
+void SLJIT_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op) {
+    List *list = listAt(*ctx->thread, op->list);
+    if (list == nullptr || list->items.empty()) return;
+    const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
+    if (position < list->items.size()) list->items[position] = materializeEntry(ctx, op->item, op->itemPosition);
+}
+
+void SLJIT_FUNC jitListAdd(Context *ctx, const ListOpDescriptor *op) {
+    List *list = listAt(*ctx->thread, op->list);
+    Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    if (list != nullptr && list->items.size() < BYTECODE_MAX_LIST_ITEMS) list->items.push_back(std::move(item));
+}
+
+void SLJIT_FUNC jitListInsert(Context *ctx, const ListOpDescriptor *op) {
+    List *list = listAt(*ctx->thread, op->list);
+    Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    if (list == nullptr) return;
+    double index = ctx->slots[ctx->code->slotValues + op->indexPosition];
+    if (std::isnan(index)) index = 0.0;
+    if (!std::isfinite(index)) return;
+    const double position = std::floor(index) - 1;
+    if (position < 0 || position > static_cast<double>(list->items.size())) return;
+    insertValueAt(list->items, static_cast<size_t>(position), std::move(item));
+    if (list->items.size() > BYTECODE_MAX_LIST_ITEMS) list->items.pop_back();
+}
+
+void SLJIT_FUNC jitListDelete(Context *ctx, const ListOpDescriptor *op) {
+    List *list = listAt(*ctx->thread, op->list);
+    if (list == nullptr) return;
+    double index = ctx->slots[ctx->code->slotValues + op->indexPosition];
+    if (std::isnan(index)) index = 0.0;
+    if (!std::isfinite(index)) return;
+    const double position = std::floor(index) - 1;
+    if (position >= 0 && position < static_cast<double>(list->items.size())) eraseValueAt(list->items, static_cast<size_t>(position));
+}
+
+void SLJIT_FUNC jitListClear(Context *ctx, const ListOpDescriptor *op) {
+    if (List *list = listAt(*ctx->thread, op->list)) list->items.clear();
+}
+
+double SLJIT_FUNC jitListLength(Context *ctx, const ListOpDescriptor *op) {
+    const List *list = listAt(*ctx->thread, op->list);
+    return list != nullptr ? static_cast<double>(list->items.size()) : 0.0;
+}
+
+double SLJIT_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
+    const List *list = listAt(*ctx->thread, op->list);
+    const Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    if (list == nullptr) return 0.0;
+    for (size_t i = 0; i < list->items.size(); i++) {
+        if (list->items[i] == item) return static_cast<double>(i + 1);
+    }
+    return 0.0;
+}
+
+sljit_sw SLJIT_FUNC jitListContains(Context *ctx, const ListOpDescriptor *op) {
+    const List *list = listAt(*ctx->thread, op->list);
+    const Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    if (list == nullptr) return 0;
+    for (const Value &existing : list->items) {
+        if (existing == item) return 1;
+    }
+    return 0;
 }
 
 double SLJIT_FUNC jitRepeatRemaining(double counter) {
@@ -398,6 +507,18 @@ struct Planner {
         return false;
     }
 
+    bool listValid(const BytecodeInstruction &instr) const { return instr.a < chunk.listSlots.size(); }
+
+    bool itemOfListPair(BytecodeIndex pc) const {
+        const BytecodeInstruction &instr = chunk.instructions[pc];
+        return instr.op == BytecodeOp::ItemOfList && listValid(instr) && pc + 1 < count && !analysis.isBlockStart(pc + 1) &&
+               chunk.instructions[pc + 1].op == BytecodeOp::ConvertValueToNumber && topValuesAreNumeric(pc, 1);
+    }
+
+    bool followsItemOfList(BytecodeIndex pc) const {
+        return pc > 0 && !analysis.isBlockStart(pc) && itemOfListPair(pc - 1);
+    }
+
     static bool isNumericConstant(const Value &value) {
         return value.isDouble() || (value.isString() && BytecodeAnalysis::isCanonicalNumericString(value.asString()));
     }
@@ -437,16 +558,32 @@ struct Planner {
                 const BytecodeOp next = chunk.instructions[pc + 1].op;
                 if (next == BytecodeOp::ConvertValueToNumber || next == BytecodeOp::StoreVarValue) return true;
             }
-            return isNumericConstant(chunk.constants[instr.a]) && consumedInBlock(pc, -1);
+            return consumedInBlock(pc, -1);
         }
         case BytecodeOp::PushVarValue:
-            return instr.a < variableCount && numericLike(analysis.variableTypeBefore(pc, instr.a)) && consumedInBlock(pc, instr.a);
+            return instr.a < variableCount && consumedInBlock(pc, instr.a);
+
+        case BytecodeOp::ItemOfList:
+            return itemOfListPair(pc);
+        case BytecodeOp::ReplaceInList:
+        case BytecodeOp::DeleteFromList:
+        case BytecodeOp::InsertInList:
+            return listValid(instr) && topValuesAreNumeric(pc, 1);
+        case BytecodeOp::AddToList:
+        case BytecodeOp::ItemNumOfList:
+        case BytecodeOp::ListContainsItem: {
+            BytecodeAbstractState state;
+            return listValid(instr) && analysis.stateBefore(pc, state) && !state.values.empty();
+        }
+        case BytecodeOp::LengthOfList:
+        case BytecodeOp::DeleteAllOfList:
+            return listValid(instr);
         case BytecodeOp::ValueEquals:
         case BytecodeOp::ValueLess:
         case BytecodeOp::ValueGreater:
             return topValuesAreNumeric(pc, 2);
         case BytecodeOp::ConvertValueToNumber:
-            return followsConstant(pc) || topValuesAreNumeric(pc, 1);
+            return followsConstant(pc) || followsItemOfList(pc) || topValuesAreNumeric(pc, 1);
         case BytecodeOp::StoreVarValue:
             return instr.a < variableCount && (followsConstant(pc) || topValueIsNumber(pc));
         case BytecodeOp::CallNativeNumber:
@@ -644,6 +781,19 @@ class Emitter {
     void emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAtTarget);
     void emitInstruction(BytecodeIndex pc);
     void emitCompareValue(BytecodeCompareKind kind, uint32_t a, uint32_t b);
+
+    static ValueEntry describe(const AbsValue &v) {
+        ValueEntry e;
+        e.kind = v.kind;
+        e.constant = v.constant;
+        return e;
+    }
+
+    void callListHelper(void *fn, ListOpDescriptor &op, sljit_s32 argTypes) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&op));
+        callHelper(fn, argTypes);
+    }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     ExitDescriptor &makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state);
@@ -940,6 +1090,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
     case BytecodeOp::ConvertValueToNumber: {
+        if (plan_.followsItemOfList(pc)) return;
         const AbsValue top = state_.values.back();
         state_.values.pop_back();
         if (top.kind == ValueEntry::Constant) {
@@ -988,6 +1139,92 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                          valueSlot(depth - 2), valueSlot(depth - 1));
         state_.values.pop_back();
         state_.values.pop_back();
+        state_.booleans++;
+        maxBooleans_ = std::max(maxBooleans_, state_.booleans);
+        return;
+    }
+
+    case BytecodeOp::ItemOfList: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.indexPosition = depth - 1;
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(&jitListItemNumber), op, SLJIT_ARGS2(F64, P, P));
+        storeF(numberSlot(state_.numbers), SLJIT_FR0);
+        state_.numbers++;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        return;
+    }
+    case BytecodeOp::ReplaceInList:
+    case BytecodeOp::InsertInList: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.indexPosition = depth - 1;
+        op.itemPosition = depth - 2;
+        op.item = describe(state_.values[depth - 2]);
+        state_.values.pop_back();
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(instr.op == BytecodeOp::ReplaceInList ? &jitListReplace : &jitListInsert), op, SLJIT_ARGS2V(P, P));
+        return;
+    }
+    case BytecodeOp::DeleteFromList: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.indexPosition = depth - 1;
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(&jitListDelete), op, SLJIT_ARGS2V(P, P));
+        return;
+    }
+    case BytecodeOp::AddToList: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.itemPosition = depth - 1;
+        op.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(&jitListAdd), op, SLJIT_ARGS2V(P, P));
+        return;
+    }
+    case BytecodeOp::DeleteAllOfList: {
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        callListHelper(reinterpret_cast<void *>(&jitListClear), op, SLJIT_ARGS2V(P, P));
+        return;
+    }
+    case BytecodeOp::LengthOfList: {
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        callListHelper(reinterpret_cast<void *>(&jitListLength), op, SLJIT_ARGS2(F64, P, P));
+        storeF(numberSlot(state_.numbers), SLJIT_FR0);
+        state_.numbers++;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        return;
+    }
+    case BytecodeOp::ItemNumOfList: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.itemPosition = depth - 1;
+        op.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(&jitListIndexOf), op, SLJIT_ARGS2(F64, P, P));
+        storeF(numberSlot(state_.numbers), SLJIT_FR0);
+        state_.numbers++;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        return;
+    }
+    case BytecodeOp::ListContainsItem: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ListOpDescriptor &op = code_.listOps.emplace_back();
+        op.list = instr.a;
+        op.itemPosition = depth - 1;
+        op.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        callListHelper(reinterpret_cast<void *>(&jitListContains), op, SLJIT_ARGS2(W, P, P));
+        storeW(booleanSlot(state_.booleans), SLJIT_R0);
         state_.booleans++;
         maxBooleans_ = std::max(maxBooleans_, state_.booleans);
         return;
