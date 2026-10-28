@@ -15,6 +15,7 @@
 #include <deque>
 #include <functional>
 #include <log.hpp>
+#include <map>
 #include <sljitLir.h>
 #include <string>
 #include <unordered_map>
@@ -25,9 +26,19 @@ constexpr uint32_t kMaxSlots = 480;
 constexpr uint32_t kMaxPromoted = 128;
 constexpr uint32_t kPollInterval = 64;
 
+struct StrEntry {
+    enum Kind : uint8_t { Opaque,
+                          Const,
+                          Temp,
+                          Variable };
+    Kind kind = Opaque;
+    uint32_t constant = 0;
+};
+
 struct EntryDescriptor {
     uint32_t numbers = 0;
     uint32_t booleans = 0;
+    uint32_t strings = 0;
     std::vector<uint8_t> valueIsNumber;
     std::vector<uint32_t> loadVariables;
 };
@@ -43,6 +54,39 @@ struct ValueEntry {
     };
     Kind kind = Opaque;
     uint32_t constant = 0;
+};
+
+struct StringOp {
+    enum Kind : uint8_t { PushVariable,
+                          StoreVariable,
+                          AppendVariable,
+                          Compare,
+                          CallStringString,
+                          CallStringStringBool,
+                          CallStringNumber,
+                          CallNumberStringString,
+                          CallSpriteStringNumber,
+                          CallSpriteStringBool,
+                          CallSpriteString,
+                          VoidString,
+                          VoidStringNumber,
+                          LetterOfVariable,
+                          LengthOfVariable,
+                          LetterOf,
+                          LengthOf,
+                          ValueToString,
+                          StringToValue };
+    Kind kind = PushVariable;
+    BytecodeCompareKind compare = BytecodeCompareKind::Equals;
+    void *fn = nullptr;
+    uint32_t variable = 0;
+    StrEntry a, b;
+    uint32_t aPosition = 0, bPosition = 0;
+    ValueEntry value;
+    uint32_t valuePosition = 0;
+    uint32_t outPosition = 0;
+    uint32_t numberIn = 0;
+    uint32_t numberOut = 0;
 };
 
 struct ShadowDescriptor {
@@ -76,6 +120,7 @@ struct ExitDescriptor {
     uint32_t numbers = 0;
     uint32_t booleans = 0;
     std::vector<ValueEntry> values;
+    std::vector<StrEntry> strings;
 };
 
 struct CallDescriptor {
@@ -95,7 +140,7 @@ struct ReturnDescriptor {
 
 struct Code;
 
-struct Context {
+struct alignas(64) Context {
     BytecodeThread *thread = nullptr;
     const BytecodeChunk *chunk = nullptr;
     const Code *code = nullptr;
@@ -112,6 +157,9 @@ struct Context {
     uint64_t warp = 0;
     int64_t dirty[kMaxPromoted];
     double slots[kMaxSlots];
+    uint32_t stringBase = 0;
+    uint32_t strHigh = 0;
+    uint64_t stringVariableUsed[2] = {0, 0};
 };
 
 struct Code {
@@ -123,6 +171,7 @@ struct Code {
     std::deque<ListOpDescriptor> listOps;
     std::deque<ValueCallDescriptor> valueCalls;
     std::deque<ShadowDescriptor> shadows;
+    std::deque<StringOp> stringOps;
     std::deque<CompareDescriptor> compares;
     std::deque<CallDescriptor> calls;
     std::deque<ReturnDescriptor> returns;
@@ -182,10 +231,29 @@ double rawVariableNumber(const Variable *var) {
 }
 
 Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position);
+std::string readVariableString(Context *ctx, uint32_t k);
 
 constexpr uint32_t kMaxTemps = 64;
-Value gTemps[kMaxTemps];
-Value gShadows[kMaxPromoted];
+alignas(64) Value gTemps[kMaxTemps];
+alignas(64) Value gShadows[kMaxPromoted];
+constexpr uint32_t kMaxStrs = 64;
+std::string gStrs[kMaxStrs];
+std::string gStringVariables[kMaxPromoted];
+int8_t gStringAscii[kMaxPromoted];
+
+bool stringVariableIsAscii(uint32_t k) {
+    if (gStringAscii[k] < 0) {
+        bool ascii = true;
+        for (unsigned char ch : gStringVariables[k]) {
+            if (ch >= 0x80) {
+                ascii = false;
+                break;
+            }
+        }
+        gStringAscii[k] = ascii ? 1 : 0;
+    }
+    return gStringAscii[k] == 1;
+}
 
 Value materializeVariable(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
@@ -193,7 +261,8 @@ Value materializeVariable(Context *ctx, uint32_t k) {
     if (kind == 0) return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
     if (kind == 1 || kind == 2) return Value(ctx->slots[code.slotVariables + k]);
     if (kind == 3) return gShadows[k];
-    return ctx->chunk->constants[kind - 4];
+    if (kind == 4) return Value(gStringVariables[k]);
+    return ctx->chunk->constants[kind - 5];
 }
 
 Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position) {
@@ -248,7 +317,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
-    if (thread.numberStack.size() < entry.numbers || thread.boolStack.size() < entry.booleans || thread.valueStack.size() < entry.valueIsNumber.size()) {
+    if (thread.numberStack.size() < entry.numbers || thread.boolStack.size() < entry.booleans || thread.valueStack.size() < entry.valueIsNumber.size() || thread.stringStack.size() < entry.strings) {
         Log::logCritical("JIT: the thread's stacks are shallower than the analysis of the bytecode says", true);
         std::abort();
     }
@@ -260,6 +329,8 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     ctx->booleanBase = static_cast<uint32_t>(thread.boolStack.size()) - entry.booleans;
     for (uint32_t i = 0; i < entry.booleans; i++)
         ctx->slots[code.slotBooleans + i] = fromBits(thread.boolStack[ctx->booleanBase + i] ? 1 : 0);
+
+    ctx->stringBase = static_cast<uint32_t>(thread.stringStack.size()) - entry.strings;
 
     ctx->valueBase = static_cast<uint32_t>(thread.valueStack.size()) - static_cast<uint32_t>(entry.valueIsNumber.size());
     for (uint32_t i = 0; i < entry.valueIsNumber.size(); i++) {
@@ -297,6 +368,14 @@ void syncStacks(Context *ctx, const ExitDescriptor *state) {
     for (uint32_t i = 0; i < state->booleans; i++)
         thread.boolStack[ctx->booleanBase + i] = bitsOf(ctx->slots[code.slotBooleans + i]) != 0;
 
+    thread.stringStack.resize(ctx->stringBase + state->strings.size());
+    for (uint32_t i = 0; i < state->strings.size(); i++) {
+        const StrEntry &entry = state->strings[i];
+        if (entry.kind == StrEntry::Const) thread.stringStack[ctx->stringBase + i] = ctx->chunk->stringConstants[entry.constant];
+        else if (entry.kind == StrEntry::Temp) thread.stringStack[ctx->stringBase + i] = gStrs[i];
+        else if (entry.kind == StrEntry::Variable) thread.stringStack[ctx->stringBase + i] = readVariableString(ctx, entry.constant);
+    }
+
     thread.valueStack.resize(ctx->valueBase + state->values.size());
     for (uint32_t i = 0; i < state->values.size(); i++) {
         const ValueEntry &entry = state->values[i];
@@ -318,7 +397,8 @@ void commitVariables(Context *ctx) {
         if (kind == 1) var->value = value;
         else if (kind == 2) var->value = Value(value);
         else if (kind == 3) var->value = gShadows[k];
-        else var->value = ctx->chunk->constants[kind - 4];
+        else if (kind == 4) var->value = std::make_shared<std::string>(std::move(gStringVariables[k]));
+        else var->value = ctx->chunk->constants[kind - 5];
     }
 }
 
@@ -510,6 +590,203 @@ sljit_sw SLJIT_FUNC jitListContains(Context *ctx, const ListOpDescriptor *op) {
     return 0;
 }
 
+void setString(Context *ctx, uint32_t position, std::string &&value);
+
+const std::string &stringOfVariable(Context *ctx, uint32_t k, uint32_t position) {
+    const int64_t kind = ctx->dirty[k];
+    if (kind == 4) return gStringVariables[k];
+    if (kind == 0) {
+        const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[k]);
+        if (var != nullptr) {
+            if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) return **text;
+        }
+    }
+    setString(ctx, position, readVariableString(ctx, k));
+    return gStrs[position];
+}
+
+const std::string &stringOf(Context *ctx, const StrEntry &entry, uint32_t position) {
+    switch (entry.kind) {
+    case StrEntry::Const:
+        return ctx->chunk->stringConstants[entry.constant];
+    case StrEntry::Temp:
+        return gStrs[position];
+    case StrEntry::Variable:
+        return stringOfVariable(ctx, entry.constant, position);
+    default:
+        return ctx->thread->stringStack[ctx->stringBase + position];
+    }
+}
+
+std::string readVariableString(Context *ctx, uint32_t k) {
+    const Code &code = *ctx->code;
+    const int64_t kind = ctx->dirty[k];
+    switch (kind) {
+    case 0:
+        return BlockExecutor::getVariableValueAs<std::string>(variableAt(*ctx->thread, code.promoted[k]));
+    case 1:
+    case 2:
+        return Math::toString(ctx->slots[code.slotVariables + k]);
+    case 3:
+        return gShadows[k].asString();
+    case 4:
+        return gStringVariables[k];
+    default:
+        return ctx->chunk->constants[kind - 5].asString();
+    }
+}
+
+void setString(Context *ctx, uint32_t position, std::string &&value) {
+    gStrs[position] = std::move(value);
+    ctx->strHigh = std::max(ctx->strHigh, position + 1);
+}
+
+void setStringVariable(Context *ctx, uint32_t k, std::string &&value) {
+    gStringVariables[k] = std::move(value);
+    gStringAscii[k] = -1;
+    ctx->stringVariableUsed[k >> 6] |= uint64_t(1) << (k & 63);
+    ctx->dirty[k] = 4;
+}
+
+void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
+    ctx->slots[ctx->code->slotVariables + k] = Conversions::stringToNumber(gStringVariables[k]);
+}
+
+void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
+    const Code &code = *ctx->code;
+    Sprite *sprite = static_cast<Sprite *>(ctx->sprite);
+    const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
+    const auto setNumber = [&](double d) { ctx->slots[op->numberOut] = d; };
+    const auto setBoolean = [&](bool b) { ctx->slots[op->numberOut] = fromBits(b ? 1 : 0); };
+
+    switch (op->kind) {
+    case StringOp::PushVariable:
+        setString(ctx, op->outPosition, readVariableString(ctx, op->variable));
+        return;
+
+    case StringOp::StoreVariable:
+        setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
+        return;
+
+    case StringOp::AppendVariable: {
+        const std::string suffix = stringOf(ctx, op->a, op->aPosition);
+        if (ctx->dirty[op->variable] == 4) {
+            gStringVariables[op->variable] += suffix;
+            if (gStringAscii[op->variable] == 1) gStringAscii[op->variable] = -1;
+        } else {
+            std::string joined = readVariableString(ctx, op->variable);
+            joined += suffix;
+            setStringVariable(ctx, op->variable, std::move(joined));
+        }
+        return;
+    }
+
+    case StringOp::Compare: {
+        const Value a{std::string_view(stringOf(ctx, op->a, op->aPosition))};
+        const Value b{std::string_view(stringOf(ctx, op->b, op->bPosition))};
+        switch (op->compare) {
+        case BytecodeCompareKind::Equals:
+            setBoolean(a == b);
+            return;
+        case BytecodeCompareKind::Less:
+            setBoolean(a < b);
+            return;
+        default:
+            setBoolean(a > b);
+            return;
+        }
+    }
+
+    case StringOp::CallStringString:
+        setString(ctx, op->outPosition, reinterpret_cast<std::string (*)(const std::string &, const std::string &)>(op->fn)(stringOf(ctx, op->a, op->aPosition), stringOf(ctx, op->b, op->bPosition)));
+        return;
+    case StringOp::CallStringStringBool:
+        setBoolean(reinterpret_cast<bool (*)(const std::string &, const std::string &)>(op->fn)(stringOf(ctx, op->a, op->aPosition), stringOf(ctx, op->b, op->bPosition)));
+        return;
+    case StringOp::CallStringNumber:
+        setNumber(reinterpret_cast<double (*)(const std::string &)>(op->fn)(stringOf(ctx, op->a, op->aPosition)));
+        return;
+    case StringOp::CallNumberStringString:
+        setString(ctx, op->outPosition, reinterpret_cast<std::string (*)(double, const std::string &)>(op->fn)(number(op->numberIn), stringOf(ctx, op->a, op->aPosition)));
+        return;
+    case StringOp::CallSpriteStringNumber:
+        setNumber(reinterpret_cast<double (*)(Sprite *, const std::string &)>(op->fn)(sprite, stringOf(ctx, op->a, op->aPosition)));
+        return;
+    case StringOp::CallSpriteStringBool:
+        setBoolean(reinterpret_cast<bool (*)(Sprite *, const std::string &)>(op->fn)(sprite, stringOf(ctx, op->a, op->aPosition)));
+        return;
+    case StringOp::CallSpriteString:
+        setString(ctx, op->outPosition, reinterpret_cast<std::string (*)(Sprite *)>(op->fn)(sprite));
+        return;
+    case StringOp::VoidString:
+        reinterpret_cast<void (*)(Sprite *, const std::string &)>(op->fn)(sprite, stringOf(ctx, op->a, op->aPosition));
+        return;
+    case StringOp::VoidStringNumber:
+        reinterpret_cast<void (*)(Sprite *, const std::string &, double)>(op->fn)(sprite, stringOf(ctx, op->a, op->aPosition), number(op->numberIn));
+        return;
+
+    case StringOp::LetterOfVariable: {
+        const double index = std::floor(number(op->numberIn)) - 1;
+        std::string letter;
+        const int64_t kind = ctx->dirty[op->variable];
+        if (kind == 0) {
+            const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
+            if (var != nullptr) {
+                if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                    if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
+                }
+            }
+        } else if (kind == 4) {
+            const std::string &text = gStringVariables[op->variable];
+            if (stringVariableIsAscii(op->variable)) {
+                if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
+            } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
+                letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
+            }
+        }
+        setString(ctx, op->outPosition, std::move(letter));
+        return;
+    }
+    case StringOp::LengthOfVariable: {
+        size_t units = 0;
+        const int64_t kind = ctx->dirty[op->variable];
+        if (kind == 0) {
+            const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
+            if (var != nullptr) {
+                if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) units = Math::utf16Length(*text);
+            }
+        } else if (kind == 4) {
+            units = stringVariableIsAscii(op->variable) ? gStringVariables[op->variable].size() : Math::utf16Length(std::string_view(gStringVariables[op->variable]));
+        }
+        setNumber(static_cast<double>(units));
+        return;
+    }
+
+    case StringOp::LetterOf: {
+        const Value text = materializeEntry(ctx, op->value, op->valuePosition);
+        const double index = std::floor(number(op->numberIn)) - 1;
+        std::string letter;
+        if (index >= 0 && index < static_cast<double>(text.utf16Length())) letter = text.utf16CharAt(static_cast<size_t>(index));
+        setString(ctx, op->outPosition, std::move(letter));
+        return;
+    }
+    case StringOp::LengthOf:
+        setNumber(static_cast<double>(materializeEntry(ctx, op->value, op->valuePosition).utf16Length()));
+        return;
+
+    case StringOp::ValueToString:
+        setString(ctx, op->outPosition, materializeEntry(ctx, op->value, op->valuePosition).get<std::string>());
+        return;
+    case StringOp::StringToValue: {
+        Value value{std::string_view(stringOf(ctx, op->a, op->aPosition))};
+        ctx->slots[code.slotValues + op->outPosition] = value.numberRaw();
+        gTemps[op->outPosition] = std::move(value);
+        ctx->tempHigh = std::max(ctx->tempHigh, op->outPosition + 1);
+        return;
+    }
+    }
+}
+
 double SLJIT_FUNC jitRepeatRemaining(double counter) {
     if (std::isnan(counter)) counter = 0.0;
     return std::round(counter) - 1.0;
@@ -583,6 +860,15 @@ enum class NativeShape {
     VoidNumber,
     VoidNumberNumber,
     VoidValue,
+    StringStringString,
+    StringStringBool,
+    StringNumber,
+    NumberStringString,
+    SpriteStringNumber,
+    SpriteStringBool,
+    SpriteString,
+    VoidString,
+    VoidStringNumber,
 };
 
 struct Planner {
@@ -596,6 +882,7 @@ struct Planner {
     std::vector<int32_t> entryOf;
     std::vector<BytecodeIndex> entryPcs;
     std::unordered_map<uint8_t, uint32_t> loopBlockers;
+    std::map<std::pair<int, uint8_t>, uint32_t> procedureBlockers;
     std::vector<uint8_t> visible;
     std::vector<std::vector<BytecodeIndex>> entryReads;
 
@@ -630,6 +917,12 @@ struct Planner {
             }
             if (args == 1 && kind(0) == K::Number && fn.n_n) return NativeShape::Number;
             if (args == 0 && fn.sprite_n) return NativeShape::SpriteNumber;
+            if (args == 1 && kind(0) == K::String && fn.s_n) return NativeShape::StringNumber;
+            if (args == 1 && kind(0) == K::String && fn.spriteS_n) return NativeShape::SpriteStringNumber;
+        } else if (instr.op == BytecodeOp::CallNativeString) {
+            if (args == 2 && kind(0) == K::String && kind(1) == K::String && fn.ss_s) return NativeShape::StringStringString;
+            if (args == 2 && kind(0) == K::Number && kind(1) == K::String && fn.ns_s) return NativeShape::NumberStringString;
+            if (args == 0 && fn.sprite_s) return NativeShape::SpriteString;
         } else if (instr.op == BytecodeOp::CallNativeBoolean) {
             if (args == 2 && kind(0) == K::Boolean && kind(1) == K::Boolean && fn.bb_b) {
                 const std::string &name = opcodeName(slot);
@@ -641,7 +934,11 @@ struct Planner {
                 return opcodeName(slot) == "operator_not" ? NativeShape::Not : NativeShape::BoolUnary;
             }
             if (args == 0 && fn.sprite_b) return NativeShape::SpriteBoolean;
+            if (args == 2 && kind(0) == K::String && kind(1) == K::String && fn.ss_b) return NativeShape::StringStringBool;
+            if (args == 1 && kind(0) == K::String && fn.spriteS_b) return NativeShape::SpriteStringBool;
         } else if (instr.op == BytecodeOp::CallNative && voidCallAllowed(opcodeName(slot))) {
+            if (args == 1 && kind(0) == K::String && fn.s_void) return NativeShape::VoidString;
+            if (args == 2 && kind(0) == K::String && kind(1) == K::Number && fn.sn_void) return NativeShape::VoidStringNumber;
             if (args == 0 && fn.voidFn) return NativeShape::VoidNone;
             if (args == 1 && kind(0) == K::Number && fn.n_void) return NativeShape::VoidNumber;
             if (args == 2 && kind(0) == K::Number && kind(1) == K::Number && fn.nn_void) return NativeShape::VoidNumberNumber;
@@ -687,7 +984,6 @@ struct Planner {
         if (static_cast<int>(pushed.values.size()) + positionOffset < 0) return false;
         const size_t position = pushed.values.size() + positionOffset;
         for (BytecodeIndex q = pc + 1; q < count; q++) {
-            if (analysis.isBlockStart(q)) return false;
             const BytecodeInstruction &between = chunk.instructions[q - 1];
             if (variable >= 0) {
                 switch (between.op) {
@@ -710,11 +1006,81 @@ struct Planner {
             BytecodeAbstractState state;
             if (!analysis.stateBefore(q, state)) return false;
             if (state.values.size() <= position) return true;
+            if (analysis.isBlockStart(q)) return false;
         }
         return false;
     }
 
     bool listValid(const BytecodeInstruction &instr) const { return instr.a < chunk.listSlots.size(); }
+
+    bool stringConsumedInBlock(BytecodeIndex pc, int offset) const {
+        BytecodeAbstractState before;
+        if (!analysis.stateBefore(pc, before)) return false;
+        const int position = static_cast<int>(before.strings) + offset;
+        if (position < 0) return false;
+        for (BytecodeIndex q = pc + 1; q < count; q++) {
+            BytecodeAbstractState state;
+            if (!analysis.stateBefore(q, state)) return false;
+            if (static_cast<int>(state.strings) <= position) return true;
+            if (analysis.isBlockStart(q)) return false;
+        }
+        return false;
+    }
+
+    bool variableBorrowable(BytecodeIndex pc) const {
+        const BytecodeInstruction &push = chunk.instructions[pc];
+        BytecodeAbstractState before;
+        if (!analysis.stateBefore(pc, before)) return false;
+        const int position = static_cast<int>(before.strings);
+        for (BytecodeIndex q = pc + 1; q < count; q++) {
+            BytecodeAbstractState state;
+            if (!analysis.stateBefore(q, state)) return false;
+            if (static_cast<int>(state.strings) <= position) return true;
+            if (analysis.isBlockStart(q) || !supported[q]) return false;
+
+            const BytecodeInstruction &instr = chunk.instructions[q];
+            switch (instr.op) {
+            case BytecodeOp::StoreVarNumber:
+            case BytecodeOp::StoreVarString:
+            case BytecodeOp::StoreVarValue:
+            case BytecodeOp::AppendVarString:
+            case BytecodeOp::ChangeVarNumber:
+                if (instr.a == push.a) return false;
+                break;
+            case BytecodeOp::CallProcedure:
+            case BytecodeOp::CallProcedureValue:
+            case BytecodeOp::CallNative:
+            case BytecodeOp::Yield:
+            case BytecodeOp::ForEachCheck:
+            case BytecodeOp::RepeatCheck:
+                return false;
+            default:
+                break;
+            }
+        }
+        return false;
+    }
+
+    static int stringArguments(NativeShape shape) {
+        switch (shape) {
+        case NativeShape::StringStringString:
+        case NativeShape::StringStringBool:
+            return 2;
+        case NativeShape::StringNumber:
+        case NativeShape::NumberStringString:
+        case NativeShape::SpriteStringNumber:
+        case NativeShape::SpriteStringBool:
+        case NativeShape::VoidString:
+        case NativeShape::VoidStringNumber:
+            return 1;
+        default:
+            return 0;
+        }
+    }
+
+    static bool leavesString(NativeShape shape) {
+        return shape == NativeShape::StringStringString || shape == NativeShape::NumberStringString || shape == NativeShape::SpriteString;
+    }
 
     static bool isNumericConstant(const Value &value) {
         return value.isDouble() || (value.isString() && BytecodeAnalysis::isCanonicalNumericString(value.asString()));
@@ -805,8 +1171,35 @@ struct Planner {
             return instr.a < variableCount;
         case BytecodeOp::CallNative:
         case BytecodeOp::CallNativeNumber:
-        case BytecodeOp::CallNativeBoolean:
-            return nativeShape(instr) != NativeShape::None;
+        case BytecodeOp::CallNativeString:
+        case BytecodeOp::CallNativeBoolean: {
+            const NativeShape shape = nativeShape(instr);
+            if (shape == NativeShape::None) return false;
+            return !leavesString(shape) || stringConsumedInBlock(pc, -stringArguments(shape));
+        }
+
+        case BytecodeOp::PushConstString:
+            return instr.a < chunk.stringConstants.size() && stringConsumedInBlock(pc, 0);
+        case BytecodeOp::PushVarString:
+            return instr.a < variableCount && stringConsumedInBlock(pc, 0);
+        case BytecodeOp::StoreVarString:
+        case BytecodeOp::AppendVarString:
+            return instr.a < variableCount;
+        case BytecodeOp::PopString:
+        case BytecodeOp::StrEquals:
+        case BytecodeOp::StrLess:
+        case BytecodeOp::StrGreater:
+        case BytecodeOp::LengthOf:
+            return true;
+        case BytecodeOp::LengthOfVar:
+            return instr.a < variableCount;
+        case BytecodeOp::ConvertStringToValue:
+            return consumedInBlock(pc, -1);
+        case BytecodeOp::ConvertValueToString:
+        case BytecodeOp::LetterOf:
+            return stringConsumedInBlock(pc, 0);
+        case BytecodeOp::LetterOfVar:
+            return instr.a < variableCount && stringConsumedInBlock(pc, 0);
         default:
             return false;
         }
@@ -826,7 +1219,10 @@ struct Planner {
             const BytecodeInstruction &instr = chunk.instructions[pc];
             if (!isJump(instr.op) || instr.a >= count || instr.a > pc) continue;
             for (BytecodeIndex i = instr.a; i <= pc; i++) {
-                if (analysis.isReachable(i) && !supported[i]) loopBlockers[static_cast<uint8_t>(chunk.instructions[i].op)]++;
+                if (analysis.isReachable(i) && !supported[i]) {
+                    loopBlockers[static_cast<uint8_t>(chunk.instructions[i].op)]++;
+                    procedureBlockers[{analysis.procedureAt(i), static_cast<uint8_t>(chunk.instructions[i].op)}]++;
+                }
             }
         }
 
@@ -921,6 +1317,11 @@ struct Planner {
         case BytecodeOp::ChangeVarNumber:
         case BytecodeOp::StoreVarValue:
         case BytecodeOp::PushVarValue:
+        case BytecodeOp::PushVarString:
+        case BytecodeOp::StoreVarString:
+        case BytecodeOp::AppendVarString:
+        case BytecodeOp::LetterOfVar:
+        case BytecodeOp::LengthOfVar:
             return instr.a;
         case BytecodeOp::ForEachCheck:
             return instr.b;
@@ -982,6 +1383,7 @@ struct AbsState {
     uint32_t numbers = 0;
     uint32_t booleans = 0;
     std::vector<AbsValue> values;
+    std::vector<StrEntry> strings;
 };
 
 class Emitter {
@@ -1010,9 +1412,10 @@ class Emitter {
     std::vector<sljit_jump *> leaveJumps_;
     std::vector<std::function<void()>> cold_;
     std::vector<int32_t> promotedIndex_;
+    std::vector<bool> stringWritten_;
 
     AbsState state_;
-    uint32_t maxNumbers_ = 0, maxBooleans_ = 0, maxValues_ = 0;
+    uint32_t maxNumbers_ = 0, maxBooleans_ = 0, maxValues_ = 0, maxStrings_ = 0;
 
     static constexpr sljit_sw slotsOffset() { return static_cast<sljit_sw>(offsetof(Context, slots)); }
     static sljit_sw slotOffset(uint32_t slot) { return slotsOffset() + static_cast<sljit_sw>(slot) * 8; }
@@ -1056,6 +1459,32 @@ class Emitter {
         return e;
     }
 
+    StringOp &newStringOp(StringOp::Kind kind) {
+        StringOp &op = code_.stringOps.emplace_back();
+        op.kind = kind;
+        return op;
+    }
+
+    void callStringOp(StringOp &op) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&op));
+        callHelper(reinterpret_cast<void *>(&jitStringOp), SLJIT_ARGS2V(P, P));
+    }
+
+    void ensureVariableNumber(BytecodeIndex variable) {
+        if (!stringWritten_[variable]) return;
+        const uint32_t k = promoted(variable);
+        sljit_jump *holdsString = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 4);
+        sljit_label *back = sljit_emit_label(c_);
+        cold_.push_back([this, holdsString, back, k]() {
+            sljit_set_label(holdsString, sljit_emit_label(c_));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, k);
+            callHelper(reinterpret_cast<void *>(&jitEnsureStringNumber), SLJIT_ARGS2V(P, W));
+            sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), back);
+        });
+    }
+
     void callListHelper(void *fn, ListOpDescriptor &op, sljit_s32 argTypes) {
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&op));
@@ -1073,6 +1502,7 @@ void Emitter::resetStateFromAnalysis(BytecodeIndex pc) {
     analysis_.stateBefore(pc, s);
     state_.numbers = s.numbers;
     state_.booleans = s.booleans;
+    state_.strings.assign(s.strings, StrEntry{});
     state_.values.clear();
     for (BytecodeValueType type : s.values) {
         AbsValue v;
@@ -1085,6 +1515,7 @@ void Emitter::resetStateFromAnalysis(BytecodeIndex pc) {
 
 ExitDescriptor &Emitter::makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state) {
     ExitDescriptor &d = code_.exits.emplace_back();
+    d.strings = state.strings;
     d.pc = pc;
     d.result = result;
     d.numbers = state.numbers;
@@ -1307,6 +1738,117 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
         callHelper(reinterpret_cast<void *>(&jitCallValueVoid), SLJIT_ARGS2V(P, P));
         break;
     }
+    case NativeShape::StringStringString: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallStringString);
+        op.fn = reinterpret_cast<void *>(fn.ss_s);
+        op.a = state_.strings[n - 2];
+        op.aPosition = n - 2;
+        op.b = state_.strings[n - 1];
+        op.bPosition = n - 1;
+        op.outPosition = n - 2;
+        state_.strings.pop_back();
+        state_.strings.back().kind = StrEntry::Temp;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::StringStringBool: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallStringStringBool);
+        op.fn = reinterpret_cast<void *>(fn.ss_b);
+        op.a = state_.strings[n - 2];
+        op.aPosition = n - 2;
+        op.b = state_.strings[n - 1];
+        op.bPosition = n - 1;
+        op.numberOut = booleanSlot(state_.booleans);
+        state_.strings.pop_back();
+        state_.strings.pop_back();
+        state_.booleans++;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::StringNumber: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallStringNumber);
+        op.fn = reinterpret_cast<void *>(fn.s_n);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        op.numberOut = numberSlot(state_.numbers);
+        state_.strings.pop_back();
+        state_.numbers++;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::NumberStringString: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallNumberStringString);
+        op.fn = reinterpret_cast<void *>(fn.ns_s);
+        op.numberIn = numberSlot(state_.numbers - 1);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        op.outPosition = n - 1;
+        state_.numbers--;
+        state_.strings.back().kind = StrEntry::Temp;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::SpriteStringNumber: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallSpriteStringNumber);
+        op.fn = reinterpret_cast<void *>(fn.spriteS_n);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        op.numberOut = numberSlot(state_.numbers);
+        state_.strings.pop_back();
+        state_.numbers++;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::SpriteStringBool: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallSpriteStringBool);
+        op.fn = reinterpret_cast<void *>(fn.spriteS_b);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        op.numberOut = booleanSlot(state_.booleans);
+        state_.strings.pop_back();
+        state_.booleans++;
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::SpriteString: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::CallSpriteString);
+        op.fn = reinterpret_cast<void *>(fn.sprite_s);
+        op.outPosition = n;
+        StrEntry entry;
+        entry.kind = StrEntry::Temp;
+        state_.strings.push_back(entry);
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::VoidString: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::VoidString);
+        op.fn = reinterpret_cast<void *>(fn.s_void);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        state_.strings.pop_back();
+        callStringOp(op);
+        break;
+    }
+    case NativeShape::VoidStringNumber: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::VoidStringNumber);
+        op.fn = reinterpret_cast<void *>(fn.sn_void);
+        op.a = state_.strings[n - 1];
+        op.aPosition = n - 1;
+        op.numberIn = numberSlot(state_.numbers - 1);
+        state_.strings.pop_back();
+        state_.numbers--;
+        callStringOp(op);
+        break;
+    }
     case NativeShape::None:
         break;
     }
@@ -1338,6 +1880,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
 
     case BytecodeOp::PushVarNumber: {
+        ensureVariableNumber(instr.a);
         loadF(SLJIT_FR0, variableSlot(promoted(instr.a)));
         nanToZero(SLJIT_FR0);
         storeF(numberSlot(state_.numbers), SLJIT_FR0);
@@ -1353,6 +1896,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
     case BytecodeOp::ChangeVarNumber: {
+        ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
         loadF(SLJIT_FR0, variableSlot(k));
         nanToZero(SLJIT_FR0);
@@ -1406,7 +1950,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t position = static_cast<uint32_t>(state_.values.size());
         if (top.kind == ValueEntry::Constant) {
             storeImmF(variableSlot(k), constantNumber(top.constant));
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 4 + static_cast<sljit_sw>(top.constant));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 5 + static_cast<sljit_sw>(top.constant));
         } else if (top.kind == ValueEntry::Number) {
             loadF(SLJIT_FR0, valueSlot(position));
             storeF(variableSlot(k), SLJIT_FR0);
@@ -1603,6 +2147,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
 
     case BytecodeOp::PushVarValue: {
+        ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         loadF(SLJIT_FR0, variableSlot(k));
@@ -1648,6 +2193,138 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::PushConstString: {
+        StrEntry entry;
+        entry.kind = StrEntry::Const;
+        entry.constant = instr.a;
+        state_.strings.push_back(entry);
+        return;
+    }
+    case BytecodeOp::PushVarString: {
+        if (plan_.variableBorrowable(pc)) {
+            StrEntry entry;
+            entry.kind = StrEntry::Variable;
+            entry.constant = promoted(instr.a);
+            state_.strings.push_back(entry);
+            return;
+        }
+        StringOp &op = newStringOp(StringOp::PushVariable);
+        op.variable = promoted(instr.a);
+        op.outPosition = static_cast<uint32_t>(state_.strings.size());
+        callStringOp(op);
+        StrEntry entry;
+        entry.kind = StrEntry::Temp;
+        state_.strings.push_back(entry);
+        return;
+    }
+    case BytecodeOp::StoreVarString:
+    case BytecodeOp::AppendVarString: {
+        StringOp &op = newStringOp(instr.op == BytecodeOp::StoreVarString ? StringOp::StoreVariable : StringOp::AppendVariable);
+        op.variable = promoted(instr.a);
+        op.aPosition = static_cast<uint32_t>(state_.strings.size()) - 1;
+        op.a = state_.strings.back();
+        state_.strings.pop_back();
+        callStringOp(op);
+        return;
+    }
+    case BytecodeOp::PopString:
+        state_.strings.pop_back();
+        return;
+    case BytecodeOp::StrEquals:
+    case BytecodeOp::StrLess:
+    case BytecodeOp::StrGreater: {
+        const uint32_t n = static_cast<uint32_t>(state_.strings.size());
+        StringOp &op = newStringOp(StringOp::Compare);
+        op.compare = instr.op == BytecodeOp::StrEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::StrLess ? BytecodeCompareKind::Less
+                                                                                                                       : BytecodeCompareKind::Greater;
+        op.a = state_.strings[n - 2];
+        op.aPosition = n - 2;
+        op.b = state_.strings[n - 1];
+        op.bPosition = n - 1;
+        op.numberOut = booleanSlot(state_.booleans);
+        state_.strings.pop_back();
+        state_.strings.pop_back();
+        state_.booleans++;
+        maxBooleans_ = std::max(maxBooleans_, state_.booleans);
+        callStringOp(op);
+        return;
+    }
+    case BytecodeOp::LengthOfVar: {
+        StringOp &op = newStringOp(StringOp::LengthOfVariable);
+        op.variable = promoted(instr.a);
+        op.numberOut = numberSlot(state_.numbers);
+        state_.numbers++;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        callStringOp(op);
+        return;
+    }
+    case BytecodeOp::LetterOfVar: {
+        StringOp &op = newStringOp(StringOp::LetterOfVariable);
+        op.variable = promoted(instr.a);
+        op.numberIn = numberSlot(state_.numbers - 1);
+        op.outPosition = static_cast<uint32_t>(state_.strings.size());
+        state_.numbers--;
+        callStringOp(op);
+        StrEntry entry;
+        entry.kind = StrEntry::Temp;
+        state_.strings.push_back(entry);
+        return;
+    }
+    case BytecodeOp::LengthOf: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        StringOp &op = newStringOp(StringOp::LengthOf);
+        op.value = describe(state_.values[depth - 1]);
+        op.valuePosition = depth - 1;
+        op.numberOut = numberSlot(state_.numbers);
+        state_.values.pop_back();
+        state_.numbers++;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        callStringOp(op);
+        return;
+    }
+    case BytecodeOp::LetterOf: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        StringOp &op = newStringOp(StringOp::LetterOf);
+        op.value = describe(state_.values[depth - 1]);
+        op.valuePosition = depth - 1;
+        op.numberIn = numberSlot(state_.numbers - 1);
+        op.outPosition = static_cast<uint32_t>(state_.strings.size());
+        state_.values.pop_back();
+        state_.numbers--;
+        callStringOp(op);
+        StrEntry entry;
+        entry.kind = StrEntry::Temp;
+        state_.strings.push_back(entry);
+        return;
+    }
+    case BytecodeOp::ConvertValueToString: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        StringOp &op = newStringOp(StringOp::ValueToString);
+        op.value = describe(state_.values[depth - 1]);
+        op.valuePosition = depth - 1;
+        op.outPosition = static_cast<uint32_t>(state_.strings.size());
+        state_.values.pop_back();
+        callStringOp(op);
+        StrEntry entry;
+        entry.kind = StrEntry::Temp;
+        state_.strings.push_back(entry);
+        return;
+    }
+    case BytecodeOp::ConvertStringToValue: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        StringOp &op = newStringOp(StringOp::StringToValue);
+        op.a = state_.strings.back();
+        op.aPosition = static_cast<uint32_t>(state_.strings.size()) - 1;
+        op.outPosition = depth;
+        state_.strings.pop_back();
+        callStringOp(op);
+        AbsValue v;
+        v.kind = ValueEntry::Temp;
+        state_.values.push_back(v);
+        maxValues_ = std::max(maxValues_, depth + 1);
+        return;
+    }
+
     case BytecodeOp::ForEachCheck: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         const uint32_t counter = valueSlot(depth - 1), bound = valueSlot(depth - 2);
@@ -1679,6 +2356,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::CallNative:
     case BytecodeOp::CallNativeNumber:
+    case BytecodeOp::CallNativeString:
     case BytecodeOp::CallNativeBoolean: {
         emitNative(instr, plan_.nativeShape(instr));
         maxNumbers_ = std::max(maxNumbers_, state_.numbers);
@@ -1703,17 +2381,16 @@ bool Emitter::emit() {
     const size_t count = chunk_.instructions.size();
 
     promotedIndex_.assign(chunk_.variableSlots.size(), -1);
+    stringWritten_.assign(chunk_.variableSlots.size(), false);
     for (BytecodeIndex pc = 0; pc < count; pc++) {
         if (!plan_.supported[pc]) continue;
         const BytecodeInstruction &instr = chunk_.instructions[pc];
-        if (instr.op == BytecodeOp::ForEachCheck && instr.b < promotedIndex_.size() && promotedIndex_[instr.b] < 0) {
-            promotedIndex_[instr.b] = static_cast<int32_t>(code_.promoted.size());
-            code_.promoted.push_back(instr.b);
-        }
-        if (instr.op != BytecodeOp::PushVarNumber && instr.op != BytecodeOp::StoreVarNumber && instr.op != BytecodeOp::ChangeVarNumber && instr.op != BytecodeOp::StoreVarValue && instr.op != BytecodeOp::PushVarValue) continue;
-        if (promotedIndex_[instr.a] < 0) {
-            promotedIndex_[instr.a] = static_cast<int32_t>(code_.promoted.size());
-            code_.promoted.push_back(instr.a);
+        const int64_t variable = plan_.promotedVariable(instr);
+        if (variable < 0 || static_cast<size_t>(variable) >= promotedIndex_.size()) continue;
+        if (instr.op == BytecodeOp::StoreVarString || instr.op == BytecodeOp::AppendVarString) stringWritten_[variable] = true;
+        if (promotedIndex_[variable] < 0) {
+            promotedIndex_[variable] = static_cast<int32_t>(code_.promoted.size());
+            code_.promoted.push_back(static_cast<uint32_t>(variable));
         }
     }
     if (code_.promoted.size() > kMaxPromoted) return giveUp("too many variables kept in slots: " + std::to_string(code_.promoted.size()));
@@ -1724,7 +2401,9 @@ bool Emitter::emit() {
         maxNumbers_ = std::max(maxNumbers_, s.numbers + 2);
         maxBooleans_ = std::max(maxBooleans_, s.booleans + 2);
         maxValues_ = std::max(maxValues_, static_cast<uint32_t>(s.values.size()) + 2);
+        maxStrings_ = std::max(maxStrings_, s.strings + 2);
     }
+    if (maxStrings_ > kMaxStrs) return giveUp("string stack too deep for the temporaries: " + std::to_string(maxStrings_));
     if (maxValues_ + 2 > kMaxTemps) return giveUp("value stack too deep for the temporaries: " + std::to_string(maxValues_));
     code_.slotBooleans = maxNumbers_;
     code_.slotValues = code_.slotBooleans + maxBooleans_;
@@ -1901,6 +2580,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         e.numbers = s.numbers;
         e.booleans = s.booleans;
         e.valueIsNumber.assign(s.values.size(), 1);
+        e.strings = s.strings;
         code->entries.push_back(std::move(e));
     }
 
@@ -1942,6 +2622,15 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         for (size_t i = 0; i < ranked.size() && i < 12; i++)
             blockers += " " + std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
         Log::log("[jit blockers]" + blockers);
+        if (std::string(log) == "2") {
+            std::map<int, std::string> perProcedure;
+            for (const auto &[key, n] : planner.procedureBlockers)
+                perProcedure[key.first] += " " + std::to_string(key.second) + ":" + std::to_string(n);
+            for (const auto &[procedure, ops] : perProcedure) {
+                const std::string name = procedure >= 0 && chunk.procedures[procedure].procCodeIndex < chunk.strings.size() ? chunk.strings[chunk.procedures[procedure].procCodeIndex] : "(script)";
+                Log::log("[jit blockers] " + name + ":" + ops);
+            }
+        }
         Log::log("[jit] compiled " + std::to_string(compiled) + " of " + std::to_string(reachable) + " reachable instructions, " +
                  std::to_string(code->entries.size()) + " entry points, " + std::to_string(code->promoted.size()) + " variables in slots, " +
                  std::to_string(code->exits.size()) + " exits, " + std::to_string(compileTimer.getTimeMsDouble()) + " ms");
@@ -1961,6 +2650,11 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
 
     for (uint32_t i = 0; i < ctx.tempHigh; i++)
         gTemps[i] = Value();
+    for (uint32_t i = 0; i < ctx.strHigh; i++)
+        std::string().swap(gStrs[i]);
+    for (uint32_t k = 0; (ctx.stringVariableUsed[0] | ctx.stringVariableUsed[1]) != 0 && k < kMaxPromoted; k++) {
+        if (ctx.stringVariableUsed[k >> 6] & (uint64_t(1) << (k & 63))) std::string().swap(gStringVariables[k]);
+    }
     for (uint32_t k = 0; (ctx.shadowUsed[0] | ctx.shadowUsed[1]) != 0 && k < kMaxPromoted; k++) {
         if (ctx.shadowUsed[k >> 6] & (uint64_t(1) << (k & 63))) gShadows[k] = Value();
     }
