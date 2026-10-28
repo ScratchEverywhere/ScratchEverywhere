@@ -268,6 +268,19 @@ std::string_view Value::asStringView(std::string &scratch) const {
     return scratch;
 }
 
+bool Value::plainNumber(double &out) const {
+    if (isDouble()) {
+        if (isNaN()) return false;
+        out = storage.d;
+        return true;
+    }
+    if (!isString() || !isNumeric()) return false;
+    const std::string &text = StringPool::get(storage.stringId);
+    if (std::all_of(text.begin(), text.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) return false;
+    out = asDouble();
+    return true;
+}
+
 bool Value::equalsSlow(const Value &other) const {
     if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN())
         return storage.d == other.storage.d;
@@ -278,6 +291,10 @@ bool Value::equalsSlow(const Value &other) const {
 
     if (isString() && other.isString() && storage.stringId == other.storage.stringId)
         return true;
+
+    double number;
+    if (isDouble() && !isNaN() && other.isString() && other.plainNumber(number)) return storage.d == number;
+    if (other.isDouble() && !other.isNaN() && isString() && plainNumber(number)) return number == other.storage.d;
 
     std::string scratchA, scratchB;
     std::string_view svA = asStringView(scratchA);

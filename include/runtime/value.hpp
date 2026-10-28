@@ -214,6 +214,7 @@ class SE_EXPORT Value {
         return tag == Tag::UNDEFINED;
     }
     bool isNumeric() const;
+    bool plainNumber(double &out) const;
     inline bool isNaN() const {
         return isDouble() && std::isnan(storage.d);
     }

@@ -256,7 +256,65 @@ size_t resolveListIndex(const Value &indexValue, size_t size) {
     return static_cast<size_t>(idx);
 }
 
+void listInsert(List &list, const Value &index, Value item) {
+    std::string indexStr = index.asString();
+    size_t pos;
+    if (indexStr == "last") pos = list.items.size();
+    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list.items.size() + 1));
+    else {
+        double d = index.get<double>();
+        if (!std::isfinite(d)) return;
+        double idx = std::floor(d) - 1;
+        if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
+        pos = static_cast<size_t>(idx);
+    }
+    if (pos <= list.items.size()) {
+        insertValueAt(list.items, pos, std::move(item));
+        if (list.items.size() > BYTECODE_MAX_LIST_ITEMS) list.items.pop_back();
+    }
+}
+
+void listDelete(List &list, const Value &index) {
+    std::string indexStr = index.asString();
+    if (indexStr == "all") {
+        list.items.clear();
+    } else if (indexStr == "last" && !list.items.empty()) {
+        list.items.pop_back();
+    } else if ((indexStr == "random" || indexStr == "any") && !list.items.empty()) {
+        eraseValueAt(list.items, fastRandomBelow(list.items.size()));
+    } else {
+        double d = index.get<double>();
+        if (std::isfinite(d)) {
+            double idx = std::floor(d) - 1;
+            if (idx >= 0 && idx < static_cast<double>(list.items.size())) {
+                eraseValueAt(list.items, static_cast<size_t>(idx));
+            }
+        }
+    }
+}
+
+void listReplace(List &list, const Value &index, const Value &item) {
+    if (list.items.empty()) return;
+    size_t pos = resolveListIndex(index, list.items.size());
+    if (pos < list.items.size()) list.items[pos] = item;
+}
+
 bool valuesEqual(const Value &a, const Value &b) { return a == b; }
+
+size_t findInList(const std::vector<Value> &items, const Value &target) {
+    double wanted;
+    if (target.plainNumber(wanted)) {
+        for (size_t i = 0; i < items.size(); i++) {
+            const Value &existing = items[i];
+            if (existing.isDouble() && !existing.isNaN() ? existing.numberRaw() == wanted : existing == target) return i;
+        }
+        return items.size();
+    }
+    for (size_t i = 0; i < items.size(); i++) {
+        if (items[i] == target) return i;
+    }
+    return items.size();
+}
 
 ScriptThread *acquireScriptThread() {
     ScriptThread *t;
@@ -570,6 +628,14 @@ double bytecodeMathOpApply(BytecodeMathOp op, double value) {
     return mathOpApply(op, value);
 }
 
+void bytecodeListInsert(List &list, const Value &index, Value item) { listInsert(list, index, std::move(item)); }
+void bytecodeListDelete(List &list, const Value &index) { listDelete(list, index); }
+void bytecodeListReplace(List &list, const Value &index, const Value &item) { listReplace(list, index, item); }
+
+size_t bytecodeFindInList(const std::vector<Value> &items, const Value &target) {
+    return findInList(items, target);
+}
+
 size_t bytecodeResolveListIndex(const Value &index, size_t size) {
     return resolveListIndex(index, size);
 }
@@ -774,24 +840,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             SE_CASE(DeleteFromList) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    if (indexStr == "all") {
-                        list->items.clear();
-                    } else if (indexStr == "last" && !list->items.empty()) {
-                        list->items.pop_back();
-                    } else if ((indexStr == "random" || indexStr == "any") && !list->items.empty()) {
-                        eraseValueAt(list->items, fastRandomBelow(list->items.size()));
-                    } else {
-                        double d = index.get<double>();
-                        if (std::isfinite(d)) {
-                            double idx = std::floor(d) - 1;
-                            if (idx >= 0 && idx < static_cast<double>(list->items.size())) {
-                                eraseValueAt(list->items, static_cast<size_t>(idx));
-                            }
-                        }
-                    }
-                }
+                if (list) listDelete(*list, index);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -805,29 +854,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    size_t pos;
-                    if (indexStr == "last") pos = list->items.size();
-                    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list->items.size() + 1));
-                    else {
-                        double d = index.get<double>();
-                        if (!std::isfinite(d)) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        double idx = std::floor(d) - 1;
-                        if (idx < 0 || idx > static_cast<double>(list->items.size())) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        pos = static_cast<size_t>(idx);
-                    }
-                    if (pos <= list->items.size()) {
-                        insertValueAt(list->items, pos, std::move(item));
-                        if (list->items.size() > MAX_LIST_ITEMS) list->items.pop_back();
-                    }
-                }
+                if (list) listInsert(*list, index, std::move(item));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -835,10 +862,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list && !list->items.empty()) {
-                    size_t pos = resolveListIndex(index, list->items.size());
-                    if (pos < list->items.size()) list->items[pos] = item;
-                }
+                if (list) listReplace(*list, index, item);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -859,12 +883,8 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 double result = 0;
                 if (list) {
-                    for (size_t i = 0; i < list->items.size(); i++) {
-                        if (valuesEqual(list->items[i], item)) {
-                            result = static_cast<double>(i + 1);
-                            break;
-                        }
-                    }
+                    const size_t found = findInList(list->items, item);
+                    if (found < list->items.size()) result = static_cast<double>(found + 1);
                 }
                 thread.numberStack.push_back(result);
                 thread.pc++;
@@ -880,14 +900,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 bool found = false;
-                if (list) {
-                    for (const auto &existing : list->items) {
-                        if (valuesEqual(existing, item)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
+                if (list) found = findInList(list->items, item) < list->items.size();
                 thread.boolStack.push_back(found);
                 thread.pc++;
                 SE_NEXT();
