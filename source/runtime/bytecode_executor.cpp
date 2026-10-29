@@ -152,7 +152,7 @@ const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot) {
 
 size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
-    if (indexValue.isDouble()) {
+    SE_LIKELY_IF(indexValue.isDouble()) {
         double d = indexValue.get<double>();
         if (!std::isfinite(d)) return size;
         double idx = std::floor(d) - 1;
