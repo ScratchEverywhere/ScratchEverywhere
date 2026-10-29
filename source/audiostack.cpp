@@ -422,7 +422,9 @@ struct MixerStreamSnapshot {
 std::array<MixerStreamSnapshot, MAX_MIXER_STREAMS> mixerSnapshot{};
 std::array<float, MIX_CHUNK_FRAMES * 2> mixerBuffer{};
 SoundStream *retiredStreams = nullptr; // intrusive queue, protected by Mixer::mutex
+#ifdef ENABLE_AUDIO
 std::mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
+#endif
 }
 
 void Mixer::registerStream(const std::string &name, SoundStream *stream) {
