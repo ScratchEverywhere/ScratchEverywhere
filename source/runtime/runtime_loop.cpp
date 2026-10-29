@@ -170,7 +170,12 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
 #ifdef ENABLE_MENU
 
-        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+#ifdef __ANDROID__
+        bool shouldPause = Input::keyHeldDuration["back"] > (FPS / 30.0f);
+#else
+        bool shouldPause = Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)
+#endif
+        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);
             return std::make_pair(true, false);

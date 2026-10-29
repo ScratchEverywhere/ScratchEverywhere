@@ -238,7 +238,7 @@ void SettingsMenu::updateButtonStates() {
 void SettingsMenu::render() {
     Input::getInput();
     settingsControl->input();
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b", "y", "back"})) {
         MainMenu *mainMenu = new MainMenu();
         MenuManager::changeMenu(mainMenu);
         return;

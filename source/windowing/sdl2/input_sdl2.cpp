@@ -342,7 +342,10 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
                     // finish input
                     inputActive = false;
                     break;
-
+                case SDLK_AC_BACK:
+                    // Android back button
+                    inputActive = false;
+                    break;
                 case SDLK_BACKSPACE:
                     // remove character
                     if (!inputText.empty()) {

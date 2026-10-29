@@ -207,7 +207,7 @@ void ProjectMenu::render() {
         }
     }
 
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b", "y", "back"})) {
         MainMenu *main = new MainMenu();
         MenuManager::changeMenu(main);
         return;
