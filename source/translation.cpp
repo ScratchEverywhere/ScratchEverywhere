@@ -74,8 +74,9 @@ void TranslationManager::loadLanguage(std::string language) {
     }
 #elif defined(__ANDROID__)
     AAsset *translations = AAssetManager_open(g_assetManager, path.c_str(), AASSET_MODE_BUFFER);
-    translationKeys = nlohmann::json::parse(static_cast<const char *>(AAsset_getBuffer(translations)));
-    AAsset_close(translations);
+    std::vector<unsigned char> buffer(AAsset_getLength(translations));
+    AAsset_read(translations, buffer.data(), buffer.size());
+    translationKeys = nlohmann::json::parse(buffer);
 
     AAsset *splash = AAssetManager_open(g_assetManager, splashPath.c_str(), AASSET_MODE_BUFFER);
     std::istringstream stream(static_cast<const char *>(AAsset_getBuffer(splash)));

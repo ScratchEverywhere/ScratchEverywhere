@@ -351,7 +351,9 @@ void ControlObject::render(double xPos, double yPos) {
             if (!isEmpty) {
                 float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
                 scrollAmount /= guiScale;
-                y += scrollAmount;
+                // Avoid the last touch position being 0
+                if (lastFrameTouchPos[1] != 0)
+                    y += scrollAmount;
                 if (std::abs(scrollAmount) > 3)
                     selectedObject = getClosestObject();
             }
