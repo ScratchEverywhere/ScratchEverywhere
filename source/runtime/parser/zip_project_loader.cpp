@@ -375,8 +375,14 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
-    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
-    if (useBytecodeSetting.is_null()) {
+    const auto runtimeSetting = Unzip::getSetting("runtime");
+    const auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    Scratch::useJit = false;
+    if (runtimeSetting.is_string()) {
+        const std::string runtime = runtimeSetting.get<std::string>();
+        Scratch::useBytecode = runtime != "interpreter";
+        Scratch::useJit = runtime == "jit";
+    } else if (useBytecodeSetting.is_null()) {
 #if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
         Scratch::useBytecode = false;
 #else

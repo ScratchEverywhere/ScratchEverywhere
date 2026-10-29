@@ -111,6 +111,8 @@ const char *mnemonic(BytecodeOp op) {
         return "StoreVarColor";
     case BytecodeOp::StoreVarValue:
         return "StoreVarValue";
+    case BytecodeOp::AppendVarString:
+        return "AppendVarString";
     case BytecodeOp::ChangeVarNumber:
         return "ChangeVarNumber";
     case BytecodeOp::AddToList:
@@ -318,6 +320,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
     case BytecodeOp::StoreVarBoolean:
     case BytecodeOp::StoreVarColor:
     case BytecodeOp::StoreVarValue:
+    case BytecodeOp::AppendVarString:
     case BytecodeOp::ChangeVarNumber:
         out << "  ; var \"" << variableNameForSlot(chunk, instr.a) << "\"";
         return;

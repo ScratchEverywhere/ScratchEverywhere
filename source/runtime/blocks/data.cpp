@@ -33,6 +33,49 @@ SCRATCH_BLOCK(data, setvariableto) {
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), value, sprite);
     return BlockResult::CONTINUE;
 }
+namespace {
+
+bool isSideEffectFreeStringExpr(const ParsedInput *input) {
+    if (input == nullptr) return true;
+    switch (input->inputType) {
+    case ParsedInput::VALUE:
+        return true;
+    case ParsedInput::VARIABLE:
+        return !input->list;
+    case ParsedInput::BLOCK: {
+        const Block *inner = input->block;
+        if (inner == nullptr) return true;
+        const std::string &opcode = inner->opcode;
+        if (opcode == "argument_reporter_string_number" || opcode == "argument_reporter_boolean") return true;
+        if (opcode == "operator_join") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING1")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING2"));
+        }
+        if (opcode == "operator_length") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING"));
+        }
+        return false;
+    }
+    }
+    return false;
+}
+
+Block *matchSelfAppend(Block *setBlock, const std::string &varId) {
+    const ParsedInput *value = Scratch::getInput(setBlock, "VALUE");
+    if (value == nullptr || value->inputType != ParsedInput::BLOCK || value->block == nullptr) return nullptr;
+
+    Block *join = value->block;
+    if (join->opcode != "operator_join") return nullptr;
+
+    const ParsedInput *left = Scratch::getInput(join, "STRING1");
+    if (left == nullptr || left->inputType != ParsedInput::VARIABLE || left->list || left->variableId != varId) return nullptr;
+
+    if (!isSideEffectFreeStringExpr(Scratch::getInput(join, "STRING2"))) return nullptr;
+    return join;
+}
+
+} // namespace
+
 SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
@@ -44,6 +87,15 @@ SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     }
 
     outFirstInstr = compiler.here();
+
+    if (varKind == BytecodeStackKind::String) {
+        if (Block *join = matchSelfAppend(block, varId)) {
+            compiler.compileInput(join, "STRING2", BytecodeStackKind::String);
+            compiler.emit(BytecodeOp::AppendVarString, compiler.variableSlot(varId));
+            return true;
+        }
+    }
+
     compiler.compileInput(block, "VALUE", varKind);
 
     BytecodeIndex slot = compiler.variableSlot(varId);

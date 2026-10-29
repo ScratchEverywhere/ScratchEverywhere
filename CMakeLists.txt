@@ -99,6 +99,7 @@ option(SE_EXECUTABLE "Build the main executable." ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
+option(SE_JIT "Compile hot bytecode to machine code with SLJIT (experimental). Only takes effect on CPUs and platforms SLJIT can generate code for." OFF)
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
 
 cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUDVARS" OFF)
@@ -646,6 +647,15 @@ if(SE_HAS_CONTROLLER)
 endif()
 
 cl_add_dep(se-interface ryuJS)
+
+if(SE_JIT)
+	if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64|ARM64)$" AND SE_PLATFORM STREQUAL "pc") # TODO: support more platform
+        cl_add_dep(se-interface sljit)
+        target_compile_definitions(se-interface INTERFACE SE_JIT)
+    else()
+        message(STATUS "SE_JIT is on but ${CMAKE_SYSTEM_PROCESSOR} is not supported yet, building without the JIT")
+    endif()
+endif()
 
 cl_add_dep(se-interface nlohmann_json)
 if(SE_ZIP_BACKEND STREQUAL "minizip")

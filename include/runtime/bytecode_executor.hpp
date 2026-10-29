@@ -1,5 +1,9 @@
 #pragma once
 #include "bytecode.hpp"
+#ifdef SE_BYTECODE_STATS
+#include "bytecode_analysis.hpp"
+#include <unordered_map>
+#endif
 #include "types.hpp"
 #include <se_export.hpp>
 #include <string>
@@ -22,4 +26,9 @@ class SE_EXPORT BytecodeExecutor {
     static void runThreads();
 
     static void runThread(BytecodeThread &thread);
+
+#ifdef SE_BYTECODE_STATS
+    static std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> factTables;
+    static std::string takeStatsReport();
+#endif
 };

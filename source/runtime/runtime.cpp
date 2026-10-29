@@ -92,6 +92,7 @@ bool Scratch::useBytecode = false;
 #else
 bool Scratch::useBytecode = true;
 #endif
+bool Scratch::useJit = false;
 bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);

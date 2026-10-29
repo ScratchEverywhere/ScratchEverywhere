@@ -1,4 +1,7 @@
 #include "bytecode_executor.hpp"
+#ifdef SE_JIT
+#include "bytecode_jit.hpp"
+#endif
 #include "blockExecutor.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
@@ -6,12 +9,100 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <log.hpp>
 #include <random>
 #ifdef ENABLE_AUDIO
 #include <audiostack.hpp>
 #endif
 
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
+
+#ifdef SE_BYTECODE_STATS
+std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> BytecodeExecutor::factTables;
+
+namespace {
+uint64_t statsOpCounts[256] = {};
+uint64_t factChecks = 0;
+uint64_t factViolations = 0;
+
+BytecodeValueType concreteTypeOf(const Variable &var, std::string &text) {
+    switch (var.value.index()) {
+    case 1:
+        return BytecodeValueType::Number;
+    case 2: {
+        const auto &str = std::get<std::shared_ptr<const std::string>>(var.value);
+        text = str ? *str : std::string();
+        return BytecodeValueType::String;
+    }
+    case 3:
+        return BytecodeValueType::Boolean;
+    default:
+        break;
+    }
+    const Value &value = std::get<Value>(var.value);
+    if (value.isDouble()) return BytecodeValueType::Number;
+    if (value.isString()) {
+        text = value.asString();
+        return BytecodeValueType::String;
+    }
+    if (value.isBoolean()) return BytecodeValueType::Boolean;
+    if (value.isColor()) return BytecodeValueType::Color;
+    return BytecodeValueType::Unknown;
+}
+
+bool factHolds(BytecodeValueType claimed, const Variable &var, BytecodeValueType &actual) {
+    std::string text;
+    actual = concreteTypeOf(var, text);
+    switch (claimed) {
+    case BytecodeValueType::NumericString:
+        return actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text);
+    case BytecodeValueType::NumberLike:
+        return actual == BytecodeValueType::Number || (actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text));
+    default:
+        return actual == claimed;
+    }
+}
+
+const char *factName(BytecodeValueType t) {
+    switch (t) {
+    case BytecodeValueType::Number:
+        return "number";
+    case BytecodeValueType::String:
+        return "string";
+    case BytecodeValueType::Boolean:
+        return "boolean";
+    case BytecodeValueType::Color:
+        return "color";
+    case BytecodeValueType::NumericString:
+        return "numeric string";
+    case BytecodeValueType::NumberLike:
+        return "number-like";
+    default:
+        return "unknown";
+    }
+}
+} // namespace
+
+std::string BytecodeExecutor::takeStatsReport() {
+    uint64_t total = 0;
+    for (uint64_t c : statsOpCounts)
+        total += c;
+
+    std::vector<std::pair<uint64_t, unsigned>> ranked;
+    for (unsigned i = 0; i < 256; i++) {
+        if (statsOpCounts[i] != 0) ranked.emplace_back(statsOpCounts[i], i);
+    }
+    std::sort(ranked.rbegin(), ranked.rend());
+
+    std::string report = " instrs=" + std::to_string(total) + " factChecks=" + std::to_string(factChecks) + " factViolations=" + std::to_string(factViolations) + " top=";
+    for (size_t i = 0; i < ranked.size() && i < 6; i++) {
+        if (i != 0) report += ",";
+        report += std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+    }
+    std::fill(std::begin(statsOpCounts), std::end(statsOpCounts), 0);
+    return report;
+}
+#endif
 
 namespace {
 
@@ -56,7 +147,7 @@ uint64_t fastRandomBelow(uint64_t bound) {
         continue;                                                                                               \
     }
 
-constexpr unsigned int MAX_LIST_ITEMS = 200000;
+constexpr unsigned int MAX_LIST_ITEMS = BYTECODE_MAX_LIST_ITEMS;
 
 Value popValue(BytecodeThread &thread, BytecodeStackKind kind) {
     switch (kind) {
@@ -152,9 +243,11 @@ const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot) {
 
 size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
-    std::string indexStr = indexValue.asString();
-    if (indexStr == "last") return size - 1;
-    if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    if (!indexValue.isDouble()) {
+        std::string indexStr = indexValue.asString();
+        if (indexStr == "last") return size - 1;
+        if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    }
 
     double d = indexValue.get<double>();
     if (!std::isfinite(d)) return size;
@@ -163,7 +256,65 @@ size_t resolveListIndex(const Value &indexValue, size_t size) {
     return static_cast<size_t>(idx);
 }
 
+void listInsert(List &list, const Value &index, Value item) {
+    std::string indexStr = index.asString();
+    size_t pos;
+    if (indexStr == "last") pos = list.items.size();
+    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list.items.size() + 1));
+    else {
+        double d = index.get<double>();
+        if (!std::isfinite(d)) return;
+        double idx = std::floor(d) - 1;
+        if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
+        pos = static_cast<size_t>(idx);
+    }
+    if (pos <= list.items.size()) {
+        insertValueAt(list.items, pos, std::move(item));
+        if (list.items.size() > BYTECODE_MAX_LIST_ITEMS) list.items.pop_back();
+    }
+}
+
+void listDelete(List &list, const Value &index) {
+    std::string indexStr = index.asString();
+    if (indexStr == "all") {
+        list.items.clear();
+    } else if (indexStr == "last" && !list.items.empty()) {
+        list.items.pop_back();
+    } else if ((indexStr == "random" || indexStr == "any") && !list.items.empty()) {
+        eraseValueAt(list.items, fastRandomBelow(list.items.size()));
+    } else {
+        double d = index.get<double>();
+        if (std::isfinite(d)) {
+            double idx = std::floor(d) - 1;
+            if (idx >= 0 && idx < static_cast<double>(list.items.size())) {
+                eraseValueAt(list.items, static_cast<size_t>(idx));
+            }
+        }
+    }
+}
+
+void listReplace(List &list, const Value &index, const Value &item) {
+    if (list.items.empty()) return;
+    size_t pos = resolveListIndex(index, list.items.size());
+    if (pos < list.items.size()) list.items[pos] = item;
+}
+
 bool valuesEqual(const Value &a, const Value &b) { return a == b; }
+
+size_t findInList(const std::vector<Value> &items, const Value &target) {
+    double wanted;
+    if (target.plainNumber(wanted)) {
+        for (size_t i = 0; i < items.size(); i++) {
+            const Value &existing = items[i];
+            if (existing.isDouble() && !existing.isNaN() ? existing.numberRaw() == wanted : existing == target) return i;
+        }
+        return items.size();
+    }
+    for (size_t i = 0; i < items.size(); i++) {
+        if (items[i] == target) return i;
+    }
+    return items.size();
+}
 
 ScriptThread *acquireScriptThread() {
     ScriptThread *t;
@@ -473,12 +624,39 @@ double mathOpApply(BytecodeMathOp op, double value) {
 
 } // namespace
 
+double bytecodeMathOpApply(BytecodeMathOp op, double value) {
+    return mathOpApply(op, value);
+}
+
+void bytecodeListInsert(List &list, const Value &index, Value item) { listInsert(list, index, std::move(item)); }
+void bytecodeListDelete(List &list, const Value &index) { listDelete(list, index); }
+void bytecodeListReplace(List &list, const Value &index, const Value &item) { listReplace(list, index, item); }
+
+size_t bytecodeFindInList(const std::vector<Value> &items, const Value &target) {
+    return findInList(items, target);
+}
+
+size_t bytecodeResolveListIndex(const Value &index, size_t size) {
+    return resolveListIndex(index, size);
+}
+
 void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;
 
     Timer executionTimer(false);
     bool timerStarted = false;
     unsigned int blocksSinceTimeCheck = 0;
+#ifdef SE_JIT
+    const int32_t *jitEntries = nullptr;
+    if (BytecodeJit::enabled() && thread.chunk != nullptr && thread.link != nullptr) {
+        if (!thread.chunk->jitTried) BytecodeJit::compile(*thread.chunk, *thread.link);
+        if (thread.chunk->jit) jitEntries = thread.chunk->jitEntryAt.data();
+    }
+#endif
+#ifdef SE_BYTECODE_STATS
+    const std::vector<BytecodeValueType> *facts = nullptr;
+    if (const auto it = factTables.find(thread.chunk); it != factTables.end()) facts = &it->second;
+#endif
 
     for (;;) {
         if (thread.finished || thread.escapedToLegacy || Scratch::shouldStop) goto done;
@@ -487,7 +665,33 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             goto done;
         }
 
+#ifdef SE_JIT
+        if (jitEntries != nullptr) {
+            const int32_t jitEntry = jitEntries[thread.pc];
+            if (jitEntry >= 0) {
+                if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
+                continue;
+            }
+        }
+#endif
+
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
+#ifdef SE_BYTECODE_STATS
+        statsOpCounts[static_cast<uint8_t>(instr.op)]++;
+        if (facts != nullptr) {
+            const BytecodeValueType claimed = (*facts)[thread.pc];
+            if (claimed != BytecodeValueType::Unreached && claimed != BytecodeValueType::Unknown) {
+                if (const Variable *var = variableAt(thread, instr.a)) {
+                    factChecks++;
+                    BytecodeValueType actual;
+                    if (!factHolds(claimed, *var, actual) && factViolations++ < 20) {
+                        Log::logError(std::string("[fact check] instruction ") + std::to_string(thread.pc) + " (op " + std::to_string(static_cast<int>(instr.op)) + ") variable \"" +
+                                      variableIdAt(thread, instr.a) + "\": analysis said " + factName(claimed) + ", it is " + factName(actual));
+                    }
+                }
+            }
+        }
+#endif
 
         switch (instr.op) {
 
@@ -568,7 +772,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Variable *var = resolveOrCreateVariable(thread, instr.a);
                 std::string v = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
-                if (var) var->value = std::make_shared<const std::string>(std::move(v));
+                if (var) var->value = std::make_shared<std::string>(std::move(v));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -577,6 +781,23 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 bool v = thread.boolStack.back();
                 thread.boolStack.pop_back();
                 if (var) var->value = v;
+                thread.pc++;
+                SE_NEXT();
+            }
+            SE_CASE(AppendVarString) {
+                Variable *var = resolveOrCreateVariable(thread, instr.a);
+                std::string suffix = std::move(thread.stringStack.back());
+                thread.stringStack.pop_back();
+                if (var) {
+                    auto *current = std::get_if<std::shared_ptr<const std::string>>(&var->value);
+                    if (current != nullptr && *current && current->use_count() == 1) {
+                        const_cast<std::string &>(**current).append(suffix);
+                    } else {
+                        std::string joined = BlockExecutor::getVariableValueAs<std::string>(var);
+                        joined.append(suffix);
+                        var->value = std::make_shared<std::string>(std::move(joined));
+                    }
+                }
                 thread.pc++;
                 SE_NEXT();
             }
@@ -619,24 +840,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             SE_CASE(DeleteFromList) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    if (indexStr == "all") {
-                        list->items.clear();
-                    } else if (indexStr == "last" && !list->items.empty()) {
-                        list->items.pop_back();
-                    } else if ((indexStr == "random" || indexStr == "any") && !list->items.empty()) {
-                        list->items.erase(list->items.begin() + fastRandomBelow(list->items.size()));
-                    } else {
-                        double d = index.get<double>();
-                        if (std::isfinite(d)) {
-                            double idx = std::floor(d) - 1;
-                            if (idx >= 0 && idx < static_cast<double>(list->items.size())) {
-                                list->items.erase(list->items.begin() + static_cast<size_t>(idx));
-                            }
-                        }
-                    }
-                }
+                if (list) listDelete(*list, index);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -650,29 +854,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    size_t pos;
-                    if (indexStr == "last") pos = list->items.size();
-                    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list->items.size() + 1));
-                    else {
-                        double d = index.get<double>();
-                        if (!std::isfinite(d)) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        double idx = std::floor(d) - 1;
-                        if (idx < 0 || idx > static_cast<double>(list->items.size())) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        pos = static_cast<size_t>(idx);
-                    }
-                    if (pos <= list->items.size()) {
-                        list->items.insert(list->items.begin() + pos, item);
-                        if (list->items.size() > MAX_LIST_ITEMS) list->items.pop_back();
-                    }
-                }
+                if (list) listInsert(*list, index, std::move(item));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -680,10 +862,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list && !list->items.empty()) {
-                    size_t pos = resolveListIndex(index, list->items.size());
-                    if (pos < list->items.size()) list->items[pos] = item;
-                }
+                if (list) listReplace(*list, index, item);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -704,12 +883,8 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 double result = 0;
                 if (list) {
-                    for (size_t i = 0; i < list->items.size(); i++) {
-                        if (valuesEqual(list->items[i], item)) {
-                            result = static_cast<double>(i + 1);
-                            break;
-                        }
-                    }
+                    const size_t found = findInList(list->items, item);
+                    if (found < list->items.size()) result = static_cast<double>(found + 1);
                 }
                 thread.numberStack.push_back(result);
                 thread.pc++;
@@ -725,14 +900,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 bool found = false;
-                if (list) {
-                    for (const auto &existing : list->items) {
-                        if (valuesEqual(existing, item)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
+                if (list) found = findInList(list->items, item) < list->items.size();
                 thread.boolStack.push_back(found);
                 thread.pc++;
                 SE_NEXT();

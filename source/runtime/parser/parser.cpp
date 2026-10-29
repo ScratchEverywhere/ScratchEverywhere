@@ -191,8 +191,6 @@ void Parser::loadSprites(const nlohmann::json &json, ProjectFormat format) {
         loadSpritesSb2(json);
         return;
     case ProjectFormat::SB1:
-        // SB1 is not JSON-shaped - its ProjectLoader builds Scratch::sprites
-        // itself and should never call through here.
         Log::logCritical("Parser::loadSprites() called with ProjectFormat::SB1; SB1 projects must be handled by their own ProjectLoader, not Parser.", false);
         return;
     }

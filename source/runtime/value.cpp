@@ -112,15 +112,26 @@ void StringPool::ensureUtf16(Entry &entry) {
     entry.utf16State = Entry::Utf16State::INDEXED;
 }
 
+void StringPool::computeNumeric(Entry &e) {
+    const auto parsed = Math::parseNumber(e.data);
+    e.numericState = parsed.has_value() ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
+    e.numericValue = parsed.has_value() ? *parsed : 0.0;
+    e.hasDot = e.data.find('.') != std::string::npos;
+}
+
 bool StringPool::isNumeric(uint32_t id, bool &hasDot) {
     auto &pool = storageRef();
     Entry &e = pool[id < pool.size() ? id : 0];
-    if (e.numericState == Entry::NumericState::NOT_COMPUTED) {
-        e.numericState = Math::isNumber(e.data) ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
-        e.hasDot = e.data.find('.') != std::string::npos;
-    }
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
     hasDot = e.hasDot;
     return e.numericState == Entry::NumericState::NUMERIC;
+}
+
+double StringPool::toNumber(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
+    return e.numericState == Entry::NumericState::NUMERIC ? e.numericValue : 0.0;
 }
 
 size_t StringPool::utf16Length(uint32_t id) {
@@ -249,166 +260,6 @@ bool Value::isNumeric() const {
     return numeric;
 }
 
-double Value::asDouble() const {
-    if (isDouble()) {
-        if (isNaN()) return 0.0;
-        return storage.d;
-    } else if (isString()) {
-        return Math::parseNumber(StringPool::get(storage.stringId)).value_or(0);
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
-    } else if (isBoolean()) {
-        return storage.b ? 1 : 0;
-    }
-
-    return 0.0;
-}
-
-std::string Value::asString() const {
-    if (isDouble()) {
-        return Math::toString(storage.d);
-    } else if (isString()) {
-        return StringPool::get(storage.stringId);
-    } else if (isBoolean()) {
-        return storage.b ? "true" : "false";
-    } else if (isUndefined()) {
-        return "undefined";
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        const char hex_chars[] = "0123456789abcdef";
-        const unsigned char r = static_cast<unsigned char>(rgb.r);
-        const unsigned char g = static_cast<unsigned char>(rgb.g);
-        const unsigned char b = static_cast<unsigned char>(rgb.b);
-        std::string hex_str = "#";
-        hex_str += hex_chars[r >> 4];
-        hex_str += hex_chars[r & 0x0F];
-        hex_str += hex_chars[g >> 4];
-        hex_str += hex_chars[g & 0x0F];
-        hex_str += hex_chars[b >> 4];
-        hex_str += hex_chars[b & 0x0F];
-        return hex_str;
-    }
-
-    return "";
-}
-
-bool Value::asBoolean() const {
-    if (isBoolean()) {
-        return storage.b;
-    }
-    if (isDouble()) {
-        return storage.d != 0.0 && !isNaN();
-    }
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (sv.empty() || sv == "0") return false;
-        if (sv.size() == 5) {
-            char f0 = std::tolower(static_cast<unsigned char>(sv[0]));
-            char f1 = std::tolower(static_cast<unsigned char>(sv[1]));
-            char f2 = std::tolower(static_cast<unsigned char>(sv[2]));
-            char f3 = std::tolower(static_cast<unsigned char>(sv[3]));
-            char f4 = std::tolower(static_cast<unsigned char>(sv[4]));
-            if (f0 == 'f' && f1 == 'a' && f2 == 'l' && f3 == 's' && f4 == 'e') {
-                return false;
-            }
-        }
-        return true;
-    }
-    if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
-    }
-    return false;
-}
-
-namespace {
-inline int parseHexDigit(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
-inline bool parseHexByte(char c1, char c2, float &out) {
-    int d1 = parseHexDigit(c1);
-    int d2 = parseHexDigit(c2);
-    if (d1 < 0 || d2 < 0) return false;
-    out = static_cast<float>((d1 << 4) | d2);
-    return true;
-}
-} // namespace
-
-Color Value::asColor() const {
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (!sv.empty() && sv[0] == '#') {
-            if (sv.size() == 4) {
-                int r_digit = parseHexDigit(sv[1]);
-                int g_digit = parseHexDigit(sv[2]);
-                int b_digit = parseHexDigit(sv[3]);
-                if (r_digit >= 0 && g_digit >= 0 && b_digit >= 0) {
-                    float r = static_cast<float>((r_digit << 4) | r_digit);
-                    float g = static_cast<float>((g_digit << 4) | g_digit);
-                    float b = static_cast<float>((b_digit << 4) | b_digit);
-                    return RGBA2CSBO({r, g, b, 255.0f});
-                }
-                return {0, 0, 0, 0};
-            } else if (sv.size() == 7) {
-                float r, g, b;
-                if (parseHexByte(sv[1], sv[2], r) &&
-                    parseHexByte(sv[3], sv[4], g) &&
-                    parseHexByte(sv[5], sv[6], b)) {
-                    return RGBA2CSBO({r, g, b, 255.0f});
-                }
-                return {0, 0, 0, 0};
-            } else {
-                return {0, 0, 0, 0};
-            }
-        }
-    }
-    const double RGBA = asDouble();
-    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
-}
-
-ColorRGBA Value::asRGB() const {
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (!sv.empty() && sv[0] == '#') {
-            if (sv.size() == 4) {
-                int r_digit = parseHexDigit(sv[1]);
-                int g_digit = parseHexDigit(sv[2]);
-                int b_digit = parseHexDigit(sv[3]);
-                if (r_digit >= 0 && g_digit >= 0 && b_digit >= 0) {
-                    float r = static_cast<float>((r_digit << 4) | r_digit);
-                    float g = static_cast<float>((g_digit << 4) | g_digit);
-                    float b = static_cast<float>((b_digit << 4) | b_digit);
-                    return {r, g, b, 255.0f};
-                }
-                return {0, 0, 0, 255.0f};
-            } else if (sv.size() == 7) {
-                float r, g, b;
-                if (parseHexByte(sv[1], sv[2], r) &&
-                    parseHexByte(sv[3], sv[4], g) &&
-                    parseHexByte(sv[5], sv[6], b)) {
-                    return {r, g, b, 255.0f};
-                }
-                return {0, 0, 0, 255.0f};
-            } else {
-                return {0, 0, 0, 255.0f};
-            }
-        }
-    }
-    const double RGBA = asDouble();
-    return {static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)};
-}
-
 std::string_view Value::asStringView(std::string &scratch) const {
     if (isString()) {
         return StringPool::get(storage.stringId);
@@ -417,7 +268,20 @@ std::string_view Value::asStringView(std::string &scratch) const {
     return scratch;
 }
 
-bool Value::operator==(const Value &other) const {
+bool Value::plainNumber(double &out) const {
+    if (isDouble()) {
+        if (isNaN()) return false;
+        out = storage.d;
+        return true;
+    }
+    if (!isString() || !isNumeric()) return false;
+    const std::string &text = StringPool::get(storage.stringId);
+    if (std::all_of(text.begin(), text.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) return false;
+    out = asDouble();
+    return true;
+}
+
+bool Value::equalsSlow(const Value &other) const {
     if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN())
         return storage.d == other.storage.d;
     if (isBoolean() && other.isBoolean())
@@ -427,6 +291,10 @@ bool Value::operator==(const Value &other) const {
 
     if (isString() && other.isString() && storage.stringId == other.storage.stringId)
         return true;
+
+    double number;
+    if (isDouble() && !isNaN() && other.isString() && other.plainNumber(number)) return storage.d == number;
+    if (other.isDouble() && !other.isNaN() && isString() && plainNumber(number)) return number == other.storage.d;
 
     std::string scratchA, scratchB;
     std::string_view svA = asStringView(scratchA);
