@@ -2,16 +2,16 @@ plugins {
 	id "com.android.application"
 }
 
-def targetAbis = ["arm64-v8a"]
-if (project.hasProperty("ABIS")) {
-	targetAbis = project.getProperty("ABIS").split(";")
+def targetAbis = ["arm64-v8a", "armeabi-v7a"]
+if (project.hasProperty("abis")) {
+	targetAbis = project.getProperty("abis").split(";")
 }
 
 android {
 	namespace "io.github.scratcheverywhere"
 	compileSdkVersion 36
 	defaultConfig {
-		minSdkVersion 18
+		minSdkVersion 21
 		targetSdkVersion 36
 		versionCode 4
 		versionName "1.3"
