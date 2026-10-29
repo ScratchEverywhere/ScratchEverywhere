@@ -1,5 +1,8 @@
 #include <log.hpp>
 #include <os.hpp>
+#include <filesystem.hpp>
+#include <popupMenu.hpp>
+#include <translation.hpp>
 
 #include <jni.h>
 #include <SDL_system.h>
@@ -50,10 +53,56 @@ std::string OS::getRomFSLocation() {
     return "";
 }
 
+std::string OS::importProject(const std::string &sourcePath) {
+    // Getting the filename is too complicated via C++, letting Java do it instead
+    JNIEnv *env = reinterpret_cast<JNIEnv *>(SDL_AndroidGetJNIEnv());
+    jobject activity = reinterpret_cast<jobject>(SDL_AndroidGetJNIEnv());
+    jclass clazz = env->GetObjectClass(activity);
+
+    jmethodID getFilename = env->GetMethodID(clazz,
+         "getFilename", "(Ljava/lang/String;)Ljava/lang/String;");
+    jstring inputParam = env->NewStringUTF(sourcePath.c_str());
+    jstring filenameResult = static_cast<jstring>(
+        env->CallObjectMethod(activity, getFilename, inputParam));
+
+    const char *filename = env->GetStringUTFChars(filenameResult, JNI_FALSE);
+    std::string projectPath = OS::getScratchFolderLocation() + filename;
+    if (FileSystem::fileExists(projectPath)) {
+        PopupMenu *popup = new PopupMenu(PopupType::ACCEPT_OR_CANCEL,
+                                         TranslationManager::getTranslation("ui.popup.importOverwrite"));
+        MenuManager::changeMenu(popup);
+        while (Render::appShouldRun() && popup->accepted == -1) {
+            MenuManager::render();
+        }
+        popup->cleanup();
+
+        if (popup->accepted != 0)
+            return projectPath; // Already in the filesystem
+    }
+
+    jmethodID importMethod = env->GetMethodID(clazz,
+         "importProject", "(Ljava/lang/String;Ljava/lang/String;)V");
+    jstring outputParam = env->NewStringUTF(projectPath.c_str());
+    jboolean result = env->CallBooleanMethod(
+        activity, importMethod, inputParam, outputParam);
+
+    env->ReleaseStringUTFChars(filenameResult, filename);
+    env->DeleteLocalRef(clazz);
+    env->DeleteLocalRef(activity);
+    return result == JNI_TRUE ? projectPath : "";
+}
+
 bool OS::isOnline() {
-    // TODO: Add an actual way to check if online
 #if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
-    return true;
+    // Call Java function
+    JNIEnv *env = reinterpret_cast<JNIEnv *>(SDL_AndroidGetJNIEnv());
+    jobject activity = reinterpret_cast<jobject>(SDL_AndroidGetActivity());
+    jclass clazz = env->GetObjectClass(activity);
+    jmethodID isOnline = env->GetMethodID(clazz, "isOnline", "()Z");
+    jboolean result = env->CallBooleanMethod(activity, isOnline);
+    env->DeleteLocalRef(clazz);
+    env->DeleteLocalRef(activity);
+    return result == JNI_TRUE;
 #endif
     return false;
 }

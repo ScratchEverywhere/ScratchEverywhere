@@ -10,6 +10,9 @@
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
+#if defined(__ANDROID__) || defined(__IOS__)
+#include <unzip.hpp>
+#endif
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -34,6 +37,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
 #endif
 #if defined(__ANDROID__)
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
 #endif
 
     uint32_t sdlFlags = 0;
@@ -211,6 +215,17 @@ void WindowSDL2::pollEvents() {
         case SDL_FINGERUP:
             touchActive = false;
             break;
+#endif
+#if defined(__ANDROID__) || defined(__IOS__)
+            case SDL_DROPFILE:
+                Log::log(event.drop.file);
+                std::string projectPath = OS::importProject(event.drop.file);
+                if (!projectPath.empty())
+                    Unzip::filePath = projectPath;
+                    Unzip::load();
+
+                SDL_free(event.drop.file);
+                break;
 #endif
 #if defined(__PC__)
         case SDL_MOUSEWHEEL:

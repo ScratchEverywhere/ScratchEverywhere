@@ -83,6 +83,14 @@ inline std::string normalizePath(const std::string &path) {
 }
 #endif
 
+#if defined(__ANDROID__) || defined(__IOS__)
+/**
+ * Imports the project to the restricted readable projects path in mobile filesystems.
+ * @return Final project path in the filesystem
+ */
+SE_EXPORT std::string importProject(const std::string &sourcePath);
+#endif
+
 /**
  * Get the current platform that's running the app.
  * @return The string of the current platform. `3DS`, `Wii`, etc.
