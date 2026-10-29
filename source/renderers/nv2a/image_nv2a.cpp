@@ -1095,6 +1095,24 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     const int capW = toPowerOfTwo(effW);
     const int capH = toPowerOfTwo(effH);
     NV2ATexture *tex = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+    // A color-effect sweep can cycle through more hue variants
+    // than the bounded cache can retain. createTexture() itself can reclaim retired GPU
+    // allocations, but it cannot evict live effect-cache entries. On allocation failure,
+    // evict the least-recently-used baked variant and retry before abandoning the effect.
+    while (!tex && !s_effectCache.empty()) {
+        auto oldest = s_effectCache.end();
+        uint32_t oldestAge = 0;
+        for (auto it = s_effectCache.begin(); it != s_effectCache.end(); ++it) {
+            const uint32_t age = currentFrame - it->second.lastUsed;
+            if (oldest == s_effectCache.end() || age > oldestAge) {
+                oldest = it;
+                oldestAge = age;
+            }
+        }
+        if (oldest == s_effectCache.end()) break;
+        evictEffectEntry(nv2aRenderer, oldest);
+        tex = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+    }
     if (!tex) return texture;
 
     int sxArr[EFFECT_MAX_DIM];
