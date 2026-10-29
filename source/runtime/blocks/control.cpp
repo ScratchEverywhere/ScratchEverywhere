@@ -217,8 +217,13 @@ SCRATCH_BLOCK(control, stop) {
             if (t->sprite != sprite || t->id == thread->id || t->legacyThreadId == thread->id) continue;
             t->finished = true;
         }
+        // Scratch's "stop other scripts in sprite" only halts scripts - it does NOT stop sounds (only "stop all
+        // sounds" / the stop-all button do). Stopping them here silenced anything the sprite had just started,
+        // e.g. `play sound [Bell Toll]` immediately followed by `stop other scripts in sprite` (Hopper Heroes'
+        // death sound). Streams that belonged to a killed "play until done" thread are not paused any more, so mark
+        // them auto-clean instead; the mixer then frees them once they finish on their own.
         for (Sound sound : sprite->sounds)
-            Mixer::stopSound(sound.fullName);
+            Mixer::setAutoClean(sound.fullName, true);
     }
     return BlockResult::CONTINUE;
 }

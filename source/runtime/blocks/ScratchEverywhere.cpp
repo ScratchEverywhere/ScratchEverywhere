@@ -66,6 +66,9 @@ SCRATCH_BLOCK(SE, controller) {
         if (controller != nullptr) *outValue = Value(std::string(SDL_GetGamepadName(controller)));
         break;
 #endif
+    case Renderers::NV2A:
+        *outValue = Value("Xbox Controller");
+        break;
     default:
         break;
     }

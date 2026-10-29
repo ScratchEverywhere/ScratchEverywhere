@@ -1,8 +1,8 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 # Apparently setting these flags like this makes both xemu and real hardware work...
-set(SE_RENDERER_VALID_OPTIONS "xbox" "headless")
-set(SE_WINDOWING_VALID_OPTIONS "sdl3" "headless")
+set(SE_RENDERER_VALID_OPTIONS "xbox" "nv2a")
+set(SE_WINDOWING_VALID_OPTIONS "sdl3" "nv2a")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3" "xbox")
 set(SE_AUDIO_ENGINE_DEFAULT "xbox")
 
@@ -108,13 +108,18 @@ if(SE_XBOX_TRACE_MENU_INPUT)
         "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/projectMenu.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/input_sdl3.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/nv2a/input_nv2a.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_MENU_INPUT)
 endif()
 
 if(SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/window_sdl3.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/nv2a/window_nv2a.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_RENDERER)
 endif()
 
@@ -187,34 +192,38 @@ add_compile_options(
     # Aligning loops and functions to the CPU's cache line boundary
     -falign-functions=16
     -falign-loops=16
+    -falign-jumps=16
 )
 
-# Optimize the filesystem, components of the runtime, renderers, and windowing to run with -O3 optimizations.
+# These will run with -O3 optimizations.
 file(GLOB_RECURSE SE_MAX_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/filesystem.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blockExecutor.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/math.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/time.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/value.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/*.cpp")
-set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3;-ffast-math;-fno-finite-math-only")
-
-# Optimize menus to run with -O2 optimizations.
-file(GLOB_RECURSE SE_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/audio/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/audio.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/audiostack.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/platforms/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/*.cpp")
-set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2;-ffast-math;-fno-finite-math-only")
 
-# Everything else gets -O1 optimizations except for collisions.
-file(GLOB_RECURSE SE_NO_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/collision.cpp")
+# These will receive -O2 optimizations.
+file(GLOB_RECURSE SE_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/zip/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/unzip.cpp")
+
+# These will receive -O1 optimizations.
 file(GLOB_RECURSE SE_BASIC_OPTIMIZE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
-list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES} ${SE_NO_OPTIMIZE_SOURCES})
-set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-ffast-math;-fno-finite-math-only")
 
-# Collisions can only work accurately with tweaks and no other optimization flags
-set_source_files_properties(${SE_NO_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O0;-ffp-contract=off;-fno-strict-aliasing")
+# Make sure that each list does not contain any files that are in the other lists
+list(REMOVE_ITEM SE_MAX_OPTIMIZE_SOURCES ${SE_OPTIMIZE_SOURCES} ${SE_BASIC_OPTIMIZE_SOURCES})
+list(REMOVE_ITEM SE_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_BASIC_OPTIMIZE_SOURCES})
+list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIMIZE_SOURCES})
+
+# Apply optimization rules
+set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3")
+set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
 
 # HACK: Force CMake to skip failing network checks for libcurl on Xbox
 set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")

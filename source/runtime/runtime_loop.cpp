@@ -133,7 +133,14 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        // Bytecode scripts can mark clones for deletion after BlockExecutor's own
+        // cleanup pass. Reconcile the sprite list again before rendering so a stale
+        // frame of clones is not drawn behind the freshly generated ones.
+        BlockExecutor::cleanupSprites();
         XboxVariableWatch::sample();
+        // Auto-clean sounds are retired by the audio worker and destroyed here, off the
+        // real-time thread, so decoder/buffer frees never stall audio mixing.
+        Mixer::drainRetiredStreams();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
@@ -256,6 +263,10 @@ void Scratch::stopClicked() {
         currentSprite->ghostEffect = 0.0f;
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
+        currentSprite->fisheyeEffect = 0.0f;
+        currentSprite->whirlEffect = 0.0f;
+        currentSprite->pixelateEffect = 0.0f;
+        currentSprite->mosaicEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
             Mixer::stopSound(sound.fullName);
     }

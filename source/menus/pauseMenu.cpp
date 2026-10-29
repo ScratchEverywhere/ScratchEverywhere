@@ -24,6 +24,9 @@ static std::string getTurboString() {
 }
 
 void PauseMenu::init() {
+#ifdef __XBOX__
+    Scratch::freeUnusedCostumeImages();
+#endif
 #ifdef SE_XBOX_TRACE_GAME_STATE
     if (Scratch::stageSprite) {
         Log::log("Pause state snapshot:");

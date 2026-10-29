@@ -244,6 +244,8 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::SDL3;
         } else if (arg == "--xbox") {
             Render::currentRenderer = Renderers::Xbox;
+        } else if (arg == "--nv2a") {
+            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {
