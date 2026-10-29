@@ -195,10 +195,17 @@ void Scratch::flushCostumeImages() {
     }
 }
 
-void Scratch::freeUnusedCostumeImages() {
+void Scratch::freeUnusedCostumeImages(const Image *keep) {
     std::unordered_set<std::string> activeCostumes;
     activeCostumes.reserve(sprites.size() + 1);
     activeCostumes.insert("SE__Missingno");
+    // An allocation retry may evict inactive costumes while the current image is still
+    // building its GPU texture. Never free that image's CPU pixels out from under it.
+    if (keep) {
+        for (const auto &[id, img] : costumeImages) {
+            if (img.get() == keep) activeCostumes.insert(id);
+        }
+    }
     for (Sprite *sprite : sprites) {
         if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
             activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);

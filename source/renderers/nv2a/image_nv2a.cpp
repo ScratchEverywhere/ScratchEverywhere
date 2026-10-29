@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem.hpp>
+#include <limits>
 #include <image.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -29,11 +30,20 @@
 #include <xboxkrnl/xboxkrnl.h>
 #endif
 
-constexpr uint32_t XBT_VERSION = 6;
+constexpr uint32_t XBT_VERSION = 7;
 static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
 static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
 static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
+
+static bool isSvgAssetPath(const std::string &path) {
+    if (path.size() < 4) return false;
+    const size_t n = path.size();
+    return path[n - 4] == '.' &&
+           std::tolower(static_cast<unsigned char>(path[n - 3])) == 's' &&
+           std::tolower(static_cast<unsigned char>(path[n - 2])) == 'v' &&
+           std::tolower(static_cast<unsigned char>(path[n - 1])) == 'g';
+}
 
 #pragma pack(push, 1)
 struct XBTHeader {
@@ -54,13 +64,17 @@ struct XBTTileHeader {
     int32_t w;
     int32_t h;
     uint32_t dataSize;
-    uint32_t codec;    // 1 = DXT1, 2 = DXT5
+    uint32_t codec;    // 1 = DXT1, 2 = DXT5, 3 = RGBA32, 4-6 = 16-bit formats
 };
 #pragma pack(pop)
 
 enum : uint32_t {
     CODEC_DXT1 = 1,
-    CODEC_DXT5 = 2
+    CODEC_DXT5 = 2,
+    CODEC_RGBA32 = 3,
+    CODEC_RGB565 = 4,
+    CODEC_ARGB1555 = 5,
+    CODEC_ARGB4444 = 6
 };
 
 static size_t getAvailablePhysicalMemory() {
@@ -179,6 +193,29 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
 
 static inline int dxtBlockBytes(uint32_t codec) { return codec == CODEC_DXT5 ? 16 : 8; }
 static inline int dxtPitch(int w, uint32_t codec) { return ((toPowerOfTwo(w) + 3) / 4) * dxtBlockBytes(codec); }
+static inline bool isDXTCodec(uint32_t codec) { return codec == CODEC_DXT1 || codec == CODEC_DXT5; }
+static inline bool isRawCodec(uint32_t codec) { return codec >= CODEC_RGBA32 && codec <= CODEC_ARGB4444; }
+static inline size_t rawCodecBytes(uint32_t codec) { return codec == CODEC_RGBA32 ? 4u : 2u; }
+
+static size_t expectedCacheDataSize(int w, int h, uint32_t codec) {
+    if (w <= 0 || h <= 0) return 0;
+    const size_t width = static_cast<size_t>(w);
+    const size_t height = static_cast<size_t>(h);
+    if (isDXTCodec(codec)) {
+        const size_t blocksX = (static_cast<size_t>(toPowerOfTwo(w)) + 3) / 4;
+        const size_t blocksY = (static_cast<size_t>(toPowerOfTwo(h)) + 3) / 4;
+        const size_t blockBytes = static_cast<size_t>(dxtBlockBytes(codec));
+        if (blocksX > std::numeric_limits<size_t>::max() / blocksY ||
+            blocksX * blocksY > std::numeric_limits<size_t>::max() / blockBytes) return 0;
+        return blocksX * blocksY * blockBytes;
+    }
+    if (isRawCodec(codec)) {
+        const size_t bpp = rawCodecBytes(codec);
+        if (width > std::numeric_limits<size_t>::max() / height || width * height > std::numeric_limits<size_t>::max() / bpp) return 0;
+        return width * height * bpp;
+    }
+    return 0;
+}
 
 static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int imgW, int imgH,
                                             int tx, int ty, int tw, int th,
@@ -216,25 +253,90 @@ static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int i
     return out;
 }
 
-static NV2ATexture *createDXTTexture(Renderer_NV2A *r, int w, int h, uint32_t codec, const uint8_t *data) {
-    uint32_t fmt = (codec == CODEC_DXT5) ? XGU_TEXTURE_FORMAT_DXT5 : XGU_TEXTURE_FORMAT_DXT1;
+static NV2ATexture *createDXTTexture(Renderer_NV2A *r, int w, int h, uint32_t codec,
+                                           const uint8_t *data, const Image *keep = nullptr) {
+    if (!r || !data || !isDXTCodec(codec) || expectedCacheDataSize(w, h, codec) == 0) return nullptr;
+    const uint32_t fmt = (codec == CODEC_DXT5) ? XGU_TEXTURE_FORMAT_DXT5 : XGU_TEXTURE_FORMAT_DXT1;
     NV2ATexture *t = r->createTexture(w, h, fmt, false);
     if (!t) {
-        Scratch::freeUnusedCostumeImages();
+        Scratch::freeUnusedCostumeImages(keep);
         t = r->createTexture(w, h, fmt, false);
     }
     if (!t) return nullptr;
 
-    const int rowBytes = dxtPitch(w, codec);
-    const int blockRows = (toPowerOfTwo(h) + 3) / 4;
-    for (int row = 0; row < blockRows; ++row) {
-        memcpy(t->data + static_cast<size_t>(row) * t->pitch, data + static_cast<size_t>(row) * rowBytes, rowBytes);
+    const size_t rowBytes = static_cast<size_t>(dxtPitch(w, codec));
+    const size_t blockRows = (static_cast<size_t>(toPowerOfTwo(h)) + 3) / 4;
+    for (size_t row = 0; row < blockRows; ++row) {
+        memcpy(t->data + row * static_cast<size_t>(t->pitch), data + row * rowBytes, rowBytes);
     }
-    __asm__ __volatile__ ("sfence" ::: "memory");
+    __asm__ __volatile__("sfence" ::: "memory");
     return t;
 }
 
-static bool g_cacheLoadOOM = false;
+static uint32_t rawCodecFormat(uint32_t codec) {
+    switch (codec) {
+    case CODEC_RGBA32: return XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+    case CODEC_RGB565: return XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED;
+    case CODEC_ARGB1555: return XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED;
+    case CODEC_ARGB4444: return XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED;
+    default: return 0;
+    }
+}
+
+static NV2ATexture *createRawTexture(Renderer_NV2A *r, int w, int h, uint32_t codec,
+                                     const uint8_t *data, const Image *keep = nullptr, int sourcePitch = 0) {
+    if (!r || !data || !isRawCodec(codec) || expectedCacheDataSize(w, h, codec) == 0) return nullptr;
+    const uint32_t fmt = rawCodecFormat(codec);
+    NV2ATexture *t = r->createTexture(w, h, fmt, true);
+    if (!t) {
+        Scratch::freeUnusedCostumeImages(keep);
+        t = r->createTexture(w, h, fmt, true);
+    }
+    if (!t) return nullptr;
+    const int pitch = sourcePitch > 0 ? sourcePitch : w * static_cast<int>(rawCodecBytes(codec));
+    if (!r->updateTexture(t, data, pitch)) {
+        r->destroyTexture(t);
+        return nullptr;
+    }
+    return t;
+}
+
+static std::vector<uint8_t> encodeRegionCache(const uint8_t *src, int pitch, int imgW, int imgH,
+                                               int tx, int ty, int tw, int th, uint32_t codec,
+                                               bool isOpaque, bool highQuality) {
+    if (isDXTCodec(codec)) {
+        return encodeRegionDXT(src, pitch, imgW, imgH, tx, ty, tw, th, codec, isOpaque, highQuality);
+    }
+    std::vector<uint8_t> out(expectedCacheDataSize(tw, th, codec));
+    if (out.empty()) return out;
+    if (codec == CODEC_RGBA32) {
+        for (int y = 0; y < th; ++y) {
+            const uint8_t *row = src + static_cast<size_t>(ty + y) * pitch + static_cast<size_t>(tx) * 4;
+            memcpy(out.data() + static_cast<size_t>(y) * tw * 4, row, static_cast<size_t>(tw) * 4);
+        }
+        return out;
+    }
+    for (int y = 0; y < th; ++y) {
+        const uint8_t *row = src + static_cast<size_t>(ty + y) * pitch + static_cast<size_t>(tx) * 4;
+        for (int x = 0; x < tw; ++x) {
+            const uint8_t r = row[x * 4 + 0];
+            const uint8_t g = row[x * 4 + 1];
+            const uint8_t b = row[x * 4 + 2];
+            const uint8_t a = row[x * 4 + 3];
+            uint16_t packed;
+            if (codec == CODEC_RGB565) {
+                packed = static_cast<uint16_t>(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+            } else if (codec == CODEC_ARGB1555) {
+                packed = static_cast<uint16_t>(((a >= 128 ? 1 : 0) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3));
+            } else {
+                packed = static_cast<uint16_t>(((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+            }
+            const size_t offset = (static_cast<size_t>(y) * tw + x) * 2;
+            memcpy(out.data() + offset, &packed, sizeof(packed));
+        }
+    }
+    return out;
+}
 
 void Image_NV2A::destroyTiles() {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
@@ -251,13 +353,14 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
-    if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
+    if (!nv2aRenderer || !imgData.pixels || imgData.width <= 0 || imgData.height <= 0)
+        return nonstd::make_unexpected("No NV2A renderer or source pixels");
 
     const int maxDim = getMaxTextureDim();
     while (imgData.width > maxDim || imgData.height > maxDim) {
         int dw, dh;
         unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
-                                                        imgData.width, imgData.height, dw, dh);
+                                                        imgData.width, imgData.height, dw, dh, this);
         if (!downscaled) break;
         imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
         free(imgData.pixels);
@@ -267,8 +370,12 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
         imgData.pitch = dw * 4;
     }
 
-    const int tileSize = TILE_SIZE;
     const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
+    if (!src) return nonstd::make_unexpected("Missing NV2A source pixels");
+    const int tileSize = TILE_SIZE;
+    const size_t freeMem = getAvailablePhysicalMemory();
+    const bool prefer32Bit = OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u;
+    const bool prefer16Bit = (isSVGImage || imgData.scale <= 1.0f) && freeMem > 8u * 1024u * 1024u;
 
     for (int ty = 0; ty < imgData.height; ty += tileSize) {
         for (int tx = 0; tx < imgData.width; tx += tileSize) {
@@ -281,7 +388,7 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
             bool isOpaqueTile = true;
             bool isBinaryAlpha = true;
             for (int y = 0; y < tile.h; y++) {
-                const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
+                const uint8_t *row = src + static_cast<size_t>(ty + y) * imgData.pitch + tx * 4;
                 for (int x = 0; x < tile.w; x++) {
                     const uint8_t a = row[x * 4 + 3];
                     if (a != 255) {
@@ -291,54 +398,39 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
                 }
             }
 
-            const uint32_t codec = (isOpaqueTile || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
-            const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                              tx, ty, tile.w, tile.h, codec, isOpaqueTile, false);
-            tile.texture = createDXTTexture(nv2aRenderer, tile.w, tile.h, codec, data.data());
-            if (!tile.texture) {
-                Scratch::freeUnusedCostumeImages();
-                tile.texture = createDXTTexture(nv2aRenderer, tile.w, tile.h, codec, data.data());
+            const uint32_t codec16 = isOpaqueTile ? CODEC_RGB565 :
+                                     (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+            const uint32_t codecDXT = (isOpaqueTile || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
+            auto upload16 = [&]() {
+                const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                                      tx, ty, tile.w, tile.h, codec16, isOpaqueTile, false);
+                if (packed.empty()) return static_cast<NV2ATexture *>(nullptr);
+                return createRawTexture(nv2aRenderer, tile.w, tile.h, codec16, packed.data(), this);
+            };
+            auto uploadDXT = [&]() {
+                const auto packed = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                                    tx, ty, tile.w, tile.h, codecDXT, isOpaqueTile,
+                                                    imgData.scale <= 1.0f || isSVGImage);
+                return packed.empty() ? static_cast<NV2ATexture *>(nullptr)
+                                      : createDXTTexture(nv2aRenderer, tile.w, tile.h, codecDXT, packed.data(), this);
+            };
+
+            if (prefer32Bit) {
+                const uint8_t *tilePixels = src + static_cast<size_t>(ty) * imgData.pitch + tx * 4;
+                tile.texture = createRawTexture(nv2aRenderer, tile.w, tile.h, CODEC_RGBA32, tilePixels, this, imgData.pitch);
             }
-            if (!tile.texture) {
-                // Fallback to 16-bit without dither noise
-                uint32_t fmt = isOpaqueTile ? XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED :
-                               (isBinaryAlpha ? XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED : XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED);
-                tile.texture = nv2aRenderer->createTexture(tile.w, tile.h, fmt, true);
-                if (tile.texture) {
-                    std::vector<uint16_t> scratch(static_cast<size_t>(tile.w) * tile.h);
-                    for (int y = 0; y < tile.h; y++) {
-                        const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
-                        uint16_t *out = scratch.data() + y * tile.w;
-                        for (int x = 0; x < tile.w; x++) {
-                            if (isOpaqueTile) {
-                                int r = row[x * 4 + 0] >> 3;
-                                int g = row[x * 4 + 1] >> 2;
-                                int b = row[x * 4 + 2] >> 3;
-                                out[x] = static_cast<uint16_t>((r << 11) | (g << 5) | b);
-                            } else if (isBinaryAlpha) {
-                                int a = (row[x * 4 + 3] >= 128) ? 1 : 0;
-                                int r = row[x * 4 + 0] >> 3;
-                                int g = row[x * 4 + 1] >> 3;
-                                int b = row[x * 4 + 2] >> 3;
-                                out[x] = static_cast<uint16_t>((a << 15) | (r << 10) | (g << 5) | b);
-                            } else {
-                                int a = row[x * 4 + 3] >> 4;
-                                int r = row[x * 4 + 0] >> 4;
-                                int g = row[x * 4 + 1] >> 4;
-                                int b = row[x * 4 + 2] >> 4;
-                                out[x] = static_cast<uint16_t>((a << 12) | (r << 8) | (g << 4) | b);
-                            }
-                        }
-                    }
-                    nv2aRenderer->updateTexture(tile.texture, scratch.data(), tile.w * 2);
-                }
+            if (!tile.texture && prefer16Bit) tile.texture = upload16();
+            if (!tile.texture) tile.texture = uploadDXT();
+            if (!tile.texture && !prefer16Bit) tile.texture = upload16();
+            if (!tile.texture && !prefer32Bit) {
+                const uint8_t *tilePixels = src + static_cast<size_t>(ty) * imgData.pitch + tx * 4;
+                tile.texture = createRawTexture(nv2aRenderer, tile.w, tile.h, CODEC_RGBA32, tilePixels, this, imgData.pitch);
             }
 
             if (!tile.texture) {
                 destroyTiles();
                 return nonstd::make_unexpected("Failed to allocate texture tile");
             }
-
             tiles.push_back(tile);
         }
     }
@@ -540,7 +632,7 @@ static void decodeDXT1Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch
         pal[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
         pal[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
         pal[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
-        pal[3][1] = static_cast<uint8_t>((g0 + 2 * r1) / 3);
+        pal[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
         pal[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
     } else {
         pal[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
@@ -1946,12 +2038,14 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
     if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
+    if (!imgData.pixels || imgData.width <= 0 || imgData.height <= 0)
+        return nonstd::make_unexpected("Missing NV2A source pixels");
 
     const int maxDim = getMaxTextureDim();
     while (imgData.width > maxDim || imgData.height > maxDim) {
         int dw, dh;
         unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
-                                                        imgData.width, imgData.height, dw, dh);
+                                                        imgData.width, imgData.height, dw, dh, this);
         if (!downscaled) break;
         imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
         free(imgData.pixels);
@@ -1961,17 +2055,15 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
         imgData.pitch = dw * 4;
     }
 
-    if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) {
-        return buildTiles();
-    }
+    if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) return buildTiles();
 
     bool isOpaqueImg = true;
     bool isBinaryAlpha = true;
     const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
     for (int y = 0; y < imgData.height; y++) {
-        const uint8_t *row = src + y * imgData.pitch;
+        const uint8_t *row = src + static_cast<size_t>(y) * imgData.pitch;
         for (int x = 0; x < imgData.width; x++) {
-            uint8_t a = row[x * 4 + 3];
+            const uint8_t a = row[x * 4 + 3];
             if (a != 255) {
                 isOpaqueImg = false;
                 if (a != 0) isBinaryAlpha = false;
@@ -1979,75 +2071,60 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
         }
     }
 
-    // On standard 64MB Xbox hardware, large textures (> 128x128) must use DXT compression
-    // to preserve contiguous memory for fonts, tiles, and other textures.
-    // Small textures (<= 128x128) or enhanced 128MB consoles with plenty of free RAM prefer 32-bit swizzled.
+    const size_t area = static_cast<size_t>(imgData.width) * imgData.height;
     const size_t freeMem = getAvailablePhysicalMemory();
-    const bool prefer32Bit = (imgData.width * imgData.height <= 128 * 128) ||
-                             (OS::isEnhancedPlatform() && freeMem > 20 * 1024 * 1024);
+    // Keep small textures crisp; use 32-bit surfaces on enhanced consoles when memory allows.
+    const bool prefer32Bit = area <= 128u * 128u ||
+                             (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u);
+    // DXT saves memory but introduces visible blocks. For 1:1/upscaled content and SVGs, prefer
+    // a 16-bit swizzled surface when the contiguous heap has room for it.
+    const bool prefer16Bit = (isSVGImage || imgData.scale <= 1.0f) &&
+                             freeMem > 8u * 1024u * 1024u;
+    const uint32_t codec16 = isOpaqueImg ? CODEC_RGB565 :
+                             (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+    const uint32_t codecDXT = (isOpaqueImg || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
 
     if (prefer32Bit) {
-        texture = nv2aRenderer->createTexture(imgData.width, imgData.height, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
-        if (texture) {
-            nv2aRenderer->updateTexture(texture, imgData.pixels, imgData.pitch);
-            return {};
-        }
+        texture = createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                   CODEC_RGBA32, src, this, imgData.pitch);
+        if (texture) return {};
     }
 
-    // Fast DXT compression for runtime on-the-fly
-    const uint32_t codec = (isOpaqueImg || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
-    const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                      0, 0, imgData.width, imgData.height, codec, isOpaqueImg, false);
-    texture = createDXTTexture(nv2aRenderer, imgData.width, imgData.height, codec, data.data());
+    if (prefer16Bit) {
+        const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                              0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                                               codec16, packed.data(), this);
+        if (texture) return {};
+    }
+
+    // DXT is the compact path for textures that are being downscaled at render time or when
+    // the contiguous heap is tight. Spend more encoder effort on SVGs and 1:1 textures.
+    const auto dxtData = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                         0, 0, imgData.width, imgData.height, codecDXT,
+                                         isOpaqueImg, imgData.scale <= 1.0f || isSVGImage);
+    texture = dxtData.empty() ? nullptr : createDXTTexture(nv2aRenderer, imgData.width, imgData.height,
+                                                             codecDXT, dxtData.data(), this);
     if (texture) return {};
 
-    // 16-bit swizzled fallback without dither noise
-    uint32_t fmt = isOpaqueImg ? XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED :
-                   (isBinaryAlpha ? XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED : XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED);
-    texture = nv2aRenderer->createTexture(imgData.width, imgData.height, fmt, true);
-    if (texture) {
-        std::vector<uint16_t> scratch(static_cast<size_t>(imgData.width) * imgData.height);
-        for (int y = 0; y < imgData.height; y++) {
-            const uint8_t *row = src + y * imgData.pitch;
-            uint16_t *out = scratch.data() + y * imgData.width;
-            for (int x = 0; x < imgData.width; x++) {
-                if (isOpaqueImg) {
-                    int r = row[x * 4 + 0] >> 3;
-                    int g = row[x * 4 + 1] >> 2;
-                    int b = row[x * 4 + 2] >> 3;
-                    out[x] = static_cast<uint16_t>((r << 11) | (g << 5) | b);
-                } else if (isBinaryAlpha) {
-                    int a = (row[x * 4 + 3] >= 128) ? 1 : 0;
-                    int r = row[x * 4 + 0] >> 3;
-                    int g = row[x * 4 + 1] >> 3;
-                    int b = row[x * 4 + 2] >> 3;
-                    out[x] = static_cast<uint16_t>((a << 15) | (r << 10) | (g << 5) | b);
-                } else {
-                    int a = row[x * 4 + 3] >> 4;
-                    int r = row[x * 4 + 0] >> 4;
-                    int g = row[x * 4 + 1] >> 4;
-                    int b = row[x * 4 + 2] >> 4;
-                    out[x] = static_cast<uint16_t>((a << 12) | (r << 8) | (g << 4) | b);
-                }
-            }
-        }
-        nv2aRenderer->updateTexture(texture, scratch.data(), imgData.width * 2);
-        return {};
+    if (!prefer16Bit) {
+        const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                              0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                                               codec16, packed.data(), this);
+        if (texture) return {};
     }
 
     if (!prefer32Bit) {
-        texture = nv2aRenderer->createTexture(imgData.width, imgData.height, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
-        if (texture) {
-            nv2aRenderer->updateTexture(texture, imgData.pixels, imgData.pitch);
-            return {};
-        }
+        texture = createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                   CODEC_RGBA32, src, this, imgData.pitch);
+        if (texture) return {};
     }
 
-    if (!texture && (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE)) {
-        Scratch::freeUnusedCostumeImages();
+    if (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE) {
+        Scratch::freeUnusedCostumeImages(this);
         return buildTiles();
     }
-
     return nonstd::make_unexpected("Failed to create NV2A texture");
 }
 
@@ -2094,17 +2171,30 @@ std::string Image_NV2A::getTextureCachePath(const std::string &assetName) {
 }
 
 bool Image_NV2A::loadFromCache(const std::string &cachePath) {
-    g_cacheLoadOOM = false;
     FILE *f = fopen(cachePath.c_str(), "rb");
     if (!f) return false;
 
-    XBTHeader header;
-    if (fread(&header, sizeof(header), 1, f) != 1 ||
-        (memcmp(header.magic, "XBTN", 4) != 0 &&
-         memcmp(header.magic, "XBTX", 4) != 0 &&
-         memcmp(header.magic, "XBT1", 4) != 0) ||
-        (header.version != XBT_VERSION && header.version != 5) ||
-        header.numTiles == 0) {
+    XBTHeader header{};
+    const bool headerRead = fread(&header, sizeof(header), 1, f) == 1;
+    const bool supportedVersion = header.version == XBT_VERSION || header.version == 6 || header.version == 5;
+    const bool validMagic = memcmp(header.magic, "XBTN", 4) == 0 ||
+                            memcmp(header.magic, "XBTX", 4) == 0 ||
+                            memcmp(header.magic, "XBT1", 4) == 0;
+    const bool dimensionsValid = header.width > 0 && header.height > 0 &&
+                                 header.width <= static_cast<uint32_t>(getMaxTextureDim()) &&
+                                 header.height <= static_cast<uint32_t>(getMaxTextureDim());
+    const uint64_t maskPitch = (static_cast<uint64_t>(header.width) + 7) / 8;
+    const uint64_t expectedMaskSize = maskPitch * header.height;
+    const uint64_t expectedTileCount = header.isTiled
+        ? ((static_cast<uint64_t>(header.width) + TILE_SIZE - 1) / TILE_SIZE) *
+          ((static_cast<uint64_t>(header.height) + TILE_SIZE - 1) / TILE_SIZE)
+        : 1;
+    const bool validHeader = headerRead && validMagic && supportedVersion && dimensionsValid &&
+                             header.isTiled <= 1 && header.numTiles > 0 &&
+                             header.numTiles == expectedTileCount &&
+                             (header.maskSize == 0 || header.maskSize == expectedMaskSize) &&
+                             std::isfinite(header.scale) && header.scale >= 0.0f;
+    if (!validHeader) {
         fclose(f);
         remove(cachePath.c_str());
         return false;
@@ -2118,61 +2208,104 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
         return false;
     }
 
-    auto bail = [&]() {
-        destroyTiles();
-        if (texture) nv2aRenderer->destroyTexture(texture);
-        alphaMask.clear();
-        alphaMaskPitch = 0;
+    std::vector<uint8_t> loadedAlphaMask;
+    if (header.maskSize != 0) {
+        loadedAlphaMask.resize(header.maskSize);
+        if (fread(loadedAlphaMask.data(), 1, header.maskSize, f) != header.maskSize) {
+            fclose(f);
+            remove(cachePath.c_str());
+            return false;
+        }
+    }
+
+    NV2ATexture *loadedTexture = nullptr;
+    std::vector<Tile> loadedTiles;
+    if (header.isTiled) loadedTiles.reserve(header.numTiles);
+    auto destroyLoaded = [&]() {
+        if (loadedTexture) nv2aRenderer->destroyTexture(loadedTexture);
+        for (auto &tile : loadedTiles) nv2aRenderer->destroyTexture(tile.texture);
+        loadedTiles.clear();
+    };
+    auto fail = [&](bool corrupt) {
+        destroyLoaded();
         fclose(f);
-        remove(cachePath.c_str());
+        if (corrupt) remove(cachePath.c_str());
         return false;
     };
 
-    imgData.width = header.width;
-    imgData.height = header.height;
-    imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
-    imgData.pitch = header.width * 4;
-    imgData.pixels = nullptr;
-    isOpaque = !(header.flags & 1);
+    const int columns = header.isTiled ? static_cast<int>((header.width + TILE_SIZE - 1) / TILE_SIZE) : 1;
+    const size_t imagePixels = static_cast<size_t>(header.width) * header.height;
+    const size_t freeMem = getAvailablePhysicalMemory();
+    const bool allowRGBA32 = imagePixels <= 128u * 128u ||
+                             (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u);
+    const bool allowRaw16 = imagePixels <= 128u * 128u || freeMem > 8u * 1024u * 1024u;
 
-    alphaMask.clear();
-    alphaMaskPitch = 0;
-    if (header.maskSize > 0) {
-        const uint32_t pitchBytes = (header.width + 7) / 8;
-        if (header.maskSize != pitchBytes * header.height) return bail();
-        alphaMask.resize(header.maskSize);
-        if (fread(alphaMask.data(), 1, header.maskSize, f) != header.maskSize) return bail();
-        alphaMaskPitch = static_cast<int>(pitchBytes);
-    }
+    for (uint32_t i = 0; i < header.numTiles; ++i) {
+        XBTTileHeader th{};
+        if (fread(&th, sizeof(th), 1, f) != 1) return fail(true);
 
-    destroyTiles();
-    for (uint32_t i = 0; i < header.numTiles; i++) {
-        XBTTileHeader th;
-        if (fread(&th, sizeof(th), 1, f) != 1 ||
-            (th.codec != CODEC_DXT1 && th.codec != CODEC_DXT5) ||
-            th.dataSize > 4 * 1024 * 1024) {
-            return bail();
+        const int expectedX = header.isTiled ? static_cast<int>(i % columns) * TILE_SIZE : 0;
+        const int expectedY = header.isTiled ? static_cast<int>(i / columns) * TILE_SIZE : 0;
+        const int expectedW = std::min<int>(header.isTiled ? TILE_SIZE : header.width, static_cast<int>(header.width) - expectedX);
+        const int expectedH = std::min<int>(header.isTiled ? TILE_SIZE : header.height, static_cast<int>(header.height) - expectedY);
+        const bool codecValid = isDXTCodec(th.codec) || (header.version == XBT_VERSION && isRawCodec(th.codec));
+        // Validate untrusted cache dimensions against the expected tile layout before using
+        // them in any power-of-two or size calculation.
+        if (!codecValid || th.x != expectedX || th.y != expectedY ||
+            th.w != expectedW || th.h != expectedH) {
+            return fail(true);
         }
-        std::vector<uint8_t> data(th.dataSize);
-        if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return bail();
+        const size_t expectedSize = expectedCacheDataSize(expectedW, expectedH, th.codec);
+        if (expectedSize == 0 || expectedSize > 4u * 1024u * 1024u || th.dataSize != expectedSize) {
+            return fail(true);
+        }
 
-        NV2ATexture *t = createDXTTexture(nv2aRenderer, th.w, th.h, th.codec, data.data());
-        if (!t) return bail();
+        // Raw formats are higher quality but can fragment the 64MB contiguous heap. If the
+        // current memory budget no longer permits one, let normal runtime selection choose DXT.
+        if ((th.codec == CODEC_RGBA32 && !allowRGBA32) ||
+            (isRawCodec(th.codec) && th.codec != CODEC_RGBA32 && !allowRaw16)) {
+            return fail(false);
+        }
+
+        std::vector<uint8_t> data(th.dataSize);
+        if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return fail(true);
+
+        NV2ATexture *t = isDXTCodec(th.codec)
+            ? createDXTTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this)
+            : createRawTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this);
+        if (!t) return fail(false);
 
         if (!header.isTiled) {
-            texture = t;
-            fclose(f);
-            return true;
+            loadedTexture = t;
+        } else {
+            Tile tile;
+            tile.x = th.x;
+            tile.y = th.y;
+            tile.w = th.w;
+            tile.h = th.h;
+            tile.texture = t;
+            loadedTiles.push_back(tile);
         }
-        Tile tile;
-        tile.x = th.x;
-        tile.y = th.y;
-        tile.w = th.w;
-        tile.h = th.h;
-        tile.texture = t;
-        tiles.push_back(tile);
     }
+
+    // Commit only after the whole cache has been validated and allocated. A corrupt/truncated
+    // cache must never null out or leak the still-usable source pixels during refreshTexture().
     fclose(f);
+    if (texture) nv2aRenderer->destroyTexture(texture);
+    destroyTiles();
+    if (imgData.pixels) {
+        free(imgData.pixels);
+        imgData.pixels = nullptr;
+    }
+    imgData.width = static_cast<int>(header.width);
+    imgData.height = static_cast<int>(header.height);
+    imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
+    imgData.pitch = imgData.width * 4;
+    isOpaque = !(header.flags & 1);
+    alphaMask = std::move(loadedAlphaMask);
+    alphaMaskPitch = alphaMask.empty() ? 0 : static_cast<int>((header.width + 7) / 8);
+    texture = loadedTexture;
+    tiles = std::move(loadedTiles);
     return true;
 }
 
@@ -2269,7 +2402,8 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
         for (int tx = 0; tx < width; tx += stepX) {
             const int tw = std::min(stepX, width - tx);
             const int th = std::min(stepY, height - ty);
-            const auto data = encodeRegionDXT(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque, true);
+            const auto data = encodeRegionCache(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque, true);
+            if (data.empty()) return fail();
 
             XBTTileHeader tileHeader;
             tileHeader.x = tx;
@@ -2460,7 +2594,16 @@ void Image_NV2A::precacheProjectTextures() {
             }
         }
 
-        uint32_t codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
+        const size_t freeMem = getAvailablePhysicalMemory();
+        uint32_t codec;
+        if (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u) {
+            // Keep 32-bit color/alpha on the 128MB model while the contiguous heap has headroom.
+            codec = CODEC_RGBA32;
+        } else if (logicalScale <= 1.0f && freeMem > 8u * 1024u * 1024u) {
+            codec = isOpaque ? CODEC_RGB565 : (isBinary ? CODEC_ARGB1555 : CODEC_ARGB4444);
+        } else {
+            codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
+        }
         if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec, logicalScale)) {
             allSucceeded = false;
         }
@@ -2486,7 +2629,7 @@ nonstd::expected<void, std::string> Image_NV2A::refreshTexture() {
     releaseEffects();
     destroyTiles();
     if (texture && nv2aRenderer) nv2aRenderer->destroyTexture(texture);
-    if (!cachedAssetPath.empty()) {
+    if (!cachedAssetPath.empty() && !isSVGImage && !isSvgAssetPath(cachedAssetPath)) {
         std::string cachePath = getTextureCachePath(cachedAssetPath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
             if (loadFromCache(cachePath)) return {};
@@ -2504,13 +2647,15 @@ Image_NV2A::Image_NV2A(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
     maxTextureSize = {1024, 1024};
     cachedAssetPath = filePath;
 
-    std::string cachePath = getTextureCachePath(filePath);
-    if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
-        if (loadFromCache(cachePath)) return;
-    }
-    std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
-    if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
-        if (loadFromCache(altCachePath)) return;
+    if (!isSvgAssetPath(filePath)) {
+        std::string cachePath = getTextureCachePath(filePath);
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            if (loadFromCache(cachePath)) return;
+        }
+        std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) return;
+        }
     }
 
     const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
@@ -2528,13 +2673,15 @@ Image_NV2A::Image_NV2A(std::string filePath, bool fromScratchProject, bool bitma
 
     if (fromScratchProject) {
         cachedAssetPath = filePath;
-        std::string cachePath = getTextureCachePath(filePath);
-        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
-            if (loadFromCache(cachePath)) return;
-        }
-        std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
-        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
-            if (loadFromCache(altCachePath)) return;
+        if (!isSvgAssetPath(filePath)) {
+            std::string cachePath = getTextureCachePath(filePath);
+            if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+                if (loadFromCache(cachePath)) return;
+            }
+            std::string altCachePath = Image_Xbox::getTextureCachePath(filePath);
+            if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+                if (loadFromCache(altCachePath)) return;
+            }
         }
     }
 

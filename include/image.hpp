@@ -76,6 +76,7 @@ class SE_EXPORT Image {
   protected:
     ImageData imgData;
     std::pair<float, float> svgViewOffset = {0, 0};
+    bool isSVGImage = false;
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
 
@@ -84,7 +85,7 @@ class SE_EXPORT Image {
   public:
     bool isOpaque = false;
 
-    static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
+    static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH, const Image *keep = nullptr);
 
 #ifdef __XBOX__
     const unsigned int maxFreeTimer = 30;

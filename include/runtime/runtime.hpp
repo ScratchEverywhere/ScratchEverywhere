@@ -86,7 +86,7 @@ class SE_EXPORT Scratch {
     static std::set<std::string> failedCostumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
     static void flushCostumeImages();
-    static void freeUnusedCostumeImages();
+    static void freeUnusedCostumeImages(const Image *keep = nullptr);
 
     static void createDebugMonitor(const std::string &name, int x, int y);
     static void toggleDebugVars(const bool enabled);

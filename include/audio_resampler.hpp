@@ -16,9 +16,20 @@ class AudioResampler {
 
   public:
     void reset() {
-        buffer.clear();
+        // The frame count, not vector size, determines which samples are live. Retain the
+        // pre-sized storage so switching channels or restarting a sound never allocates in
+        // the audio callback.
         bufferedFrames = 0;
         bufferedChannels = 0;
+        position = 0;
+        ended = false;
+    }
+
+    void prepare(int channels, std::size_t samples) {
+        if (samples > buffer.max_size()) return;
+        if (buffer.size() < samples) buffer.resize(samples);
+        bufferedFrames = 0;
+        bufferedChannels = channels;
         position = 0;
         ended = false;
     }
@@ -34,8 +45,11 @@ class AudioResampler {
         if (!std::isfinite(required) || required > std::numeric_limits<int>::max()) return 0;
         const int needed = static_cast<int>(required);
         const auto capacity = static_cast<std::size_t>(std::max(needed, bufferedFrames));
-        if (capacity > buffer.max_size() / channels) return 0;
-        buffer.resize(capacity * channels);
+        if (capacity > buffer.max_size() / static_cast<std::size_t>(channels)) return 0;
+        const auto requiredSamples = capacity * static_cast<std::size_t>(channels);
+        // Do not shrink/resize an already large enough buffer for each callback. Apart from
+        // avoiding allocator traffic, this leaves enough room for the next decoder lookahead.
+        if (buffer.size() < requiredSamples) buffer.resize(requiredSamples);
         while (!ended && bufferedFrames < needed) {
             const int request = needed - bufferedFrames;
             const int decoded = read(buffer.data() + static_cast<std::size_t>(bufferedFrames) * channels, request);

@@ -756,6 +756,8 @@ static void flushRetiredTextures(bool syncGpu) {
 }
 
 NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format, bool swizzled) {
+    if (width <= 0 || height <= 0) return nullptr;
+
     auto *tex = new NV2ATexture();
     tex->texWidth = width;
     tex->texHeight = height;
@@ -803,7 +805,9 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
         tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
     }
     if (!tex->data) {
-        Scratch::freeUnusedCostumeImages();
+        // Eviction belongs at the image-level caller: this allocator cannot know whether
+        // its source pixels belong to an image being evicted. Retired GPU textures are safe
+        // to reclaim here, so retry that path without touching CPU-side costume ownership.
         flushRetiredTextures(true);
         tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
     }

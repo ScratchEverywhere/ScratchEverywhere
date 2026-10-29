@@ -134,6 +134,9 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
         XboxVariableWatch::sample();
+        // Auto-clean sounds are retired by the audio worker and destroyed here, off the
+        // real-time thread, so decoder/buffer frees never stall audio mixing.
+        Mixer::drainRetiredStreams();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";

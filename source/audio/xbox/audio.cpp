@@ -114,11 +114,10 @@ SoundDevice_XboxAudio::SoundDevice_XboxAudio() {
 
     nextBuffer = 0;
 
-    // Pre-fill and prime initial buffers
+    // Start with silence and let the audio worker produce the first samples. Mixing here
+    // used to decode sounds synchronously on the runtime thread during backend startup.
     for (int i = 0; i < NUM_BUFFERS; i++) {
-        Mixer::requestSound(reinterpret_cast<short *>(bufferMem[i]), FRAMES_PER_BUFFER);
         __asm__ __volatile__ ("sfence" ::: "memory");
-        nxAudioBufferInitialize(&audioBuffers[i], bufferMem[i], BUFFER_SIZE_BYTES);
         nxAudioBufferQueue(&audioVoice, &audioBuffers[i]);
     }
 
