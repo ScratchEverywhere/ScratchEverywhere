@@ -133,6 +133,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        // Bytecode scripts can mark clones for deletion after BlockExecutor's own
+        // cleanup pass. Reconcile the sprite list again before rendering so a stale
+        // frame of clones is not drawn behind the freshly generated ones.
+        BlockExecutor::cleanupSprites();
         XboxVariableWatch::sample();
         // Auto-clean sounds are retired by the audio worker and destroyed here, off the
         // real-time thread, so decoder/buffer frees never stall audio mixing.
