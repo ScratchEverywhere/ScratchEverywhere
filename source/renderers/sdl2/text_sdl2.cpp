@@ -1,17 +1,14 @@
 #include "text_sdl2.hpp"
-#include <render.hpp>
+#include <renderer.hpp>
+#include <renderer_sdl2.hpp>
 #include <vector>
 
 TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
-    setRenderer(Render::getRenderer());
+    renderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
 }
 
 TextObjectSDL2::~TextObjectSDL2() = default;
-
-void TextObjectSDL2::setRenderer(void *r) {
-    renderer = static_cast<SDL_Renderer *>(r);
-}
 
 void TextObjectSDL2::uploadAtlas(FontGeneration &gen) {
     if (!renderer) return;

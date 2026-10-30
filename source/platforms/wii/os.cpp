@@ -1,3 +1,4 @@
+#include <fat.h>
 #include <gccore.h>
 #include <ogc/conf.h>
 #include <os.hpp>
@@ -10,6 +11,7 @@ std::string *customProjectsPath = nullptr;
 
 bool OS::init() {
     SYS_STDIO_Report(true);
+    if (!fatInitDefault()) return false;
     return true;
 }
 

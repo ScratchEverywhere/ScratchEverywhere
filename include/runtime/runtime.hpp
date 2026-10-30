@@ -4,6 +4,7 @@
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
+#include <set>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
@@ -59,6 +60,14 @@ class SE_EXPORT Scratch {
     static const std::string &getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
+    static std::vector<Value> *getListItems(const std::string &name, Sprite *sprite);
+
+    static bool resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName);
+
+    /**
+     * Starts the sound `fullName` at the sprite's volume so that "play sound until done" can wait on it with `Mixer::isSoundPlaying`.
+     */
+    static void startSoundUntilDone(Sprite *sprite, const std::string &fullName);
 
     /**
      * Frees every Sprite from memory.
@@ -74,9 +83,10 @@ class SE_EXPORT Scratch {
     static void moveLayer(Sprite *s, int layers);
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
+    static std::set<std::string> failedCostumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
     static void flushCostumeImages();
-    static void freeUnusedCostumeImages();
+    static void freeUnusedCostumeImages(const Image *keep = nullptr);
 
     static void createDebugMonitor(const std::string &name, int x, int y);
     static void toggleDebugVars(const bool enabled);
@@ -108,6 +118,8 @@ class SE_EXPORT Scratch {
 
     static bool debugVars;
     static bool sb3InRam;
+    static bool useBytecode;
+    static bool bytecodeCacheTooNew;
 
     static double counter;
 

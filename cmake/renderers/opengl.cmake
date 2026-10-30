@@ -1,7 +1,3 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(renderer_interface INTERFACE OpenGL::GL)
@@ -9,7 +5,7 @@ target_link_libraries(renderer_interface INTERFACE OpenGL::GL)
 cl_add_dep(renderer_interface stb_truetype)
 
 if(NOT LIBRETRO)
-	set(SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl1" "sdl3" "glfw")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl1" "sdl3" "glfw")
 
 	if(WIN32)
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "win32")

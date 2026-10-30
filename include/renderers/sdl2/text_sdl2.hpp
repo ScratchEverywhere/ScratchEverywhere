@@ -15,5 +15,4 @@ class SE_EXPORT TextObjectSDL2 : public TextObjectBase {
     ~TextObjectSDL2() override;
 
     void render(int xPos, int yPos) override;
-    void setRenderer(void *r) override;
 };

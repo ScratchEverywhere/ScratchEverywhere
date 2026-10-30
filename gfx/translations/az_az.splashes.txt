@@ -52,6 +52,7 @@ PS4 uyğunlaşdırmasının müəllifi: PwLDev!
 SDL1 uyğunlaşdırmasının müəllifi: Leap!
 OpenGL uyğunlaşdırmasının müəllifi: Leap!
 libretro uyğunlaşdırmasının müəllifi: Nishi!
+Xbox uyğunlaşdırmasının müəllifi: MikeDEV!
 Menyu musiqisinin müəllifi: Dogo6647!
 2025-ci ildən bəri!
 C++!

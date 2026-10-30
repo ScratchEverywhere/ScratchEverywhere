@@ -1,6 +1,1 @@
-if(TARGET audio_interface)
-    return()
-endif()
-add_library(audio_interface INTERFACE)
-
-cl_add_dep(audio_interface maxmod)
+target_link_libraries(audio_interface INTERFACE mm9)

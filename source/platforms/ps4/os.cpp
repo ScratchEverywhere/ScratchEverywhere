@@ -1,5 +1,13 @@
+#include <stddef.h>
+
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+#include <orbis/Net.h>
+#include <orbis/NetCtl.h>
+#endif
+
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
+
 #include <os.hpp>
 
 namespace OS {
@@ -20,8 +28,8 @@ std::string OS::getPlatform() {
 }
 
 bool OS::isEnhancedPlatform() {
-    // maybe we could check for PS4 pro here?
-    return false;
+    // Check if it's a ps4 pro
+    return sceKernelIsNeoMode();
 }
 
 std::string OS::getFilesystemRootPrefix() {
@@ -54,10 +62,23 @@ bool OS::isOnline() {
 }
 
 bool OS::initWifi() {
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+    if (sceNetInit() != ORBIS_OK) {
+        return false;
+    }
+
+    if (sceNetCtlInit() != ORBIS_OK) {
+        return false;
+    }
+#endif
     return true;
 }
 
 void OS::deInitWifi() {
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+    sceNetCtlTerm();
+    sceNetTerm();
+#endif
 }
 
 std::string OS::getUsername() {

@@ -1,5 +1,7 @@
 #include "math.hpp"
+#include "log.hpp"
 #include "nonstd/expected.hpp"
+#include "renderer.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <charconv>
@@ -30,21 +32,41 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
+    switch (Render::currentRenderer) {
 #ifdef RENDERER_GL2D
-    int r5 = r >> 3;
-    int g5 = g >> 3;
-    int b5 = b >> 3;
-    return RGB15(r5, g5, b5);
-#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE) || defined(RENDERER_GDI)
-    return (r << 24) |
-           (g << 16) |
-           (b << 8) |
-           a;
-#elif defined(RENDERER_CITRO2D)
-    return C2D_Color32(r, g, b, a);
-#elif !defined(RENDERER_HEADLESS)
-#error "You forgot to add your new renderer here didn't you..."
+    case Renderers::GL2D: {
+        int r5 = r >> 3;
+        int g5 = g >> 3;
+        int b5 = b >> 3;
+        return RGB15(r5, g5, b5);
+    }
 #endif
+#ifdef RENDERER_CITRO2D
+    case Renderers::Citro2D: {
+        return C2D_Color32(r, g, b, a);
+    }
+#endif
+    case Renderers::SDL1:
+    case Renderers::SDL2:
+    case Renderers::SDL3:
+    case Renderers::Xbox:
+    case Renderers::GX2:
+    case Renderers::NV2A:
+    case Renderers::OpenGL:
+    case Renderers::OpenGLCore:
+    case Renderers::GDI:
+    case Renderers::D3D9:
+        return (r << 24) |
+               (g << 16) |
+               (b << 8) |
+               a;
+    case Renderers::Headless:
+        break;
+    default: {
+        Log::logCritical("Looks like someone forgot to add their new renderer to Math::color... :grin:", true);
+        break;
+    }
+    }
     return 0;
 }
 
@@ -358,7 +380,32 @@ class LowerCaseCursor {
 };
 } // namespace
 
+namespace {
+constexpr unsigned char asciiLower(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+
+bool isAscii(std::string_view s) {
+    for (unsigned char c : s) {
+        if (c & 0x80) return false;
+    }
+    return true;
+}
+}
+
 bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
+    if (a.size() == b.size()) {
+        size_t i = 0;
+        for (; i < a.size(); i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            if (x != y && asciiLower(x) != asciiLower(y)) return false;
+        }
+        if (i == a.size()) return true;
+    } else if (isAscii(a) && isAscii(b)) {
+        return false;
+    }
+
     LowerCaseCursor ca(a), cb(b);
     uint32_t cpA, cpB;
     for (;;) {
@@ -371,6 +418,18 @@ bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
 }
 
 bool Math::caseInsensitiveLess(std::string_view a, std::string_view b) {
+    {
+        const size_t n = std::min(a.size(), b.size());
+        size_t i = 0;
+        for (; i < n; i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            const unsigned char lx = asciiLower(x), ly = asciiLower(y);
+            if (lx != ly) return lx < ly;
+        }
+        if (i == n) return a.size() < b.size();
+    }
+
     LowerCaseCursor ca(a), cb(b);
     uint32_t cpA, cpB;
     for (;;) {
@@ -414,6 +473,17 @@ std::string Math::utf16CharAt(std::string_view str, size_t index) {
         pos += len;
     }
     return "";
+}
+
+std::vector<uint32_t> Math::utf16Index(std::string_view str) {
+    std::vector<uint32_t> offsets;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        offsets.push_back(static_cast<uint32_t>(pos));
+        pos += utf16UnitByteLen(str, pos);
+    }
+    offsets.push_back(static_cast<uint32_t>(pos));
+    return offsets;
 }
 
 namespace {

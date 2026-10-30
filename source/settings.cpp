@@ -23,11 +23,20 @@ nlohmann::json SettingsManager::getConfigSettings() {
 
     std::ifstream file(OS::getConfigFolderLocation() + "Settings.json");
     if (!file.good()) {
+#if defined(__XBOX__)
+        Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json, creating default.");
+        saveConfigSettings(json);
+#else
         Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json");
+#endif
         return json;
     }
 
-    file >> json;
+    json = nlohmann::json::parse(file, nullptr, false);
+    if (json.is_discarded() || !json.is_object()) {
+        Log::logWarning("Invalid Settings.json; using default settings.");
+        return nlohmann::json::object();
+    }
     file.close();
     return json;
 }

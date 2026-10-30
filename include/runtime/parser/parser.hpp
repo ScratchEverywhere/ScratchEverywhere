@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
 #include <types.hpp>
@@ -9,6 +10,8 @@ enum class SE_EXPORT ProjectFormat {
     SB2,
     SB1,
 };
+
+struct BytecodeChunk;
 
 struct SE_EXPORT Parser {
     static std::unordered_map<std::string, std::string> &getShadowBlocks();
@@ -21,8 +24,12 @@ struct SE_EXPORT Parser {
     static void loadSprites(const nlohmann::json &json, ProjectFormat format = ProjectFormat::SB3);
     static bool loadExtensions(const nlohmann::json &json);
 
+    static void compileBytecode(Sprite *sprite);
+    static bool relinkBytecode(Sprite *sprite, BytecodeChunk &&chunk, uint32_t blockOrdinalBase, uint32_t blockOrdinalEnd);
+
 #ifdef ENABLE_CLOUDVARS
     static void initMist();
+    static void cleanupMist();
 #endif
   private:
     static void log(const std::string &message);
@@ -34,6 +41,7 @@ struct SE_EXPORT Parser {
     static void setSubstackSb3(Block *startBlock, Block *stopBlock = nullptr);
     static void loadAdvancedProjectSettingsSb3(const nlohmann::json &json);
     static void resolveVariableTypes(Sprite *sprite);
+    static void clearSpriteBlockOpcodes(Sprite *sprite);
 
     static void loadSpritesSb2(const nlohmann::json &json);
     static void parseSb2Scripts(Sprite *sprite, const nlohmann::json &object);

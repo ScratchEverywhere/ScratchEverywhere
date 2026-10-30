@@ -1,8 +1,3 @@
-if(TARGET audio_interface)
-    return()
-endif()
-add_library(audio_interface INTERFACE)
-
 # SDL3 is only used for audio here (not windowing/rendering), so trim every
 # other subsystem out of a from-source build to keep it lean.
 cl_add_dep(audio_interface SDL3

@@ -1,5 +1,9 @@
 #include "input.hpp"
+#include <algorithm>
 #include <log.hpp>
+#include <renderer.hpp>
+
+InputDevice *globalInputDevice = nullptr;
 
 std::pair<float, float> Input::leftJoystick = {0, 0};
 std::pair<float, float> Input::rightJoystick = {0, 0};
@@ -18,6 +22,43 @@ int Input::inputViewportX = 0;
 int Input::inputViewportY = 0;
 int Input::inputViewportW = 0;
 int Input::inputViewportH = 0;
+
+InputDevice *Input::getGlobalInputDevice() {
+    return globalInputDevice;
+}
+
+void Input::setGlobalInputDevice(InputDevice *device) {
+    globalInputDevice = device;
+}
+
+void Input::destroyGlobalInputDevice() {
+    if (globalInputDevice) delete globalInputDevice;
+}
+
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {0, 0};
+    if (globalInputDevice) pos = globalInputDevice->getTouchPosition();
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (pos[0] == 0 && pos[1] == 0 && mousePointer.isMoving) {
+        pos[0] = static_cast<int>((mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+    }
+#endif
+    return pos;
+}
+
+void Input::getInput() {
+    if (globalInputDevice) globalInputDevice->getInput();
+}
+
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
+    return "";
+}
+
+void Input::setClipboardText(const std::string &text) {
+    if (globalInputDevice) globalInputDevice->setClipboardText(text);
+}
 
 void Input::setInputViewport(int x, int y, int w, int h) {
     inputViewportX = x;
@@ -45,6 +86,9 @@ void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int rend
     if (!hasInputViewport()) return;
     x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
     y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+
+    x = std::clamp(x, 0, renderWidth);
+    y = std::clamp(y, 0, renderHeight);
 }
 
 void *Input::inputWindowHandleOverride = nullptr;
@@ -72,8 +116,20 @@ void Input::applyControls(std::string controlsFilePath) {
             if (controlsJson.contains("controls")) {
                 for (auto &[key, value] : controlsJson["controls"].items()) {
                     if (key.empty() || value.empty()) continue;
-                    Input::inputControls[value.get<std::string>()] = key;
-                    Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    // A key can be bound to several physical inputs, e.g. both
+                    // D-pad Up and left-stick Up for arrow-only Scratch games.
+                    auto bind = [&](const nlohmann::json &button) {
+                        if (!button.is_string()) return;
+                        const auto name = button.get<std::string>();
+                        if (name.empty()) return;
+                        Input::inputControls[name] = key;
+                        Log::log("Loaded control: " + key + " -> " + name);
+                    };
+                    if (value.is_array()) {
+                        for (const auto &button : value) bind(button);
+                    } else {
+                        bind(value);
+                    }
                 }
                 file.close();
                 return;

@@ -3,10 +3,18 @@ function(_recipe_libcurl_toolchain)
 		add_library(libcurl INTERFACE)
 		target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto brotlidec brotlicommon z wut m)
 		target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
+	elseif(PS4)
+		add_library(libcurl INTERFACE)
+		target_link_libraries(libcurl INTERFACE curl crypto ssl z)
+		target_include_directories(libcurl INTERFACE "${PS4_HOMEBREW_SDK}/target/usr/include")
 	endif()
 endfunction()
 
-function(_recipe_libcurl_system)	
+function(_recipe_libcurl_system)
+	if(XBOX)
+		return()
+	endif()
+
 	if(NOT CMAKE_CROSSCOMPILING)
 		if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 			cmake_host_system_information(RESULT DISTRO QUERY DISTRIB_INFO)
@@ -59,11 +67,7 @@ function(_recipe_libcurl_system)
 	endif()
 
 	cl_format_pkgconfig_req("libcurl" "${CL_VERSION_REQ}" PKG_SPEC)
-	if(CL_STATIC)
-		pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL "--static" ${PKG_SPEC})
-	else()
-		pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL ${PKG_SPEC})
-	endif()
+	pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL ${PKG_SPEC})
 endfunction()
 
 function(_recipe_libcurl_package)
@@ -97,6 +101,7 @@ function(_recipe_libcurl_source)
 		"BUILD_EXAMPLES" "OFF"
 		"ENABLE_MANUAL" "OFF"
 		"CURL_DISABLE_INSTALL" "ON"
+		"CURL_ENABLE_EXPORT_TARGET" "OFF"
 		"ENABLE_ARES" "OFF"
 		"USE_LIBIDN2" "OFF"
 		"CURL_DISABLE_WEBSOCKETS" "OFF"
@@ -105,6 +110,7 @@ function(_recipe_libcurl_source)
 	)
 	if(CMAKE_CROSSCOMPILING)
 		list(APPEND CURL_OPTIONS
+			"CURL_USE_PKGCONFIG" "OFF"
 			"CURL_USE_LIBSSH2" "OFF"
 			"CURL_USE_LIBPSL" "OFF"
 			"CURL_USE_OPENSSL" "OFF"
@@ -115,11 +121,25 @@ function(_recipe_libcurl_source)
 	elseif(CMAKE_CROSSCOMPILING)
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS" "ON")
 	endif()
-	if(WIN32 OR WEBOS)
+	if(WEBOS)
+		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL" "OFF")
+	elseif(XBOX)
+		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL" "ON")
+	elseif(WIN32)
 		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL" "OFF")
 	endif()
-	if(NINTENDO_WIIU)
+	if(NINTENDO_WIIU OR XBOX)
 		list(APPEND CURL_OPTIONS "ENABLE_THREADED_RESOLVER" "OFF" "ENABLE_IPV6" "OFF" "ENABLE_UNIX_SOCKETS" "OFF" "CURL_DISABLE_SOCKETPAIR" "ON")
+	endif()
+	if(XBOX)
+		cl_add_dep(mbedtls)
+		list(APPEND CURL_OPTIONS
+			"CURL_USE_MBEDTLS" "ON"
+			"MBEDTLS_INCLUDE_DIR" "${MBEDTLS_INCLUDE_DIR}"
+			"MBEDTLS_LIBRARY" "mbedtls"
+			"MBEDX509_LIBRARY" "mbedx509"
+			"MBEDCRYPTO_LIBRARY" "mbedcrypto"
+		)
 	endif()
 
 	set(CURL_TAG "curl-8_15_0")
@@ -142,6 +162,9 @@ function(_recipe_libcurl_source)
 			set(_LIBCURL_RESOLVED ${_LIBCURL_ALIASED})
 			get_target_property(_LIBCURL_ALIASED ${_LIBCURL_RESOLVED} ALIASED_TARGET)
 		endwhile()
+		if(XBOX)
+			target_link_libraries(${_LIBCURL_RESOLVED} INTERFACE mbedtls mbedx509 mbedcrypto)
+		endif()
 		add_library(deps::libcurl ALIAS ${_LIBCURL_RESOLVED})
 	endif()
 endfunction()

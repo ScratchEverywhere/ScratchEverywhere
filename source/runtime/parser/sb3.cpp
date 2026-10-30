@@ -1,4 +1,5 @@
 #include "blockExecutor.hpp"
+#include "bytecode_cache.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
@@ -8,7 +9,7 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <memory>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <translation.hpp>
 #include <unzip.hpp>
@@ -20,6 +21,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
     Scratch::sprites.reserve(spriteAmount);
+
+    BytecodeCache::beginLoadSession();
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -159,6 +162,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
                 }
                 if (data.contains("md5ext")) {
                     newCostume.fullName = data["md5ext"];
+                } else if (!newCostume.id.empty() && data.contains("dataFormat")) {
+                    newCostume.fullName = newCostume.id + "." + data["dataFormat"].get<std::string>();
                 }
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
@@ -187,6 +192,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         std::vector<std::string> procedureCallBlocks;
 
         // Blocks
+        size_t blockOrdinalBase = Scratch::blocks.size();
         if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
@@ -218,6 +224,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
                 loadInputsSb3(*newBlock, newSprite, id, target["blocks"], 2);
                 loadFieldsSb3(*newBlock, id, target["blocks"], 2);
 
+                newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
                 Scratch::blocks.push_back(newBlock);
                 newSprite->hats[opcode].insert(newBlock);
 
@@ -308,11 +315,17 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             }
 
             resolveVariableTypes(newSprite);
+            if (Scratch::useBytecode) {
+                BytecodeCache::processSprite(newSprite, static_cast<uint32_t>(blockOrdinalBase), static_cast<uint32_t>(Scratch::blocks.size()));
+            }
+            clearSpriteBlockOpcodes(newSprite);
         }
 
         Scratch::sprites.push_back(newSprite);
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
+
+    BytecodeCache::endLoadSession();
 
     Scratch::sortSprites();
 
@@ -377,7 +390,11 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             Render::monitors.emplace(newMonitor.id, newMonitor);
         }
 
-        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.finish");
+#ifdef __XBOX__
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.sprites"));
+#else
+        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.sprites");
+#endif
 
         Input::applyControls(Unzip::filePath + ".json");
         Parser::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
@@ -440,11 +457,11 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
 
         Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
-#if defined(RENDERER_SDL2)
-            Scratch::FPS = 255; // SDL2's vsync will figure it out
-#else
-            Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
-#endif
+            if (Render::currentRenderer == Renderers::SDL2) {
+                Scratch::FPS = 255; // SDL2's vsync will figure it out
+            } else {
+                Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
+            }
         }
 
         Scratch::turbo = config.value("turbo", false);
@@ -460,44 +477,41 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
         }
     }
 
-#ifdef RENDERER_CITRO2D
-    if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
-        Render::renderMode = Render::BOTH_SCREENS;
-    else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else {
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) {
+        if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
+            Render::renderMode = Render::BOTH_SCREENS;
+        else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
+            Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+        else {
+            auto bottomScreen = Unzip::getSetting("bottomScreen");
+            if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+                Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+            else
+                Render::renderMode = Render::TOP_SCREEN_ONLY;
+        }
+    } else if (Render::currentRenderer == Renderers::GL2D) {
         auto bottomScreen = Unzip::getSetting("bottomScreen");
         if (!bottomScreen.is_null() && bottomScreen.get<bool>())
             Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
-    }
-#elif defined(RENDERER_GL2D)
-    auto bottomScreen = Unzip::getSetting("bottomScreen");
-    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else
+    } else {
         Render::renderMode = Render::TOP_SCREEN_ONLY;
-#else
-    Render::renderMode = Render::TOP_SCREEN_ONLY;
-#endif
+    }
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null())
+    if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    else Scratch::accuratePen = true;
-#else
-    else Scratch::accuratePen = false;
-#endif
+    } else {
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
+        else Scratch::accuratePen = false;
+    }
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-#ifdef __NDS__
-        Scratch::accurateCollision = false;
-#else
-        Scratch::accurateCollision = true;
-#endif
+        if (Render::currentRenderer == Renderers::GL2D) {
+            Scratch::accurateCollision = false;
+        } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");
@@ -781,14 +795,25 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
                 }
                 std::string procode = blockData["mutation"]["proccode"];
 
-                if (procode == "​​log​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
-                else if (procode == "​​warn​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-                else if (procode == "​​error​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-                else if (procode == "​​open​​ %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
-                else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
-                else if (procode == "​​exit project​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
-
-                else {
+                if (procode == "​​log​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
+                    newBlock->bytecodeCallOpcode = "logs_log";
+                } else if (procode == "​​warn​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
+                    newBlock->bytecodeCallOpcode = "logs_warn";
+                } else if (procode == "​​error​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                    newBlock->bytecodeCallOpcode = "logs_error";
+                } else if (procode == "​​open​​ %s .sb3") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3";
+                } else if (procode == "​​open​​ %s .sb3 with data %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
+                    newBlock->bytecodeCallOpcode = "sceneManager_openSB3withData";
+                } else if (procode == "​​exit project​​ %s") {
+                    newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
+                    newBlock->bytecodeCallOpcode = "SE_exitProject";
+                } else {
                     if (newSprite->customHatBlock.count(procode) == 0) {
                         Block *placeholder = new Block();
                         placeholder->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
@@ -812,6 +837,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             if (name == "​​received data​​") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
         }
 
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
 
         if (currentBlock) {
@@ -826,7 +852,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             hasNext = true;
         }
 
-        if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
+        if (blockDatas[currentId].contains("shadow") && blockDatas[currentId]["shadow"].get<bool>()) {
             newBlock->shadow = true;
         }
 
@@ -880,9 +906,44 @@ void Parser::setSubstackSb3(Block *startBlock, Block *stopBlock) {
             }
         }
 
-        if (!current->shadow) current->opcode.clear();
         if (current->isEndBlock) break;
         current = current->nextBlock;
+    }
+}
+
+static void clearBlockOpcodes(Block *startBlock, Block *stopBlock = nullptr) {
+    Block *current = startBlock;
+
+    while (current != nullptr && current != stopBlock) {
+        bool isIf = (current->opcode == "control_if" || current->opcode == "control_if_else" ||
+                     current->opcode == "control_all_at_once");
+
+        for (const std::string &stackName : {"SUBSTACK", "SUBSTACK2"}) {
+            Block *firstSubBlock = nullptr;
+            for (auto &[name, input] : current->inputs) {
+                if (input.block != nullptr && name == stackName) {
+                    firstSubBlock = input.block;
+                    break;
+                }
+            }
+            if (firstSubBlock != nullptr) clearBlockOpcodes(firstSubBlock, isIf ? current->nextBlock : current);
+        }
+
+        bool wasEndBlock = current->isEndBlock;
+        if (!current->shadow) current->opcode.clear();
+        if (wasEndBlock) break;
+        current = current->nextBlock;
+    }
+}
+
+void Parser::clearSpriteBlockOpcodes(Sprite *sprite) {
+    for (const auto &[opcode, hatBlocks] : sprite->hats) {
+        for (Block *hat : hatBlocks) {
+            if (hat != nullptr) clearBlockOpcodes(hat);
+        }
+    }
+    for (const auto &[proccode, definitionBlock] : sprite->customHatBlock) {
+        if (definitionBlock != nullptr) clearBlockOpcodes(definitionBlock);
     }
 }
 

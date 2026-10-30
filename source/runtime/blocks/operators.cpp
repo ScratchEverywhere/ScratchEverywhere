@@ -6,6 +6,10 @@
 #include <math.hpp>
 #include <types.hpp>
 #include <value.hpp>
+#if defined(__XBOX__)
+#include <ctime>
+#include <random>
+#endif
 
 SCRATCH_BLOCK_DOUBLE(operator, add) {
     double num1, num2;
@@ -14,6 +18,10 @@ SCRATCH_BLOCK_DOUBLE(operator, add) {
     *outValue = num1 + num2;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, add, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, add) {
+    return num1 + num2;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, subtract) {
@@ -24,6 +32,10 @@ SCRATCH_BLOCK_DOUBLE(operator, subtract) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, subtract, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, subtract) {
+    return num1 - num2;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, multiply) {
     double num1, num2;
@@ -33,6 +45,10 @@ SCRATCH_BLOCK_DOUBLE(operator, multiply) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, multiply, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, multiply) {
+    return num1 * num2;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, divide) {
     double num1, num2;
@@ -41,6 +57,10 @@ SCRATCH_BLOCK_DOUBLE(operator, divide) {
     *outValue = num1 / num2;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, divide, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, divide) {
+    return num1 / num2;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, random) {
@@ -57,12 +77,48 @@ SCRATCH_BLOCK_DOUBLE(operator, random) {
     const double from = std::min(a, b);
     const double to = std::max(a, b);
 
+#if defined(__XBOX__)
+    static std::mt19937_64 rng(
+        static_cast<uint64_t>(std::time(nullptr)) ^
+        (static_cast<uint64_t>(std::clock()) << 16));
+    uint64_t r;
+    do {
+        r = (rng() >> 11); // 53-bit precision
+    } while (r == 0); // Strictly > 0 so (r * Infinity) doesn't produce NaN when lower bound is finite
+    const double u = static_cast<double>(r) / 9007199254740992.0;
+
+    if (fromValue.isScratchInt() && toValue.isScratchInt())
+        *outValue = from + std::floor(u * ((to + 1.0) - from));
+    else
+        *outValue = from + u * (to - from);
+#else
     if (fromValue.isScratchInt() && toValue.isScratchInt())
         *outValue = from + (rand() % static_cast<int>(to + 1 - from));
     else
         *outValue = from + rand() * (to - from) / (RAND_MAX + 1.0);
+#endif
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, random, {"FROM", BytecodeStackKind::Value}, {"TO", BytecodeStackKind::Value});
+SCRATCH_BYTECODE_BLOCK(operator, random) {
+    const ParsedInput *fromInput = Scratch::getInput(block, "FROM");
+    const ParsedInput *toInput = Scratch::getInput(block, "TO");
+
+    bool fromIsIntLiteral = fromInput != nullptr && fromInput->inputType == ParsedInput::VALUE && Value(fromInput->value).isScratchInt();
+    bool toIsIntLiteral = toInput != nullptr && toInput->inputType == ParsedInput::VALUE && Value(toInput->value).isScratchInt();
+    outFirstInstr = compiler.here();
+    if (!fromIsIntLiteral || !toIsIntLiteral) {
+        compiler.compileInput(block, "FROM", BytecodeStackKind::Value);
+        compiler.compileInput(block, "TO", BytecodeStackKind::Value);
+        compiler.emit(BytecodeOp::Random);
+        return true;
+    }
+
+    compiler.compileInput(block, "FROM", BytecodeStackKind::Number);
+    compiler.compileInput(block, "TO", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::RandomInt);
+    return true;
 }
 
 SCRATCH_BLOCK_STRING(operator, join) {
@@ -72,6 +128,19 @@ SCRATCH_BLOCK_STRING(operator, join) {
     *outValue = string1 + string2;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, join, {"STRING1", BytecodeStackKind::String}, {"STRING2", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_SS_S(operator, join) {
+    return str1 + str2;
+}
+
+static bool stringVariableSlot(BytecodeCompiler &compiler, Block *block, BytecodeIndex &slot) {
+    const ParsedInput *input = Scratch::getInput(block, "STRING");
+    if (input == nullptr || input->inputType != ParsedInput::VARIABLE || input->list) return false;
+    Variable *var = BlockExecutor::getVariable(input->variableId, compiler.sprite());
+    if (var == nullptr || !std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) return false;
+    slot = compiler.variableSlot(input->variableId);
+    return true;
 }
 
 SCRATCH_BLOCK_STRING(operator, letter_of) {
@@ -84,30 +153,49 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
     if (indexD < 0) return BlockResult::CONTINUE;
     const size_t index = static_cast<size_t>(indexD);
 
-    if (strValue.isString()) {
-        auto strPtr = strValue.getStringPtr();
-        if (indexD < static_cast<double>(Math::utf16Length(strPtr))) {
-            *outValue = Math::utf16CharAt(strPtr, index);
-        }
-    } else {
-        const std::string str = strValue.asString();
-        if (indexD < static_cast<double>(Math::utf16Length(str))) {
-            *outValue = Math::utf16CharAt(str, index);
-        }
-    }
+    if (indexD < static_cast<double>(strValue.utf16Length())) *outValue = strValue.utf16CharAt(index);
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, letter_of, {"LETTER", BytecodeStackKind::Number}, {"STRING", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_NS_S(operator, letter_of) {
+    const double indexD = std::floor(num) - 1;
+    if (indexD < 0 || indexD >= static_cast<double>(Math::utf16Length(str))) return "";
+    return Math::utf16CharAt(str, static_cast<size_t>(indexD));
+}
+SCRATCH_BYTECODE_BLOCK(operator, letter_of) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "LETTER", BytecodeStackKind::Number);
+    BytecodeIndex slot;
+    if (stringVariableSlot(compiler, block, slot)) {
+        compiler.emit(BytecodeOp::LetterOfVar, slot);
+        return true;
+    }
+    compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::LetterOf);
+    return true;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, length) {
     Value strValue;
     if (!Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
 
-    const size_t units = strValue.isString()
-                             ? Math::utf16Length(strValue.getStringPtr())
-                             : Math::utf16Length(strValue.asString());
-
-    *outValue = static_cast<double>(units);
+    *outValue = static_cast<double>(strValue.utf16Length());
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, length, {"STRING", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_N(operator, length) {
+    return static_cast<double>(Math::utf16Length(str));
+}
+SCRATCH_BYTECODE_BLOCK(operator, length) {
+    outFirstInstr = compiler.here();
+    BytecodeIndex slot;
+    if (stringVariableSlot(compiler, block, slot)) {
+        compiler.emit(BytecodeOp::LengthOfVar, slot);
+        return true;
+    }
+    compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::LengthOf);
+    return true;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, mod) {
@@ -126,6 +214,13 @@ SCRATCH_BLOCK_DOUBLE(operator, mod) {
     *outValue = res;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, mod, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, mod) {
+    if (num2 == 0.0) return std::numeric_limits<double>::quiet_NaN();
+    double res = std::fmod(num1, num2);
+    if (res / num2 < 0) res += num2;
+    return res;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, round) {
     double num;
@@ -141,6 +236,13 @@ SCRATCH_BLOCK_DOUBLE(operator, round) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, round, {"NUM", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_N(operator, round) {
+    if (std::isnan(num) || std::isinf(num)) return num;
+    if (num < 0 && num >= -0.5) return -0.0;
+    double flo = std::floor(num);
+    return (num - flo >= 0.5) ? flo + 1 : flo;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     double value;
@@ -149,6 +251,33 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
     std::transform(operation.begin(), operation.end(), operation.begin(), ::tolower);
 
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(operation.data(), operation.size())) {
+    case Math::fnv1a_hash("abs", 3): *outValue = abs(value); break;
+    case Math::fnv1a_hash("floor", 5): *outValue = floor(value); break;
+    case Math::fnv1a_hash("ceiling", 7): *outValue = ceil(value); break;
+    case Math::fnv1a_hash("sqrt", 4): *outValue = sqrt(value); break;
+    case Math::fnv1a_hash("sin", 3): *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
+    case Math::fnv1a_hash("cos", 3): *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
+    case Math::fnv1a_hash("tan", 3): {
+        double modAngle = std::fmod(value, 360.0);
+        if (modAngle < -180.0) modAngle += 360.0;
+        if (modAngle > 180.0) modAngle -= 360.0;
+        if (modAngle == 90.0 || modAngle == -270.0) *outValue = std::numeric_limits<double>::infinity();
+        else if (modAngle == -90.0 || modAngle == 270.0) *outValue = -std::numeric_limits<double>::infinity();
+        else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+        break;
+    }
+    case Math::fnv1a_hash("asin", 4): *outValue = Math::radiansToDegrees(asin(value)); break;
+    case Math::fnv1a_hash("acos", 4): *outValue = Math::radiansToDegrees(acos(value)); break;
+    case Math::fnv1a_hash("atan", 4): *outValue = Math::radiansToDegrees(atan(value)); break;
+    case Math::fnv1a_hash("ln", 2): *outValue = log(value); break;
+    case Math::fnv1a_hash("log", 3): *outValue = log(value) / log(10); break;
+    case Math::fnv1a_hash("e ^", 3): *outValue = exp(value); break;
+    case Math::fnv1a_hash("10 ^", 4): *outValue = pow(10, value); break;
+    default: *outValue = 0; break;
+    }
+#else
     if (operation == "abs") *outValue = abs(value);
     else if (operation == "floor") *outValue = floor(value);
     else if (operation == "ceiling") *outValue = ceil(value);
@@ -172,7 +301,54 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     else if (operation == "e ^") *outValue = exp(value);
     else if (operation == "10 ^") *outValue = pow(10, value);
     else *outValue = 0;
+#endif
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(operator, mathop) {
+    std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
+    std::transform(operation.begin(), operation.end(), operation.begin(), ::tolower);
+
+    BytecodeMathOp op;
+#if defined(__XBOX__)
+    switch (Math::fnv1a_hash(operation.data(), operation.size())) {
+    case Math::fnv1a_hash("abs", 3): op = BytecodeMathOp::Abs; break;
+    case Math::fnv1a_hash("floor", 5): op = BytecodeMathOp::Floor; break;
+    case Math::fnv1a_hash("ceiling", 7): op = BytecodeMathOp::Ceiling; break;
+    case Math::fnv1a_hash("sqrt", 4): op = BytecodeMathOp::Sqrt; break;
+    case Math::fnv1a_hash("sin", 3): op = BytecodeMathOp::Sin; break;
+    case Math::fnv1a_hash("cos", 3): op = BytecodeMathOp::Cos; break;
+    case Math::fnv1a_hash("tan", 3): op = BytecodeMathOp::Tan; break;
+    case Math::fnv1a_hash("asin", 4): op = BytecodeMathOp::Asin; break;
+    case Math::fnv1a_hash("acos", 4): op = BytecodeMathOp::Acos; break;
+    case Math::fnv1a_hash("atan", 4): op = BytecodeMathOp::Atan; break;
+    case Math::fnv1a_hash("ln", 2): op = BytecodeMathOp::Ln; break;
+    case Math::fnv1a_hash("log", 3): op = BytecodeMathOp::Log; break;
+    case Math::fnv1a_hash("e ^", 3): op = BytecodeMathOp::Exp; break;
+    case Math::fnv1a_hash("10 ^", 4): op = BytecodeMathOp::Pow10; break;
+    default: return false;
+    }
+#else
+    if (operation == "abs") op = BytecodeMathOp::Abs;
+    else if (operation == "floor") op = BytecodeMathOp::Floor;
+    else if (operation == "ceiling") op = BytecodeMathOp::Ceiling;
+    else if (operation == "sqrt") op = BytecodeMathOp::Sqrt;
+    else if (operation == "sin") op = BytecodeMathOp::Sin;
+    else if (operation == "cos") op = BytecodeMathOp::Cos;
+    else if (operation == "tan") op = BytecodeMathOp::Tan;
+    else if (operation == "asin") op = BytecodeMathOp::Asin;
+    else if (operation == "acos") op = BytecodeMathOp::Acos;
+    else if (operation == "atan") op = BytecodeMathOp::Atan;
+    else if (operation == "ln") op = BytecodeMathOp::Ln;
+    else if (operation == "log") op = BytecodeMathOp::Log;
+    else if (operation == "e ^") op = BytecodeMathOp::Exp;
+    else if (operation == "10 ^") op = BytecodeMathOp::Pow10;
+    else return false;
+#endif
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "NUM", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::MathOp, invalidBytecodeIndex, static_cast<BytecodeIndex>(op));
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, equals) {
@@ -182,6 +358,29 @@ SCRATCH_BLOCK_BOOLEAN(operator, equals) {
     *outValue = op1 == op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, equals, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
+SCRATCH_BYTECODE_BLOCK(operator, equals) {
+    const ParsedInput *op1 = Scratch::getInput(block, "OPERAND1");
+    const ParsedInput *op2 = Scratch::getInput(block, "OPERAND2");
+
+    outFirstInstr = compiler.here();
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::Number) && compiler.isStaticallyKind(op2, BytecodeStackKind::Number)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Number);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Number);
+        compiler.emit(BytecodeOp::NumEquals);
+        return true;
+    }
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::String) && compiler.isStaticallyKind(op2, BytecodeStackKind::String)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::String);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::String);
+        compiler.emit(BytecodeOp::StrEquals);
+        return true;
+    }
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueEquals);
+    return true;
+}
 
 SCRATCH_BLOCK_BOOLEAN(operator, gt) {
     Value op1, op2;
@@ -189,6 +388,29 @@ SCRATCH_BLOCK_BOOLEAN(operator, gt) {
         !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
     *outValue = op1 > op2;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, gt, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
+SCRATCH_BYTECODE_BLOCK(operator, gt) {
+    const ParsedInput *op1 = Scratch::getInput(block, "OPERAND1");
+    const ParsedInput *op2 = Scratch::getInput(block, "OPERAND2");
+
+    outFirstInstr = compiler.here();
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::Number) && compiler.isStaticallyKind(op2, BytecodeStackKind::Number)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Number);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Number);
+        compiler.emit(BytecodeOp::NumGreater);
+        return true;
+    }
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::String) && compiler.isStaticallyKind(op2, BytecodeStackKind::String)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::String);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::String);
+        compiler.emit(BytecodeOp::StrGreater);
+        return true;
+    }
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueGreater);
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, lt) {
@@ -198,6 +420,29 @@ SCRATCH_BLOCK_BOOLEAN(operator, lt) {
     *outValue = op1 < op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, lt, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
+SCRATCH_BYTECODE_BLOCK(operator, lt) {
+    const ParsedInput *op1 = Scratch::getInput(block, "OPERAND1");
+    const ParsedInput *op2 = Scratch::getInput(block, "OPERAND2");
+
+    outFirstInstr = compiler.here();
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::Number) && compiler.isStaticallyKind(op2, BytecodeStackKind::Number)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Number);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Number);
+        compiler.emit(BytecodeOp::NumLess);
+        return true;
+    }
+    if (compiler.isStaticallyKind(op1, BytecodeStackKind::String) && compiler.isStaticallyKind(op2, BytecodeStackKind::String)) {
+        compiler.compileInput(block, "OPERAND1", BytecodeStackKind::String);
+        compiler.compileInput(block, "OPERAND2", BytecodeStackKind::String);
+        compiler.emit(BytecodeOp::StrLess);
+        return true;
+    }
+    compiler.compileInput(block, "OPERAND1", BytecodeStackKind::Value);
+    compiler.compileInput(block, "OPERAND2", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ValueLess);
+    return true;
+}
 
 SCRATCH_BLOCK_BOOLEAN(operator, and) {
     bool op1, op2;
@@ -205,6 +450,10 @@ SCRATCH_BLOCK_BOOLEAN(operator, and) {
         !Scratch::getInputValueAs(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
     *outValue = op1 && op2;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, and, {"OPERAND1", BytecodeStackKind::Boolean}, {"OPERAND2", BytecodeStackKind::Boolean});
+SCRATCH_BLOCK_POSITIONAL_BB_B(operator, and) {
+    return op1 && op2;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, or) {
@@ -214,12 +463,20 @@ SCRATCH_BLOCK_BOOLEAN(operator, or) {
     *outValue = op1 || op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, or, {"OPERAND1", BytecodeStackKind::Boolean}, {"OPERAND2", BytecodeStackKind::Boolean});
+SCRATCH_BLOCK_POSITIONAL_BB_B(operator, or) {
+    return op1 || op2;
+}
 
 SCRATCH_BLOCK_BOOLEAN(operator, not) {
     bool op1;
     if (!Scratch::getInputValueAs(block, "OPERAND", thread, sprite, op1)) return BlockResult::REPEAT;
     *outValue = !op1;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, not, {"OPERAND", BytecodeStackKind::Boolean});
+SCRATCH_BLOCK_POSITIONAL_B_B(operator, not) {
+    return !op1;
 }
 
 SCRATCH_BLOCK_BOOLEAN(operator, contains) {
@@ -239,4 +496,9 @@ SCRATCH_BLOCK_BOOLEAN(operator, contains) {
     thread->eraseState(block);
     *outValue = lowered1.find(lowered2) != std::string::npos;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, contains, {"STRING1", BytecodeStackKind::String}, {"STRING2", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_SS_B(operator, contains) {
+    if (str2.empty()) return true;
+    return Math::toLowerCaseJs(str1).find(Math::toLowerCaseJs(str2)) != std::string::npos;
 }

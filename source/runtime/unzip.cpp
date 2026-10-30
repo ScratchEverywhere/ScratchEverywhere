@@ -19,6 +19,13 @@
 #include <sys/types.h>
 #include <vector>
 
+#ifdef RENDERER_XBOX
+#include <renderers/xbox/image_xbox.hpp>
+#endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/image_nv2a.hpp>
+#endif
+
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -37,12 +44,32 @@
 
 volatile int Unzip::projectOpened = 0;
 std::string Unzip::loadingState = "";
+#ifdef __XBOX__
+#include <mutex>
+static std::mutex s_loadingStateMutex;
+
+void Unzip::setLoadingState(const std::string &state) {
+    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
+    loadingState = state;
+}
+
+std::string Unzip::getLoadingState() {
+    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
+    return loadingState;
+}
+#endif
+
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
+#ifdef __XBOX__
+std::vector<char, DefaultInitAllocator<char>> Unzip::zipBuffer;
+#else
 std::vector<char> Unzip::zipBuffer;
+#endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
 bool Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
@@ -178,11 +205,27 @@ void projectLoaderThread(void *data) {
 }
 
 void loadInitialImages() {
-    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+#ifdef __XBOX__
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    const std::string missingName = "SE__Missingno";
+    if (Scratch::costumeImages.find(missingName) == Scratch::costumeImages.end()) {
+        auto missingImg = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (missingImg.has_value()) {
+            Scratch::costumeImages[missingName] = missingImg.value();
+        }
+    }
     for (auto &currentSprite : Scratch::sprites) {
-
+        if (Scratch::costumeImages.size() >= (Scratch::sprites.size() + 2)) {
+            Scratch::freeUnusedCostumeImages();
+        }
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
+#else
+    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#endif
 }
 
 bool Unzip::load() {
@@ -192,29 +235,54 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-#ifdef __PS2__
-    if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
-#else
-    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
-#endif
+	constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
         while (!Unzip::threadFinished) {
             loading.render();
+#ifdef __XBOX__
+            SE_Thread::sleep(10);
+#endif
         }
 
         projectThread.join();
-        loading.cleanup();
 
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+
+#ifdef __XBOX__
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+#else
+        loadInitialImages();
+#endif
+        loading.cleanup();
+        return true;
     } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
+        return true;
     }
 
 #else
@@ -223,9 +291,9 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1) {
         return false;
     }
-#endif
     loadInitialImages();
     return true;
+#endif
 }
 
 void Unzip::openScratchProject(void *arg) {
@@ -234,6 +302,7 @@ void Unzip::openScratchProject(void *arg) {
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
@@ -247,16 +316,37 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+#ifdef __XBOX__
+    setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
+#else
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
+#endif
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
+    file = nullptr;
     if (!loaded) {
         Log::logCritical("Failed to load Scratch project.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
     }
+
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Log::log("Precaching project textures...");
+		Image_Xbox::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
+#ifdef RENDERER_NV2A
+    if (Render::currentRenderer == Renderers::NV2A) {
+		Log::log("Precaching project textures...");
+        Image_NV2A::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -346,6 +436,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 }
 
 bool Unzip::deleteProjectFolder(const std::string &directory) {
+#if !defined(__XBOX__)
     struct stat st;
     if (stat(directory.c_str(), &st) != 0) {
         Log::logWarning("Directory does not exist: " + directory);
@@ -356,6 +447,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         Log::logWarning("Path is not a directory: " + directory);
         return false;
     }
+#endif
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {

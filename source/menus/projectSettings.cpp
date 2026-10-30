@@ -1,6 +1,7 @@
 #include "projectSettings.hpp"
 #include "controlsMenu.hpp"
 #include "projectMenu.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
 #include "unpackMenu.hpp"
@@ -66,6 +67,11 @@ void ProjectSettings::init() {
     refreshLimitButton->text->setScale(0.5);
     refreshLimitButton->shouldNineslice = true;
 
+    runtimeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.runtime"), "gfx/menu/projectBox.svg", 200, 360, "gfx/menu/Ubuntu-Bold");
+    runtimeButton->text->setColor(Math::color(0, 0, 0, 255));
+    runtimeButton->text->setScale(0.5);
+    runtimeButton->shouldNineslice = true;
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -77,7 +83,7 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = refreshLimitButton;
+    changeControlsButton->buttonUp = runtimeButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
 #if defined(__3DS__) || defined(__NDS__)
     UnpackProjectButton->buttonDown = bottomScreenButton;
@@ -98,8 +104,10 @@ void ProjectSettings::init() {
     debugVarsButton->buttonUp = penModeButton;
     ramButton->buttonDown = refreshLimitButton;
     ramButton->buttonUp = debugVarsButton;
-    refreshLimitButton->buttonDown = changeControlsButton;
+    refreshLimitButton->buttonDown = runtimeButton;
     refreshLimitButton->buttonUp = ramButton;
+    runtimeButton->buttonDown = changeControlsButton;
+    runtimeButton->buttonUp = refreshLimitButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
@@ -112,20 +120,22 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(debugVarsButton);
     settingsControl->buttonObjects.push_back(ramButton);
     settingsControl->buttonObjects.push_back(refreshLimitButton);
+    settingsControl->buttonObjects.push_back(runtimeButton);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
-#endif
 
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
-#else
-    penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
-#endif
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
+    }
+
+    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) {
+        penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+    } else {
+        penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+    }
 
     if (settings["settings"]["accurateCollision"].is_null()) {
 #if defined(__NDS__)
@@ -142,7 +152,7 @@ void ProjectSettings::init() {
     if (!settings["settings"]["sb3InRam"].is_null()) {
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", settings["settings"]["sb3InRam"].get<bool>()));
     } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__PS2__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__PS2__) || defined(__XBOX__)
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", false));
 #else
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", true));
@@ -152,6 +162,16 @@ void ProjectSettings::init() {
     if (!settings["settings"]["warpTimer"].is_null()) {
         refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"].get<bool>()));
     } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
+
+    if (!settings["settings"]["useBytecode"].is_null()) {
+        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"].get<bool>()));
+    } else {
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", false));
+#else
+        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", true));
+#endif
+    }
 
     isInitialized = true;
 }
@@ -197,7 +217,7 @@ void ProjectSettings::render() {
     }
     if (ramButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
         settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", false);
 #else
         settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", true);
@@ -210,6 +230,16 @@ void ProjectSettings::render() {
         settings["settings"]["warpTimer"] = !settings["settings"].value("warpTimer", true);
         SettingsManager::saveProjectSettings(settings, projectPath);
         refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"]));
+    }
+    if (runtimeButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", false);
+#else
+        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", true);
+#endif
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"]));
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -299,6 +329,10 @@ void ProjectSettings::cleanup() {
     if (refreshLimitButton != nullptr) {
         delete refreshLimitButton;
         refreshLimitButton = nullptr;
+    }
+    if (runtimeButton != nullptr) {
+        delete runtimeButton;
+        runtimeButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

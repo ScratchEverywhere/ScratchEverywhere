@@ -1,13 +1,16 @@
+#include "bytecode_cache.hpp"
 #include "parser.hpp"
 #include "sb2_specmap.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <input.hpp>
 #include <log.hpp>
 #include <memory>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
+#include <sb2_bitmap_layers.hpp>
 #include <unzip.hpp>
 
 namespace {
@@ -164,7 +167,11 @@ void applySb2Args(Block &block, const nlohmann::json &sb2block, const std::vecto
         const Sb2ArgSpec &arg = argMap[i];
         size_t argIndex = startIndex + i;
         nlohmann::json providedArg = argIndex < sb2block.size() ? sb2block[argIndex] : nlohmann::json();
-        if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
+        // Scratch 2 projects can use reporter expressions in list selectors.
+        // Preserve those as inputs instead of silently creating an empty field.
+        if (arg.kind == Sb2ArgSpec::Kind::Field && arg.name == "LIST" && providedArg.is_array()) {
+            applySb2Input(block, {Sb2ArgSpec::Kind::Input, "LIST", "text", ""}, providedArg, sprite);
+        } else if (arg.kind == Sb2ArgSpec::Kind::Field) applySb2Field(block, arg, providedArg);
         else applySb2Input(block, arg, providedArg, sprite);
     }
 }
@@ -191,6 +198,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
             else newBlock->blockFunction = BlockExecutor::getHandlers()["argument_reporter_string_number"];
         }
         newBlock->shadow = true;
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
         return newBlock;
     }
@@ -216,6 +224,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
             newBlock->argumentIDs.push_back(arg.name);
         applySb2Args(*newBlock, sb2block, argMap, sprite, 2);
 
+        newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
         Scratch::blocks.push_back(newBlock);
         return newBlock;
     }
@@ -257,6 +266,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
     else if (oldOpcode == "backgroundIndex" || oldOpcode == "costumeIndex") addLiteralField(*newBlock, "NUMBER_NAME", "number");
     else if (oldOpcode == "sceneName" || oldOpcode == "costumeName") addLiteralField(*newBlock, "NUMBER_NAME", "name");
 
+    newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
     Scratch::blocks.push_back(newBlock);
     return newBlock;
 }
@@ -275,10 +285,26 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
         costume.bitmapResolution = c.value("bitmapResolution", 1);
 
         costume.fullName = std::to_string(c.value("baseLayerID", 0)) + "." + ext;
+        const int textId = c.value("textLayerID", -1);
+        if (!costume.isSVG && textId >= 0) {
+            const std::string textMD5 = c.value("textLayerMD5", std::string());
+            const auto textDot = textMD5.find_last_of('.');
+            const std::string textExt = textDot == std::string::npos ? "png" : textMD5.substr(textDot + 1);
+            costume.fullName = Sb2BitmapLayers::key(costume.fullName, std::to_string(textId) + "." + textExt);
+        }
 
         if (isStage) {
+#ifdef __XBOX__
             costume.rotationCenterX = 240.0 * costume.bitmapResolution;
             costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+            if (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
+                costume.rotationCenterX /= 2;
+                costume.rotationCenterY /= 2;
+            }
+#else
+            costume.rotationCenterX = 240.0 * costume.bitmapResolution;
+            costume.rotationCenterY = 180.0 * costume.bitmapResolution;
+#endif
         } else if (c.contains("rotationCenterX") && c.contains("rotationCenterY")) {
             costume.rotationCenterX = c["rotationCenterX"].get<double>();
             costume.rotationCenterY = c["rotationCenterY"].get<double>();
@@ -291,6 +317,7 @@ void parseSb2Costumes(Sprite *sprite, const nlohmann::json &object, bool isStage
             costume.rotationCenterY = -6767.6767;
         }
 
+        sprite->costumeNameIndex.emplace(costume.name, sprite->costumes.size());
         sprite->costumes.push_back(costume);
     }
 }
@@ -394,31 +421,29 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::miscellaneousLimits = true;
     Scratch::maxClones = 300;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
-    auto bottomScreen = Unzip::getSetting("bottomScreen");
-    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D || Render::currentRenderer == Renderers::GX2) {
+        auto bottomScreen = Unzip::getSetting("bottomScreen");
+        if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+            Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+        else
+            Render::renderMode = Render::TOP_SCREEN_ONLY;
+    } else {
         Render::renderMode = Render::TOP_SCREEN_ONLY;
-#else
-    Render::renderMode = Render::TOP_SCREEN_ONLY;
-#endif
+    }
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null()) Scratch::accuratePen = accuratePen.get<bool>();
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    else Scratch::accuratePen = true;
-#else
-    else Scratch::accuratePen = false;
-#endif
+    if (!accuratePen.is_null()) {
+        Scratch::accuratePen = accuratePen.get<bool>();
+    } else {
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
+        else Scratch::accuratePen = false;
+    }
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-#ifdef __NDS__
-        Scratch::accurateCollision = false;
-#else
-        Scratch::accurateCollision = true;
-#endif
+        if (Render::currentRenderer == Renderers::GL2D) {
+            Scratch::accurateCollision = false;
+        } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");
@@ -428,7 +453,7 @@ void loadAdvancedProjectSettingsSb2() {
     Scratch::warpTimer = warpTimer.is_null() || !warpTimer.is_boolean() || warpTimer.get<bool>();
 }
 
-void parseSb2Monitor(const nlohmann::json &watcher) {
+void parseSb2Monitor(const nlohmann::json &watcher, const std::string &stageName) {
     std::string cmd;
     std::string param;
 
@@ -464,7 +489,9 @@ void parseSb2Monitor(const nlohmann::json &watcher) {
     monitor.id = (cmd == "getVar:" || cmd == "contentsOfList:") ? param : block->opcode;
 
     std::string target = watcher.value("target", std::string());
-    monitor.spriteName = (target.empty() || target == "Stage") ? "" : target;
+    // SB2 stages can have localized/custom names. parseSb2Object normalizes
+    // the stage to "Stage", so its watcher targets need the same mapping.
+    monitor.spriteName = (target.empty() || target == "Stage" || target == stageName) ? "" : target;
 
     switch (watcher.value("mode", 1)) {
     case 2:
@@ -495,6 +522,8 @@ void parseSb2Monitor(const nlohmann::json &watcher) {
 
 void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
     if (!object.contains("scripts") || !object["scripts"].is_array()) return;
+
+    size_t blockOrdinalBase = Scratch::blocks.size();
 
     for (const auto &script : object["scripts"]) {
         if (!script.is_array() || script.size() < 3 || !script[2].is_array() || script[2].empty()) continue;
@@ -544,10 +573,16 @@ void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
     }
 
     Parser::resolveVariableTypes(sprite);
+    if (Scratch::useBytecode) {
+        BytecodeCache::processSprite(sprite, static_cast<uint32_t>(blockOrdinalBase), static_cast<uint32_t>(Scratch::blocks.size()));
+    }
+    Parser::clearSpriteBlockOpcodes(sprite);
 }
 
 void Parser::loadSpritesSb2(const nlohmann::json &json) {
     Parser::log("Loading sprites (SB2):");
+
+    BytecodeCache::beginLoadSession();
 
     Sprite *stageSprite = parseSb2Object(json, true);
     Scratch::sprites.push_back(stageSprite);
@@ -570,10 +605,16 @@ void Parser::loadSpritesSb2(const nlohmann::json &json) {
         }
     }
 
+    BytecodeCache::endLoadSession();
+
     Scratch::sortSprites();
 
+    const std::string stageName = json.value("objName", std::string("Stage"));
     for (const auto &watcher : watcherObjects)
-        parseSb2Monitor(watcher);
+        parseSb2Monitor(watcher, stageName);
+
+    // SB2 games need the same per-project controller profiles as SB3 games.
+    Input::applyControls(Unzip::filePath + ".json");
 }
 
 namespace {

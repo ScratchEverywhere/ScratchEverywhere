@@ -1,4 +1,3 @@
-#include <orbis/UserService.h>
 #include <orbis/libkernel.h>
 #include <timer.hpp>
 

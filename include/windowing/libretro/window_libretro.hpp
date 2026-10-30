@@ -4,7 +4,7 @@
 
 class SE_EXPORT WindowLibretro : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowLibretro(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

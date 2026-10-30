@@ -12,6 +12,7 @@ class SE_EXPORT Image_SDL3 : public Image {
 
   public:
     SDL_Texture *texture = nullptr;
+    SDL_Renderer *sdlRenderer = nullptr;
 
     Image_SDL3(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 

@@ -1,11 +1,11 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-psp")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl2")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
 set(SE_CACHING_DEFAULT OFF)
-set(SE_BUNDLE_DEFAULT ON)
+set(SE_BUNDLE_DEFAULT OFF)
 
 set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
@@ -24,15 +24,24 @@ macro(package_platform)
     create_pbp_file(
         TARGET scratch-everywhere
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
-        BACKGROUND_PATH NULL
-        PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
+        BACKGROUND_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
+        PREVIEW_PATH NULL
+        TITLE ${SE_APP_NAME}
 		VERSION "${SE_APP_VERSION}"
     )
-	# package the EBOOT.pbp
+
+    set(COPY_ASSETS_COMMAND)
+    if(NOT SE_BUNDLE)
+        set(COPY_ASSETS_COMMAND
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/assets"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/assets"
+        )
+    endif()
+	
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_BINARY_DIR}/EBOOT.PBP" "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/EBOOT.PBP"
+        ${COPY_ASSETS_COMMAND}
 		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle"
 	)
 endmacro()

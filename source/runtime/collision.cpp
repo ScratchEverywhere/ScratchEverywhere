@@ -1,11 +1,23 @@
 #include "collision.hpp"
+#include "color_effects.hpp"
 #include "image.hpp"
 #include "math.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <cmath>
 #include <log.hpp>
+
+#ifdef __XBOX__
+static inline float getEffectiveSpriteSize(const Sprite *sprite, const Costume &costume) {
+    const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
+    if (!costume.isSVG && costume.bitmapResolution == 2 && !isHalved) {
+        return sprite->size * 0.5f;
+    }
+    return sprite->size;
+}
+#endif
 
 std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
@@ -15,12 +27,50 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
         return nullptr;
     }
 
+#ifdef __XBOX__
+    {
+        const std::shared_ptr<Image> &image = imgFind->second;
+        if (!image->hasAlphaData()) return nullptr;
+
+        const int srcW = image->getPixelWidth();
+        const int srcH = image->getPixelHeight();
+        const float srcScale = image->getScale();
+
+        auto mask = std::make_shared<CollisionMask>();
+        // Keep the final partial cell: small/odd-sized costumes must not lose
+        // their last source row or column when the collision grid is reduced.
+        mask->width = (srcW + scaleFactor - 1) / scaleFactor;
+        mask->height = (srcH + scaleFactor - 1) / scaleFactor;
+        mask->scaleFactor = (float)scaleFactor / srcScale;
+        mask->sourceScale = srcScale;
+        mask->image = image;
+        mask->imgScaleFactor = scaleFactor;
+
+        const float centerX = costume.rotationCenterX / mask->scaleFactor;
+        const float centerY = costume.rotationCenterY / mask->scaleFactor;
+        float maxDistSq = 0;
+
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                if (image->getAlphaAt(x * scaleFactor, y * scaleFactor) == 0) continue;
+                const float dx = x - centerX;
+                const float dy = y - centerY;
+                const float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq) maxDistSq = distSq;
+            }
+        }
+
+        mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
+        return mask;
+    }
+#endif
+
     ImageData imgData = imgFind->second->getPixels();
     if (!imgData.pixels) return nullptr;
 
     auto mask = std::make_shared<CollisionMask>();
-    mask->width = imgData.width / scaleFactor;
-    mask->height = imgData.height / scaleFactor;
+    mask->width = (imgData.width + scaleFactor - 1) / scaleFactor;
+    mask->height = (imgData.height + scaleFactor - 1) / scaleFactor;
     mask->scaleFactor = (float)scaleFactor / imgData.scale;
     mask->sourceScale = imgData.scale;
 
@@ -30,56 +80,56 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
 
     uint32_t *pixels = (uint32_t *)imgData.pixels;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
-    mask->alphaPixels.resize(mask->width * mask->height, 0);
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        mask->alphaPixels.resize(mask->width * mask->height, 0);
 
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
+                const uint8_t alpha = px & 0xFF;
 #else
-            const uint8_t alpha = (px >> 24) & 0xFF;
+                const uint8_t alpha = (px >> 24) & 0xFF;
 #endif
-            if (alpha > 0) {
-                mask->alphaPixels[y * mask->width + x] = alpha;
+                if (alpha > 0) {
+                    mask->alphaPixels[y * mask->width + x] = alpha;
 
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
+            }
+        }
+
+        free(imgData.pixels);
+    } else {
+        mask->image = imgFind->second;
+        mask->imgScaleFactor = scaleFactor;
+
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+                const uint8_t alpha = px & 0xFF;
+#else
+                const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
+                if (alpha > 0) {
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
             }
         }
     }
-
-    free(imgData.pixels);
-#else
-    mask->image = imgFind->second;
-    mask->imgScaleFactor = scaleFactor;
-
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
-#else
-            const uint8_t alpha = (px >> 24) & 0xFF;
-#endif
-            if (alpha > 0) {
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
-            }
-        }
-    }
-#endif
 
     mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
     return mask;
 }
 
-static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite) {
+static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite, bool restoreColorData = false) {
     auto &costume = sprite->costumes[sprite->currentCostume];
     std::shared_ptr<CollisionMask> mask = costume.collisionMask;
 
@@ -92,6 +142,10 @@ static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite) {
     }
 
     if (mask == nullptr || stale) {
+        if (restoreColorData) {
+            auto image = Scratch::costumeImages.find(costume.fullName);
+            if (image != Scratch::costumeImages.end()) image->second->ensureColorData();
+        }
         mask = collision::generateCollisionMask(sprite);
         if (mask == nullptr) return nullptr;
         costume.collisionMask = mask;
@@ -131,7 +185,11 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
     const float distSq = dx * dx + dy * dy;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) {
@@ -170,8 +228,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float dy = a->yPosition - b->yPosition;
     const float distSq = dx * dx + dy * dy;
 
+#ifdef __XBOX__
+    const float aSize = getEffectiveSpriteSize(a, costumeA);
+    const float bSize = getEffectiveSpriteSize(b, costumeB);
+#else
     const float aSize = !costumeA.isSVG && !Scratch::bitmapHalfQuality ? a->size * 0.5f : a->size;
     const float bSize = !costumeB.isSVG && !Scratch::bitmapHalfQuality ? b->size * 0.5f : b->size;
+#endif
 
     const float radiusA = maskA->maxRadius * (aSize / 100.0f);
     const float radiusB = maskB->maxRadius * (bSize / 100.0f);
@@ -239,13 +302,17 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
 static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &outG, uint8_t &outB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
     const float distSq = dx * dx + dy * dy;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) return false;
@@ -260,31 +327,80 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
 
+#ifdef __XBOX__
+    // Alpha collision grids may skip every other source pixel. Color sensing
+    // must sample the actual texel, matching the pen canvas, rather than snap
+    // to that reduced grid. NXDK roundf also rounds -0.5 to zero, which made a
+    // query one unit outside a backdrop read its first colored column.
+    const auto &image = mask->image;
+    if (!image || !image->ensureColorData()) return false;
+    const int px = static_cast<int>(std::floor((localX + costume.rotationCenterX) * mask->sourceScale));
+    const int py = static_cast<int>(std::floor((localY + costume.rotationCenterY) * mask->sourceScale));
+    if (px < 0 || py < 0 || px >= image->getPixelWidth() || py >= image->getPixelHeight() || image->getAlphaAt(px, py) == 0) return false;
+    image->getColorAt(px, py, outR, outG, outB);
+#else
     const float invertedScaleFactor = 1.0f / mask->scaleFactor;
     const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
-
-    return mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB);
+    if (!mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB)) return false;
+#endif
+    ScratchColorTransform(sprite->colorEffect, sprite->brightnessEffect).apply(outR, outG, outB);
+    return true;
 }
 
-static bool environmentColorAt(Sprite *self, float x, float y, uint8_t &r, uint8_t &g, uint8_t &b) {
-    float accR = 0, accG = 0, accB = 0, accAlpha = 0;
-
+static std::vector<Sprite *> colorEnvironment(Sprite *self, float selfRadius) {
+    std::vector<Sprite *> environment;
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *candidate = *it;
-        if (candidate == self || !candidate->visible) continue;
-
-        uint8_t cr, cg, cb;
-        if (!colorAt(candidate, x, y, cr, cg, cb)) continue;
-
-        const float ghostAlpha = 1.0f - std::clamp(candidate->ghostEffect, 0.0f, 100.0f) / 100.0f;
-        if (ghostAlpha <= 0.0f) continue;
-
-        accR = cr * ghostAlpha + accR * (1 - ghostAlpha);
-        accG = cg * ghostAlpha + accG * (1 - ghostAlpha);
-        accB = cb * ghostAlpha + accB * (1 - ghostAlpha);
-        accAlpha = ghostAlpha + accAlpha * (1 - ghostAlpha);
+        if (candidate == self || !candidate->visible || candidate->ghostEffect >= 100.0f) continue;
+        auto mask = getValidCollisionMask(candidate, true);
+        if (!mask) continue;
+#ifdef __XBOX__
+        const float size = getEffectiveSpriteSize(candidate, candidate->costumes[candidate->currentCostume]);
+#else
+        const auto &costume = candidate->costumes[candidate->currentCostume];
+        const float size = !costume.isSVG && !Scratch::bitmapHalfQuality ? candidate->size * 0.5f : candidate->size;
+#endif
+        const float radius = selfRadius + mask->maxRadius * size / 100.0f;
+        const float dx = candidate->xPosition - self->xPosition;
+        const float dy = candidate->yPosition - self->yPosition;
+        // The pixel samplers reject points outside these same circles. Cull
+        // disjoint candidates once per query, keeping their compositing order.
+        if (dx * dx + dy * dy <= radius * radius) environment.push_back(candidate);
     }
+    return environment;
+}
+
+static bool environmentColorAt(const std::vector<Sprite *> &environment, float x, float y,
+                               uint8_t &r, uint8_t &g, uint8_t &b) {
+    float accR = 0, accG = 0, accB = 0, accAlpha = 0;
+    bool penApplied = false;
+    auto compositePen = [&]() {
+        penApplied = true;
+        uint8_t pr, pg, pb, pa;
+        if (!globalRenderer || !globalRenderer->samplePenColor(x, y, pr, pg, pb, pa)) return;
+        const float alpha = pa / 255.0f;
+        // Render-target RGB already contains alpha. Applying it again would
+        // darken translucent pen strokes and stamps a second time.
+        accR = pr + accR * (1 - alpha);
+        accG = pg + accG * (1 - alpha);
+        accB = pb + accB * (1 - alpha);
+        accAlpha = alpha + accAlpha * (1 - alpha);
+    };
+
+    for (Sprite *candidate : environment) {
+        if (!candidate->isStage && !penApplied) compositePen();
+        uint8_t cr, cg, cb;
+        if (colorAt(candidate, x, y, cr, cg, cb)) {
+            const float ghostAlpha = 1.0f - std::clamp(candidate->ghostEffect, 0.0f, 100.0f) / 100.0f;
+            accR = cr * ghostAlpha + accR * (1 - ghostAlpha);
+            accG = cg * ghostAlpha + accG * (1 - ghostAlpha);
+            accB = cb * ghostAlpha + accB * (1 - ghostAlpha);
+            accAlpha = ghostAlpha + accAlpha * (1 - ghostAlpha);
+        }
+        if (candidate->isStage && !penApplied) compositePen();
+    }
+    if (!penApplied) compositePen();
 
     if (accAlpha <= 0.0f) return false;
 
@@ -304,22 +420,29 @@ static bool scratchMaskMatches(uint8_t ar, uint8_t ag, uint8_t ab, uint8_t br, u
 
 bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
+    const auto environment = colorEnvironment(sprite, scaledRadius);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
     const float minY = std::floor(sprite->yPosition - scaledRadius);
     const float maxY = std::ceil(sprite->yPosition + scaledRadius);
 
+    if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
+
     uint8_t er, eg, eb;
     for (float y = minY; y <= maxY; y++) {
         for (float x = minX; x <= maxX; x++) {
             if (!pointInSprite(sprite, x, y)) continue;
-            if (environmentColorAt(sprite, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
+            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
                 return true;
             }
         }
@@ -330,23 +453,30 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
 bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t maskG, uint8_t maskB,
                                      uint8_t targetR, uint8_t targetG, uint8_t targetB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
+    const auto environment = colorEnvironment(sprite, scaledRadius);
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
     const float minY = std::floor(sprite->yPosition - scaledRadius);
     const float maxY = std::ceil(sprite->yPosition + scaledRadius);
 
+    if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
+
     uint8_t sr, sg, sb, er, eg, eb;
     for (float y = minY; y <= maxY; y++) {
         for (float x = minX; x <= maxX; x++) {
             if (!colorAt(sprite, x, y, sr, sg, sb)) continue;
             if (!scratchMaskMatches(sr, sg, sb, maskR, maskG, maskB)) continue;
-            if (environmentColorAt(sprite, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
+            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
                 return true;
             }
         }
@@ -361,7 +491,11 @@ bool collision::spriteOnEdge(Sprite *sprite) {
 
     const float halfWidth = Scratch::projectWidth / 2.0f;
     const float halfHeight = Scratch::projectHeight / 2.0f;
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
 
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
 
@@ -414,7 +548,11 @@ collision::AABB collision::getSpriteBounds(Sprite *sprite) {
     float x = sprite->xPosition;
     float y = sprite->yPosition;
 
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(sprite, sprite->costumes[sprite->currentCostume]);
+#else
     const float spriteSize = !sprite->costumes[sprite->currentCostume].isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+#endif
     float scale = spriteSize * 0.01f;
 
     int rotCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;

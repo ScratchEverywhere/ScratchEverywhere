@@ -1,7 +1,11 @@
+#include <cerrno>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <log.hpp>
-#include <render.hpp>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <os.hpp>
+#include <renderer.hpp>
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
@@ -12,6 +16,18 @@
 #include <orbis/SystemService.h>
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
+#endif
+
+#if defined(__XBOX__)
+#include <direct.h>
+#include <hal/debug.h>
+#include <stdio.h>
+#include <windows.h>
+#ifdef SE_XBOX_TRACE_LOG_HOST
+#include <lwip/inet.h>
+#include <lwip/sockets.h>
+#endif
+#include <xboxkrnl/xboxkrnl.h>
 #endif
 
 /**
@@ -32,29 +48,32 @@ enum BUTTON_TYPES {
 
 // PS4 implementation of logging
 #ifdef __PS4__
-char logBuffer[1024];
 void Log::log(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logWarning(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> Warning: %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logError(std::string message) {
-    snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
-    sceKernelDebugOutText(0, logBuffer);
+    char log[1024];
+    snprintf(log, sizeof(log), "<SE!> Error: %s\n", message.c_str());
+    sceKernelDebugOutText(0, log);
 }
 
 void Log::logCritical(std::string message, bool fatal) {
+    char log[1024];
     if (fatal) {
-        snprintf(logBuffer, 1023, "<SE!> Fatal: %s\n", message.c_str());
+        snprintf(log, sizeof(log), "<SE!> Fatal: %s\n", message.c_str());
     } else {
-        snprintf(logBuffer, 1023, "<SE!> Critical: %s\n", message.c_str());
+        snprintf(log, sizeof(log), "<SE!> Critical: %s\n", message.c_str());
     }
-    sceKernelDebugOutText(0, logBuffer);
+    sceKernelDebugOutText(0, log);
     // If fatal, exit the current SE! process instance:
     if (fatal) {
         sceSystemServiceLoadExec("exit", nullptr);
@@ -62,10 +81,166 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
+    }
 }
 
 void Log::deleteLogFile() {
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
 }
+#elif defined(__XBOX__)
+static CRITICAL_SECTION log_cs;
+static std::string lastLogWarning;
+static std::string lastLogError;
+static bool log_cs_inited = false;
+
+#ifdef SE_XBOX_TRACE_LOG_HOST
+static int trace_socket = -1;
+static sockaddr_in trace_destination = {};
+static unsigned trace_sequence = 0;
+#endif
+
+void Log::initNetworkTrace() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    // The first log predates nxNetInit. Only the networking owner enables UDP.
+    if (!log_cs_inited) return;
+    EnterCriticalSection(&log_cs);
+    if (trace_socket < 0) {
+        const int candidate = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (candidate >= 0) {
+            if (lwip_fcntl(candidate, F_SETFL, O_NONBLOCK) == 0) {
+                trace_destination.sin_family = AF_INET;
+                trace_destination.sin_port = htons(SE_XBOX_TRACE_LOG_PORT);
+                trace_destination.sin_addr.s_addr = inet_addr(SE_XBOX_TRACE_LOG_HOST);
+                trace_socket = candidate;
+            } else {
+                lwip_close(candidate);
+            }
+        }
+    }
+    LeaveCriticalSection(&log_cs);
+#endif
+}
+
+void Log::closeNetworkTrace() {
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    if (!log_cs_inited) return;
+    EnterCriticalSection(&log_cs);
+    if (trace_socket >= 0) lwip_close(trace_socket);
+    trace_socket = -1;
+    LeaveCriticalSection(&log_cs);
+#endif
+}
+static inline void com1_puts(const char *str) {
+    while (*str) {
+        if (*str == '\n') {
+            __asm__ __volatile__("outb %0, %1" : : "a"((uint8_t)'\r'), "Nd"((uint16_t)0x3F8));
+        }
+        __asm__ __volatile__("outb %0, %1" : : "a"((uint8_t)*str), "Nd"((uint16_t)0x3F8));
+        str++;
+    }
+}
+
+static void xbox_append_log(const char *prefix, const std::string &msg) {
+    if (!log_cs_inited) {
+        InitializeCriticalSection(&log_cs);
+        log_cs_inited = true;
+    }
+    EnterCriticalSection(&log_cs);
+    if (prefix && strlen(prefix) > 0) {
+        debugPrint("%s %s\n", prefix, msg.c_str());
+        DbgPrint("%s %s\n", prefix, msg.c_str());
+        com1_puts(prefix);
+        com1_puts(" ");
+        com1_puts(msg.c_str());
+        com1_puts("\n");
+    } else {
+        debugPrint("%s\n", msg.c_str());
+        DbgPrint("%s\n", msg.c_str());
+        com1_puts(msg.c_str());
+        com1_puts("\n");
+    }
+    _mkdir("E:\\ScratchEverywhere");
+    FILE *f = fopen("E:\\ScratchEverywhere\\debug.txt", "a");
+    if (f) {
+        if (prefix && strlen(prefix) > 0) {
+            fprintf(f, "%s %s\n", prefix, msg.c_str());
+        } else {
+            fprintf(f, "%s\n", msg.c_str());
+        }
+        fflush(f);
+        fclose(f);
+    }
+#ifdef SE_XBOX_TRACE_LOG_HOST
+    if (trace_socket >= 0) {
+        // Keep datagrams small and never make logging wait for a receiver.
+        char packet[1024];
+        const int size = snprintf(packet, sizeof(packet), "<SE-UDP seq=%u tick=%lu> %s %s",
+                                  trace_sequence++, GetTickCount(), prefix ? prefix : "", msg.c_str());
+        if (size > 0) {
+            const size_t length = static_cast<size_t>(size) < sizeof(packet) ? static_cast<size_t>(size) : sizeof(packet) - 1;
+            (void)lwip_sendto(trace_socket, packet, length, MSG_DONTWAIT,
+                              reinterpret_cast<const sockaddr *>(&trace_destination), sizeof(trace_destination));
+        }
+    }
+#endif
+    LeaveCriticalSection(&log_cs);
+}
+
+extern "C" void _xbox_assert(char const *const expression, char const *const file_name, char const *const function_name, unsigned long line) {
+    char buf[512];
+    snprintf(buf, sizeof(buf), "ASSERTION FAILED: '%s' in %s (%s:%lu)",
+             expression ? expression : "",
+             function_name ? function_name : "",
+             file_name ? file_name : "",
+             line);
+    xbox_append_log("<ASSERT>", buf);
+    Sleep(200);
+    __asm__("cli\n1:\nhlt\njmp 1b\n");
+}
+
+void Log::log(std::string message) {
+    xbox_append_log("<LOG>", message);
+}
+
+void Log::logWarning(std::string message) {
+    if (lastLogWarning == message) return;
+    lastLogWarning = message;
+    xbox_append_log("<WARN>", message);
+}
+
+void Log::logError(std::string message) {
+    if (lastLogError == message) return;
+    lastLogError = message;
+    xbox_append_log("<ERR>", message);
+}
+
+void Log::logCritical(std::string message, bool fatal) {
+    if (!fatal && lastLogWarning == message) return;
+    if (lastLogError == message) return;
+    if (!fatal) lastLogWarning = message;
+    else lastLogError = message;
+    xbox_append_log(fatal ? "<FATAL>" : "<CRIT>", message);
+}
+
+void Log::writeToFile(std::string message) {
+    xbox_append_log("", message);
+}
+
+void Log::deleteLogFile() {
+    remove("E:\\ScratchEverywhere\\debug.txt");
+}
+
 #else
 static std::string lastLog;
 void Log::log(std::string message) {
@@ -139,16 +314,14 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    if (Render::debugMode) {
-        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
-        std::ofstream logFile;
-        logFile.open(filePath, std::ios::app);
-        if (logFile.is_open()) {
-            logFile << message << std::endl;
-            logFile.close();
-        } else {
-            std::cerr << "Could not open log file: " << filePath << std::endl;
-        }
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
     }
 }
 

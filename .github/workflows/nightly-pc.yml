@@ -14,6 +14,7 @@ on:
       - cmake/renderers/opengl.cmake
       - cmake/windowing/glfw.cmake
       - cmake/rendering/gdi.cmake
+      - cmake/rendering/d3d9.cmake
       - cmake/windowing/win32.cmake
       - cmake/audio/winmm.cmake
       - cmake/audio/libpulse.cmake
@@ -35,6 +36,7 @@ on:
       - source/audio/sdl3/**
       - source/renderers/opengl/**
       - source/renderers/opengl_core/**
+      - source/renderers/d3d9/**
       - source/windowing/glfw/**
       - source/renderers/headless/**
       - source/audio/headless/**
@@ -68,6 +70,12 @@ jobs:
               WINDOWING=headless
               AUDIO_ENGINE=headless
               LIBRARY_MODE=TRUE
+          - name: All
+            artifact: Scratch Everywhere! Linux Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
           - name: SDL2
             artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |
@@ -133,10 +141,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: All
+            artifact: Scratch Everywhere! Windows Nightly
+            build-args: |
+              RENDERER=all
+              WINDOWING=all
+              AUDIO_ENGINE=all
           - name: OpenGL Core
             artifact: Scratch Everywhere! Windows OpenGL Core Nightly
             build-args: |
               RENDERER=opengl_core
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
+          - name: Direct3D 9
+            artifact: Scratch Everywhere! Windows OpenGL Direct3D 9
+            build-args: |
+              RENDERER=d3d9
               WINDOWING=win32
               AUDIO_ENGINE=winmm
           - name: GDI

@@ -1,0 +1,23 @@
+#pragma once
+#ifndef _XBOX_IOSTREAM_H
+#define _XBOX_IOSTREAM_H
+
+#include_next <iostream>
+
+#ifdef __cplusplus
+namespace std {
+    class XboxDummyStream {
+    public:
+        template <typename T>
+        XboxDummyStream& operator<<(const T& val) { return *this; }
+        XboxDummyStream& operator<<(XboxDummyStream& (*)(XboxDummyStream&)) { return *this; }
+    };
+    
+    inline XboxDummyStream cout;
+    inline XboxDummyStream cerr;
+    
+    inline XboxDummyStream& endl(XboxDummyStream& os) { return os; }
+}
+#endif
+
+#endif

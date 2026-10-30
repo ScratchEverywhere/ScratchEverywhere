@@ -6,7 +6,7 @@
 
 class SE_EXPORT WindowNDS : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowNDS(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;
