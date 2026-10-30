@@ -7,6 +7,7 @@
 #include "runtime.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
+#include <mutex>
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
