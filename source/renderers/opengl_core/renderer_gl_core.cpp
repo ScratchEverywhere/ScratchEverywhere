@@ -645,6 +645,9 @@ Renderer_GLCore::Renderer_GLCore() {
     const char *version = (const char *)glGetString(GL_VERSION);
     Log::log(std::string("[GL Core] Renderer: ") + (renderer ? renderer : "?"));
     Log::log(std::string("[GL Core] Version:  ") + (version ? version : "?"));
+#ifdef SE_VULKAN
+    Log::log("[GL Core] Vulkan support enabled (mesa-switch/NVK backend)");
+#endif
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

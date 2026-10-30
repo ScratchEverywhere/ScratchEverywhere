@@ -1,11 +1,116 @@
-FROM devkitpro/devkita64:latest AS main_builder
+# Experimental
+
+FROM devkitpro/devkita64:latest AS mesa_builder
+ENV CATALOG_NON_INTERACTIVE=1
+ARG MESA_SWITCH_REF=main
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git curl ca-certificates python3 python3-pip meson ninja-build \
+        pkg-config flex bison m4 \
+        llvm-19 llvm-19-dev llvm-19-tools libllvm19 \
+        libclang-19-dev libclang1-19 libclang-cpp19 libclang-cpp19-dev \
+        libclang-common-19-dev libclc-19 libclc-19-dev \
+        libllvmspirvlib-19-dev libllvmspirvlib19.1 clang-19 \
+        libelf-dev libzstd-dev zlib1g-dev libexpat1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly --no-modify-path \
+    && /root/.cargo/bin/rustup component add rust-src \
+    && /root/.cargo/bin/rustup target add aarch64-unknown-linux-gnu \
+    && /root/.cargo/bin/cargo install bindgen-cli --version 0.72.1 --locked \
+    && /root/.cargo/bin/cargo install cbindgen
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Tools.git /tmp/spirv-tools \
+    && git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-tools/external/spirv-headers \
+    && cmake -S /tmp/spirv-tools -B /tmp/spirv-tools/build \
+         -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DSPIRV_SKIP_TESTS=ON \
+    && cmake --build /tmp/spirv-tools/build -j"$(nproc)" \
+    && cmake --install /tmp/spirv-tools/build
+
+RUN git clone --depth 1 --branch "${MESA_SWITCH_REF}" https://github.com/danfromtico/mesa-switch.git /tmp/mesa-switch
+
+RUN mkdir -p /opt/mesa-switch-overlay/include /opt/mesa-switch-overlay/lib /opt/mesa-switch-libexec \
+    && cp /tmp/mesa-switch/src/gallium/winsys/nouveau/drm/nouveau.h /opt/mesa-switch-overlay/include/ \
+    && cp /tmp/mesa-switch/src/nouveau/headers/nv_device_info.h /opt/mesa-switch-overlay/include/ \
+    && cp /tmp/mesa-switch/bindgen-switch-wrapper.sh /opt/mesa-switch-libexec/bindgen \
+    && cp /tmp/mesa-switch/rustc-switch-wrapper.sh /opt/mesa-switch-libexec/rustc-switch \
+    && cp /tmp/mesa-switch/bindgen-atomic-shim.h /opt/mesa-switch-libexec/ \
+    && chmod +x /opt/mesa-switch-libexec/bindgen /opt/mesa-switch-libexec/rustc-switch \
+    && printf 'void __mesa_switch_stub_lib(void) {}\n' > /tmp/stub_posix.c \
+    && /opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc -c /tmp/stub_posix.c -o /tmp/stub_posix.o \
+    && for L in dl rt util; do /opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar rcs /opt/mesa-switch-overlay/lib/lib${L}.a /tmp/stub_posix.o; done
+
+ENV PATH="/opt/mesa-switch-libexec:/usr/bin:${PATH}"
+RUN source /dev/null 2>/dev/null; true
+RUN ln -sf /usr/bin/llvm-config-19 /usr/local/bin/llvm-config \
+    && ln -sf /usr/bin/clang-19 /usr/local/bin/clang
+RUN mkdir -p /tmp/mesa-native \
+    && cd /tmp/mesa-native \
+    && meson setup . /tmp/mesa-switch \
+         -Dvulkan-drivers= -Dgallium-drivers= -Dshader-cache=true -Dplatforms= \
+         -Dglx=disabled -Degl=disabled -Dopengl=false -Dgles1=disabled -Dgles2=disabled \
+         -Dtools=[] -Dllvm=enabled -Dmesa-clc=enabled -Dprecomp-compiler=enabled \
+         -Dinstall-mesa-clc=true \
+    && ninja -C /tmp/mesa-native src/compiler/clc/mesa_clc src/compiler/spirv/vtn_bindgen2
+
+RUN cat > /tmp/switch-cross-file.txt <<'EOF'
+[binaries]
+c = '/opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc'
+cpp = '/opt/devkitpro/devkitA64/bin/aarch64-none-elf-g++'
+ar = '/opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc-ar'
+strip = '/opt/devkitpro/devkitA64/bin/aarch64-none-elf-strip'
+pkg-config = '/opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-pkg-config'
+rust = '/opt/mesa-switch-libexec/rustc-switch'
+bindgen = '/opt/mesa-switch-libexec/bindgen'
+
+[built-in options]
+c_args = ['-D__SWITCH__','-DHAVE_TIMESPEC_GET','-I/usr/include','-I/opt/mesa-switch-overlay/include','-I/opt/devkitpro/portlibs/switch/include','-isystem','/opt/devkitpro/libnx/include','-march=armv8-a+crc+crypto','-mtune=cortex-a57','-mtp=soft','-fPIC','-ftls-model=local-exec','-ffunction-sections','-fdata-sections']
+c_link_args = ['-march=armv8-a+crc+crypto','-mtune=cortex-a57','-mtp=soft','-fPIC','-ftls-model=local-exec','-L/opt/mesa-switch-overlay/lib','-L/opt/devkitpro/portlibs/switch/lib','-L/opt/devkitpro/libnx/lib','-lnx']
+cpp_args = ['-D__SWITCH__','-DHAVE_TIMESPEC_GET','-I/usr/include','-I/opt/mesa-switch-overlay/include','-I/opt/devkitpro/portlibs/switch/include','-isystem','/opt/devkitpro/libnx/include','-march=armv8-a+crc+crypto','-mtune=cortex-a57','-mtp=soft','-fPIC','-ftls-model=local-exec','-ffunction-sections','-fdata-sections']
+cpp_link_args = ['-march=armv8-a+crc+crypto','-mtune=cortex-a57','-mtp=soft','-fPIC','-ftls-model=local-exec','-L/opt/mesa-switch-overlay/lib','-L/opt/devkitpro/portlibs/switch/lib','-L/opt/devkitpro/libnx/lib','-lnx']
+
+[host_machine]
+system = 'horizon'
+cpu_family = 'aarch64'
+cpu = 'cortex-a57'
+endian = 'little'
+EOF
+
+RUN sed -i 's/--print\*)/--print*) RUST_TARGET= ;;/' /opt/mesa-switch-libexec/rustc-switch 2>/dev/null || true
+
+ENV PATH="/opt/mesa-switch-libexec:/tmp/mesa-native/src/compiler/clc:/tmp/mesa-native/src/compiler/spirv:/usr/bin:${PATH}"
+ENV MESA_SWITCH_RUSTC=/opt/mesa-switch-libexec/rustc-switch
+ENV MESA_SWITCH_BINDGEN=/opt/mesa-switch-libexec/bindgen
+ENV MESA_SWITCH_RUST_TARGET=aarch64-unknown-linux-gnu
+RUN meson setup /tmp/mesa-switch-build --default-library=static --cross-file /tmp/switch-cross-file.txt \
+      --buildtype=release -Doptimization=1 -Db_lto=false -Db_ndebug=true \
+      -Dvulkan-drivers=nouveau -Dgallium-drivers=nouveau -Dshader-cache=true \
+      -Dgallium-rusticl=false -Dplatforms=switch -Dglx=disabled -Degl=enabled \
+      -Dopengl=true -Dgles1=enabled -Dgles2=enabled -Dllvm=disabled \
+      -Dshared-glapi=disabled -Dshared-llvm=disabled -Dmesa-clc=system \
+      -Dprecomp-compiler=system -Dcpp_rtti=false /tmp/mesa-switch \
+    && ninja -C /tmp/mesa-switch-build
+
+RUN rm -rf /opt/mesa-switch-prefix \
+    && mkdir -p /opt/mesa-switch-prefix/include /opt/mesa-switch-prefix/lib \
+    && cp -r /tmp/mesa-switch/include/* /opt/mesa-switch-prefix/include/ \
+    && cp /tmp/mesa-switch-build/src/egl/libEGL.a /opt/mesa-switch-prefix/lib/ \
+    && cp /tmp/mesa-switch-build/src/mapi/es2api/libGLESv2.a /opt/mesa-switch-prefix/lib/ \
+    && cp /tmp/mesa-switch-build/src/mesa/glapi/shared-glapi/libglapi.a /opt/mesa-switch-prefix/lib/ \
+    && cp /tmp/mesa-switch-build/src/nouveau/vulkan/libvulkan.a /opt/mesa-switch-prefix/lib/ 2>/dev/null || true
+
+FROM devkitpro/devkita64:latest AS se_builder
 ENV CATALOG_NON_INTERACTIVE=1
 ARG RENDERER=all
 WORKDIR /app
-
+COPY --from=mesa_builder /opt/mesa-switch-prefix /opt/mesa-switch-prefix
 COPY . .
-
-RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -DSE_RENDERER=${RENDERER} -B build-nx && cmake --build build-nx -j 2
+RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake \
+          -DSE_RENDERER=${RENDERER} \
+          -DSE_SWITCH_MESA_DIR=/opt/mesa-switch-prefix \
+          -B build-nx \
+    && cmake --build build-nx -j 2
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build-nx/scratch-nx.nro /
+COPY --from=se_builder /app/build-nx/scratch-nx.nro /
