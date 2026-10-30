@@ -30,8 +30,8 @@ SoundDevice_NDS::SoundDevice_NDS() {
             .callback = ndsCallback,
             .format = MM_STREAM_16BIT_STEREO,
             .timer = MM_TIMER2,
-            .manual = false,
-    };
+            .manual = true,
+        };
     mmStreamOpen(&stream);
     return;
 #endif

@@ -1,1 +1,1 @@
-cl_add_dep(audio_interface maxmod)
+target_link_libraries(audio_interface INTERFACE mm9)

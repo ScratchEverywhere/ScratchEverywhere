@@ -287,6 +287,13 @@ if(SE_MENU)
         "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
         "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
     )
+
+    if(NINTENDO_DS)
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/mm_ds.wav"
+        )
+    endif()
+
 else()
     if(NINTENDO_DS)
         file(GLOB_RECURSE GFXFILES
@@ -576,9 +583,7 @@ target_link_libraries(se-interface INTERFACE renderer_interface)
 target_link_libraries(se-interface INTERFACE windowing_interface)
 if(SE_AUDIO)
     target_link_libraries(se-interface INTERFACE audio_interface)
-    if(NOT NINTENDO_DS)
-        cl_add_dep(se-interface stb_vorbis)
-    endif()
+    cl_add_dep(se-interface stb_vorbis)
     cl_add_dep(se-interface dr_libs)
     cl_add_dep(se-interface tsf)
 endif()

@@ -173,17 +173,18 @@ void MainMenu::render() {
     mainMenuControl->input();
 
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+        static bool menuMusicFailed = false;
 #ifdef __NDS__
-        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
+                menuMusicFailed = true;
             } else
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        static bool menuMusicFailed = false;
         if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {

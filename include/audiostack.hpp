@@ -22,8 +22,8 @@
 #endif
 #endif
 #include "nonstd/expected.hpp"
-#include <audio_resampler.hpp>
 #include <atomic>
+#include <audio_resampler.hpp>
 #include <optional>
 #include <string>
 #include <thread.hpp>
@@ -53,7 +53,12 @@ class SE_EXPORT SoundConfig {
 class SE_EXPORT SoundStream {
     friend class Mixer;
 
+#ifndef __NDS__
     std::atomic<unsigned int> activeMixers{0};
+#else
+    volatile unsigned int activeMixers = 0;
+#endif
+
     SoundStream *nextRetired = nullptr;
     unsigned char *buffer = nullptr;
     size_t buffer_size = 0;
@@ -87,8 +92,13 @@ class SE_EXPORT SoundStream {
     SoundConfig config;
     AudioResampler resampler;
 
+#ifndef __NDS__
     std::atomic<bool> paused{false};
     std::atomic<bool> auto_clean{false};
+#else
+    volatile bool paused = false;
+    volatile bool auto_clean = false;
+#endif
 
     /**
      * Set if an error occurs in the constructor.
@@ -116,7 +126,7 @@ class SE_EXPORT Mixer {
 #endif
 
     static SE_Mutex mutex;
-#ifdef ENABLE_AUDIO
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     static tsf *hTsf;
 #endif
     static void *sf2_buffer;
