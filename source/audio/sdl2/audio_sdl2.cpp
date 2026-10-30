@@ -4,9 +4,21 @@
 #include "os.hpp"
 #include <SDL.h>
 #include <log.hpp>
+#include <loudness.hpp>
 #include <vector>
 
 static SDL_AudioDeviceID device;
+
+#ifdef ENABLE_AUDIO
+static constexpr int MIC_RATE = 44100;
+static LoudnessMeter micMeter(MIC_RATE);
+static SDL_AudioDeviceID micDevice = 0;
+static bool micTried = false;
+
+extern "C" void SDLCALL sdl2MicCallback(void *ptr, Uint8 *stream, int len) {
+    micMeter.feed(reinterpret_cast<const int16_t *>(stream), len / sizeof(int16_t));
+}
+#endif
 
 extern "C" void SDLCALL sdl2Callback(void *ptr, Uint8 *stream, int len) {
     Mixer::requestSound((short *)stream, len / 2 / 2);
@@ -38,9 +50,36 @@ SoundDevice_SDL2::SoundDevice_SDL2() {
     error = "Audio is not enabled.";
 }
 
+int SoundDevice_SDL2::getLoudness() {
+#ifdef ENABLE_AUDIO
+    if (!micTried) {
+        micTried = true;
+
+        SDL_AudioSpec want;
+        SDL_zero(want);
+        want.freq = MIC_RATE;
+        want.format = AUDIO_S16SYS;
+        want.channels = 1;
+        want.samples = 2048;
+        want.callback = sdl2MicCallback;
+
+        micDevice = SDL_OpenAudioDevice(NULL, 1, &want, NULL, 0);
+        if (micDevice != 0) SDL_PauseAudioDevice(micDevice, 0);
+        else Log::logWarning("Failed to open SDL2 microphone: " + std::string(SDL_GetError()));
+    }
+    if (micDevice != 0) return micMeter.get();
+#endif
+    return -1;
+}
+
 SoundDevice_SDL2::~SoundDevice_SDL2() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
+    if (micDevice != 0) {
+        SDL_CloseAudioDevice(micDevice);
+        micDevice = 0;
+    }
+    micTried = false;
     SDL_PauseAudioDevice(device, 1);
     SDL_ClearQueuedAudio(device);
     SDL_CloseAudioDevice(device);

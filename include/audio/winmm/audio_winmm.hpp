@@ -7,4 +7,6 @@ class SE_EXPORT SoundDevice_Winmm : public SoundDevice {
   public:
     SoundDevice_Winmm();
     ~SoundDevice_Winmm() override;
+
+    int getLoudness() override;
 };
