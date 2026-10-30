@@ -33,6 +33,7 @@ set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 # Debugging flags
+option(SE_NV2A_PROFILE "Enable NV2A profiling" OFF)
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
@@ -130,6 +131,14 @@ endif()
 
 if(SE_XBOX_FORCE_480P)
     add_compile_definitions(SE_XBOX_FORCE_480P)
+endif()
+
+if(SE_NV2A_PROFILE)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_NV2A_PROFILE
+    )
 endif()
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)

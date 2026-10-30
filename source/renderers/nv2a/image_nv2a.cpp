@@ -15,15 +15,25 @@
 #include <filesystem.hpp>
 #include <limits>
 #include <image.hpp>
+#ifdef SE_NV2A_PROFILE
 #include <log.hpp>
+#endif
 #include <math.hpp>
 #include <os.hpp>
 #include <runtime.hpp>
 #include <stb_image.h>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <translation.hpp>
 #include <unzip.hpp>
 #include <vector>
+
+#ifdef SE_NV2A_PROFILE
+#define NV2A_LOG(...) Log::log(__VA_ARGS__)
+#else
+#define NV2A_LOG(...) ((void)0)
+#endif
 
 #ifdef __XBOX__
 #include <windows.h>
@@ -35,6 +45,23 @@ static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
 static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
 static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
+
+static void logHeapStatus(const std::string &label) {
+#if defined(SE_NV2A_PROFILE) && defined(__XBOX__)
+    MM_STATISTICS stats;
+    memset(&stats, 0, sizeof(stats));
+    stats.Length = sizeof(stats);
+    if (NT_SUCCESS(MmQueryStatistics(&stats))) {
+        size_t freePages = stats.AvailablePages;
+        size_t totalPages = stats.TotalPhysicalPages;
+        NV2A_LOG("Physical Memory Stats [" + label + "]: FreePages=" + std::to_string(freePages) + 
+                 " TotalPages=" + std::to_string(totalPages) + 
+                 " FreeBytes=" + std::to_string(freePages * 4096));
+    }
+#else
+    (void)label;
+#endif
+}
 
 static bool isSvgAssetPath(const std::string &path) {
     if (path.size() < 4) return false;
@@ -615,81 +642,152 @@ static inline void hsv2rgb(float h, float s, float v, float &r, float &g, float 
     }
 }
 
-static void decodeDXT1Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch, int maxW, int maxH) {
-    uint16_t c0 = static_cast<uint16_t>(block[0] | (block[1] << 8));
-    uint16_t c1 = static_cast<uint16_t>(block[2] | (block[3] << 8));
-    int r0, g0, b0, r1, g1, b1;
-    unpackRGB565(c0, r0, g0, b0);
-    unpackRGB565(c1, r1, g1, b1);
-    uint8_t pal[4][4] = {
-        {static_cast<uint8_t>(r0), static_cast<uint8_t>(g0), static_cast<uint8_t>(b0), 255},
-        {static_cast<uint8_t>(r1), static_cast<uint8_t>(g1), static_cast<uint8_t>(b1), 255},
-        {0, 0, 0, 255},
-        {0, 0, 0, 255}
-    };
-    if (c0 > c1) {
-        pal[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
-        pal[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
-        pal[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
-        pal[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
-        pal[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
-        pal[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
-    } else {
-        pal[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
-        pal[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
-        pal[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
-        pal[3][0] = 0; pal[3][1] = 0; pal[3][2] = 0; pal[3][3] = 0;
-    }
-    uint32_t indices = static_cast<uint32_t>(block[4] | (block[5] << 8) | (block[6] << 16) | (block[7] << 24));
-    for (int y = 0; y < 4 && y < maxH; ++y) {
-        uint8_t *row = dstRGBA + y * dstPitch;
-        for (int x = 0; x < 4 && x < maxW; ++x) {
-            int idx = (indices >> ((y * 4 + x) * 2)) & 3;
-            memcpy(row + x * 4, pal[idx], 4);
-        }
-    }
+static void decodeDXT1Block(
+	const uint8_t *block,
+	uint8_t *dstRGBA,
+	int dstPitch,
+	int maxW,
+	int maxH,
+	bool forceFourColor = false
+) {
+	const uint16_t c0 =
+		static_cast<uint16_t>(block[0]) |
+		(static_cast<uint16_t>(block[1]) << 8);
+
+	const uint16_t c1 =
+		static_cast<uint16_t>(block[2]) |
+		(static_cast<uint16_t>(block[3]) << 8);
+
+	int r0, g0, b0;
+	int r1, g1, b1;
+
+	unpackRGB565(c0, r0, g0, b0);
+	unpackRGB565(c1, r1, g1, b1);
+
+	uint8_t palette[4][4] = {
+		{
+			static_cast<uint8_t>(r0),
+			static_cast<uint8_t>(g0),
+			static_cast<uint8_t>(b0),
+			255
+		},
+		{
+			static_cast<uint8_t>(r1),
+			static_cast<uint8_t>(g1),
+			static_cast<uint8_t>(b1),
+			255
+		},
+		{0, 0, 0, 255},
+		{0, 0, 0, 255}
+	};
+
+	const bool fourColor = forceFourColor || (c0 > c1);
+
+	if (fourColor) {
+		palette[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
+		palette[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
+		palette[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
+
+		palette[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
+		palette[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
+		palette[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
+	} else {
+		palette[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
+		palette[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
+		palette[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
+
+		palette[3][0] = 0;
+		palette[3][1] = 0;
+		palette[3][2] = 0;
+		palette[3][3] = 0;
+	}
+
+	const uint32_t indices =
+		static_cast<uint32_t>(block[4]) |
+		(static_cast<uint32_t>(block[5]) << 8) |
+		(static_cast<uint32_t>(block[6]) << 16) |
+		(static_cast<uint32_t>(block[7]) << 24);
+
+	for (int y = 0; y < 4 && y < maxH; ++y) {
+		uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+
+		for (int x = 0; x < 4 && x < maxW; ++x) {
+			const int shift = (y * 4 + x) * 2;
+			const int index = static_cast<int>((indices >> shift) & 3);
+
+			memcpy(row + x * 4, palette[index], 4);
+		}
+	}
 }
 
-static void decodeDXT5Block(const uint8_t *block, uint8_t *dstRGBA, int dstPitch, int maxW, int maxH) {
-    uint8_t a0 = block[0];
-    uint8_t a1 = block[1];
-    uint8_t aPal[8];
-    aPal[0] = a0;
-    aPal[1] = a1;
-    if (a0 > a1) {
-        for (int i = 1; i <= 6; ++i) {
-            aPal[1 + i] = static_cast<uint8_t>(((7 - i) * a0 + i * a1) / 7);
-        }
-    } else {
-        for (int i = 1; i <= 4; ++i) {
-            aPal[1 + i] = static_cast<uint8_t>(((5 - i) * a0 + i * a1) / 5);
-        }
-        aPal[6] = 0;
-        aPal[7] = 255;
-    }
-    uint64_t aIndices = 0;
-    for (int i = 0; i < 6; ++i) {
-        aIndices |= static_cast<uint64_t>(block[2 + i]) << (i * 8);
-    }
+static void decodeDXT5Block(
+	const uint8_t *block,
+	uint8_t *dstRGBA,
+	int dstPitch,
+	int maxW,
+	int maxH
+) {
+	const uint8_t a0 = block[0];
+	const uint8_t a1 = block[1];
 
-    decodeDXT1Block(block + 8, dstRGBA, dstPitch, maxW, maxH);
-    for (int y = 0; y < 4 && y < maxH; ++y) {
-        uint8_t *row = dstRGBA + y * dstPitch;
-        for (int x = 0; x < 4 && x < maxW; ++x) {
-            int shift = (y * 4 + x) * 3;
-            int aIdx = static_cast<int>((aIndices >> shift) & 7);
-            row[x * 4 + 3] = aPal[aIdx];
-        }
-    }
+	uint8_t alphaPalette[8] = {
+		a0, a1, 0, 0, 0, 0, 0, 0
+	};
+
+	if (a0 > a1) {
+		for (int i = 1; i <= 6; ++i) {
+			alphaPalette[1 + i] = static_cast<uint8_t>(
+				((7 - i) * a0 + i * a1) / 7
+			);
+		}
+	} else {
+		for (int i = 1; i <= 4; ++i) {
+			alphaPalette[1 + i] = static_cast<uint8_t>(
+				((5 - i) * a0 + i * a1) / 5
+			);
+		}
+
+		alphaPalette[6] = 0;
+		alphaPalette[7] = 255;
+	}
+
+	uint64_t alphaIndices = 0;
+
+	for (int i = 0; i < 6; ++i) {
+		alphaIndices |=
+			static_cast<uint64_t>(block[2 + i]) << (i * 8);
+	}
+
+	// DXT5 always uses four-color interpolation for its color block.
+	decodeDXT1Block(
+		block + 8,
+		dstRGBA,
+		dstPitch,
+		maxW,
+		maxH,
+		true
+	);
+
+	for (int y = 0; y < 4 && y < maxH; ++y) {
+		uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+
+		for (int x = 0; x < 4 && x < maxW; ++x) {
+			const int shift = (y * 4 + x) * 3;
+			const int alphaIndex =
+				static_cast<int>((alphaIndices >> shift) & 7);
+
+			row[x * 4 + 3] = alphaPalette[alphaIndex];
+		}
+	}
 }
 
-static void purgeEffectOwner(Renderer_NV2A *r, const void *owner); // shared effect cache, defined below
+static void purgeEffectOwner(Renderer_NV2A *r, const void *owner);
 
 void Image_NV2A::releaseEffects() {
     if (!nv2aRenderer && Render::getGlobalRenderer()) {
         nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
     }
-    purgeEffectOwner(nv2aRenderer, this); // shared cache entries baked from this image
+    purgeEffectOwner(nv2aRenderer, this);
     for (int i = 0; i < 2; ++i) {
         if (effectSlots[i].texture) {
             if (nv2aRenderer) {
@@ -704,131 +802,91 @@ void Image_NV2A::releaseEffects() {
         effectSlots[i].mosaic = 0.0f;
         effectSlots[i].lastUsedFrame = 0;
     }
-    effectSource.clear();
-    effectSource.shrink_to_fit();
+    std::vector<uint8_t>().swap(effectSource);
+    decltype(hsvCache)().swap(hsvCache);
+    hsvW = 0;
+    hsvH = 0;
 }
 
-const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
-    if (imgData.pixels) {
-        outPitch = imgData.pitch;
-        return static_cast<const uint8_t *>(imgData.pixels);
-    }
-    if (!effectSource.empty()) {
-        outPitch = imgData.width * 4;
-        return effectSource.data();
-    }
-    if (!cachedAssetPath.empty()) {
-        size_t fileSize = 0;
-        void *fileData = extractProjectAsset(cachedAssetPath, fileSize);
-        if (fileData && fileSize > 0) {
-            int rawW = 0, rawH = 0, channels = 0;
-            unsigned char *pix = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
-            freeProjectAsset(fileData);
-            if (pix && rawW > 0 && rawH > 0) {
-                int curW = rawW, curH = rawH;
-                unsigned char *curPixels = pix;
-                while (curW > imgData.width * 2 && curH > imgData.height * 2) {
-                    int dw, dh;
-                    unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
-                    if (!downscaled) break;
-                    if (curPixels == pix) stbi_image_free(curPixels);
-                    else free(curPixels);
-                    curPixels = downscaled;
-                    curW = dw;
-                    curH = dh;
-                }
-                if (curW == imgData.width && curH == imgData.height) {
-                    effectSource.assign(curPixels, curPixels + curW * curH * 4);
-                } else {
-                    effectSource.resize(static_cast<size_t>(imgData.width) * imgData.height * 4);
-                    for (int y = 0; y < imgData.height; ++y) {
-                        int sy = (y * curH) / imgData.height;
-                        const uint8_t *sRow = curPixels + sy * curW * 4;
-                        uint8_t *dRow = effectSource.data() + y * imgData.width * 4;
-                        for (int x = 0; x < imgData.width; ++x) {
-                            int sx = (x * curW) / imgData.width;
-                            memcpy(dRow + x * 4, sRow + sx * 4, 4);
-                        }
-                    }
-                }
-                if (curPixels == pix) stbi_image_free(curPixels);
-                else free(curPixels);
-            }
-        }
-    }
-    if (effectSource.empty() && texture && texture->data && texture->isDXT) {
-        effectSource.assign(static_cast<size_t>(imgData.width) * imgData.height * 4, 0);
-        int blockRows = (imgData.height + 3) / 4;
-        int blockCols = (imgData.width + 3) / 4;
-        bool isDXT5 = (texture->format == XGU_TEXTURE_FORMAT_DXT5);
-        int blockBytes = isDXT5 ? 16 : 8;
-        for (int by = 0; by < blockRows; ++by) {
-            for (int bx = 0; bx < blockCols; ++bx) {
-                const uint8_t *block = texture->data + (by * texture->pitch) + (bx * blockBytes);
-                uint8_t *dst = effectSource.data() + (by * 4 * imgData.width * 4) + (bx * 4 * 4);
-                int remW = imgData.width - bx * 4;
-                int remH = imgData.height - by * 4;
-                if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
-                else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
-            }
-        }
-    }
-    if (effectSource.empty() && !tiles.empty()) {
-        effectSource.assign(static_cast<size_t>(imgData.width) * imgData.height * 4, 0);
-        for (const auto &tile : tiles) {
-            if (tile.texture && tile.texture->data && tile.texture->isDXT) {
-                int blockRows = (tile.h + 3) / 4;
-                int blockCols = (tile.w + 3) / 4;
-                bool isDXT5 = (tile.texture->format == XGU_TEXTURE_FORMAT_DXT5);
-                int blockBytes = isDXT5 ? 16 : 8;
-                for (int by = 0; by < blockRows; ++by) {
-                    for (int bx = 0; bx < blockCols; ++bx) {
-                        const uint8_t *block = tile.texture->data + (by * tile.texture->pitch) + (bx * blockBytes);
-                        uint8_t *dst = effectSource.data() + ((tile.y + by * 4) * imgData.width * 4) + ((tile.x + bx * 4) * 4);
-                        int remW = tile.w - bx * 4;
-                        int remH = tile.h - by * 4;
-                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
-                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
-                    }
-                }
-            }
-        }
-    }
-    if (!effectSource.empty()) {
-        outPitch = imgData.width * 4;
-        return effectSource.data();
-    }
-    return nullptr;
+static void decodeRawPixel(
+	uint32_t codec,
+	const uint8_t *src,
+	uint8_t *dstRGBA
+) {
+	switch (codec) {
+		case CODEC_RGBA32:
+			dstRGBA[0] = src[0];
+			dstRGBA[1] = src[1];
+			dstRGBA[2] = src[2];
+			dstRGBA[3] = src[3];
+			break;
+
+		case CODEC_RGB565: {
+			const uint16_t p =
+				static_cast<uint16_t>(src[0]) |
+				(static_cast<uint16_t>(src[1]) << 8);
+
+			int r, g, b;
+			unpackRGB565(p, r, g, b);
+
+			dstRGBA[0] = static_cast<uint8_t>(r);
+			dstRGBA[1] = static_cast<uint8_t>(g);
+			dstRGBA[2] = static_cast<uint8_t>(b);
+			dstRGBA[3] = 255;
+			break;
+		}
+
+		case CODEC_ARGB1555: {
+			const uint16_t p =
+				static_cast<uint16_t>(src[0]) |
+				(static_cast<uint16_t>(src[1]) << 8);
+
+			dstRGBA[0] = static_cast<uint8_t>(
+				((p >> 10) & 31) * 255 / 31
+			);
+			dstRGBA[1] = static_cast<uint8_t>(
+				((p >> 5) & 31) * 255 / 31
+			);
+			dstRGBA[2] = static_cast<uint8_t>(
+				(p & 31) * 255 / 31
+			);
+			dstRGBA[3] = (p & 0x8000) ? 255 : 0;
+			break;
+		}
+
+		case CODEC_ARGB4444: {
+			const uint16_t p =
+				static_cast<uint16_t>(src[0]) |
+				(static_cast<uint16_t>(src[1]) << 8);
+
+			dstRGBA[0] = static_cast<uint8_t>(((p >> 8) & 15) * 17);
+			dstRGBA[1] = static_cast<uint8_t>(((p >> 4) & 15) * 17);
+			dstRGBA[2] = static_cast<uint8_t>((p & 15) * 17);
+			dstRGBA[3] = static_cast<uint8_t>(((p >> 12) & 15) * 17);
+			break;
+		}
+
+		default:
+			memset(dstRGBA, 0, 4);
+			break;
+	}
 }
 
-#ifndef NV2A_PROFILE
-#define NV2A_PROFILE 0 // set to 1 to log per-second effect-cache stats (see Renderer_NV2A for frame timings)
-#endif
-#include <unordered_map>
-#include <utility>
 
 // ---------------------------------------------------------------------------
 // Shared, write-once effect-texture cache (color + pixelate)
-//
-// Problem this solves: with hundreds of clones that each have their own, constantly changing color value, a
-// per-sprite bake means hundreds of texture builds + uploads per frame. Instead:
-//  * Baked textures are shared by every clone of a costume: the key is (costume image, hue step, grid size).
-//  * The hue is quantised to EFFECT_HUE_STEPS (3.75 degree) steps, so N clones with N different colors need at most
-//    96 distinct textures per costume/size - after the first sweep around the hue circle, steady state is 0 bakes.
-//  * Bake resolution follows the on-screen size (small clones bake 16-32px textures, not 128px).
-//  * Entries are write-once: nothing in the cache is ever rewritten, so the GPU can never read a texture being
-//    modified. Eviction retires the texture (freed after the GPU is idle).
-//  * A byte budget + idle age-out keeps memory bounded on a 64MB console.
 // ---------------------------------------------------------------------------
-static constexpr int EFFECT_MAX_DIM = 128;
-static constexpr int PIXELATE_MESH_MAX_CELLS = 256; // grids this small are cheaper as a mesh than as a texture refill
+// Release-safe resolution ceiling: this 128px tier is the previously stable path.
+// Keep pixelation at the same cap; the higher 256px color bake is deferred.
+static constexpr int COLOR_EFFECT_MAX_DIM = 128;
+static constexpr int PIXELATE_MAX_DIM = 128;
+static constexpr int PIXELATE_MESH_MAX_CELLS = 256;
 
 static inline uint32_t div255(uint32_t x) {
     x += 128;
     return (x + (x >> 8)) >> 8;
 }
 
-// h: 0..1535 (6 sextants x 256), s/v: 0..255. Same clamps as the Scratch shader (v < 0.055, s < 0.09).
 static inline void rgb2hsvEffect(int r, int g, int b, uint16_t &h, uint8_t &s, uint8_t &v) {
     const int mx = std::max({r, g, b});
     const int mn = std::min({r, g, b});
@@ -863,7 +921,6 @@ static inline void rgb2hsvEffect(int r, int g, int b, uint16_t &h, uint8_t &s, u
     v = static_cast<uint8_t>(val);
 }
 
-// Returns bytes in memory order R,G,B (little-endian: r | g<<8 | b<<16), alpha left to the caller.
 static inline uint32_t hsv2rgbEffect(uint32_t h, uint32_t s, uint32_t v) {
     if (s == 0) return v | (v << 8) | (v << 16);
     const uint32_t seg = h >> 8;
@@ -883,7 +940,6 @@ static inline uint32_t hsv2rgbEffect(uint32_t h, uint32_t s, uint32_t v) {
     return r | (g << 8) | (b << 16);
 }
 
-// Same grid-size rule as the pixelate mesh path. Returns false when the block is <= 1 texel (no visible pixelation).
 static bool computePixelateDims(const ImageRenderParams &params, int srcW, int srcH, float imgScale, int &effW, int &effH) {
     const float texelScale = params.scale / (imgScale > 0.0f ? imgScale : 1.0f);
     const float scaleFactor = std::max(1.0f, texelScale);
@@ -892,18 +948,17 @@ static bool computePixelateDims(const ImageRenderParams &params, int srcW, int s
 
     effW = std::min(std::max(2, static_cast<int>(std::round(srcW / amount))), srcW);
     effH = std::min(std::max(2, static_cast<int>(std::round(srcH / amount))), srcH);
-    if (effW > EFFECT_MAX_DIM || effH > EFFECT_MAX_DIM) {
-        const float g = std::min(static_cast<float>(EFFECT_MAX_DIM) / effW, static_cast<float>(EFFECT_MAX_DIM) / effH);
+    if (effW > PIXELATE_MAX_DIM || effH > PIXELATE_MAX_DIM) {
+        const float g = std::min(static_cast<float>(PIXELATE_MAX_DIM) / effW, static_cast<float>(PIXELATE_MAX_DIM) / effH);
         effW = std::max(2, static_cast<int>(std::round(effW * g)));
         effH = std::max(2, static_cast<int>(std::round(effH * g)));
     }
     return true;
 }
 
-
-static constexpr int EFFECT_HUE_STEPS = 96;            // 1536 / 96 = 16 hue units (3.75 deg) per step
+static constexpr int EFFECT_HUE_STEPS = 96;
 static constexpr uint16_t EFFECT_NO_HUE = 0xFFFF;
-static constexpr uint32_t EFFECT_IDLE_FRAMES = 150;    // drop cached bakes unused for this many frames
+static constexpr uint32_t EFFECT_IDLE_FRAMES = 150;
 static constexpr uint32_t EFFECT_SWEEP_INTERVAL = 120;
 
 struct EffectKey {
@@ -934,7 +989,7 @@ static size_t s_effectCacheBytes = 0;
 static size_t s_effectPeakBytes = 0;
 static uint32_t s_effectCreated = 0, s_effectEvicted = 0;
 static uint32_t s_lastEffectSweep = 0;
-static size_t s_effectBudgetOverride = 0; // 0 = default budget
+static size_t s_effectBudgetOverride = 0;
 
 Image_NV2A::EffectCacheStats Image_NV2A::getEffectCacheStats() {
     return {s_effectCacheBytes, s_effectPeakBytes, s_effectCache.size(), s_effectCreated, s_effectEvicted};
@@ -945,20 +1000,58 @@ static size_t effectCacheBudget() {
     return OS::isEnhancedPlatform() ? (12u * 1024u * 1024u) : (4u * 1024u * 1024u);
 }
 
+enum class EffectEvictionReason {
+    Idle,
+    Budget,
+    OwnerReleased,
+    AllocationRetry,
+    Count
+};
+
+static uint32_t s_effectEvictions[
+    static_cast<size_t>(EffectEvictionReason::Count)
+] = {};
+
 static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator
-evictEffectEntry(Renderer_NV2A *r, std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator it) {
+evictEffectEntry(Renderer_NV2A *r, std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator it, EffectEvictionReason reason) {
     NV2ATexture *t = it->second.tex;
     if (t) {
         s_effectCacheBytes -= std::min(s_effectCacheBytes, t->allocationSize);
-        if (r) r->destroyTexture(t); // deferred free
+        if (r) r->destroyTexture(t);
     }
     ++s_effectEvicted;
+    ++s_effectEvictions[static_cast<size_t>(reason)];
     return s_effectCache.erase(it);
 }
 
-// Idle age-out (periodic) + LRU eviction when over budget.
-//  - Entries used this frame (and the one just baked, `keep`) are evicted last: evicting something we are about to
-//    draw would just re-bake it next call (thrash). A frame may overshoot the budget, but never beyond 2x.
+static bool reclaimEffectCacheMemory(Renderer_NV2A *r, size_t requiredBytes) {
+    if (!r) return false;
+
+    const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
+
+    while (getAvailablePhysicalMemory() < requiredBytes) {
+        auto oldest = s_effectCache.end();
+        uint32_t oldestAge = 5;
+
+        for (auto it = s_effectCache.begin(); it != s_effectCache.end(); ++it) {
+            const uint32_t age = currentFrame - it->second.lastUsed;
+
+            if (age > oldestAge) {
+                oldest = it;
+                oldestAge = age;
+            }
+        }
+
+        if (oldest == s_effectCache.end()) {
+            break;
+        }
+
+        evictEffectEntry(r, oldest, EffectEvictionReason::Budget);
+    }
+
+    return getAvailablePhysicalMemory() >= requiredBytes;
+}
+
 static void trimEffectCache(Renderer_NV2A *r, uint32_t now, const EffectKey *keep) {
     const size_t budget = effectCacheBudget();
     const bool periodic = (now - s_lastEffectSweep) >= EFFECT_SWEEP_INTERVAL;
@@ -966,7 +1059,7 @@ static void trimEffectCache(Renderer_NV2A *r, uint32_t now, const EffectKey *kee
     if (periodic) s_lastEffectSweep = now;
 
     for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
-        if (now - it->second.lastUsed > EFFECT_IDLE_FRAMES && !(keep && it->first == *keep)) it = evictEffectEntry(r, it);
+        if (now - it->second.lastUsed > EFFECT_IDLE_FRAMES && !(keep && it->first == *keep)) it = evictEffectEntry(r, it, EffectEvictionReason::Idle);
         else ++it;
     }
     if (s_effectCacheBytes <= budget) return;
@@ -976,37 +1069,347 @@ static void trimEffectCache(Renderer_NV2A *r, uint32_t now, const EffectKey *kee
     for (const auto &kv : s_effectCache) order.emplace_back(kv.second.lastUsed, kv.first);
     std::sort(order.begin(), order.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 
-    const size_t target = budget - budget / 8; // trim to ~87% so we don't re-trim on every insert
-    // pass 1: not used this frame
+    const size_t target = budget - budget / 8;
     for (const auto &o : order) {
         if (s_effectCacheBytes <= target) break;
         if (o.first == now || (keep && o.second == *keep)) continue;
         auto it = s_effectCache.find(o.second);
-        if (it != s_effectCache.end()) evictEffectEntry(r, it);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it, EffectEvictionReason::Budget);
     }
-    // pass 2: hard cap at 2x budget, oldest first (never the entry just baked)
     for (const auto &o : order) {
         if (s_effectCacheBytes <= budget * 2) break;
         if (keep && o.second == *keep) continue;
         auto it = s_effectCache.find(o.second);
-        if (it != s_effectCache.end()) evictEffectEntry(r, it);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it, EffectEvictionReason::Budget);
     }
 }
 
 static void purgeEffectOwner(Renderer_NV2A *r, const void *owner) {
     for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
-        if (it->first.owner == owner) it = evictEffectEntry(r, it);
+        if (it->first.owner == owner) it = evictEffectEntry(r, it, EffectEvictionReason::OwnerReleased);
         else ++it;
     }
 }
 
-#if NV2A_PROFILE
+#ifdef SE_NV2A_PROFILE
 static uint32_t s_fxHits = 0, s_fxBakes = 0, s_fxEvictBytes = 0;
 static uint64_t s_fxBakeCycles = 0;
 static inline uint64_t fxTsc() { return __builtin_ia32_rdtsc(); }
+
+static std::string formatNumber(double value) {
+    const int whole = static_cast<int>(value);
+    int milli = static_cast<int>(
+        std::abs(value - whole) * 1000.0 + 0.5);
+
+    int adjustedWhole = whole;
+    if (milli >= 1000) {
+        ++adjustedWhole;
+        milli -= 1000;
+    }
+
+    std::string fraction = std::to_string(milli);
+    while (fraction.size() < 3) {
+        fraction = "0" + fraction;
+    }
+
+    return std::to_string(adjustedWhole) + "." + fraction;
+}
+
+auto formatMs = [](double timeMs) -> std::string {
+	int ms = static_cast<int>(timeMs);
+	int us = static_cast<int>((timeMs - ms) * 1000.0);
+	std::string usStr = std::to_string(std::abs(us));
+	if (usStr.length() == 1) usStr = "00" + usStr;
+	else if (usStr.length() == 2) usStr = "0" + usStr;
+	return std::to_string(ms) + "." + usStr + " ms";
+};
+
+
+static uint32_t s_fxBakeAttempts = 0;
+static uint32_t s_fxBakeFailures = 0;
+
+struct EffectBakeProfile {
+    uint64_t start;
+    bool success = false;
+
+    EffectBakeProfile() : start(fxTsc()) {}
+
+    ~EffectBakeProfile() {
+        ++s_fxBakeAttempts;
+        s_fxBakeCycles += fxTsc() - start;
+        if (success) {
+            ++s_fxBakes;
+        } else {
+            ++s_fxBakeFailures;
+        }
+    }
+};
 #endif
 
-static uint32_t s_effectLinear[EFFECT_MAX_DIM * EFFECT_MAX_DIM];
+const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
+    NV2A_LOG("FX_DEBUG: [A] getEffectSource start - width=" + std::to_string(imgData.width) + 
+             " height=" + std::to_string(imgData.height) + " hasPixels=" + (imgData.pixels ? "yes" : "no"));
+    logHeapStatus("getEffectSource_Start");
+
+    if (imgData.pixels) {
+        outPitch = imgData.pitch;
+        return static_cast<const uint8_t *>(imgData.pixels);
+    }
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+
+    const size_t rgbaBytes = static_cast<size_t>(imgData.width) * imgData.height * 4;
+
+    // 1. Try reconstructing from the existing non-tiled texture first
+    if (texture && texture->data) {
+        uint32_t codec = 0;
+
+        if (!texture->isDXT) {
+            if (texture->format == XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED)
+                codec = CODEC_RGBA32;
+            else if (texture->format == XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED)
+                codec = CODEC_RGB565;
+            else if (texture->format == XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED)
+                codec = CODEC_ARGB1555;
+            else if (texture->format == XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED)
+                codec = CODEC_ARGB4444;
+        }
+
+        if (texture->isDXT || codec != 0) {
+            const size_t scratchBytes = (!texture->isDXT && codec != 0) ? texture->allocationSize : 0;
+            const size_t totalNeeded = rgbaBytes + scratchBytes + (2 * 1024 * 1024);
+
+            if (getAvailablePhysicalMemory() < totalNeeded) {
+                reclaimEffectCacheMemory(nv2aRenderer, totalNeeded);
+            }
+
+            const size_t freeBytes = getAvailablePhysicalMemory();
+            constexpr size_t reserveBytes = 2 * 1024 * 1024;
+
+            if (rgbaBytes > freeBytes ||
+                scratchBytes > freeBytes - rgbaBytes ||
+                reserveBytes > freeBytes - rgbaBytes - scratchBytes) {
+                NV2A_LOG("FX_DEBUG: Skipping texture reconstruction: insufficient memory required=" + 
+                         std::to_string(rgbaBytes + scratchBytes) + " free=" + std::to_string(freeBytes));
+                return nullptr;
+            }
+
+            NV2A_LOG("FX_DEBUG: [C] Reconstructing from non-tiled texture - isDXT=" + std::string(texture->isDXT ? "yes" : "no") + 
+                     " allocSize=" + std::to_string(texture->allocationSize));
+            logHeapStatus("getEffectSource_ReconstructTexture");
+
+            NV2A_LOG("FX_DEBUG: [C1] Before RGBA allocation - bytes=" + std::to_string(rgbaBytes));
+            logHeapStatus("BeforeRGBAAllocation");
+
+            effectSource.assign(rgbaBytes, 0);
+
+            NV2A_LOG("FX_DEBUG: [C2] After RGBA allocation");
+            logHeapStatus("AfterRGBAAllocation");
+
+            if (texture->isDXT) {
+                int blockRows = (imgData.height + 3) / 4;
+                int blockCols = (imgData.width + 3) / 4;
+                bool isDXT5 = (texture->format == XGU_TEXTURE_FORMAT_DXT5);
+                int blockBytes = isDXT5 ? 16 : 8;
+                for (int by = 0; by < blockRows; ++by) {
+                    for (int bx = 0; bx < blockCols; ++bx) {
+                        const uint8_t *block = texture->data + (by * texture->pitch) + (bx * blockBytes);
+                        uint8_t *dst = effectSource.data() + (by * 4 * imgData.width * 4) + (bx * 4 * 4);
+                        int remW = imgData.width - bx * 4;
+                        int remH = imgData.height - by * 4;
+                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+                    }
+                }
+            } else {
+                size_t bpp = rawCodecBytes(codec);
+                NV2A_LOG("FX_DEBUG: [C3] Before unswizzle allocation - bytes=" + std::to_string(texture->allocationSize));
+
+                std::vector<uint8_t> unswizzled(texture->allocationSize);
+
+                NV2A_LOG("FX_DEBUG: [C4] Before unswizzle_box");
+                unswizzle_box(texture->data, texture->texWidth, texture->texHeight, 1, unswizzled.data(), texture->pitch, 0, texture->bytesPerPixel);
+                NV2A_LOG("FX_DEBUG: [C5] After unswizzle_box");
+
+                for (int y = 0; y < imgData.height; ++y) {
+                    for (int x = 0; x < imgData.width; ++x) {
+                        const uint8_t *srcPix = unswizzled.data() + (y * texture->pitch) + (x * bpp);
+                        uint8_t *dstPix = effectSource.data() + (y * imgData.width * 4) + (x * 4);
+                        decodeRawPixel(codec, srcPix, dstPix);
+                    }
+                }
+            }
+        } else {
+            NV2A_LOG("FX_DEBUG: Unsupported non-tiled texture format; trying tiles or asset fallback");
+        }
+    }
+
+    // 2. Try reconstructing from tiled textures next
+    if (effectSource.empty() && !tiles.empty()) {
+        size_t maxTileScratch = 0;
+        for (const auto &tile : tiles) {
+            if (tile.texture && !tile.texture->isDXT && tile.texture->allocationSize > maxTileScratch) {
+                maxTileScratch = tile.texture->allocationSize;
+            }
+        }
+
+        const size_t totalNeededTiled = rgbaBytes + maxTileScratch + (2 * 1024 * 1024);
+        if (getAvailablePhysicalMemory() < totalNeededTiled) {
+            reclaimEffectCacheMemory(nv2aRenderer, totalNeededTiled);
+        }
+
+        const size_t freeBytes = getAvailablePhysicalMemory();
+        constexpr size_t reserveBytes = 2 * 1024 * 1024;
+
+        if (rgbaBytes > freeBytes ||
+            maxTileScratch > freeBytes - rgbaBytes ||
+            reserveBytes > freeBytes - rgbaBytes - maxTileScratch) {
+            NV2A_LOG("FX_DEBUG: Skipping tiled reconstruction: insufficient memory required=" + 
+                     std::to_string(rgbaBytes + maxTileScratch) + " free=" + std::to_string(freeBytes));
+            return nullptr;
+        }
+
+        NV2A_LOG("FX_DEBUG: [C] Reconstructing from tiled textures - tileCount=" + std::to_string(tiles.size()));
+        logHeapStatus("getEffectSource_ReconstructTiles");
+
+        NV2A_LOG("FX_DEBUG: [C1] Before RGBA allocation - bytes=" + std::to_string(rgbaBytes));
+        logHeapStatus("BeforeRGBAAllocation");
+
+        effectSource.assign(rgbaBytes, 0);
+
+        NV2A_LOG("FX_DEBUG: [C2] After RGBA allocation");
+        logHeapStatus("AfterRGBAAllocation");
+
+        bool allTilesDecoded = true;
+        for (const auto &tile : tiles) {
+            if (!tile.texture || !tile.texture->data) {
+                allTilesDecoded = false;
+                break;
+            }
+            if (tile.texture->isDXT) {
+                int blockRows = (tile.h + 3) / 4;
+                int blockCols = (tile.w + 3) / 4;
+                bool isDXT5 = (tile.texture->format == XGU_TEXTURE_FORMAT_DXT5);
+                int blockBytes = isDXT5 ? 16 : 8;
+                for (int by = 0; by < blockRows; ++by) {
+                    for (int bx = 0; bx < blockCols; ++bx) {
+                        const uint8_t *block = tile.texture->data + (by * tile.texture->pitch) + (bx * blockBytes);
+                        uint8_t *dst = effectSource.data() + ((tile.y + by * 4) * imgData.width * 4) + ((tile.x + bx * 4) * 4);
+                        int remW = tile.w - bx * 4;
+                        int remH = tile.h - by * 4;
+                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+                    }
+                }
+            } else {
+                uint32_t codec = 0;
+                if (tile.texture->format == XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED) codec = CODEC_RGBA32;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED) codec = CODEC_RGB565;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED) codec = CODEC_ARGB1555;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED) codec = CODEC_ARGB4444;
+
+                if (codec != 0) {
+                    size_t bpp = rawCodecBytes(codec);
+                    std::vector<uint8_t> unswizzled(tile.texture->allocationSize);
+                    unswizzle_box(tile.texture->data, tile.texture->texWidth, tile.texture->texHeight, 1, unswizzled.data(), tile.texture->pitch, 0, tile.texture->bytesPerPixel);
+                    for (int y = 0; y < tile.h; ++y) {
+                        for (int x = 0; x < tile.w; ++x) {
+                            const uint8_t *srcPix = unswizzled.data() + (y * tile.texture->pitch) + (x * bpp);
+                            uint8_t *dstPix = effectSource.data() + ((tile.y + y) * imgData.width * 4) + ((tile.x + x) * 4);
+                            decodeRawPixel(codec, srcPix, dstPix);
+                        }
+                    }
+                } else {
+                    allTilesDecoded = false;
+                    break;
+                }
+            }
+        }
+        if (!allTilesDecoded) {
+            std::vector<uint8_t>().swap(effectSource);
+        }
+    }
+
+    // 3. Only fall back to reloading the original project asset if texture/tile reconstruction is unavailable or failed
+    if (effectSource.empty() && !cachedAssetPath.empty()) {
+        NV2A_LOG("FX_DEBUG: [B] Falling back to original asset load: " + cachedAssetPath);
+        logHeapStatus("getEffectSource_BeforeAssetDecode");
+
+        size_t fileSize = 0;
+        void *fileData = extractProjectAsset(cachedAssetPath, fileSize);
+        if (fileData && fileSize > 0) {
+            int rawW = 0, rawH = 0, channels = 0;
+            unsigned char *pix = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
+            freeProjectAsset(fileData);
+            if (!pix || rawW <= 0 || rawH <= 0) {
+                logHeapStatus("Image_Decode_OOM_Failure");
+                const char *failReason = stbi_failure_reason();
+                NV2A_LOG("Physical Memory Stats - Image decode failed: asset=" + cachedAssetPath + 
+                         " fileSize=" + std::to_string(fileSize) + 
+                         " stbi_reason=" + (failReason ? failReason : "unknown"));
+            }
+            if (pix && rawW > 0 && rawH > 0) {
+                int curW = rawW, curH = rawH;
+                unsigned char *curPixels = pix;
+                while (curW > imgData.width * 2 && curH > imgData.height * 2) {
+                    int dw, dh;
+                    unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+                    if (!downscaled) break;
+                    if (curPixels == pix) stbi_image_free(curPixels);
+                    else free(curPixels);
+                    curPixels = downscaled;
+                    curW = dw;
+                    curH = dh;
+                }
+                if (curW == imgData.width && curH == imgData.height) {
+                    effectSource.assign(curPixels, curPixels + curW * curH * 4);
+                } else {
+                    effectSource.resize(static_cast<size_t>(imgData.width) * imgData.height * 4);
+                    for (int y = 0; y < imgData.height; ++y) {
+                        int sy = (y * curH) / imgData.height;
+                        const uint8_t *sRow = curPixels + sy * curW * 4;
+                        uint8_t *dRow = effectSource.data() + y * imgData.width * 4;
+                        for (int x = 0; x < imgData.width; ++x) {
+                            int sx = (x * curW) / imgData.width;
+                            memcpy(dRow + x * 4, sRow + sx * 4, 4);
+                        }
+                    }
+                }
+                if (curPixels == pix) stbi_image_free(curPixels);
+                else free(curPixels);
+            }
+        }
+    }
+
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+    return nullptr;
+}
+
+
+static uint32_t s_effectLinear[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
+static uint16_t s_effectPacked16[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
+
+static uint16_t getColorEffectStep(float colorEffect) {
+    if (!std::isfinite(colorEffect)) {
+        return EFFECT_NO_HUE;
+    }
+
+    const float cs = colorEffect / 200.0f;
+    const float frac = cs - std::floor(cs);
+
+    const int step = std::clamp(
+        static_cast<int>(std::lround(frac * EFFECT_HUE_STEPS)),
+        0,
+        EFFECT_HUE_STEPS - 1);
+
+    // A step of 0 wraps back to the base hue and requires no separate effect texture.
+    return step == 0 ? EFFECT_NO_HUE : static_cast<uint16_t>(step);
+}
 
 NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     if (imgData.width <= 0 || imgData.height <= 0) return nullptr;
@@ -1017,9 +1420,11 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
 
     const int srcW = imgData.width;
     const int srcH = imgData.height;
-    const bool hasColor = (std::abs(params.colorEffect) > 0.001f);
 
-    // ---- resolution of the baked texture ----
+    const uint16_t step = getColorEffectStep(params.colorEffect);
+    const bool hasColor = (step != EFFECT_NO_HUE);
+    const uint32_t shift = hasColor ? static_cast<uint32_t>(step) * (1536u / EFFECT_HUE_STEPS) : 0;
+
     int effW = 0, effH = 0;
     int pixW = 0, pixH = 0;
     const bool hasPixelGrid = (std::abs(params.pixelateEffect) > 0.001f) &&
@@ -1028,13 +1433,12 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         effW = pixW;
         effH = pixH;
     } else if (!hasColor) {
-        return texture; // nothing to bake
+        return texture;
     } else {
-        // Color only: bake no more texels than the sprite will cover on screen (pow2 tiers 16..128).
         const float isc = (imgData.scale > 0.0f) ? imgData.scale : 1.0f;
         const float dispMax = std::max((srcW / isc) * params.scale, (srcH / isc) * params.scale);
         int tier = toPowerOfTwo(std::max(1, static_cast<int>(std::ceil(dispMax))));
-        tier = std::clamp(tier, 16, EFFECT_MAX_DIM);
+        tier = std::clamp(tier, 16, COLOR_EFFECT_MAX_DIM);
         const int srcMax = std::max(srcW, srcH);
         if (tier >= srcMax) {
             effW = srcW;
@@ -1046,59 +1450,85 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         }
     }
 
-    // ---- quantised hue ----
-    uint16_t step = EFFECT_NO_HUE;
-    uint32_t shift = 0;
-    if (hasColor) {
-        const float cs = params.colorEffect / 200.0f;
-        const float frac = cs - std::floor(cs);
-        const int st = static_cast<int>(std::lround(frac * EFFECT_HUE_STEPS)) % EFFECT_HUE_STEPS;
-        step = static_cast<uint16_t>(st);
-        shift = static_cast<uint32_t>(st) * (1536u / EFFECT_HUE_STEPS);
-    }
-
     const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
-#if NV2A_PROFILE
+#ifdef SE_NV2A_PROFILE
     {
         static uint32_t s_lastLog = 0;
         if (currentFrame - s_lastLog >= 120) {
             const double frames = static_cast<double>(currentFrame - s_lastLog);
-            Log::log("NV2A fx: hits/f=" + std::to_string(s_fxHits / frames) + " bakes/f=" + std::to_string(s_fxBakes / frames) +
-                     " bakeMs/f=" + std::to_string(s_fxBakeCycles / 733333.0 / frames) +
-                     " cacheKB=" + std::to_string(s_effectCacheBytes / 1024) + " entries=" + std::to_string(s_effectCache.size()));
-            s_fxHits = s_fxBakes = 0;
+            NV2A_LOG("NV2A fx: hits/f=" + formatNumber(s_fxHits / frames) +
+                     " bakes/f=" + formatNumber(s_fxBakes / frames) +
+                     " attempts/f=" + formatNumber(s_fxBakeAttempts / frames) +
+                     " failures/f=" + formatNumber(s_fxBakeFailures / frames) +
+                     " bakeMs/f=" + formatMs(s_fxBakeCycles / 733333.0 / frames) +
+                     " cacheKB=" + std::to_string(s_effectCacheBytes / 1024) +
+                     " entries=" + std::to_string(s_effectCache.size()));
+            s_fxHits = s_fxBakes = s_fxBakeAttempts = s_fxBakeFailures = 0;
             s_fxBakeCycles = 0;
             s_lastLog = currentFrame;
         }
     }
 #endif
-    effectSlots[0].lastUsedFrame = currentFrame; // "this image used an effect" stamp for idle release in render()
+    effectSlots[0].lastUsedFrame = currentFrame;
 
     const EffectKey key{this, step, static_cast<uint16_t>(effW), static_cast<uint16_t>(effH)};
     auto found = s_effectCache.find(key);
     if (found != s_effectCache.end()) {
         found->second.lastUsed = currentFrame;
-#if NV2A_PROFILE
+#ifdef SE_NV2A_PROFILE
         ++s_fxHits;
 #endif
         return found->second.tex;
     }
 
-    // ---- miss: bake once, share with every clone ----
-#if NV2A_PROFILE
-    const uint64_t t0 = fxTsc();
+    // Low-memory guard with cache reclamation and rate-limited summary logging
+    constexpr size_t kFxMinFreeBytes = 2 * 1024 * 1024;
+    if (getAvailablePhysicalMemory() < kFxMinFreeBytes) {
+        reclaimEffectCacheMemory(nv2aRenderer, kFxMinFreeBytes);
+    }
+
+    if (getAvailablePhysicalMemory() < kFxMinFreeBytes) {
+        static uint32_t s_skipCount = 0;
+        static uint32_t s_lastSkipLogFrame = 0;
+        ++s_skipCount;
+
+        if (currentFrame - s_lastSkipLogFrame >= 120) {
+            NV2A_LOG("FX_DEBUG: Low-memory effect skips=" + std::to_string(s_skipCount) + 
+                     " FreeBytes=" + std::to_string(getAvailablePhysicalMemory()));
+            s_skipCount = 0;
+            s_lastSkipLogFrame = currentFrame;
+        }
+        return texture;
+    }
+
+#ifdef SE_NV2A_PROFILE
+    EffectBakeProfile bakeProfile;
 #endif
+
+    const size_t hsvCount = static_cast<size_t>(effW) * effH;
+    const bool needSource = !hasColor ||
+                            hsvW != effW ||
+                            hsvH != effH ||
+                            hsvCache.size() != hsvCount;
+
     int srcPitch = 0;
-    const uint8_t *src = getEffectSource(srcPitch);
-    if (!src) return texture;
+    const uint8_t *src = nullptr;
+
+    if (needSource) {
+        src = getEffectSource(srcPitch);
+        if (!src) return texture;
+    }
+
+    const bool ownsReconstructedSource = !effectSource.empty() && src == effectSource.data();
 
     const int capW = toPowerOfTwo(effW);
     const int capH = toPowerOfTwo(effH);
-    NV2ATexture *tex = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
-    // A color-effect sweep can cycle through more hue variants
-    // than the bounded cache can retain. createTexture() itself can reclaim retired GPU
-    // allocations, but it cannot evict live effect-cache entries. On allocation failure,
-    // evict the least-recently-used baked variant and retry before abandoning the effect.
+    const bool compactColor = hasColor && !OS::isEnhancedPlatform();
+    const uint32_t effectFormat = compactColor ? XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED
+                                               : XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+
+    NV2ATexture *tex = nv2aRenderer->createTexture(capW, capH, effectFormat, true);
+
     while (!tex && !s_effectCache.empty()) {
         auto oldest = s_effectCache.end();
         uint32_t oldestAge = 0;
@@ -1110,12 +1540,19 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
             }
         }
         if (oldest == s_effectCache.end()) break;
-        evictEffectEntry(nv2aRenderer, oldest);
-        tex = nv2aRenderer->createTexture(capW, capH, XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED, true);
+        evictEffectEntry(nv2aRenderer, oldest, EffectEvictionReason::AllocationRetry);
+        tex = nv2aRenderer->createTexture(capW, capH, effectFormat, true);
     }
-    if (!tex) return texture;
+    
+    if (!tex) {
+        NV2A_LOG("FX_DEBUG: createTexture ultimately failed; falling back to original texture.");
+        if (ownsReconstructedSource) {
+            std::vector<uint8_t>().swap(effectSource);
+        }
+        return texture;
+    }
 
-    int sxArr[EFFECT_MAX_DIM];
+    int sxArr[COLOR_EFFECT_MAX_DIM];
     for (int x = 0; x < effW; ++x) {
         sxArr[x] = std::clamp((x * srcW + (srcW / 2)) / effW, 0, srcW - 1);
     }
@@ -1171,7 +1608,10 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         }
     }
 
-    // Replicate the last column/row into the pow2 padding so bilinear filtering at the edge stays clean.
+    if (ownsReconstructedSource) {
+        std::vector<uint8_t>().swap(effectSource);
+    }
+
     for (int y = 0; y < effH; ++y) {
         uint32_t *row = lin + static_cast<size_t>(y) * capW;
         for (int x = effW; x < capW; ++x) row[x] = row[effW - 1];
@@ -1180,7 +1620,41 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
         memcpy(lin + static_cast<size_t>(y) * capW, lin + static_cast<size_t>(effH - 1) * capW, static_cast<size_t>(capW) * 4);
     }
 
-    nv2aRenderer->updateTexture(tex, lin, capW * 4);
+    bool uploadSucceeded = false;
+
+    if (compactColor) {
+        for (int y = 0; y < capH; ++y) {
+            const uint8_t *srcRow =
+                reinterpret_cast<const uint8_t *>(lin) +
+                static_cast<size_t>(y) * capW * 4;
+
+            uint16_t *dstRow = s_effectPacked16 +
+                static_cast<size_t>(y) * capW;
+
+            for (int x = 0; x < capW; ++x) {
+                const uint8_t *p = srcRow + static_cast<size_t>(x) * 4;
+
+                dstRow[x] = static_cast<uint16_t>(
+                    ((p[3] >> 4) << 12) |
+                    ((p[0] >> 4) << 8) |
+                    ((p[1] >> 4) << 4) |
+                    (p[2] >> 4));
+            }
+        }
+
+        uploadSucceeded =
+            nv2aRenderer->updateTexture(tex, s_effectPacked16, capW * 2);
+    } else {
+        uploadSucceeded =
+            nv2aRenderer->updateTexture(tex, lin, capW * 4);
+    }
+
+    if (!uploadSucceeded) {
+        nv2aRenderer->destroyTexture(tex);
+        NV2A_LOG("FX_DEBUG: updateTexture failed; skipping effect bake.");
+        return texture;
+    }
+
     tex->uScale = static_cast<float>(effW) / static_cast<float>(capW);
     tex->vScale = static_cast<float>(effH) / static_cast<float>(capH);
 
@@ -1190,9 +1664,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
     ++s_effectCreated;
     trimEffectCache(nv2aRenderer, currentFrame, &key);
 
-#if NV2A_PROFILE
-    ++s_fxBakes;
-    s_fxBakeCycles += fxTsc() - t0;
+#ifdef SE_NV2A_PROFILE
+    bakeProfile.success = true;
 #endif
     return tex;
 }
@@ -1445,7 +1918,6 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
     const float texelScale = scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
     const float scaleFactor = std::max(1.0f, texelScale);
     const float pixelateAmount = absPixelate / 10.0f;
-    // Scale down block size by scaleFactor so scaled-up sprites don't balloon into massive blocks
     const float blockSizeTexels = pixelateAmount / scaleFactor;
     const float blockSizeScreen = blockSizeTexels * texelScale;
 
@@ -1515,11 +1987,6 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
         }
     };
 
-    // In Scratch 3 WebGL shader:
-    // vec2 pixelTexelSize = u_tex_size / max(pixelateAmount, 1.0);
-    // When pixelate <= 10.0, max(pixelateAmount, 1.0) is 1.0, meaning block size is <= 1 texel.
-    // If block size is <= 1 texel or <= 1.25 screen pixels, the sprite is rendered at native
-    // resolution using hardware nearest-neighbor filtering on the GPU (1 quad, 6 vertices).
     const bool isFinePixelation = (absPixelate <= 10.0f || blockSizeTexels <= 1.0f || blockSizeScreen <= 1.25f);
     if (isFinePixelation) {
         drawSingleQuad();
@@ -1824,45 +2291,129 @@ void Image_NV2A::render(ImageRenderParams &params) {
     }
     if (!nv2aRenderer) return;
 
-    bool hasWhirl = (std::abs(params.whirlEffect) > 0.001f);
-    bool hasFisheye = (std::abs(params.fisheyeEffect) > 0.001f);
-    bool hasMosaic = (std::abs(params.mosaicEffect) > 0.001f);
-    bool hasPixelate = (std::abs(params.pixelateEffect) > 0.001f);
-    bool hasColor = (std::abs(params.colorEffect) > 0.001f);
-    bool hasEffects = (hasWhirl || hasFisheye || hasMosaic || hasPixelate || hasColor);
+    const uint16_t colorStep = getColorEffectStep(params.colorEffect);
+    const bool hasColor = (colorStep != EFFECT_NO_HUE);
 
-    if (!hasEffects) {
-        uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
-        // effectSlots[0].lastUsedFrame is stamped by acquireEffectTexture(): drop this image's baked data once idle
-        if (effectSlots[0].lastUsedFrame != 0 && currentFrame - effectSlots[0].lastUsedFrame > 60) {
+    const bool hasWhirl = (std::abs(params.whirlEffect) > 0.001f);
+    const bool hasFisheye = (std::abs(params.fisheyeEffect) > 0.001f);
+    const bool hasMosaic = (std::abs(params.mosaicEffect) > 0.001f);
+    const bool hasPixelate = (std::abs(params.pixelateEffect) > 0.001f);
+    const bool hasEffects = (hasWhirl || hasFisheye || hasMosaic || hasPixelate || hasColor);
+
+    const uint32_t currentFrame = Renderer_NV2A::getFrameCounter();
+
+    if (!hasEffects && !tiles.empty()) {
+#ifdef SE_NV2A_PROFILE
+        if (fxTraceWasActive) {
+            char buf[160];
+            std::snprintf(buf, sizeof(buf),
+                "FX_TRACE_CLEAR: image=%p path=tiled color100=%d pixelate100=%d",
+                (void*)this,
+                static_cast<int>(std::lround(params.colorEffect * 100.0f)),
+                static_cast<int>(std::lround(params.pixelateEffect * 100.0f)));
+            NV2A_LOG(buf);
+        }
+
+        fxTraceWasActive = false;
+        fxTraceLastActiveTex = texture;
+#endif
+
+        if (effectSlots[0].lastUsedFrame != 0 &&
+            currentFrame - effectSlots[0].lastUsedFrame > 60) {
             releaseEffects();
         }
-        if (!tiles.empty()) {
-            renderTiled(params);
-            return;
+
+        renderTiled(params);
+        return;
+    }
+
+    if (!hasEffects) {
+        if (effectSlots[0].lastUsedFrame != 0 && currentFrame - effectSlots[0].lastUsedFrame > 60) {
+            releaseEffects();
         }
     }
 
     const bool hasMeshEffects = (hasWhirl || hasFisheye || hasMosaic);
     NV2ATexture *activeTex = texture;
     bool needsPixelateTexture = false;
-    bool pixelateBaked = false; // pixelate resolved by a (cached) low-res texture + 1 nearest-filtered quad
+    bool pixelateBaked = false;
+
     if (hasPixelate) {
         int gw = 0, gh = 0;
         if (computePixelateDims(params, imgData.width, imgData.height, imgData.scale, gw, gh)) {
             const bool smallGrid = (gw * gh) <= PIXELATE_MESH_MAX_CELLS;
             if (hasMeshEffects || hasColor || (params.subrect == nullptr && !smallGrid)) {
                 needsPixelateTexture = true;
-                pixelateBaked = !hasMeshEffects;
             }
         }
     }
+
     if (hasColor || needsPixelateTexture) {
         NV2ATexture *effTex = acquireEffectTexture(params);
         if (effTex) {
             activeTex = effTex;
+            pixelateBaked = hasPixelate &&
+                            needsPixelateTexture &&
+                            !hasMeshEffects &&
+                            effTex != texture;
         }
     }
+
+    // Determine the exact scale mode passed to the standard drawQuad
+    const NV2AScaleMode drawScaleMode =
+        hasPixelate
+            ? NV2AScaleMode::Nearest
+            : ((hasColor && activeTex != texture)
+                ? NV2AScaleMode::Linear
+                : (activeTex
+                    ? activeTex->scaleMode
+                    : NV2AScaleMode::PixelArt));
+
+#ifdef SE_NV2A_PROFILE
+    // --- Integer-Only Transition Trace Block ---
+    const bool traceActive = hasPixelate || hasColor;
+    const bool traceChanged =
+        !fxTraceInitialized ||
+        traceActive != fxTraceWasActive ||
+        activeTex != fxTraceLastActiveTex ||
+        drawScaleMode != fxTraceLastScaleMode;
+
+    if (traceChanged && (traceActive || fxTraceWasActive)) {
+        const int color100 = static_cast<int>(std::lround(params.colorEffect * 100.0f));
+        const int pixelate100 = static_cast<int>(std::lround(params.pixelateEffect * 100.0f));
+        const bool activeIsOriginal = (activeTex == texture);
+        const bool usesEffectTexture = (activeTex && activeTex != texture);
+        const int originalScale = texture ? static_cast<int>(texture->scaleMode) : -1;
+        const int requestedScale = static_cast<int>(drawScaleMode);
+        const int effectW = usesEffectTexture
+            ? static_cast<int>(std::lround(activeTex->texWidth * activeTex->uScale)) : 0;
+        const int effectH = usesEffectTexture
+            ? static_cast<int>(std::lround(activeTex->texHeight * activeTex->vScale)) : 0;
+        const unsigned int effectBytes = usesEffectTexture
+            ? static_cast<unsigned int>(activeTex->allocationSize) : 0;
+
+        char buf[384];
+        std::snprintf(buf, sizeof(buf),
+            "FX_TRACE: image=%p original=%p active=%p "
+            "src=%dx%d effect=%dx%d effectBytes=%u "
+            "color100=%d pixelate100=%d hasColor=%d hasPixelate=%d "
+            "activeOriginal=%d effectTexture=%d pixelateBaked=%d "
+            "requestedScale=%d originalScale=%d",
+            (void*)this, (void*)texture, (void*)activeTex,
+            imgData.width, imgData.height, effectW, effectH, effectBytes,
+            color100, pixelate100,
+            (int)hasColor, (int)hasPixelate,
+            (int)activeIsOriginal, (int)usesEffectTexture,
+            (int)pixelateBaked, requestedScale, originalScale);
+        NV2A_LOG(buf);
+    }
+
+    fxTraceInitialized = true;
+    fxTraceWasActive = traceActive;
+    fxTraceLastActiveTex = activeTex;
+    fxTraceLastScaleMode = drawScaleMode;
+    // ------------------------------------------
+#endif
 
     if (!activeTex) {
         if (!tiles.empty()) {
@@ -1966,8 +2517,8 @@ void Image_NV2A::render(ImageRenderParams &params) {
             {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
             {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}
         };
-        const NV2AScaleMode scaleMode = hasPixelate ? NV2AScaleMode::Nearest : activeTex->scaleMode;
-        nv2aRenderer->bindTexture(activeTex, scaleMode);
+
+        nv2aRenderer->bindTexture(activeTex, drawScaleMode);
         nv2aRenderer->setBlendMode(blendMode);
         nv2aRenderer->drawTriangles(verts, 6);
     };
@@ -2488,7 +3039,7 @@ void Image_NV2A::precacheProjectTextures() {
         const std::string builtFor = readTextFile(completeFile);
         if (builtFor == signature) return;
 
-        Log::log("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
+        NV2A_LOG("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
                  "] Current: [" + signature + "]");
         clearTextureCacheDir(cacheDir);
     }
@@ -2646,7 +3197,18 @@ void Image_NV2A::precacheProjectTextures() {
 nonstd::expected<void, std::string> Image_NV2A::refreshTexture() {
     releaseEffects();
     destroyTiles();
-    if (texture && nv2aRenderer) nv2aRenderer->destroyTexture(texture);
+
+    if (texture) {
+        if (!nv2aRenderer && Render::getGlobalRenderer()) {
+            nv2aRenderer = static_cast<Renderer_NV2A *>(Render::getGlobalRenderer());
+        }
+        if (!nv2aRenderer) {
+            return nonstd::make_unexpected("No NV2A renderer");
+        }
+        nv2aRenderer->destroyTexture(texture);
+        texture = nullptr;
+    }
+
     if (!cachedAssetPath.empty() && !isSVGImage && !isSvgAssetPath(cachedAssetPath)) {
         std::string cachePath = getTextureCachePath(cachedAssetPath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
