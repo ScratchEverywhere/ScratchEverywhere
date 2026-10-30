@@ -7,7 +7,7 @@
 #include <stb_truetype.h>
 
 static constexpr int bucketSteps[] = {12, 16, 20, 24, 32, 40, 50, 64, 80, 100, 128, 160, 200, 256};
-#if defined(__XBOX__)
+#if defined(__XBOX__) || defined(__PSP__)
 static constexpr int maxAtlasDim = 512;
 #else
 static constexpr int maxAtlasDim = 2048;
@@ -149,7 +149,7 @@ FontGeneration &FontAtlas::ensureGeneration(int bucket, const std::vector<uint32
         gen.lineGap = (float)lineGap * scale;
 
         int initialDim = bucket <= 64 ? 256 : (bucket <= 128 ? 512 : 1024);
-#if defined(__XBOX__)
+#if defined(__XBOX__) || defined(__PSP__)
         if (initialDim > maxAtlasDim) initialDim = maxAtlasDim;
 #endif
         gen.atlasWidth = gen.atlasHeight = initialDim;
