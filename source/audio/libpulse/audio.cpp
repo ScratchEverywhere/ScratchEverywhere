@@ -94,6 +94,13 @@ int SoundDevice_Libpulse::getLoudness() {
         ss.rate = MIC_RATE;
         ss.channels = 1;
 
+        pa_buffer_attr attr;
+        attr.maxlength = (uint32_t)-1;
+        attr.tlength = (uint32_t)-1;
+        attr.prebuf = (uint32_t)-1;
+        attr.minreq = (uint32_t)-1;
+        attr.fragsize = 2048;
+
         int err = 0;
         mic_stream = pa_simple_new(
             nullptr,
@@ -103,7 +110,7 @@ int SoundDevice_Libpulse::getLoudness() {
             "Microphone",
             &ss,
             nullptr,
-            nullptr,
+            &attr,
             &err);
 
         if (mic_stream) {
