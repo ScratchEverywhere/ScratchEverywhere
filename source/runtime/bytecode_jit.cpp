@@ -1769,6 +1769,7 @@ class Emitter {
         BytecodeIndex head = 0, tail = 0;
         std::vector<uint32_t> slots;
         int64_t counterSlot = -1;
+        int64_t hoistList = -1;
         sljit_label *body = nullptr;
     };
     static constexpr int kFirstPin = 4;
@@ -1809,6 +1810,24 @@ class Emitter {
         }
         return -1;
     }
+    void emitHoistLoad() {
+        if (active_ == nullptr || active_->hoistList < 0) return;
+        const ListLayout &layout = listLayout();
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
+        sljit_jump *none = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_S4, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S4), static_cast<sljit_sw>(active_->hoistList) * static_cast<sljit_sw>(sizeof(void *)));
+        sljit_jump *missing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_S4, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S5, 0, SLJIT_MEM1(SLJIT_S4), layout.items + static_cast<sljit_sw>(sizeof(void *)));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S4), layout.items);
+        sljit_jump *loaded = sljit_emit_jump(c_, SLJIT_JUMP);
+        sljit_label *zero = sljit_emit_label(c_);
+        sljit_set_label(none, zero);
+        sljit_set_label(missing, zero);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S5, 0, SLJIT_IMM, 0);
+        sljit_set_label(loaded, sljit_emit_label(c_));
+    }
+
     bool isCounterPin(uint32_t slot) const { return active_ != nullptr && active_->counterSlot == static_cast<int64_t>(slot); }
 
     bool wholeCounterAt(BytecodeIndex pc) const {
@@ -2235,6 +2254,11 @@ void Emitter::emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector
     sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0x7fffffff));
     sljit_emit_op2(c_, SLJIT_MUL, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, layout.valueSize);
+    if (active_ != nullptr && active_->hoistList == static_cast<int64_t>(slot)) {
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R2, 0, SLJIT_S4, 0);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_S5, 0));
+        return;
+    }
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
     slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(slot) * static_cast<sljit_sw>(sizeof(void *)));
@@ -3451,6 +3475,8 @@ void Emitter::findRegions() {
         std::set<uint32_t> disqualified;
         std::vector<uint32_t> counters;
         std::vector<uint32_t> wholeCounters;
+        std::map<uint32_t, int> listAccesses;
+        bool listsChange = false;
 
         for (BytecodeIndex pc = head; pc <= tail && ok; pc++) {
             if (!analysis_.isReachable(pc)) continue;
@@ -3464,15 +3490,19 @@ void Emitter::findRegions() {
             case BytecodeOp::CallProcedureValue:
             case BytecodeOp::Return:
             case BytecodeOp::Halt:
-            case BytecodeOp::ForEachCheck:
                 ok = false;
+                break;
+            case BytecodeOp::ItemOfList:
+            case BytecodeOp::ReplaceInList:
+                listAccesses[instr.a]++;
                 break;
             case BytecodeOp::AddToList:
             case BytecodeOp::DeleteFromList:
             case BytecodeOp::DeleteAllOfList:
             case BytecodeOp::InsertInList:
-            case BytecodeOp::ReplaceInList:
-            case BytecodeOp::ItemOfList:
+                listsChange = true;
+                hotCalls++;
+                break;
             case BytecodeOp::ItemNumOfList:
             case BytecodeOp::ListContainsItem:
             case BytecodeOp::PushVarString:
@@ -3487,9 +3517,6 @@ void Emitter::findRegions() {
             case BytecodeOp::LengthOf:
             case BytecodeOp::ConvertStringToValue:
             case BytecodeOp::ConvertValueToString:
-            case BytecodeOp::ValueEquals:
-            case BytecodeOp::ValueLess:
-            case BytecodeOp::ValueGreater:
             case BytecodeOp::MathOp:
                 hotCalls++;
                 break;
@@ -3500,7 +3527,10 @@ void Emitter::findRegions() {
                 const NativeShape shape = plan_.nativeShape(instr);
                 const std::string &name = plan_.opcodeName(instr.a);
                 const bool inlined = shape == NativeShape::Add || shape == NativeShape::Subtract || shape == NativeShape::Multiply || shape == NativeShape::Divide || shape == NativeShape::And || shape == NativeShape::Or || shape == NativeShape::Not || name == "operator_mod" || name == "motion_changexby" || name == "motion_changeyby" || name == "motion_setx" || name == "motion_sety" || name == "motion_gotoxy";
-                if (!inlined) hotCalls++;
+                if (!inlined) {
+                    hotCalls++;
+                    listsChange = true;
+                }
                 break;
             }
             default:
@@ -3517,11 +3547,19 @@ void Emitter::findRegions() {
                 case BytecodeOp::ChangeVarNumber:
                 case BytecodeOp::PushVarValue:
                 case BytecodeOp::StoreVarValue:
+                case BytecodeOp::ForEachCheck:
                     uses[static_cast<uint32_t>(variable)]++;
                     break;
                 default:
                     disqualified.insert(static_cast<uint32_t>(variable));
                     break;
+                }
+            }
+            if (instr.op == BytecodeOp::ForEachCheck) {
+                BytecodeAbstractState state;
+                if (analysis_.stateBefore(pc, state) && state.values.size() >= 2) {
+                    counters.push_back(valueSlot(static_cast<uint32_t>(state.values.size()) - 1));
+                    counters.push_back(valueSlot(static_cast<uint32_t>(state.values.size()) - 2));
                 }
             }
             if (instr.op == BytecodeOp::RepeatCheck) {
@@ -3575,8 +3613,12 @@ void Emitter::findRegions() {
             if (region.slots.size() >= kMaxPins) break;
             region.slots.push_back(slot);
         }
-        if (logRegions) Log::log("[jit region] " + std::to_string(head) + ".." + std::to_string(tail) + " pins=" + std::to_string(region.slots.size()) + " uses=" + std::to_string(uses.size()) + " disq=" + std::to_string(disqualified.size()) + " calls=" + std::to_string(hotCalls));
-        if (region.slots.empty()) continue;
+        if (!listsChange && !listAccesses.empty() && listLayout().ok) {
+            const auto hottest = std::max_element(listAccesses.begin(), listAccesses.end(), [](const auto &a, const auto &b) { return a.second < b.second; });
+            region.hoistList = hottest->first;
+        }
+        if (logRegions) Log::log("[jit region] " + std::to_string(head) + ".." + std::to_string(tail) + " hoist=" + std::to_string(region.hoistList) + " pins=" + std::to_string(region.slots.size()) + " uses=" + std::to_string(uses.size()) + " disq=" + std::to_string(disqualified.size()) + " calls=" + std::to_string(hotCalls));
+        if (region.slots.empty() && region.counterSlot < 0 && region.hoistList < 0) continue;
 
         regions_.push_back(region);
         for (BytecodeIndex pc = head; pc <= tail; pc++)
@@ -3620,7 +3662,7 @@ bool Emitter::emit() {
     c_ = sljit_create_compiler(nullptr);
     if (c_ == nullptr) return false;
 
-    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins + 1), 4, 0);
+    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins + 1), 6, 0);
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
@@ -3629,7 +3671,11 @@ bool Emitter::emit() {
         for (size_t i = 0; i < kMaxPins; i++)
             sljit_emit_fset64(c_, SLJIT_FR(kFirstPin + static_cast<int>(i)), -123456.789);
     }
-    if (poisonPins_) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S3, 0, SLJIT_IMM, 0x7ffffff0);
+    if (poisonPins_) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S3, 0, SLJIT_IMM, 0x7ffffff0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_IMM, 0x10);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S5, 0, SLJIT_IMM, 0x7ffffff0);
+    }
     sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, pollInterval());
     code_.entryTable.assign(plan_.entryPcs.size(), nullptr);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
@@ -3650,6 +3696,7 @@ bool Emitter::emit() {
         active_ = regionOf_[pc] >= 0 ? &regions_[regionOf_[pc]] : nullptr;
         if (active_ != nullptr && pc == active_->head) {
             emitReload();
+            emitHoistLoad();
             regions_[regionOf_[pc]].body = sljit_emit_label(c_);
         }
 
@@ -3709,6 +3756,7 @@ bool Emitter::emit() {
         active_ = &regions_[regionOf_[pc]];
         entryLabels[i] = sljit_emit_label(c_);
         emitReload();
+        emitHoistLoad();
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), labels_[pc]);
     }
     active_ = nullptr;
