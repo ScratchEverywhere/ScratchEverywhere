@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         llvm-19 llvm-19-dev llvm-19-tools libllvm19 \
         libclang-19-dev libclang1-19 libclang-cpp19 libclang-cpp19-dev \
         libclang-common-19-dev libclc-19 libclc-19-dev \
-        libllvmspirvlib-19-dev libllvmspirvlib19.1 clang-19 \
+        clang-19 \
         libelf-dev libzstd-dev zlib1g-dev libexpat1-dev \
     && rm -rf /var/lib/apt/lists/*
 
