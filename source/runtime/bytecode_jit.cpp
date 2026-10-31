@@ -1994,7 +1994,18 @@ class Emitter {
         callHelper(fn, argTypes);
     }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
-    void emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, uint32_t a, uint32_t b, const AbsState &atTarget);
+    struct Operand {
+        bool immediate = false;
+        uint32_t slot = 0;
+        double value = 0;
+    };
+    void loadOperand(sljit_s32 reg, const Operand &operand);
+    void emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget);
+    bool fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const;
+    bool feedsCompare(BytecodeIndex push) const {
+        Operand a, b;
+        return (push + 2 < chunk_.instructions.size() && fedCompare(push + 2, a, b)) || (push + 1 < chunk_.instructions.size() && fedCompare(push + 1, a, b));
+    }
     bool fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &jumpPc) const;
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
@@ -2101,12 +2112,49 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
     const BytecodeCompareKind kind = static_cast<BytecodeCompareKind>(instr.b);
     const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
     state_.numbers -= 2;
-    emitCompareBranch(kind, instr.op == BytecodeOp::JumpIfNumCompareTrue, instr.a, instr.a <= pc, a, b, state_);
+    emitCompareBranch(kind, instr.op == BytecodeOp::JumpIfNumCompareTrue, instr.a, instr.a <= pc, {false, a, 0}, {false, b, 0}, state_);
 }
 
-void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, uint32_t a, uint32_t b, const AbsState &atTarget) {
-    loadF(SLJIT_FR0, a);
-    loadF(SLJIT_FR1, b);
+void Emitter::loadOperand(sljit_s32 reg, const Operand &operand) {
+    if (operand.immediate) sljit_emit_fset64(c_, reg, operand.value);
+    else loadF(reg, operand.slot);
+}
+
+bool Emitter::fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const {
+    if (compare < 2 || regionOf_.empty()) return false;
+    const BytecodeCompareKind unused = BytecodeCompareKind::Equals;
+    (void)unused;
+    const BytecodeOp op = chunk_.instructions[compare].op;
+    if (op != BytecodeOp::ValueEquals && op != BytecodeOp::ValueLess && op != BytecodeOp::ValueGreater) return false;
+    if (analysis_.isBlockStart(compare) || analysis_.isBlockStart(compare - 1)) return false;
+    if (!plan_.supported[compare - 2] || !plan_.supported[compare - 1] || !plan_.supported[compare]) return false;
+    if (plan_.entryOf[compare - 1] >= 0 || plan_.entryOf[compare] >= 0) return false;
+    BytecodeAbstractState s;
+    if (!analysis_.stateBefore(compare, s) || s.values.size() < 2) return false;
+    if (!Planner::numericLike(s.values[s.values.size() - 1]) || !Planner::numericLike(s.values[s.values.size() - 2])) return false;
+    bool jumpIfTrue;
+    BytecodeIndex jumpPc;
+    if (!fusableBranch(compare, jumpIfTrue, jumpPc)) return false;
+    Operand *out[2] = {&a, &b};
+    for (int i = 0; i < 2; i++) {
+        const BytecodeInstruction &push = chunk_.instructions[compare - 2 + i];
+        if (push.op == BytecodeOp::PushVarValue) {
+            if (push.a >= promotedIndex_.size() || promotedIndex_[push.a] < 0 || stringWritten_[push.a]) return false;
+            *out[i] = {false, variableSlot(static_cast<uint32_t>(promotedIndex_[push.a])), 0};
+        } else if (push.op == BytecodeOp::PushConstValue) {
+            const Value &constant = chunk_.constants[push.a];
+            if (!constant.isRealNumber() && !constant.isStringTyped()) return false;
+            *out[i] = {true, 0, constant.numberRaw()};
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget) {
+    loadOperand(SLJIT_FR0, a);
+    loadOperand(SLJIT_FR1, b);
     sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
 
     sljit_s32 type;
@@ -2151,7 +2199,7 @@ bool Emitter::fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &j
             continue;
         }
         if (next.op != BytecodeOp::JumpIfTrue && next.op != BytecodeOp::JumpIfFalse) return false;
-        if (active_ != nullptr && q >= active_->tail) return false;
+        if (regionOf_[pc] >= 0 && q >= regions_[regionOf_[pc]].tail) return false;
         jumpIfTrue = (next.op == BytecodeOp::JumpIfTrue) != negated;
         jumpPc = q;
         return true;
@@ -2783,7 +2831,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::PushConstValue: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        storeImmF(valueSlot(depth), chunk_.constants[instr.a].numberRaw());
+        if (!feedsCompare(pc)) storeImmF(valueSlot(depth), chunk_.constants[instr.a].numberRaw());
         AbsValue v;
         v.kind = chunk_.constants[instr.a].isRealNumber() ? ValueEntry::Number : ValueEntry::Constant;
         v.constant = instr.a;
@@ -2888,7 +2936,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             const BytecodeIndex target = chunk_.instructions[fuseEnd_].a;
             for (BytecodeIndex q = pc + 1; q <= fuseEnd_; q++)
                 fused_[q] = true;
-            emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, a, b, state_);
+            emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, {false, a, 0}, {false, b, 0}, state_);
             return;
         }
         emitCompareValue(instr.op == BytecodeOp::NumEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::NumLess ? BytecodeCompareKind::Less
@@ -2916,7 +2964,12 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 const BytecodeIndex target = chunk_.instructions[fuseEnd_].a;
                 for (BytecodeIndex q = pc + 1; q <= fuseEnd_; q++)
                     fused_[q] = true;
-                emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, valueSlot(depth - 2), valueSlot(depth - 1), state_);
+                Operand a{false, valueSlot(depth - 2), 0}, b{false, valueSlot(depth - 1), 0};
+                if (!fedCompare(pc, a, b)) {
+                    a = {false, valueSlot(depth - 2), 0};
+                    b = {false, valueSlot(depth - 1), 0};
+                }
+                emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, a, b, state_);
                 return;
             }
             emitCompareValue(kind, valueSlot(depth - 2), valueSlot(depth - 1));
@@ -3124,8 +3177,10 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        loadF(SLJIT_FR0, variableSlot(k));
-        storeF(valueSlot(depth), SLJIT_FR0);
+        if (!feedsCompare(pc)) {
+            loadF(SLJIT_FR0, variableSlot(k));
+            storeF(valueSlot(depth), SLJIT_FR0);
+        }
         AbsValue v;
         v.kind = ValueEntry::VarValue;
         v.constant = k;
