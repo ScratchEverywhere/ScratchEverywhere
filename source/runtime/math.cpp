@@ -307,7 +307,8 @@ int lowerCaseCodepoint(uint32_t cp, uint32_t prevCp, uint32_t nextCp, uint32_t o
 namespace {
 bool isAsciiOnly(std::string_view s) {
     unsigned char acc = 0;
-    for (unsigned char c : s) acc |= c;
+    for (unsigned char c : s)
+        acc |= c;
     return (acc & 0x80) == 0;
 }
 
@@ -319,7 +320,8 @@ constexpr unsigned char asciiLowerChar(unsigned char c) {
 std::string Math::toLowerCaseJs(std::string_view str) {
     if (isAsciiOnly(str)) {
         std::string result(str);
-        for (char &c : result) c = static_cast<char>(asciiLowerChar(static_cast<unsigned char>(c)));
+        for (char &c : result)
+            c = static_cast<char>(asciiLowerChar(static_cast<unsigned char>(c)));
         return result;
     }
 
@@ -408,7 +410,7 @@ bool isAscii(std::string_view s) {
     }
     return true;
 }
-}
+} // namespace
 
 bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
     if (a.size() == b.size()) {
@@ -598,7 +600,8 @@ bool Math::containsCaseInsensitive(std::string_view haystack, std::string_view n
         for (size_t i = 0; i <= last; i++) {
             if (asciiLowerChar(static_cast<unsigned char>(haystack[i])) != first) continue;
             size_t j = 1;
-            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(haystack[i + j])) == asciiLowerChar(static_cast<unsigned char>(needle[j]))) j++;
+            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(haystack[i + j])) == asciiLowerChar(static_cast<unsigned char>(needle[j])))
+                j++;
             if (j == needle.size()) return true;
         }
         return false;

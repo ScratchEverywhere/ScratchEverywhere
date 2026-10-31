@@ -8,9 +8,9 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include <hal/video.h>
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
-#include <hal/video.h>
 
 #undef min
 #undef max
@@ -184,8 +184,7 @@ static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHei
 
 static bool videoInitialized = false;
 static Renderer_Xbox::VideoDisplaySettings xboxVideoSettings = {
-    640, 480, 32, 60, false, false, false, false, 0.04f, 0
-};
+    640, 480, 32, 60, false, false, false, false, 0.04f, 0};
 
 // Errata: Map raw SMC register 0x04 values (from hardware ID pins on Xbox AV connector)
 // to standard AV_PACK_* constants due to incorrect mappings:
@@ -198,14 +197,22 @@ static Renderer_Xbox::VideoDisplaySettings xboxVideoSettings = {
 // 0x07: Missing / Disconnected
 static uint32_t mapSmcToAvPack(uint32_t smcVal) {
     switch (smcVal & 0x07) {
-        case 0x00: return AV_PACK_SCART;
-        case 0x01: return AV_PACK_HDTV;
-        case 0x02: return AV_PACK_VGA;
-        case 0x03: return AV_PACK_RFU;
-        case 0x04: return AV_PACK_SVIDEO;
-        case 0x06: return AV_PACK_STANDARD;
-        case 0x07: return AV_PACK_NONE;
-        default:   return AV_PACK_NONE;
+    case 0x00:
+        return AV_PACK_SCART;
+    case 0x01:
+        return AV_PACK_HDTV;
+    case 0x02:
+        return AV_PACK_VGA;
+    case 0x03:
+        return AV_PACK_RFU;
+    case 0x04:
+        return AV_PACK_SVIDEO;
+    case 0x06:
+        return AV_PACK_STANDARD;
+    case 0x07:
+        return AV_PACK_NONE;
+    default:
+        return AV_PACK_NONE;
     }
 }
 
@@ -262,35 +269,35 @@ void Renderer_Xbox::initVideo() {
     // Automatically determine overscan adjustment based on the hardware environment
     float autoOverscan = 0.0f;
     switch (xboxVideoSettings.avPackType) {
-        case AV_PACK_VGA:
-            // PC monitors display edge-to-edge with 1:1 pixel mapping (0% overscan)
+    case AV_PACK_VGA:
+        // PC monitors display edge-to-edge with 1:1 pixel mapping (0% overscan)
+        autoOverscan = 0.0f;
+        break;
+
+    case AV_PACK_HDTV:
+        // Component (HDTV):
+        // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
+        // Standard 480i through component may be on early HD CRTs with overscan (4%).
+        if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
+            autoOverscan = 0.04f;
+        } else {
             autoOverscan = 0.0f;
-            break;
+        }
+        break;
 
-        case AV_PACK_HDTV:
-            // Component (HDTV):
-            // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
-            // Standard 480i through component may be on early HD CRTs with overscan (4%).
-            if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
-                autoOverscan = 0.04f;
-            } else {
-                autoOverscan = 0.0f;
-            }
-            break;
-
-        case AV_PACK_STANDARD: // Composite Stereo
-        case AV_PACK_SVIDEO:   // S-Video
-        case AV_PACK_RFU:      // RF Adapter
-        case AV_PACK_SCART:    // Advanced SCART (RGB)
-        default:
-            // Standard-definition analog CRT formats:
-            // Almost all consumer CRTs crop borders by ~3-5%. Apply 4% centered safe margin.
-            if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
-                autoOverscan = 0.04f;
-            } else {
-                autoOverscan = 0.0f;
-            }
-            break;
+    case AV_PACK_STANDARD: // Composite Stereo
+    case AV_PACK_SVIDEO:   // S-Video
+    case AV_PACK_RFU:      // RF Adapter
+    case AV_PACK_SCART:    // Advanced SCART (RGB)
+    default:
+        // Standard-definition analog CRT formats:
+        // Almost all consumer CRTs crop borders by ~3-5%. Apply 4% centered safe margin.
+        if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
+            autoOverscan = 0.04f;
+        } else {
+            autoOverscan = 0.0f;
+        }
+        break;
     }
     xboxVideoSettings.overscanRatio = autoOverscan;
 
@@ -318,13 +325,20 @@ uint32_t Renderer_Xbox::getAVPackType() {
 const char *Renderer_Xbox::getAVPackName() {
     initVideo();
     switch (xboxVideoSettings.avPackType) {
-        case AV_PACK_STANDARD: return "Composite (Standard)";
-        case AV_PACK_RFU:      return "RF Adapter";
-        case AV_PACK_SCART:    return "SCART (RGB)";
-        case AV_PACK_HDTV:     return "HDTV (Component)";
-        case AV_PACK_VGA:      return "VGA";
-        case AV_PACK_SVIDEO:   return "S-Video";
-        default:               return "None / Unknown";
+    case AV_PACK_STANDARD:
+        return "Composite (Standard)";
+    case AV_PACK_RFU:
+        return "RF Adapter";
+    case AV_PACK_SCART:
+        return "SCART (RGB)";
+    case AV_PACK_HDTV:
+        return "HDTV (Component)";
+    case AV_PACK_VGA:
+        return "VGA";
+    case AV_PACK_SVIDEO:
+        return "S-Video";
+    default:
+        return "None / Unknown";
     }
 }
 
@@ -386,16 +400,14 @@ void Renderer_Xbox::applyAspectRatio(SDL_Renderer *renderer, int logicalWidth, i
             renderer,
             logicalWidth,
             logicalHeight,
-            SDL_LOGICAL_PRESENTATION_LETTERBOX
-        );
+            SDL_LOGICAL_PRESENTATION_LETTERBOX);
     } else {
         // Render natively at full window resolution without extra scaling overhead
         SDL_SetRenderLogicalPresentation(
             renderer,
             logicalWidth,
             logicalHeight,
-            SDL_LOGICAL_PRESENTATION_DISABLED
-        );
+            SDL_LOGICAL_PRESENTATION_DISABLED);
     }
 }
 

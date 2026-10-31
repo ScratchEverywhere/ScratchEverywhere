@@ -60,7 +60,8 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         state->threads = BlockExecutor::startBroadcastHats(broadcast);
 
         fprintf(stderr, "[BCWAIT] start '%s' threads=%zu ids=", broadcast.c_str(), state->threads.size());
-        for (auto id : state->threads) fprintf(stderr, "%llu,", (unsigned long long)id);
+        for (auto id : state->threads)
+            fprintf(stderr, "%llu,", (unsigned long long)id);
         fprintf(stderr, "\n");
 
         state->completedSteps = 1;

@@ -1510,7 +1510,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 std::string op1 = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
                 const bool result = Value::compareStrings(instr.op == BytecodeOp::StrEquals ? 0 : instr.op == BytecodeOp::StrLess ? 1
-                                                                                                                                   : 2,
+                                                                                                                                  : 2,
                                                           op1, op2);
                 thread.boolStack.push_back(result);
                 thread.pc++;

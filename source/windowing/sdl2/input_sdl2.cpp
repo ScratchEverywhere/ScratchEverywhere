@@ -100,11 +100,11 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
         pos[0] = rawMouseX * Render::getPixelDensity();
         pos[1] = rawMouseY * Render::getPixelDensity();
 #elif !defined(PLATFORM_HAS_TOUCH)
-        if (Input::mousePointer.isMoving) {
-            pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
-            pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
-            return pos;
-        }
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
 #ifdef PLATFORM_HAS_TOUCH
     }
