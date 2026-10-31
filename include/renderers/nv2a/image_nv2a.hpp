@@ -83,4 +83,12 @@ class SE_EXPORT Image_NV2A : public Image {
     bool loadFromCache(const std::string &cachePath);
 
     nonstd::expected<void, std::string> refreshTexture() override;
+
+#ifdef SE_NV2A_PROFILE
+	// Temporary effect-rendering diagnostics
+	bool fxTraceInitialized = false;
+	bool fxTraceWasActive = false;
+	const NV2ATexture *fxTraceLastActiveTex = nullptr;
+	NV2AScaleMode fxTraceLastScaleMode = NV2AScaleMode::PixelArt;
+#endif
 };

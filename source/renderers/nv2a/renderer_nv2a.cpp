@@ -46,10 +46,7 @@ static uint32_t s_frameIndex = 0;
 
 static void flushRetiredTextures(bool syncGpu); // deferred texture frees, defined below
 
-#ifndef NV2A_PROFILE
-#define NV2A_PROFILE 0 // 1 = log a per-second timing breakdown (CPU/GPU/vsync) via Log::log
-#endif
-#if NV2A_PROFILE
+#ifdef SE_NV2A_PROFILE
 // 733.33 MHz Xbox CPU: cycles -> ms = cycles / 733333.
 static inline uint64_t nv2aTsc() { return __builtin_ia32_rdtsc(); }
 struct NV2AProf {
@@ -58,6 +55,15 @@ struct NV2AProf {
     uint32_t draws = 0, verts = 0, binds = 0, frames = 0;
 };
 static NV2AProf s_prof;
+// Bypasses the NXDK's broken std::to_string(double) implementation
+auto formatMs = [](double timeMs) -> std::string {
+	int ms = static_cast<int>(timeMs);
+	int us = static_cast<int>((timeMs - ms) * 1000.0);
+	std::string usStr = std::to_string(std::abs(us));
+	if (usStr.length() == 1) usStr = "00" + usStr;
+	else if (usStr.length() == 2) usStr = "0" + usStr;
+	return std::to_string(ms) + "." + usStr + " ms";
+};
 #define NV2A_PROF(x) x
 #else
 #define NV2A_PROF(x)
@@ -872,8 +878,6 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
                    static_cast<const uint8_t *>(pixels) + static_cast<size_t>(r) * pitch, rowBytes);
         }
     } else if (texture->swizzled) {
-        // Swizzling scatters writes in Z-order. Doing that straight into write-combined memory defeats the WC
-        // buffers (every store becomes a partial-line flush), so swizzle into cached RAM and stream it out.
         static uint8_t *s_stage = nullptr;
         static size_t s_stageCap = 0;
         const size_t bytes = texture->allocationSize;
@@ -882,25 +886,45 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
             s_stage = static_cast<uint8_t *>(malloc(bytes));
             s_stageCap = s_stage ? bytes : 0;
         }
+
+        const uint8_t *srcPixels = static_cast<const uint8_t *>(pixels);
+        const int w = texture->texWidth;
+        const int h = texture->texHeight;
+        const int dw = texture->dataWidth;
+        const int dh = texture->dataHeight;
+        const int bpp = texture->bytesPerPixel;
+
         if (s_stage) {
-            if (texture->texWidth != texture->dataWidth || texture->texHeight != texture->dataHeight) {
-                memset(s_stage, 0, bytes); // keep NPOT padding zeroed
+            memset(s_stage, 0, bytes);
+            
+            // Copy rows and pad/replicate outer edges if NPOT
+            for (int y = 0; y < dh; ++y) {
+                int sy = std::min(y, h - 1);
+                const uint8_t *srcRow = srcPixels + static_cast<size_t>(sy) * pitch;
+                uint8_t *dstRow = s_stage + static_cast<size_t>(y) * (dw * bpp);
+                
+                for (int x = 0; x < dw; ++x) {
+                    int sx = std::min(x, w - 1);
+                    memcpy(dstRow + x * bpp, srcRow + sx * bpp, bpp);
+                }
             }
-            swizzle_subrect(static_cast<const uint8_t *>(pixels),
-                            texture->texWidth, texture->texHeight,
-                            texture->dataWidth, texture->dataHeight,
-                            s_stage, pitch, texture->bytesPerPixel);
-            memcpy(texture->data, s_stage, bytes);
-            if (s_stageCap > 256 * 1024) { // don't pin big staging buffers on a 64MB console
+
+            swizzle_subrect(s_stage,
+                            dw, dh,
+                            dw, dh,
+                            texture->data, dw * bpp, bpp);
+
+            if (s_stageCap > 256 * 1024) {
                 free(s_stage);
                 s_stage = nullptr;
                 s_stageCap = 0;
             }
         } else {
-            swizzle_subrect(static_cast<const uint8_t *>(pixels),
-                            texture->texWidth, texture->texHeight,
-                            texture->dataWidth, texture->dataHeight,
-                            texture->data, pitch, texture->bytesPerPixel);
+            // Fallback path without staging buffer (reuses same replication logic via temporary row buffer if needed)
+            swizzle_subrect(srcPixels,
+                            w, h,
+                            dw, dh,
+                            texture->data, pitch, bpp);
         }
     } else {
         for (int r = 0; r < texture->texHeight; ++r) {
@@ -1861,11 +1885,16 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
         __asm__ __volatile__("pause");
     }
 
-    // Ensure screen swap and next backbuffer commands are fully flushed
     while (pb_busy()) {
         __asm__ __volatile__("pause");
     }
     pb_wait_until_gr_not_busy();
+#endif
+
+#ifdef SE_NV2A_PROFILE
+    const uint64_t tGpuDone = nv2aTsc();
+    s_prof.gpuWait += tGpuDone - tEnd0;
+    s_prof.tEndExit = tGpuDone;
 #endif
 
     hasFrameBegan = false;
@@ -1874,17 +1903,15 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
     traceEffectCache();
 #endif
 
-#if NV2A_PROFILE
-    s_prof.tEndExit = nv2aTsc();
-    s_prof.gpuWait += s_prof.tEndExit - tEnd0;
+#ifdef SE_NV2A_PROFILE
     if (++s_prof.frames >= 60) {
         const double f = s_prof.frames, c = 733333.0;
-        Log::log("NV2A prof (ms/frame): logic=" + std::to_string(s_prof.logic / c / f) +
-                 " vbl=" + std::to_string(s_prof.vbl / c / f) +
-                 " beginWait=" + std::to_string(s_prof.idle / c / f) +
-                 " build=" + std::to_string(s_prof.build / c / f) +
-                 " (cacheFlush=" + std::to_string(s_prof.flush / c / f) + ")" +
-                 " gpuWait+flip=" + std::to_string(s_prof.gpuWait / c / f) +
+        Log::log("NV2A prof (ms/frame): logic=" + formatMs(s_prof.logic / c / f) +
+                 " vbl=" + formatMs(s_prof.vbl / c / f) +
+                 " beginWait=" + formatMs(s_prof.idle / c / f) +
+                 " build=" + formatMs(s_prof.build / c / f) +
+                 " (cacheFlush=" + formatMs(s_prof.flush / c / f) + ")" +
+                 " gpuWait+flip=" + formatMs(s_prof.gpuWait / c / f) +
                  " | draws=" + std::to_string(s_prof.draws / s_prof.frames) +
                  " verts=" + std::to_string(s_prof.verts / s_prof.frames) +
                  " texBinds=" + std::to_string(s_prof.binds / s_prof.frames));
