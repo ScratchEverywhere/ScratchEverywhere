@@ -1,4 +1,5 @@
 #include <thread.hpp>
+#include <lv2/mutex.h>
 #include <unistd.h>
 
 struct SE_Thread::Impl {};
@@ -33,27 +34,43 @@ SE_Thread::~SE_Thread() {
     if (impl) delete impl;
 }
 
-struct SE_Mutex::Impl {};
+struct SE_Mutex::Impl {
+    sys_lwmutex_t mutex{};
+    bool initialized = false;
+};
 
 SE_Mutex::SE_Mutex() : impl(nullptr) {
     init();
 }
 
 void SE_Mutex::init() {
-    if (!impl) impl = new Impl;
+    if (!impl) {
+        impl = new Impl;
+        sys_lwmutex_attr_t attr{};
+        attr.attr_protocol = SYS_LWMUTEX_PROTOCOL_PRIO_INHERIT;
+        attr.attr_recursive = SYS_LWMUTEX_ATTR_NOT_RECURSIVE;
+        sysLwMutexCreate(&impl->mutex, &attr);
+        impl->initialized = true;
+    }
 }
 
 SE_Mutex::~SE_Mutex() {
-    delete impl;
-    impl = nullptr;
+    if (impl) {
+        if (impl->initialized) sysLwMutexDestroy(&impl->mutex);
+        delete impl;
+        impl = nullptr;
+    }
 }
 
 void SE_Mutex::lock() {
+    if (impl && impl->initialized) sysLwMutexLock(&impl->mutex, 0);
 }
 
 void SE_Mutex::unlock() {
+    if (impl && impl->initialized) sysLwMutexUnlock(&impl->mutex);
 }
 
 bool SE_Mutex::tryLock() {
-    return true;
+    if (!impl || !impl->initialized) return true;
+    return sysLwMutexTryLock(&impl->mutex) == 0;
 }

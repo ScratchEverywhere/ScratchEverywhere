@@ -97,7 +97,7 @@ void Image_GL2D::render(ImageRenderParams &params) {
         y += imgData.height / 2;
     }
 
-    int renderScale = static_cast<int>(std::round(scale * (1 << 12)));
+    int renderScale = static_cast<int>(round(scale * (1 << 12)));
 
     GL_FLIP_MODE flip_mode;
     if (flip) {

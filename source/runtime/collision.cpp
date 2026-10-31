@@ -340,8 +340,8 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     image->getColorAt(px, py, outR, outG, outB);
 #else
     const float invertedScaleFactor = 1.0f / mask->scaleFactor;
-    const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
-    const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
+    const float finalX = round((localX + costume.rotationCenterX) * invertedScaleFactor);
+    const float finalY = round((localY + costume.rotationCenterY) * invertedScaleFactor);
     if (!mask->getColor(static_cast<int>(finalX), static_cast<int>(finalY), outR, outG, outB)) return false;
 #endif
     ScratchColorTransform(sprite->colorEffect, sprite->brightnessEffect).apply(outR, outG, outB);

@@ -486,10 +486,10 @@ void Image_NV2A::renderTiled(ImageRenderParams &params) {
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        renderX = round(renderX);
+        renderY = round(renderY);
+        renderW = round(renderW);
+        renderH = round(renderH);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -540,10 +540,10 @@ void Image_NV2A::renderTiled(ImageRenderParams &params) {
             float px1 = renderX + dx1, py1 = renderY + dy1;
 
             if (isCardinalRotation) {
-                px0 = std::round(px0);
-                py0 = std::round(py0);
-                px1 = std::round(px1);
-                py1 = std::round(py1);
+                px0 = round(px0);
+                py0 = round(py0);
+                px1 = round(px1);
+                py1 = round(py1);
             }
 
             auto p_tl = rotatePoint(px0, py0);
@@ -552,14 +552,14 @@ void Image_NV2A::renderTiled(ImageRenderParams &params) {
             auto p_bl = rotatePoint(px0, py1);
 
             if (isCardinalRotation) {
-                p_tl.first = std::round(p_tl.first);
-                p_tl.second = std::round(p_tl.second);
-                p_tr.first = std::round(p_tr.first);
-                p_tr.second = std::round(p_tr.second);
-                p_br.first = std::round(p_br.first);
-                p_br.second = std::round(p_br.second);
-                p_bl.first = std::round(p_bl.first);
-                p_bl.second = std::round(p_bl.second);
+                p_tl.first = round(p_tl.first);
+                p_tl.second = round(p_tl.second);
+                p_tr.first = round(p_tr.first);
+                p_tr.second = round(p_tr.second);
+                p_br.first = round(p_br.first);
+                p_br.second = round(p_br.second);
+                p_bl.first = round(p_bl.first);
+                p_bl.second = round(p_bl.second);
             }
 
             float u0 = (ix0 - tile.x) / static_cast<float>(tile.w) * tile.texture->uScale;
@@ -946,12 +946,12 @@ static bool computePixelateDims(const ImageRenderParams &params, int srcW, int s
     const float amount = (std::abs(params.pixelateEffect) / 10.0f) / scaleFactor;
     if (amount <= 1.0f) return false;
 
-    effW = std::min(std::max(2, static_cast<int>(std::round(srcW / amount))), srcW);
-    effH = std::min(std::max(2, static_cast<int>(std::round(srcH / amount))), srcH);
+    effW = std::min(std::max(2, static_cast<int>(round(srcW / amount))), srcW);
+    effH = std::min(std::max(2, static_cast<int>(round(srcH / amount))), srcH);
     if (effW > PIXELATE_MAX_DIM || effH > PIXELATE_MAX_DIM) {
         const float g = std::min(static_cast<float>(PIXELATE_MAX_DIM) / effW, static_cast<float>(PIXELATE_MAX_DIM) / effH);
-        effW = std::max(2, static_cast<int>(std::round(effW * g)));
-        effH = std::max(2, static_cast<int>(std::round(effH * g)));
+        effW = std::max(2, static_cast<int>(round(effW * g)));
+        effH = std::max(2, static_cast<int>(round(effH * g)));
     }
     return true;
 }
@@ -1403,7 +1403,7 @@ static uint16_t getColorEffectStep(float colorEffect) {
     const float frac = cs - std::floor(cs);
 
     const int step = std::clamp(
-        static_cast<int>(std::lround(frac * EFFECT_HUE_STEPS)),
+        static_cast<int>(lround(frac * EFFECT_HUE_STEPS)),
         0,
         EFFECT_HUE_STEPS - 1);
 
@@ -1445,8 +1445,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params) {
             effH = srcH;
         } else {
             const float f = static_cast<float>(tier) / static_cast<float>(srcMax);
-            effW = std::max(1, static_cast<int>(std::lround(srcW * f)));
-            effH = std::max(1, static_cast<int>(std::lround(srcH * f)));
+            effW = std::max(1, static_cast<int>(lround(srcW * f)));
+            effH = std::max(1, static_cast<int>(lround(srcH * f)));
         }
     }
 
@@ -1699,10 +1699,10 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        renderX = round(renderX);
+        renderY = round(renderY);
+        renderW = round(renderW);
+        renderH = round(renderH);
     }
 
     const float centerX = renderX + renderW / 2.0f;
@@ -1716,7 +1716,7 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
         return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
     };
 
-    int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 16);
+    int N = std::clamp(static_cast<int>(round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 16);
 
     // If texture is a full POT texture without subrect, use GPU texture WRAP (1 quad, 6 verts!)
     bool isFullTexture = (params.subrect == nullptr ||
@@ -1729,14 +1729,14 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
         auto p_bl = rotatePoint(renderX, renderY + renderH);
 
         if (isCardinalRotation) {
-            p_tl.first = std::round(p_tl.first);
-            p_tl.second = std::round(p_tl.second);
-            p_tr.first = std::round(p_tr.first);
-            p_tr.second = std::round(p_tr.second);
-            p_br.first = std::round(p_br.first);
-            p_br.second = std::round(p_br.second);
-            p_bl.first = std::round(p_bl.first);
-            p_bl.second = std::round(p_bl.second);
+            p_tl.first = round(p_tl.first);
+            p_tl.second = round(p_tl.second);
+            p_tr.first = round(p_tr.first);
+            p_tr.second = round(p_tr.second);
+            p_br.first = round(p_br.first);
+            p_br.second = round(p_br.second);
+            p_bl.first = round(p_bl.first);
+            p_bl.second = round(p_bl.second);
         }
 
         float u0 = params.flip ? static_cast<float>(N) : 0.0f;
@@ -1888,10 +1888,10 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        renderX = round(renderX);
+        renderY = round(renderY);
+        renderW = round(renderW);
+        renderH = round(renderH);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -1944,14 +1944,14 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
         auto p_bl = rotatePoint(renderX, renderY + renderH);
 
         if (isCardinalRotation) {
-            p_tl.first = std::round(p_tl.first);
-            p_tl.second = std::round(p_tl.second);
-            p_tr.first = std::round(p_tr.first);
-            p_tr.second = std::round(p_tr.second);
-            p_br.first = std::round(p_br.first);
-            p_br.second = std::round(p_br.second);
-            p_bl.first = std::round(p_bl.first);
-            p_bl.second = std::round(p_bl.second);
+            p_tl.first = round(p_tl.first);
+            p_tl.second = round(p_tl.second);
+            p_tr.first = round(p_tr.first);
+            p_tr.second = round(p_tr.second);
+            p_br.first = round(p_br.first);
+            p_br.second = round(p_br.second);
+            p_bl.first = round(p_bl.first);
+            p_bl.second = round(p_bl.second);
         }
 
         uint8_t cr = 255, cg = 255, cb = 255;
@@ -1994,8 +1994,8 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
     }
 
     constexpr int MAX_PIXELATE_GRID = 48;
-    int effW = std::max(2, static_cast<int>(std::round(subW / blockSizeTexels)));
-    int effH = std::max(2, static_cast<int>(std::round(subH / blockSizeTexels)));
+    int effW = std::max(2, static_cast<int>(round(subW / blockSizeTexels)));
+    int effH = std::max(2, static_cast<int>(round(subH / blockSizeTexels)));
 
     if (effW >= static_cast<int>(subW) && effH >= static_cast<int>(subH)) {
         drawSingleQuad();
@@ -2005,8 +2005,8 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
     if (effW > MAX_PIXELATE_GRID || effH > MAX_PIXELATE_GRID) {
         float gridScale = std::min(static_cast<float>(MAX_PIXELATE_GRID) / effW,
                                    static_cast<float>(MAX_PIXELATE_GRID) / effH);
-        effW = std::max(2, static_cast<int>(std::round(effW * gridScale)));
-        effH = std::max(2, static_cast<int>(std::round(effH * gridScale)));
+        effW = std::max(2, static_cast<int>(round(effW * gridScale)));
+        effH = std::max(2, static_cast<int>(round(effH * gridScale)));
     }
 
     float stepW = renderW / static_cast<float>(effW);
@@ -2103,10 +2103,10 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        renderX = round(renderX);
+        renderY = round(renderY);
+        renderW = round(renderW);
+        renderH = round(renderH);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -2148,7 +2148,7 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     const float whirl = params.whirlEffect;
     const float fisheye = params.fisheyeEffect;
 
-    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 16.0f) : 1.0f;
+    const float tiles = hasMosaic ? std::clamp(round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 16.0f) : 1.0f;
     const float whirlRad = whirl * 3.141592653589793f / 180.0f;
     const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
     const bool doFisheye = hasFisheye && (std::abs(fisheyeAmount - 1.0f) > 0.001f);
@@ -2309,8 +2309,8 @@ void Image_NV2A::render(ImageRenderParams &params) {
             std::snprintf(buf, sizeof(buf),
                 "FX_TRACE_CLEAR: image=%p path=tiled color100=%d pixelate100=%d",
                 (void*)this,
-                static_cast<int>(std::lround(params.colorEffect * 100.0f)),
-                static_cast<int>(std::lround(params.pixelateEffect * 100.0f)));
+                static_cast<int>(lround(params.colorEffect * 100.0f)),
+                static_cast<int>(lround(params.pixelateEffect * 100.0f)));
             NV2A_LOG(buf);
         }
 
@@ -2379,16 +2379,16 @@ void Image_NV2A::render(ImageRenderParams &params) {
         drawScaleMode != fxTraceLastScaleMode;
 
     if (traceChanged && (traceActive || fxTraceWasActive)) {
-        const int color100 = static_cast<int>(std::lround(params.colorEffect * 100.0f));
-        const int pixelate100 = static_cast<int>(std::lround(params.pixelateEffect * 100.0f));
+        const int color100 = static_cast<int>(lround(params.colorEffect * 100.0f));
+        const int pixelate100 = static_cast<int>(lround(params.pixelateEffect * 100.0f));
         const bool activeIsOriginal = (activeTex == texture);
         const bool usesEffectTexture = (activeTex && activeTex != texture);
         const int originalScale = texture ? static_cast<int>(texture->scaleMode) : -1;
         const int requestedScale = static_cast<int>(drawScaleMode);
         const int effectW = usesEffectTexture
-            ? static_cast<int>(std::lround(activeTex->texWidth * activeTex->uScale)) : 0;
+            ? static_cast<int>(lround(activeTex->texWidth * activeTex->uScale)) : 0;
         const int effectH = usesEffectTexture
-            ? static_cast<int>(std::lround(activeTex->texHeight * activeTex->vScale)) : 0;
+            ? static_cast<int>(lround(activeTex->texHeight * activeTex->vScale)) : 0;
         const unsigned int effectBytes = usesEffectTexture
             ? static_cast<unsigned int>(activeTex->allocationSize) : 0;
 
@@ -2456,10 +2456,10 @@ void Image_NV2A::render(ImageRenderParams &params) {
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        renderX = round(renderX);
+        renderY = round(renderY);
+        renderW = round(renderW);
+        renderH = round(renderH);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -2498,14 +2498,14 @@ void Image_NV2A::render(ImageRenderParams &params) {
     auto p_bl = rotatePoint(renderX, renderY + renderH);
 
     if (isCardinalRotation) {
-        p_tl.first = std::round(p_tl.first);
-        p_tl.second = std::round(p_tl.second);
-        p_tr.first = std::round(p_tr.first);
-        p_tr.second = std::round(p_tr.second);
-        p_br.first = std::round(p_br.first);
-        p_br.second = std::round(p_br.second);
-        p_bl.first = std::round(p_bl.first);
-        p_bl.second = std::round(p_bl.second);
+        p_tl.first = round(p_tl.first);
+        p_tl.second = round(p_tl.second);
+        p_tr.first = round(p_tr.first);
+        p_tr.second = round(p_tr.second);
+        p_br.first = round(p_br.first);
+        p_br.second = round(p_br.second);
+        p_bl.first = round(p_bl.first);
+        p_bl.second = round(p_bl.second);
     }
 
     auto drawQuad = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
@@ -2548,8 +2548,8 @@ void Image_NV2A::renderNineslice(double xPos, double yPos, double width, double 
 
     float destX = static_cast<float>(xPos - (centered ? width / 2.0f : 0));
     float destY = static_cast<float>(yPos - (centered ? height / 2.0f : 0));
-    destX = std::round(destX);
-    destY = std::round(destY);
+    destX = round(destX);
+    destY = round(destY);
     const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), getWidth() / 2.0f), static_cast<float>(getHeight()) / 2.0f));
 
     const float srcCenterWidth = std::max(0.0f, imgData.width - 2 * srcPadding);

@@ -592,10 +592,10 @@ void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
     const double rotMod = std::fmod(std::abs(rotation), 90.0);
     const bool cardinal = rotMod < 0.001 || rotMod > 89.999;
     if (cardinal) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+        renderRect.x = round(renderRect.x);
+        renderRect.y = round(renderRect.y);
+        renderRect.w = round(renderRect.w);
+        renderRect.h = round(renderRect.h);
     }
 
     SDL_FRect subRect = {0.0f, 0.0f, static_cast<float>(imgData.width), static_cast<float>(imgData.height)};
@@ -631,8 +631,8 @@ void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
         SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
         if (cardinal) {
             // Snap shared edges so neighbouring tiles never leave seams.
-            const float l = std::round(dst.x), t = std::round(dst.y);
-            const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
+            const float l = round(dst.x), t = round(dst.y);
+            const float r = round(dst.x + dst.w), b = round(dst.y + dst.h);
             dst = {l, t, r - l, b - t};
         }
         const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
@@ -773,10 +773,10 @@ void Image_Xbox::render(ImageRenderParams &params) {
 
     const bool isCardinalRotation = std::fmod(std::abs(rotation), 90.0) < 0.001 || std::fmod(std::abs(rotation), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+        renderRect.x = round(renderRect.x);
+        renderRect.y = round(renderRect.y);
+        renderRect.w = round(renderRect.w);
+        renderRect.h = round(renderRect.h);
     }
 
     TexState &state = getTexState(texture);
