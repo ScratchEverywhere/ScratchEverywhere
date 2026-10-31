@@ -476,7 +476,7 @@ void Renderer_SDL3::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 #endif
 }
 
@@ -639,7 +639,7 @@ void Renderer_SDL3::renderPenLayer() {
         renderRect.w = getWidth();
     }
 
-    SDL_RenderTexture(renderer, penTexture, nullptr, &renderRect);
+    SDL_RenderTexture(Sdlrenderer, penTexture, nullptr, &renderRect);
 #endif
 }
 
