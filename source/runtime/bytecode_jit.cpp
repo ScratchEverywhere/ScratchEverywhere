@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
@@ -989,46 +990,44 @@ void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
 
 void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     const auto setBoolean = [&](bool b) { ctx->slots[op->numberOut] = fromBits(b ? 1 : 0); };
-        const std::string &x = stringOf(ctx, op->a, op->aPosition);
-        const std::string &y = stringOf(ctx, op->b, op->bPosition);
-        if (op->compare == BytecodeCompareKind::Equals && x.size() == 1 && y.size() == 1) {
-            // one ASCII character against one: equal exactly when they are the same letter in either case (two different digits are different numbers)
-            const unsigned char c = static_cast<unsigned char>(x[0]), d = static_cast<unsigned char>(y[0]);
-            if (c < 0x80 && d < 0x80) {
-                const unsigned char lc = (c >= 'A' && c <= 'Z') ? c + 32 : c, ld = (d >= 'A' && d <= 'Z') ? d + 32 : d;
-                setBoolean(lc == ld);
-                return;
-            }
+    const std::string &x = stringOf(ctx, op->a, op->aPosition);
+    const std::string &y = stringOf(ctx, op->b, op->bPosition);
+    if (op->compare == BytecodeCompareKind::Equals && x.size() == 1 && y.size() == 1) {
+        const unsigned char c = static_cast<unsigned char>(x[0]), d = static_cast<unsigned char>(y[0]);
+        if (c < 0x80 && d < 0x80) {
+            const unsigned char lc = (c >= 'A' && c <= 'Z') ? c + 32 : c, ld = (d >= 'A' && d <= 'Z') ? d + 32 : d;
+            setBoolean(lc == ld);
+            return;
         }
-        setBoolean(Value::compareStrings(static_cast<int>(op->compare), x, y));
-        return;
+    }
+    setBoolean(Value::compareStrings(static_cast<int>(op->compare), x, y));
+    return;
 }
 
 void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
-        const double index = std::floor(number(op->numberIn)) - 1;
-        // built in place: a temporary that is moved afterwards is read back with wide loads over bytes just written, which stalls
-        std::string &letter = gStrs[op->outPosition];
-        ctx->strHigh = std::max(ctx->strHigh, op->outPosition + 1);
-        letter.clear();
-        const int64_t kind = ctx->dirty[op->variable];
-        if (kind == 0) {
-            const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
-            if (var != nullptr) {
-                if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                    if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
-                }
-            }
-        } else if (kind == 4) {
-            const std::string &text = gStringVariables[op->variable];
-            if (stringVariableIsAscii(op->variable)) {
-                if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
-            } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
-                letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
+    const double index = std::floor(number(op->numberIn)) - 1;
+    std::string &letter = gStrs[op->outPosition];
+    ctx->strHigh = std::max(ctx->strHigh, op->outPosition + 1);
+    letter.clear();
+    const int64_t kind = ctx->dirty[op->variable];
+    if (kind == 0) {
+        const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
+        if (var != nullptr) {
+            if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
             }
         }
-        return;
+    } else if (kind == 4) {
+        const std::string &text = gStringVariables[op->variable];
+        if (stringVariableIsAscii(op->variable)) {
+            if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
+        } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
+            letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
+        }
+    }
+    return;
 }
 
 void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
@@ -2754,23 +2753,6 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             shadow.entry = describe(top);
             shadow.position = position;
 
-            sljit_jump *copy = nullptr;
-            std::vector<sljit_jump *> boxed;
-            sljit_label *done = nullptr;
-            if (top.kind == ValueEntry::VarValue && top.constant < code_.promoted.size()) {
-                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(top.constant));
-                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
-                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 3));
-                boxed.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 4));
-                copy = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 1);
-                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 2);
-                sljit_set_label(copy, sljit_emit_label(c_));
-                loadF(SLJIT_FR0, valueSlot(position));
-                storeF(variableSlot(k), SLJIT_FR0);
-                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_R0, 0);
-                done = sljit_emit_label(c_);
-            }
-
             const auto emitBoxed = [this, k, position, &shadow]() {
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&shadow));
@@ -2779,16 +2761,36 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 storeF(variableSlot(k), SLJIT_FR0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3);
             };
-            if (boxed.empty()) {
-                emitBoxed();
-            } else {
-                addCold([this, boxed, done, emitBoxed]() {
-                    sljit_label *here = sljit_emit_label(c_);
-                    for (sljit_jump *jump : boxed)
-                        sljit_set_label(jump, here);
+
+            if (top.kind == ValueEntry::VarValue && top.constant < code_.promoted.size()) {
+                const uint32_t source = top.constant;
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(source));
+                sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+                sljit_jump *other = sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R0, 0, SLJIT_IMM, 1);
+                loadF(SLJIT_FR0, variableSlot(source));
+                storeF(variableSlot(k), SLJIT_FR0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
+                sljit_label *done = sljit_emit_label(c_);
+
+                addCold([this, other, done, source, k, emitBoxed]() {
+                    sljit_set_label(other, sljit_emit_label(c_));
+                    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(source));
+                    sljit_jump *boxed0 = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+                    sljit_jump *boxed3 = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 3);
+                    sljit_jump *boxed4 = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 4);
+                    loadF(SLJIT_FR0, variableSlot(source));
+                    storeF(variableSlot(k), SLJIT_FR0);
+                    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_R0, 0);
+                    sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+                    sljit_label *general = sljit_emit_label(c_);
+                    sljit_set_label(boxed0, general);
+                    sljit_set_label(boxed3, general);
+                    sljit_set_label(boxed4, general);
                     emitBoxed();
                     sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
                 });
+            } else {
+                emitBoxed();
             }
         }
         return;
@@ -3052,17 +3054,31 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     case BytecodeOp::RepeatCheck: {
         const uint32_t counter = valueSlot(static_cast<uint32_t>(state_.values.size()) - 1);
         loadF(SLJIT_FR0, counter);
-        sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
-        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R0, 0);
-        sljit_jump *fractional = sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
-        sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        sljit_label *counted = sljit_emit_label(c_);
-        addCold([this, fractional, counted]() {
-            sljit_set_label(fractional, sljit_emit_label(c_));
-            callHelper(reinterpret_cast<void *>(&jitRepeatRemaining), SLJIT_ARGS1(F64, F64));
-            sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), counted);
-        });
+
+        bool wholeCounter = false;
+        if (pc >= 2 && chunk_.instructions[pc - 1].op == BytecodeOp::ConvertNumberToValue && chunk_.instructions[pc - 2].op == BytecodeOp::PushConstNumber && !analysis_.isBlockStart(pc - 1)) {
+            const double start = chunk_.numberConstants[chunk_.instructions[pc - 2].a];
+            wholeCounter = std::isfinite(start) && start == std::floor(start) && std::fabs(start) < 4503599627370496.0;
+            for (BytecodeIndex q = 0; q < pc && wholeCounter; q++) {
+                if (plan_.supported[q] && isJump(chunk_.instructions[q].op) && chunk_.instructions[q].a == pc) wholeCounter = false;
+            }
+        }
+        if (wholeCounter) {
+            sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
+            sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+        } else {
+            sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
+            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R0, 0);
+            sljit_jump *fractional = sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0);
+            sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
+            sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+            sljit_label *counted = sljit_emit_label(c_);
+            addCold([this, fractional, counted]() {
+                sljit_set_label(fractional, sljit_emit_label(c_));
+                callHelper(reinterpret_cast<void *>(&jitRepeatRemaining), SLJIT_ARGS1(F64, F64));
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), counted);
+            });
+        }
         sljit_emit_fset64(c_, SLJIT_FR1, 0.0);
         state_.values.back().kind = ValueEntry::Number;
         AbsState exited = state_;
@@ -3245,6 +3261,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
 
     case BytecodeOp::Yield: {
+        if (const int procedure = analysis_.procedureAt(pc); procedure >= 0 && static_cast<size_t>(procedure) < chunk_.procedures.size() && chunk_.procedures[procedure].runWithoutScreenRefresh) return;
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, warp));
         sljit_jump *warp = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
         emitExitAt(pc + 1, static_cast<uint32_t>(BytecodeJit::Result::Yield), state_);
