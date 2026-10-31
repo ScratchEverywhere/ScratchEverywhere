@@ -5,6 +5,8 @@
 #include <cctype>
 #include <charconv>
 #include <cmath>
+#include <cstring>
+#include <optional>
 #include <os.hpp>
 #include <regex>
 #include <string_view>
@@ -279,6 +281,53 @@ bool Value::plainNumber(double &out) const {
     if (std::all_of(text.begin(), text.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) return false;
     out = asDouble();
     return true;
+}
+
+namespace {
+bool sameText(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    const size_t n = a.size();
+    if (n > 24) return std::memcmp(a.data(), b.data(), n) == 0;
+    const volatile char *x = a.data();
+    const volatile char *y = b.data();
+    for (size_t i = 0; i < n; i++) {
+        if (x[i] != y[i]) return false;
+    }
+    return true;
+}
+} // namespace
+
+bool Value::compareStrings(int kind, std::string_view a, std::string_view b) {
+    const auto blank = [](std::string_view text) {
+        return std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isspace(c) && c != '\t'; });
+    };
+    const auto mayBeNumber = [](std::string_view text) {
+        if (text.empty()) return false;
+        const unsigned char c = static_cast<unsigned char>(text.front());
+        return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == 'I' || c >= 0x80 || c <= ' ';
+    };
+    const auto parse = [&mayBeNumber](std::string_view text) -> std::optional<double> {
+        if (!mayBeNumber(text)) return std::nullopt;
+        const auto parsed = Math::parseNumber(text);
+        if (!parsed.has_value()) return std::nullopt;
+        return *parsed;
+    };
+    if (kind == 0) {
+        if (sameText(a, b)) return true;
+        const auto na = parse(a);
+        if (na.has_value() && !blank(a)) {
+            const auto nb = parse(b);
+            if (nb.has_value() && !blank(b)) return *na == *nb;
+        }
+        return caseInsensitiveEqual(a, b);
+    }
+    const auto na = parse(a);
+    if (na.has_value()) {
+        const auto nb = parse(b);
+        if (nb.has_value()) return kind == 1 ? *na < *nb : *na > *nb;
+    }
+    if (sameText(a, b)) return false;
+    return kind == 1 ? caseInsensitiveLess(a, b) : caseInsensitiveLess(b, a);
 }
 
 bool Value::equalsSlow(const Value &other) const {

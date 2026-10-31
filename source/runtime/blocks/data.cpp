@@ -458,7 +458,7 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
         int i = 0;
 
         for (const auto &item : *items) {
-            if (!(item.isString() && Math::utf16Length(item.get<std::string>()) == 1)) {
+            if (!(item.isStringTyped() && Math::utf16Length(item.get<std::string>()) == 1)) {
                 allSingle = false;
             }
         }

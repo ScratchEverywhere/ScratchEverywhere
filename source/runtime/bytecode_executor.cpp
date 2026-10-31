@@ -40,8 +40,8 @@ BytecodeValueType concreteTypeOf(const Variable &var, std::string &text) {
         break;
     }
     const Value &value = std::get<Value>(var.value);
-    if (value.isDouble()) return BytecodeValueType::Number;
-    if (value.isString()) {
+    if (value.isRealNumber()) return BytecodeValueType::Number;
+    if (value.isStringTyped()) {
         text = value.asString();
         return BytecodeValueType::String;
     }
@@ -1509,10 +1509,9 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.stringStack.pop_back();
                 std::string op1 = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
-                Value v1(std::move(op1)), v2(std::move(op2));
-                bool result = instr.op == BytecodeOp::StrEquals ? v1 == v2
-                              : instr.op == BytecodeOp::StrLess ? v1 < v2
-                                                                : v1 > v2;
+                const bool result = Value::compareStrings(instr.op == BytecodeOp::StrEquals ? 0 : instr.op == BytecodeOp::StrLess ? 1
+                                                                                                                                   : 2,
+                                                          op1, op2);
                 thread.boolStack.push_back(result);
                 thread.pc++;
                 SE_NEXT();

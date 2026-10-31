@@ -14,7 +14,7 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-inline constexpr uint16_t bytecodeCacheVersion = 3;
+inline constexpr uint16_t bytecodeCacheVersion = 4;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 inline constexpr unsigned int BYTECODE_MAX_LIST_ITEMS = 200000;

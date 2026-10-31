@@ -9,7 +9,7 @@
 #include <value.hpp>
 
 bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName) {
-    if (soundValue.isString()) {
+    if (soundValue.isStringTyped()) {
         for (const Sound &sound : sprite->sounds) {
             if (sound.name == soundValue.get<std::string>()) {
                 outFullName = sound.fullName;
@@ -87,7 +87,7 @@ SCRATCH_BLOCK(sound, play) {
     std::string soundFullName;
     bool soundFound = false;
 
-    if (soundValue.isString()) {
+    if (soundValue.isStringTyped()) {
         for (const Sound &sound : sprite->sounds) {
             if (sound.name == soundValue.get<std::string>()) {
                 soundFullName = sound.fullName;

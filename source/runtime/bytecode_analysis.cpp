@@ -63,7 +63,7 @@ const char *typeName(VType t) {
 }
 
 bool isCanonicalNumber(const Value &value) {
-    return value.isString() && BytecodeAnalysis::isCanonicalNumericString(value.asString());
+    return value.isStringTyped() && BytecodeAnalysis::isCanonicalNumericString(value.asString());
 }
 
 bool hasPositional(const BytecodePositionalFn &fn) {
@@ -317,8 +317,8 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         VType type = VType::Unknown;
         if (instr.a < chunk_.constants.size()) {
             const Value &constant = chunk_.constants[instr.a];
-            if (constant.isDouble()) type = VType::Number;
-            else if (constant.isString()) type = isCanonicalNumber(constant) ? VType::NumericString : VType::String;
+            if (constant.isRealNumber()) type = VType::Number;
+            else if (constant.isStringTyped()) type = isCanonicalNumber(constant) ? VType::NumericString : VType::String;
             else if (constant.isBoolean()) type = VType::Boolean;
             else if (constant.isColor()) type = VType::Color;
         }
@@ -1299,8 +1299,8 @@ namespace {
 
 uint8_t valueTypeBit(const Value &value) {
     if (isCanonicalNumber(value)) return BytecodeAnalysis::typeBit(BytecodeValueType::NumericString);
-    if (value.isDouble()) return BytecodeAnalysis::typeBit(BytecodeValueType::Number);
-    if (value.isString()) return BytecodeAnalysis::typeBit(BytecodeValueType::String);
+    if (value.isRealNumber()) return BytecodeAnalysis::typeBit(BytecodeValueType::Number);
+    if (value.isStringTyped()) return BytecodeAnalysis::typeBit(BytecodeValueType::String);
     if (value.isBoolean()) return BytecodeAnalysis::typeBit(BytecodeValueType::Boolean);
     if (value.isColor()) return BytecodeAnalysis::typeBit(BytecodeValueType::Color);
     return BytecodeAnalysis::typeBit(BytecodeValueType::Unknown);

@@ -1,9 +1,12 @@
 #include "bytecode_compiler.hpp"
 #include "blockExecutor.hpp"
+#include "bytecode_analysis.hpp"
+#include "math.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <unordered_set>
 
@@ -277,6 +280,17 @@ BytecodeStackKind stackKindForType(Type type) {
     }
 }
 
+bool canonicalizeLiterals = false;
+std::unordered_set<std::string> reservedLiterals;
+
+Value canonicalLiteral(const Value &value) {
+    if (!canonicalizeLiterals || !value.isString()) return value;
+    const std::string text = value.asString();
+    if (!BytecodeAnalysis::isCanonicalNumericString(text) || reservedLiterals.count(text) != 0) return value;
+    const auto parsed = Math::parseNumber(text);
+    return parsed.has_value() ? Value::stringTypedNumber(*parsed) : value;
+}
+
 void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeStackKind wanted) {
     switch (wanted) {
     case BytecodeStackKind::Number: {
@@ -305,7 +319,7 @@ void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeSta
     }
     case BytecodeStackKind::Value: {
         BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
-        compiler.chunk().constants.push_back(value);
+        compiler.chunk().constants.push_back(canonicalLiteral(value));
         compiler.emit(BytecodeOp::PushConstValue, idx);
         return;
     }
@@ -566,6 +580,16 @@ BytecodeIndex compileStatementChain(BytecodeCompiler &compiler, Block *start) {
 }
 
 } // namespace
+
+void BytecodeCompiler::setReservedLiterals(std::unordered_set<std::string> names) {
+    reservedLiterals = std::move(names);
+    canonicalizeLiterals = std::getenv("SE_NOCANON") == nullptr;
+}
+
+void BytecodeCompiler::clearReservedLiterals() {
+    reservedLiterals.clear();
+    canonicalizeLiterals = false;
+}
 
 void Parser::compileBytecode(Sprite *sprite) {
     BytecodeCompiler compiler(sprite);

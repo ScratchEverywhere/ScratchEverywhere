@@ -150,7 +150,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
+                if (!item.isStringTyped() || Math::utf16Length(item.get<std::string>()) > 1) {
                     seperator = " ";
                     break;
                 }
@@ -169,7 +169,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : globalListIt->second.items) {
-            if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
+            if (!item.isStringTyped() || Math::utf16Length(item.get<std::string>()) > 1) {
                 seperator = " ";
                 break;
             }

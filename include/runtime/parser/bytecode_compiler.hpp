@@ -3,6 +3,7 @@
 #include <se_export.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct ParsedInput;
@@ -11,6 +12,9 @@ class SE_EXPORT BytecodeCompiler {
   public:
     using CustomCompileFn = bool (*)(BytecodeCompiler &compiler, Block *block, BytecodeIndex &outFirstInstr);
     static std::unordered_map<std::string, CustomCompileFn> &getCustomCompilers();
+
+    static void setReservedLiterals(std::unordered_set<std::string> names);
+    static void clearReservedLiterals();
 
     explicit BytecodeCompiler(Sprite *sprite) : sprite_(sprite) {}
 

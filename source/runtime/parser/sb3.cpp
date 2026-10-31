@@ -1,5 +1,6 @@
 #include "blockExecutor.hpp"
 #include "bytecode_cache.hpp"
+#include "bytecode_compiler.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
@@ -13,6 +14,7 @@
 #include <runtime.hpp>
 #include <translation.hpp>
 #include <unzip.hpp>
+#include <unordered_set>
 #include <variant>
 
 #ifdef SE_BYTECODE_STATS
@@ -121,6 +123,19 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Scratch::sprites.reserve(spriteAmount);
 
     BytecodeCache::beginLoadSession();
+
+    if (Scratch::useBytecode) {
+        std::unordered_set<std::string> assetNames;
+        for (const auto &target : spritesData) {
+            for (const char *kind : {"costumes", "sounds"}) {
+                if (!target.contains(kind) || !target[kind].is_array()) continue;
+                for (const auto &asset : target[kind]) {
+                    if (asset.contains("name") && asset["name"].is_string()) assetNames.insert(asset["name"].get<std::string>());
+                }
+            }
+        }
+        BytecodeCompiler::setReservedLiterals(std::move(assetNames));
+    }
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -423,6 +438,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
 
+    BytecodeCompiler::clearReservedLiterals();
     BytecodeCache::endLoadSession();
 
 #ifdef SE_BYTECODE_STATS

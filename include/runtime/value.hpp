@@ -4,6 +4,7 @@
 #include "conversions.hpp"
 #include "math.hpp"
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <deque>
@@ -99,6 +100,7 @@ class SE_EXPORT Value {
     static constexpr uint8_t FLAG_NUMERIC_COMPUTED = 1 << 0;
     static constexpr uint8_t FLAG_IS_NUMERIC = 1 << 1;
     static constexpr uint8_t FLAG_HAS_DOT = 1 << 2;
+    static constexpr uint8_t FLAG_STRING_TYPED = 1 << 3;
 
     union Storage {
         double d;
@@ -173,6 +175,28 @@ class SE_EXPORT Value {
     explicit Value(Color val);
     explicit Value(Undefined val);
 
+    struct Layout {
+        size_t size, tag, flags, number;
+        uint8_t numberTag, stringTag, stringTypedFlag;
+    };
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+    static Layout layout() {
+        return {sizeof(Value), offsetof(Value, tag), offsetof(Value, flags), offsetof(Value, storage),
+                static_cast<uint8_t>(Tag::NUMBER), static_cast<uint8_t>(Tag::STRING_ID), FLAG_STRING_TYPED};
+    }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+    static Value stringTypedNumber(double d) {
+        Value v(d);
+        v.flags = FLAG_STRING_TYPED;
+        return v;
+    }
+
     Value(const Value &other) : tag(other.tag), flags(other.flags) {
         constructFrom(other);
     }
@@ -204,6 +228,12 @@ class SE_EXPORT Value {
     inline bool isString() const {
         return tag == Tag::STRING_ID;
     }
+    inline bool isRealNumber() const {
+        return tag == Tag::NUMBER && (flags & FLAG_STRING_TYPED) == 0;
+    }
+    inline bool isStringTyped() const {
+        return tag == Tag::STRING_ID || (tag == Tag::NUMBER && (flags & FLAG_STRING_TYPED) != 0);
+    }
     inline bool isBoolean() const {
         return tag == Tag::BOOLEAN;
     }
@@ -215,6 +245,7 @@ class SE_EXPORT Value {
     }
     bool isNumeric() const;
     bool plainNumber(double &out) const;
+    static bool compareStrings(int kind, std::string_view a, std::string_view b);
     inline bool isNaN() const {
         return isDouble() && std::isnan(storage.d);
     }

@@ -72,7 +72,14 @@ void writeColor(std::ostream &out, const Color &c) {
     writeFloat(out, c.brightness);
     writeFloat(out, c.transparency);
 }
+constexpr uint8_t kStringTypedNumberTag = 0x80;
+
 void writeValue(std::ostream &out, const Value &v) {
+    if (v.isDouble() && v.isStringTyped()) {
+        writeU8(out, kStringTypedNumberTag);
+        writeDouble(out, v.get<double>());
+        return;
+    }
     writeU8(out, static_cast<uint8_t>(v.getTag()));
     switch (v.getTag()) {
     case Value::Tag::UNDEFINED:
@@ -144,6 +151,12 @@ bool readColor(std::istream &in, Color &c) {
 bool readValue(std::istream &in, Value &out) {
     uint8_t tagRaw;
     if (!readU8(in, tagRaw)) return false;
+    if (tagRaw == kStringTypedNumberTag) {
+        double d;
+        if (!readDouble(in, d)) return false;
+        out = Value::stringTypedNumber(d);
+        return true;
+    }
     switch (static_cast<Value::Tag>(tagRaw)) {
     case Value::Tag::UNDEFINED:
         out = Value(Undefined{});

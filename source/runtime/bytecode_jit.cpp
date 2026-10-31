@@ -170,6 +170,7 @@ struct alignas(64) Context {
     uint64_t warp = 0;
     int64_t dirty[kMaxPromoted];
     double slots[kMaxSlots];
+    List *const *lists = nullptr;
     uint32_t stringBase = 0;
     uint32_t strHigh = 0;
     uint64_t stringVariableUsed[2] = {0, 0};
@@ -247,8 +248,53 @@ double rawVariableNumber(const Variable *var) {
 Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position);
 std::string readVariableString(Context *ctx, uint32_t k);
 
+struct ListLayout {
+    bool ok = false;
+    sljit_sw items = 0;
+    sljit_sw valueSize = 0;
+    sljit_sw tag = 0, flags = 0, number = 0;
+    sljit_sw numberTag = 0, stringTag = 0;
+};
+
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+const ListLayout &listLayout() {
+    static const ListLayout layout = [] {
+        ListLayout l;
+        const Value::Layout v = Value::layout();
+        l.items = static_cast<sljit_sw>(offsetof(List, items));
+        l.valueSize = static_cast<sljit_sw>(v.size);
+        l.tag = static_cast<sljit_sw>(v.tag);
+        l.flags = static_cast<sljit_sw>(v.flags);
+        l.number = static_cast<sljit_sw>(v.number);
+        l.numberTag = v.numberTag;
+        l.stringTag = v.stringTag;
+
+        List probe;
+        probe.items.reserve(8);
+        probe.items.push_back(Value(3.5));
+        probe.items.push_back(Value(-1.25));
+        const char *base = reinterpret_cast<const char *>(&probe) + l.items;
+        const char *begin = *reinterpret_cast<const char *const *>(base);
+        const char *end = *reinterpret_cast<const char *const *>(base + sizeof(void *));
+        const char *capacity = *reinterpret_cast<const char *const *>(base + 2 * sizeof(void *));
+        const char *second = begin + l.valueSize;
+        l.ok = begin == reinterpret_cast<const char *>(probe.items.data()) && end == begin + 2 * l.valueSize && capacity == begin + 8 * l.valueSize &&
+               static_cast<uint8_t>(begin[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(begin + l.number) == 3.5 &&
+               static_cast<uint8_t>(second[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(second + l.number) == -1.25;
+        return l;
+    }();
+    return layout;
+}
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
 constexpr uint32_t kMaxTemps = 64;
 alignas(64) Value gTemps[kMaxTemps];
+uint8_t gTempLazy[kMaxTemps];
 alignas(64) Value gShadows[kMaxPromoted];
 std::vector<double> gSave;
 struct NativeFrame {
@@ -317,6 +363,7 @@ Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position)
         return index < thread.valueStack.size() ? thread.valueStack[index] : Value();
     }
     case ValueEntry::Temp:
+        if (gTempLazy[position]) return Value(ctx->slots[ctx->code->slotValues + position]);
         return gTemps[position];
     default:
         if (ctx->lazyDepth > 0 && position < gFrames[ctx->nativeDepth - 1].call->argCount) {
@@ -498,9 +545,9 @@ sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
 bool variableIsNumber(Context *ctx, uint32_t k) {
     const int64_t kind = ctx->dirty[k];
     if (kind == 1 || kind == 2) return true;
-    if (kind >= 5) return ctx->chunk->constants[kind - 5].isDouble();
-    if (kind == 3) return gShadows[k].isDouble();
-    if (kind == 0) return materializeVariable(ctx, k).isDouble();
+    if (kind >= 5) return ctx->chunk->constants[kind - 5].isRealNumber();
+    if (kind == 3) return gShadows[k].isRealNumber();
+    if (kind == 0) return materializeVariable(ctx, k).isRealNumber();
     return false;
 }
 
@@ -513,14 +560,14 @@ bool argumentIsNumber(Context *ctx, uint32_t index) {
         if (index >= argc || callState.values.size() < argc) return false;
         const ValueEntry &arg = callState.values[callState.values.size() - argc + index];
         if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) return true;
-        if (arg.kind == ValueEntry::Constant) return ctx->chunk->constants[arg.constant].isDouble();
+        if (arg.kind == ValueEntry::Constant) return ctx->chunk->constants[arg.constant].isRealNumber();
         return false;
     }
     if (thread.callStack.empty()) return false;
     const BytecodeCallFrame &frame = thread.callStack.back();
     if (frame.stackBase < frame.argCount || index >= frame.argCount) return false;
     const size_t at = static_cast<size_t>(frame.stackBase - frame.argCount) + index;
-    return at < thread.valueStack.size() && thread.valueStack[at].isDouble();
+    return at < thread.valueStack.size() && thread.valueStack[at].isRealNumber();
 }
 
 bool lazyCall(Context *ctx, const CallDescriptor *call) {
@@ -559,7 +606,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     for (uint32_t i = 0; i < v; i++) {
         const ValueEntry::Kind kind = state->values[i].kind;
         if ((kind == ValueEntry::Opaque || kind == ValueEntry::Like) && i >= virtualEntries && ctx->valueBase + i >= values.size()) return false;
-        if (kind == ValueEntry::Temp && !gTemps[i].isDouble()) return false;
+        if (kind == ValueEntry::Temp && !gTempLazy[i] && !gTemps[i].isRealNumber()) return false;
         if (kind == ValueEntry::Argument && !argumentIsNumber(ctx, state->values[i].constant)) return false;
         if (kind == ValueEntry::VarValue && !variableIsNumber(ctx, state->values[i].constant)) return false;
     }
@@ -762,6 +809,7 @@ void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
     }
     ctx->slots[ctx->code->slotValues + op->indexPosition] = item.numberRaw();
     gTemps[op->indexPosition] = std::move(item);
+    gTempLazy[op->indexPosition] = 0;
     ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
 }
 
@@ -795,6 +843,7 @@ void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
     }
     ctx->slots[ctx->code->slotValues + op->indexPosition] = item.numberRaw();
     gTemps[op->indexPosition] = std::move(item);
+    gTempLazy[op->indexPosition] = 0;
     ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
 }
 
@@ -938,6 +987,50 @@ void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
     ctx->slots[ctx->code->slotVariables + k] = Conversions::stringToNumber(gStringVariables[k]);
 }
 
+void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
+    const auto setBoolean = [&](bool b) { ctx->slots[op->numberOut] = fromBits(b ? 1 : 0); };
+        const std::string &x = stringOf(ctx, op->a, op->aPosition);
+        const std::string &y = stringOf(ctx, op->b, op->bPosition);
+        if (op->compare == BytecodeCompareKind::Equals && x.size() == 1 && y.size() == 1) {
+            // one ASCII character against one: equal exactly when they are the same letter in either case (two different digits are different numbers)
+            const unsigned char c = static_cast<unsigned char>(x[0]), d = static_cast<unsigned char>(y[0]);
+            if (c < 0x80 && d < 0x80) {
+                const unsigned char lc = (c >= 'A' && c <= 'Z') ? c + 32 : c, ld = (d >= 'A' && d <= 'Z') ? d + 32 : d;
+                setBoolean(lc == ld);
+                return;
+            }
+        }
+        setBoolean(Value::compareStrings(static_cast<int>(op->compare), x, y));
+        return;
+}
+
+void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
+    const Code &code = *ctx->code;
+    const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
+        const double index = std::floor(number(op->numberIn)) - 1;
+        // built in place: a temporary that is moved afterwards is read back with wide loads over bytes just written, which stalls
+        std::string &letter = gStrs[op->outPosition];
+        ctx->strHigh = std::max(ctx->strHigh, op->outPosition + 1);
+        letter.clear();
+        const int64_t kind = ctx->dirty[op->variable];
+        if (kind == 0) {
+            const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
+            if (var != nullptr) {
+                if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                    if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
+                }
+            }
+        } else if (kind == 4) {
+            const std::string &text = gStringVariables[op->variable];
+            if (stringVariableIsAscii(op->variable)) {
+                if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
+            } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
+                letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
+            }
+        }
+        return;
+}
+
 void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     Sprite *sprite = static_cast<Sprite *>(ctx->sprite);
@@ -967,21 +1060,9 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         return;
     }
 
-    case StringOp::Compare: {
-        const Value a{std::string_view(stringOf(ctx, op->a, op->aPosition))};
-        const Value b{std::string_view(stringOf(ctx, op->b, op->bPosition))};
-        switch (op->compare) {
-        case BytecodeCompareKind::Equals:
-            setBoolean(a == b);
-            return;
-        case BytecodeCompareKind::Less:
-            setBoolean(a < b);
-            return;
-        default:
-            setBoolean(a > b);
-            return;
-        }
-    }
+    case StringOp::Compare:
+        jitStringCompare(ctx, op);
+        return;
 
     case StringOp::CallStringString:
         setString(ctx, op->outPosition, reinterpret_cast<std::string (*)(const std::string &, const std::string &)>(op->fn)(stringOf(ctx, op->a, op->aPosition), stringOf(ctx, op->b, op->bPosition)));
@@ -1011,28 +1092,9 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         reinterpret_cast<void (*)(Sprite *, const std::string &, double)>(op->fn)(sprite, stringOf(ctx, op->a, op->aPosition), number(op->numberIn));
         return;
 
-    case StringOp::LetterOfVariable: {
-        const double index = std::floor(number(op->numberIn)) - 1;
-        std::string letter;
-        const int64_t kind = ctx->dirty[op->variable];
-        if (kind == 0) {
-            const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
-            if (var != nullptr) {
-                if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                    if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
-                }
-            }
-        } else if (kind == 4) {
-            const std::string &text = gStringVariables[op->variable];
-            if (stringVariableIsAscii(op->variable)) {
-                if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
-            } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
-                letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
-            }
-        }
-        setString(ctx, op->outPosition, std::move(letter));
+    case StringOp::LetterOfVariable:
+        jitLetterOfVariable(ctx, op);
         return;
-    }
     case StringOp::LengthOfVariable: {
         size_t units = 0;
         const int64_t kind = ctx->dirty[op->variable];
@@ -1067,6 +1129,7 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         Value value{std::string_view(stringOf(ctx, op->a, op->aPosition))};
         ctx->slots[code.slotValues + op->outPosition] = value.numberRaw();
         gTemps[op->outPosition] = std::move(value);
+        gTempLazy[op->outPosition] = 0;
         ctx->tempHigh = std::max(ctx->tempHigh, op->outPosition + 1);
         return;
     }
@@ -1850,7 +1913,10 @@ class Emitter {
     void callStringOp(StringOp &op) {
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&op));
-        callHelper(reinterpret_cast<void *>(&jitStringOp), SLJIT_ARGS2V(P, P));
+        void *helper = reinterpret_cast<void *>(&jitStringOp);
+        if (op.kind == StringOp::Compare) helper = reinterpret_cast<void *>(&jitStringCompare);
+        else if (op.kind == StringOp::LetterOfVariable) helper = reinterpret_cast<void *>(&jitLetterOfVariable);
+        callHelper(helper, SLJIT_ARGS2V(P, P));
     }
 
     void ensureVariableNumber(BytecodeIndex variable) {
@@ -1876,6 +1942,10 @@ class Emitter {
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     void emitInlineMod(const BytecodeInstruction &instr);
+    bool guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain);
+    void emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector<sljit_jump *> &slow);
+    bool emitInlineListItem(const ListOpDescriptor &op);
+    bool emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item);
     bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
     BytecodeIndex currentPc_ = 0;
     ExitDescriptor &makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state);
@@ -2009,6 +2079,130 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
         }
         sljit_set_label(no, fall);
     });
+}
+
+bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain) {
+    switch (entry.kind) {
+    case ValueEntry::Number:
+        return true;
+    case ValueEntry::Temp:
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[position]));
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        return true;
+    case ValueEntry::VarValue:
+        if (entry.constant >= code_.promoted.size()) return false;
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(entry.constant));
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R2, 0, SLJIT_IMM, 1));
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Emitter::emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector<sljit_jump *> &slow) {
+    const ListLayout &layout = listLayout();
+    loadF(SLJIT_FR0, indexSlot);
+    sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R2, 0, SLJIT_FR0, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R2, 0);
+    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0));
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0x7fffffff));
+    sljit_emit_op2(c_, SLJIT_MUL, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, layout.valueSize);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(slot) * static_cast<sljit_sw>(sizeof(void *)));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + static_cast<sljit_sw>(sizeof(void *))));
+}
+
+bool Emitter::emitInlineListItem(const ListOpDescriptor &op) {
+    const ListLayout &layout = listLayout();
+    if (!layout.ok) return false;
+    const uint32_t out = valueSlot(op.indexPosition);
+    std::vector<sljit_jump *> slow;
+    emitListItemAddress(op.list, out, slow);
+
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.flags);
+    sljit_jump *flagged = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R1), layout.number);
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 1);
+    storeF(out, SLJIT_FR0);
+    sljit_label *done = sljit_emit_label(c_);
+
+    addCold([this, slow, flagged, done, &op, out, layout]() {
+        sljit_label *here = sljit_emit_label(c_);
+        for (sljit_jump *jump : slow)
+            sljit_set_label(jump, here);
+        callListHelper(reinterpret_cast<void *>(&jitListItem), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        sljit_jump *back = sljit_emit_jump(c_, SLJIT_JUMP);
+        sljit_set_label(back, done);
+
+        sljit_set_label(flagged, sljit_emit_label(c_));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gTemps[op.indexPosition]));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.tag);
+        sljit_jump *notString = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.stringTag);
+        sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.number);
+        sljit_jump *pooled = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+        sljit_set_label(notString, sljit_emit_label(c_));
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R1), layout.number);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.flags);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R0), layout.flags, SLJIT_R2, 0);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R0), layout.tag, SLJIT_IMM, layout.numberTag);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), layout.number, SLJIT_FR0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 0);
+        storeF(out, SLJIT_FR0);
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+        sljit_set_label(pooled, sljit_emit_label(c_));
+        callListHelper(reinterpret_cast<void *>(&jitListItem), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+    });
+    return true;
+}
+
+bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item) {
+    const ListLayout &layout = listLayout();
+    const bool variable = item.kind == ValueEntry::VarValue && item.constant < code_.promoted.size();
+    const bool temporary = item.kind == ValueEntry::Temp;
+    if (!layout.ok || (item.kind != ValueEntry::Number && !variable && !temporary)) return false;
+    std::vector<sljit_jump *> slow;
+    emitListItemAddress(op.list, valueSlot(op.indexPosition), slow);
+    if (variable) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(item.constant));
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R2, 0, SLJIT_IMM, 1));
+    }
+    if (temporary) {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.itemPosition]));
+        sljit_jump *lazy = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gTemps[op.itemPosition]));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.tag);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.flags);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        sljit_set_label(lazy, sljit_emit_label(c_));
+    }
+
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.stringTag));
+    loadF(SLJIT_FR2, valueSlot(op.itemPosition));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, 0);
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
+    sljit_label *done = sljit_emit_label(c_);
+
+    addCold([this, slow, done, &op]() {
+        sljit_label *here = sljit_emit_label(c_);
+        for (sljit_jump *jump : slow)
+            sljit_set_label(jump, here);
+        callListHelper(reinterpret_cast<void *>(&jitListReplace), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+    });
+    return true;
 }
 
 bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape) {
@@ -2511,7 +2705,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         storeImmF(valueSlot(depth), chunk_.constants[instr.a].numberRaw());
         AbsValue v;
-        v.kind = chunk_.constants[instr.a].isDouble() ? ValueEntry::Number : ValueEntry::Constant;
+        v.kind = chunk_.constants[instr.a].isRealNumber() ? ValueEntry::Number : ValueEntry::Constant;
         v.constant = instr.a;
         state_.values.push_back(v);
         maxValues_ = std::max(maxValues_, depth + 1);
@@ -2629,10 +2823,31 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             compare.aPosition = depth - 2;
             compare.b = describe(state_.values[depth - 1]);
             compare.bPosition = depth - 1;
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&compare));
-            callHelper(reinterpret_cast<void *>(&jitCompareValues), SLJIT_ARGS2(W, P, P));
-            storeW(booleanSlot(state_.booleans), SLJIT_R0);
+            const uint32_t result = booleanSlot(state_.booleans);
+            const auto emitHelper = [this, &compare, result]() {
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&compare));
+                callHelper(reinterpret_cast<void *>(&jitCompareValues), SLJIT_ARGS2(W, P, P));
+                storeW(result, SLJIT_R0);
+            };
+
+            std::vector<sljit_jump *> notPlain;
+            const bool inlinable = guardPlainNumber(state_.values[depth - 2], depth - 2, notPlain) && guardPlainNumber(state_.values[depth - 1], depth - 1, notPlain);
+            if (inlinable) {
+                emitCompareValue(kind, valueSlot(depth - 2), valueSlot(depth - 1));
+                sljit_label *compared = sljit_emit_label(c_);
+                addCold([this, notPlain, compared, emitHelper]() {
+                    sljit_label *here = sljit_emit_label(c_);
+                    for (sljit_jump *jump : notPlain)
+                        sljit_set_label(jump, here);
+                    emitHelper();
+                    sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), compared);
+                });
+            } else {
+                for (sljit_jump *jump : notPlain)
+                    sljit_set_label(jump, sljit_emit_label(c_));
+                emitHelper();
+            }
         }
         state_.values.pop_back();
         state_.values.pop_back();
@@ -2703,7 +2918,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         op.list = instr.a;
         op.indexPosition = depth - 1;
         if (plan_.topValuesAreNumeric(pc, 1)) {
-            callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
+            if (!emitInlineListItem(op)) callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
         } else {
             op.item = describe(state_.values[depth - 1]);
             op.itemPosition = depth - 1;
@@ -2723,6 +2938,11 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const bool replace = instr.op == BytecodeOp::ReplaceInList;
         void *helper;
         if (plan_.topValuesAreNumeric(pc, 1)) {
+            if (replace && emitInlineListReplace(op, state_.values[depth - 2])) {
+                state_.values.pop_back();
+                state_.values.pop_back();
+                return;
+            }
             helper = reinterpret_cast<void *>(replace ? &jitListReplace : &jitListInsert);
         } else {
             op.index = describe(state_.values[depth - 1]);
@@ -3488,11 +3708,13 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
     ctx.sprite = thread.sprite;
     ctx.timer = &sliceTimer;
     ctx.timerStarted = &sliceTimerStarted;
+    if (thread.link != nullptr && thread.link->lists.size() >= chunk.listSlots.size()) ctx.lists = thread.link->lists.data();
     const Code &code = *chunk.jit;
     const Result result = static_cast<Result>(code.fn(&ctx, entryId));
 
     for (uint32_t i = 0; i < ctx.tempHigh; i++)
         gTemps[i] = Value();
+    std::memset(gTempLazy, 0, sizeof gTempLazy);
     for (uint32_t i = 0; i < ctx.strHigh; i++)
         std::string().swap(gStrs[i]);
     for (uint32_t k = 0; (ctx.stringVariableUsed[0] | ctx.stringVariableUsed[1]) != 0 && k < kMaxPromoted; k++) {
