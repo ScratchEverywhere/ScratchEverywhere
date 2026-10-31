@@ -257,15 +257,15 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     case Math::fnv1a_hash("floor", 5): *outValue = floor(value); break;
     case Math::fnv1a_hash("ceiling", 7): *outValue = ceil(value); break;
     case Math::fnv1a_hash("sqrt", 4): *outValue = sqrt(value); break;
-    case Math::fnv1a_hash("sin", 3): *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
-    case Math::fnv1a_hash("cos", 3): *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
+    case Math::fnv1a_hash("sin", 3): *outValue = round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
+    case Math::fnv1a_hash("cos", 3): *outValue = round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
     case Math::fnv1a_hash("tan", 3): {
         double modAngle = std::fmod(value, 360.0);
         if (modAngle < -180.0) modAngle += 360.0;
         if (modAngle > 180.0) modAngle -= 360.0;
         if (modAngle == 90.0 || modAngle == -270.0) *outValue = std::numeric_limits<double>::infinity();
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = -std::numeric_limits<double>::infinity();
-        else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+        else *outValue = round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
         break;
     }
     case Math::fnv1a_hash("asin", 4): *outValue = Math::radiansToDegrees(asin(value)); break;
@@ -282,8 +282,8 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     else if (operation == "floor") *outValue = floor(value);
     else if (operation == "ceiling") *outValue = ceil(value);
     else if (operation == "sqrt") *outValue = (sqrt(value));
-    else if (operation == "sin") *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
-    else if (operation == "cos") *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+    else if (operation == "sin") *outValue = ::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
+    else if (operation == "cos") *outValue = ::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
     else if (operation == "tan") {
         double modAngle = std::fmod(value, 360.0);
 
@@ -292,7 +292,7 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
 
         if (modAngle == 90.0 || modAngle == -270.0) *outValue = std::numeric_limits<double>::infinity();
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = -std::numeric_limits<double>::infinity();
-        else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+        else *outValue = ::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
     } else if (operation == "asin") *outValue = Math::radiansToDegrees(asin(value));
     else if (operation == "acos") *outValue = Math::radiansToDegrees(acos(value));
     else if (operation == "atan") *outValue = Math::radiansToDegrees(atan(value));

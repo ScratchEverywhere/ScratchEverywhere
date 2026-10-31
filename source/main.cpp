@@ -10,7 +10,12 @@
 #endif
 #include <algorithm>
 #include <climits>
+#include <cstdio>
 #include <cstdlib>
+#include <fcntl.h>
+#include <sys/fcntl.h>
+#include <sys/_default_fcntl.h>
+#include <unistd.h>
 #include <sstream>
 #include <sys/stat.h>
 #endif
@@ -125,6 +130,10 @@ bool hasdeps() {
 extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
+#endif
+#ifdef __PS3__
+    printf("PS3 MAIN START\\n");
+    fflush(stdout);
 #endif
 #if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
     in_path = false;

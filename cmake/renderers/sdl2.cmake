@@ -5,6 +5,8 @@ if(VITA)
         "CMAKE_POLICY_DEFAULT_CMP0069" "NEW"
         "VIDEO_VITA_PIB" "ON"
     )
+elseif(PS3)
+    cl_add_dep(renderer_interface SDL2)
 else()
     cl_add_dep(renderer_interface SDL2)
 endif()

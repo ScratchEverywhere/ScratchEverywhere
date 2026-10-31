@@ -55,8 +55,8 @@ struct ScratchColorTransform {
             else { r = chroma; g = 0.0f; b = x; }
             r += m; g += m; b += m;
         }
-        red = static_cast<uint8_t>(std::round(std::clamp(r + brightness, 0.0f, 1.0f) * 255.0f));
-        green = static_cast<uint8_t>(std::round(std::clamp(g + brightness, 0.0f, 1.0f) * 255.0f));
-        blue = static_cast<uint8_t>(std::round(std::clamp(b + brightness, 0.0f, 1.0f) * 255.0f));
+        red = static_cast<uint8_t>(round(std::clamp(r + brightness, 0.0f, 1.0f) * 255.0f));
+        green = static_cast<uint8_t>(round(std::clamp(g + brightness, 0.0f, 1.0f) * 255.0f));
+        blue = static_cast<uint8_t>(round(std::clamp(b + brightness, 0.0f, 1.0f) * 255.0f));
     }
 };

@@ -20,6 +20,7 @@
 #include <iostream>
 #include <limits>
 #include <thread>
+#include <mutex>
 #include <vector>
 
 SoundConfig::SoundConfig() {
@@ -433,7 +434,7 @@ std::array<MixerStreamSnapshot, MAX_MIXER_STREAMS> mixerSnapshot{};
 std::array<float, MIX_CHUNK_FRAMES * 2> mixerBuffer{};
 SoundStream *retiredStreams = nullptr; // intrusive queue, protected by Mixer::mutex
 #if defined(ENABLE_AUDIO) && !defined(__NDS__)
-std::mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
+SE_Mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
 #endif
 } // namespace
 
@@ -525,7 +526,7 @@ void Mixer::requestSound(short *output, int frames) {
 // audio callbacks, not runtime controls, so they cannot race without holding Mixer::mutex
 // during potentially slow decoding/resampling.
 #ifndef __NDS__
-    std::lock_guard<std::mutex> callbackLock(mixerCallbackMutex);
+    std::lock_guard<SE_Mutex> callbackLock(mixerCallbackMutex);
 #endif
 
     size_t streamCount = 0;

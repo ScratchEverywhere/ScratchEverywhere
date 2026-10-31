@@ -2,6 +2,11 @@
 #include "speech_manager_sdl2.hpp"
 #include <window.hpp>
 
+#if !SDL_VERSION_ATLEAST(2, 0, 18)
+struct SDL_Vertex { SDL_FPoint position; SDL_Color color; SDL_FPoint tex_coord; };
+static inline int SDL_RenderGeometry(SDL_Renderer *, SDL_Texture *, const SDL_Vertex *, int, const int *, int) { return 0; }
+#endif
+
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
@@ -105,6 +110,9 @@ Renderer_SDL2::Renderer_SDL2() {
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
+#elif defined(__PS3__)
+    int windowWidth = 640;
+    int windowHeight = 480;
 
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
@@ -134,7 +142,9 @@ Renderer_SDL2::Renderer_SDL2() {
         window = nullptr;
         return;
     }
-#if defined(WEBOS) || defined(__PSP__)
+#if defined(__PS3__)
+    uint32_t sdlFlags = SDL_RENDERER_SOFTWARE | SDL_RENDERER_PRESENTVSYNC;
+#elif defined(WEBOS) || defined(__PSP__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
