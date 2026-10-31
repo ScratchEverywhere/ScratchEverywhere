@@ -2,6 +2,9 @@
 #include "speech_manager_gl2d.hpp"
 
 #include <audio.hpp>
+#ifdef ENABLE_AUDIO
+#include <maxmod9.h>
+#endif
 #include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
@@ -78,6 +81,9 @@ void Renderer_GL2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Renderer_GL2D::endFrame(bool shouldFlush) {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
+#ifdef ENABLE_AUDIO
+    mmStreamUpdate();
+#endif
     hasFrameBegan = false;
 }
 
@@ -160,6 +166,9 @@ void Renderer_GL2D::renderSprites() {
     Render::renderMonitors();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
+#ifdef ENABLE_AUDIO
+    mmStreamUpdate();
+#endif
 }
 
 void Renderer_GL2D::renderPenLayer() {

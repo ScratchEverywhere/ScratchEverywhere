@@ -1,6 +1,8 @@
 #include "renderer_xbox.hpp"
 #include "speech_manager_xbox.hpp"
+#ifdef WINDOWING_SDL3
 #include "window_sdl3.hpp"
+#endif
 #include <os.hpp>
 #include <window.hpp>
 
@@ -14,22 +16,6 @@
 
 #undef min
 #undef max
-
-#ifndef VENC_MODE_WIDESCREEN
-#define VENC_MODE_WIDESCREEN VIDEO_WIDESCREEN
-#endif
-#ifndef VENC_MODE_720P
-#define VENC_MODE_720P VIDEO_MODE_720P
-#endif
-#ifndef VENC_MODE_1080I
-#define VENC_MODE_1080I VIDEO_MODE_1080I
-#endif
-#ifndef VENC_MODE_480P
-#define VENC_MODE_480P VIDEO_MODE_480P
-#endif
-#ifndef VENC_MODE_LETTERBOX
-#define VENC_MODE_LETTERBOX VIDEO_LETTERBOX
-#endif
 #endif
 
 #include <algorithm>
@@ -54,6 +40,17 @@ static bool hasOverrideTarget = false;
 static int overrideWidth = 0;
 static int overrideHeight = 0;
 static SDL_Texture *penTexture = nullptr;
+static SDL_Surface *penColorSurface = nullptr;
+static SDL_Rect penColorRect = {};
+static bool penColorDirty = true;
+static bool penColorReadFailed = false;
+
+static void clearPenColorReadback() {
+    SDL_DestroySurface(penColorSurface);
+    penColorSurface = nullptr;
+    penColorDirty = true;
+    penColorReadFailed = false;
+}
 
 static std::vector<SDL_Vertex> penVerts;
 
@@ -254,6 +251,9 @@ void Renderer_Xbox::initVideo() {
         }
     }
 
+#ifdef SE_XBOX_FORCE_480P
+    can720p = false;
+#endif
     xboxVideoSettings.width = can720p ? 1280 : 640;
     xboxVideoSettings.height = can720p ? 720 : 480;
     xboxVideoSettings.bpp = 32;
@@ -270,9 +270,9 @@ void Renderer_Xbox::initVideo() {
         case AV_PACK_HDTV:
             // Component (HDTV):
             // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
-            // Standard 480i through component may be on early HD CRTs with overscan (4%).
+            // Standard 480i through component may be on early HD CRTs with overscan (5%).
             if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
@@ -284,9 +284,9 @@ void Renderer_Xbox::initVideo() {
         case AV_PACK_SCART:    // Advanced SCART (RGB)
         default:
             // Standard-definition analog CRT formats:
-            // Almost all consumer CRTs crop borders by ~3-5%. Apply 4% centered safe margin.
+            // Almost all consumer CRTs crop borders by ~3-5%. Apply 5% centered safe margin.
             if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
-                autoOverscan = 0.04f;
+                autoOverscan = 0.05f;
             } else {
                 autoOverscan = 0.0f;
             }
@@ -459,11 +459,145 @@ void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool i
     applyAspectRatio(Sdlrenderer, logicalWidth, logicalHeight, isWidescreen);
 }
 
+#ifdef SE_XBOX_TRACE_RENDERER
+static void traceEffectCache() {
+    static unsigned frames = 0;
+    if (++frames % 120 != 0) return;
+    const auto stats = Image_Xbox::getEffectCacheStats();
+    Log::log("GPU effect cache bytes=" + std::to_string(stats.bytes) +
+             " peak=" + std::to_string(stats.peakBytes) + " entries=" + std::to_string(stats.entries) +
+             " created=" + std::to_string(stats.created) + " evicted=" + std::to_string(stats.evicted));
+}
+
+static bool traceStartupPixels(SDL_Renderer *renderer) {
+    // Exercise the actual GPU path, including state changes used by games.
+    bool passed = true;
+    SDL_Rect savedViewport;
+    float savedScaleX = 1.0f, savedScaleY = 1.0f;
+    SDL_GetRenderViewport(renderer, &savedViewport);
+    SDL_GetRenderScale(renderer, &savedScaleX, &savedScaleY);
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    SDL_SetRenderViewport(renderer, nullptr);
+    auto pixel = [&](SDL_Surface *surface, const char *test, int x, int y,
+                     int expectedR, int expectedG, int expectedB, int tolerance = 0, int expectedA = -1) {
+        Uint8 r = 0, g = 0, b = 0, a = 0;
+        bool read = surface && SDL_ReadSurfacePixel(surface, x, y, &r, &g, &b, &a);
+        bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
+                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance &&
+                       (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
+        Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
+                 " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
+        passed &= matches;
+    };
+    auto clearBlue = [&] {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        passed &= SDL_RenderClear(renderer);
+    };
+    const SDL_FColor red = {1, 0, 0, 1};
+    const SDL_Vertex triangle[] = {
+        {{0, 0}, red, {0, 0}}, {{64, 0}, red, {0, 0}}, {{0, 64}, red, {0, 0}}
+    };
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 2, 2);
+    const Uint32 green[] = {0xff00ff00, 0xff00ff00, 0xff00ff00, 0xff00ff00};
+    passed &= texture && SDL_UpdateTexture(texture, nullptr, green, 8);
+    const SDL_FRect destination = {64, 0, 64, 64};
+    clearBlue();
+    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
+    if (texture) passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
+    SDL_Surface *pixels = SDL_RenderReadPixels(renderer, nullptr);
+    pixel(pixels, "solid", 8, 8, 255, 0, 0);
+    pixel(pixels, "textured", 72, 8, 0, 255, 0);
+    pixel(pixels, "clear", 144, 8, 0, 0, 255);
+    SDL_DestroySurface(pixels);
+
+    clearBlue();
+    const SDL_Rect viewport = {32, 32, 64, 64};
+    passed &= SDL_SetRenderViewport(renderer, &viewport);
+    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
+    passed &= SDL_SetRenderViewport(renderer, nullptr);
+    pixels = SDL_RenderReadPixels(renderer, nullptr);
+    pixel(pixels, "viewport-offset", 40, 40, 255, 0, 0);
+    pixel(pixels, "viewport-outside", 8, 8, 0, 0, 255);
+    SDL_DestroySurface(pixels);
+
+    clearBlue();
+    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 64, 64);
+    passed &= target != nullptr;
+    if (target) {
+        passed &= SDL_SetRenderTarget(renderer, target);
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        passed &= SDL_RenderClear(renderer);
+        passed &= SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_NONE);
+        const SDL_FRect targetDestination = {128, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-restore", 136, 8, 0, 255, 0);
+        pixel(pixels, "target-outside", 208, 8, 0, 0, 255);
+        SDL_DestroySurface(pixels);
+    }
+    clearBlue();
+    if (texture) {
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(texture, 128);
+        passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1, 255);
+        SDL_DestroySurface(pixels);
+    }
+    if (texture && target) {
+        passed &= SDL_SetRenderTarget(renderer, target);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+        passed &= SDL_RenderClear(renderer);
+        const SDL_FRect entireTarget = {0, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, texture, nullptr, &entireTarget);
+        const SDL_FColor halfRed = {1, 0, 0, 128.0f / 255.0f};
+        const SDL_Vertex halfTriangle[] = {
+            {{0, 0}, halfRed, {0, 0}}, {{64, 0}, halfRed, {0, 0}}, {{0, 64}, halfRed, {0, 0}}
+        };
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        passed &= SDL_RenderGeometry(renderer, nullptr, halfTriangle, 3, nullptr, 0);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-alpha", 52, 52, 0, 128, 0, 1, 128);
+        pixel(pixels, "target-alpha-overlap", 8, 8, 128, 64, 0, 1, 192);
+        SDL_DestroySurface(pixels);
+        const SDL_Rect targetSample = {8, 8, 4, 4};
+        pixels = SDL_RenderReadPixels(renderer, &targetSample);
+        pixel(pixels, "target-subrect", 0, 0, 128, 64, 0, 1, 192);
+        SDL_DestroySurface(pixels);
+        passed &= SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        clearBlue();
+        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
+        const SDL_FRect targetDestination = {128, 0, 64, 64};
+        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
+        pixels = SDL_RenderReadPixels(renderer, nullptr);
+        pixel(pixels, "target-alpha-composite", 180, 52, 0, 128, 127, 1, 255);
+        pixel(pixels, "target-alpha-overlap-composite", 136, 8, 128, 64, 63, 1, 255);
+        SDL_DestroySurface(pixels);
+        const SDL_Rect mainSample = {136, 8, 4, 4};
+        pixels = SDL_RenderReadPixels(renderer, &mainSample);
+        pixel(pixels, "main-subrect", 0, 0, 128, 64, 63, 1, 255);
+        SDL_DestroySurface(pixels);
+    }
+    SDL_DestroyTexture(target);
+    SDL_DestroyTexture(texture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
+    SDL_SetRenderScale(renderer, savedScaleX, savedScaleY);
+    SDL_SetRenderViewport(renderer, &savedViewport);
+    Log::log(passed ? "GPU startup probe passed." : "GPU startup probe FAILED.");
+    return passed;
+}
+#endif
+
 Renderer_Xbox::Renderer_Xbox() {
     initVideo();
     int windowWidth = xboxVideoSettings.width;
     int windowHeight = xboxVideoSettings.height;
 
+#ifdef WINDOWING_SDL3
     window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL3);
     if (window->error.has_value()) {
         error = "Failed to init window: " + window->error.value();
@@ -476,10 +610,26 @@ Renderer_Xbox::Renderer_Xbox() {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
     }
+    int outputWidth = 0;
+    int outputHeight = 0;
+    if (SDL_GetRenderOutputSize(Sdlrenderer, &outputWidth, &outputHeight)) {
+        Log::log("Xbox renderer output: " + std::to_string(outputWidth) + "x" + std::to_string(outputHeight));
+    }
+#ifdef __XBOX__
+    VIDEO_MODE actualMode = XVideoGetMode();
+    Log::log("Xbox active video mode: " + std::to_string(actualMode.width) + "x" + std::to_string(actualMode.height));
+#endif
     applyVideoSettings();
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceStartupPixels(Sdlrenderer);
+#endif
+#else
+    error = "Renderer_Xbox requires SDL3 windowing backend (WINDOWING_SDL3)";
+#endif
 }
 
 Renderer_Xbox::~Renderer_Xbox() {
+    clearPenColorReadback();
     if (speechManager) {
         delete speechManager;
         speechManager = nullptr;
@@ -552,6 +702,7 @@ float Renderer_Xbox::getPixelDensity() {
 
 bool Renderer_Xbox::initPen() {
     if (penTexture != nullptr) return true;
+    clearPenColorReadback();
 
     constexpr auto penFormat = SDL_PIXELFORMAT_ARGB8888;
 
@@ -577,7 +728,9 @@ bool Renderer_Xbox::initPen() {
     }
 
     // Clear the texture
-    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
+    // Drawing into a transparent target stores premultiplied RGB. Composite it
+    // without multiplying that RGB by alpha a second time.
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
     SDL_SetTextureScaleMode(penTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
@@ -595,6 +748,7 @@ bool Renderer_Xbox::initPen() {
 
 void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (!penTexture) return;
+    penColorDirty = true;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -657,6 +811,7 @@ void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, 
 }
 
 void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -684,6 +839,7 @@ void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
 }
 
 void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -732,6 +888,7 @@ void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Spri
 }
 
 void Renderer_Xbox::penDotFast(Sprite *sprite) {
+    penColorDirty = true;
     if (!penTexture) return;
     lastCapValid = false;
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
@@ -770,6 +927,7 @@ void Renderer_Xbox::penDotFast(Sprite *sprite) {
 
 void Renderer_Xbox::penStamp(Sprite *sprite) {
     if (!penTexture) return;
+    penColorDirty = true;
     lastCapValid = false;
 
     // Queued lines must be drawn first so the stamp lands on top of them.
@@ -820,6 +978,7 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
+    params.colorEffect = sprite->colorEffect;
 
     image->render(params);
 
@@ -831,6 +990,7 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
 
 void Renderer_Xbox::penClear() {
     if (!penTexture) return;
+    penColorDirty = true;
     penVerts.clear(); // pending lines would be erased by the clear anyway
     lastCapValid = false;
 
@@ -844,6 +1004,7 @@ void Renderer_Xbox::penClear() {
 }
 
 void Renderer_Xbox::cleanupPen() {
+    clearPenColorReadback();
     if (penTexture != nullptr) {
         ensureMainTarget(Sdlrenderer);
         SDL_DestroyTexture(penTexture);
@@ -853,6 +1014,47 @@ void Renderer_Xbox::cleanupPen() {
     lastCapValid = false;
     penVerts.clear();
     penVerts.shrink_to_fit();
+}
+
+void Renderer_Xbox::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    if (!penTexture || penColorReadFailed) return;
+    // Match the line/stamp mapping, including HQ-pen resolution. Read only the
+    // source sprite's query area, rather than synchronizing the whole canvas
+    // for each color in a nested touching-color expression.
+    const int width = static_cast<int>(penTexW);
+    const int height = static_cast<int>(penTexH);
+    const int x0 = std::clamp(static_cast<int>(std::floor(minX * penScaleY + penTexW / 2)) - 1, 0, width);
+    const int y0 = std::clamp(static_cast<int>(std::floor(-maxY * penScaleY + penTexH / 2)) - 1, 0, height);
+    const int x1 = std::clamp(static_cast<int>(std::ceil(maxX * penScaleY + penTexW / 2)) + 2, 0, width);
+    const int y1 = std::clamp(static_cast<int>(std::ceil(-minY * penScaleY + penTexH / 2)) + 2, 0, height);
+    if (!penColorDirty && penColorSurface && x0 >= penColorRect.x && y0 >= penColorRect.y &&
+        x1 <= penColorRect.x + penColorRect.w && y1 <= penColorRect.y + penColorRect.h) return;
+
+    SDL_DestroySurface(penColorSurface);
+    penColorSurface = nullptr;
+    penColorRect = {x0, y0, x1 - x0, y1 - y0};
+    penColorDirty = false;
+    if (penColorRect.w <= 0 || penColorRect.h <= 0) return;
+
+    flushPenVerts(Sdlrenderer);
+    SDL_Texture *previous = SDL_GetRenderTarget(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    penColorSurface = SDL_RenderReadPixels(Sdlrenderer, &penColorRect);
+    SDL_SetRenderTarget(Sdlrenderer, previous);
+    penTargetActive = previous == penTexture;
+    stampsSinceFlush = 0;
+    if (!penColorSurface) {
+        penColorReadFailed = true;
+        Log::logError(std::string("Failed to read pen colors: ") + SDL_GetError());
+    }
+}
+
+bool Renderer_Xbox::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (!penColorSurface || penColorDirty || penColorReadFailed) return false;
+    const int px = static_cast<int>(std::floor(x * penScaleY + penTexW / 2)) - penColorRect.x;
+    const int py = static_cast<int>(std::floor(-y * penScaleY + penTexH / 2)) - penColorRect.y;
+    if (px < 0 || py < 0 || px >= penColorRect.w || py >= penColorRect.h) return false;
+    return SDL_ReadSurfacePixel(penColorSurface, px, py, &r, &g, &b, &a) && a != 0;
 }
 
 void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -867,6 +1069,9 @@ void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Renderer_Xbox::endFrame(bool shouldFlush) {
     ensureMainTarget(Sdlrenderer);
     SDL_RenderPresent(Sdlrenderer);
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceEffectCache();
+#endif
     SDL_Delay(16);
     hasFrameBegan = false;
 }
@@ -964,6 +1169,7 @@ void Renderer_Xbox::renderSprites() {
             params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
+            params.colorEffect = currentSprite->colorEffect;
 
             image->render(params);
         }
@@ -992,6 +1198,9 @@ void Renderer_Xbox::renderSprites() {
 #endif
 
     SDL_RenderPresent(Sdlrenderer);
+#ifdef SE_XBOX_TRACE_RENDERER
+    traceEffectCache();
+#endif
 }
 
 void Renderer_Xbox::renderPenLayer() {

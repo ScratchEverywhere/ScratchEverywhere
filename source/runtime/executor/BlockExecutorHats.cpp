@@ -1,6 +1,7 @@
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include <algorithm>
+#include <audio.hpp>
 #include <input.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
@@ -10,6 +11,11 @@
 
 // ToDo: That could be optimized, but it works for now and i want to move on to other stuff
 void BlockExecutor::executeKeyHats() {
+#if defined(__XBOX__) && defined(ENABLE_MENU)
+    const bool paused = Scratch::pauseMenu != nullptr;
+#else
+    constexpr bool paused = false;
+#endif
     for (const auto &key : Input::keyHeldDuration) {
         if (std::find(Input::inputKeys.begin(), Input::inputKeys.end(), key.first) == Input::inputKeys.end()) {
             Input::keyHeldDuration[key.first] = 0;
@@ -21,7 +27,7 @@ void BlockExecutor::executeKeyHats() {
     for (const auto &key : Input::inputKeys) {
         if (Input::keyHeldDuration.find(key) == Input::keyHeldDuration.end()) Input::keyHeldDuration[key] = 1;
 
-        if (key == "any" || Input::keyHeldDuration[key] != 1) continue;
+        if (paused || key == "any" || Input::keyHeldDuration[key] != 1) continue;
 
         Input::codePressedBlockOpcodes.clear();
         std::string addKey = (key.find(' ') == std::string::npos) ? key : key.substr(0, key.find(' '));
@@ -29,6 +35,10 @@ void BlockExecutor::executeKeyHats() {
         Input::inputBuffer.push_back(addKey);
         if (Input::inputBuffer.size() == 101) Input::inputBuffer.erase(Input::inputBuffer.begin());
     }
+
+    // Menu navigation still needs the held counters above, but must not queue
+    // game scripts (including Makey Makey sequences) for the next game frame.
+    if (paused) return;
 
     for (Sprite *currentSprite : Scratch::sprites) {
         if (!currentSprite->hats["event_whenkeypressed"].empty()) {
@@ -65,6 +75,7 @@ void BlockExecutor::executeWhenGreaterThanHats() {
 
             double current = 0;
             if (menu == "timer") current = BlockExecutor::timer.getTimeMs() / 1000.0;
+            else if (menu == "loudness") current = SoundPlayer::getLoudness();
 
             double threshold = 0;
             Scratch::getInputValueAs(block, "VALUE", &conditionThread, currentSprite, threshold);
@@ -81,11 +92,18 @@ void BlockExecutor::executeWhenGreaterThanHats() {
 }
 
 void BlockExecutor::doSpriteClicking() {
+#if defined(__XBOX__) && defined(ENABLE_MENU)
+    if (Scratch::pauseMenu != nullptr) {
+        Input::mousePointer.heldFrames = 0;
+        Input::draggingSprite = nullptr;
+        return;
+    }
+#endif
     if (Input::mousePointer.isPressed) {
         Input::mousePointer.heldFrames++;
 
         bool blockedByMonitor = false;
-#if defined(__PC__) // basically the only platform with mouse input and i don't want to waste perf on other platforms.
+#if !defined(__NDS__) && !defined(__3DS__) && !defined(__OGC__) && !defined(__PSP__)
         if (Input::draggingSprite == nullptr) {
             std::array<int, 2> touchPos = Input::getTouchPosition();
             blockedByMonitor = Render::isPointOverMonitor(touchPos[0], touchPos[1]);

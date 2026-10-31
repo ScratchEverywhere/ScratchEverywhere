@@ -2,7 +2,9 @@
 #include "nonstd/expected.hpp"
 #include "os.hpp"
 #include "renderer.hpp"
+#include <sb2_bitmap_layers.hpp>
 #include <cstdlib>
+#include <cctype>
 #include <log.hpp>
 #ifdef __XBOX__
 #include <runtime.hpp>
@@ -10,6 +12,16 @@
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
+
+static bool hasSVGExtension(const std::string &path) {
+    if (path.size() < 4) return false;
+    const size_t offset = path.size() - 4;
+    return path[offset] == '.' &&
+           std::tolower(static_cast<unsigned char>(path[offset + 1])) == 's' &&
+           std::tolower(static_cast<unsigned char>(path[offset + 2])) == 'v' &&
+           std::tolower(static_cast<unsigned char>(path[offset + 3])) == 'g';
+}
+
 #ifdef ENABLE_BITMAP
 #if defined(__WIIU__) || defined(__XBOX__)
 #define STBI_NO_THREAD_LOCALS
@@ -20,6 +32,8 @@
 
 #ifdef ENABLE_SVG
 #include <lunasvg.h>
+#include <scratch2_svg.hpp>
+#include <scratch2_svg_bounds.hpp>
 #endif
 
 #if defined(RENDERER_SDL1)
@@ -30,6 +44,9 @@
 #endif
 #if defined(RENDERER_XBOX)
 #include <image_xbox.hpp>
+#endif
+#if defined(RENDERER_NV2A)
+#include <image_nv2a.hpp>
 #endif
 #if defined(RENDERER_SDL3)
 #include <image_sdl3.hpp>
@@ -45,6 +62,9 @@
 #endif
 #if defined(RENDERER_OPENGL_CORE)
 #include <image_gl_core.hpp>
+#endif
+#if defined(RENDERER_GX2)
+#include <image_gx2.hpp>
 #endif
 #if defined(RENDERER_GDI)
 #include <image_gdi.hpp>
@@ -66,6 +86,7 @@ std::unordered_map<std::string, std::weak_ptr<Image>> images;
 std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
     {"", {"gfx/ingame/fonts/NotoSerif-Regular", false}},
     {"Sans Serif", {"gfx/ingame/fonts/NotoSans-Medium", false}},
+    {"Scratch", {"gfx/ingame/fonts/ScratchSavers", false}},
     {"Handwriting", {"gfx/ingame/fonts/Handlee-Regular", false}},
     {"Marker", {"gfx/ingame/fonts/Knewave-Regular", false}},
     {"Curly", {"gfx/ingame/fonts/Griffy-Regular", false}},
@@ -128,6 +149,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_NV2A)
+    case Renderers::NV2A:
+        rawImg = new Image_NV2A(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_SDL3)
     case Renderers::SDL3:
         rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -151,6 +177,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
 #if defined(RENDERER_OPENGL_CORE)
     case Renderers::OpenGLCore:
         rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GX2)
+    case Renderers::GX2:
+        rawImg = new Image_GX2(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_GDI)
@@ -218,6 +249,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
         rawImg = new Image_Xbox(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_NV2A)
+    case Renderers::NV2A:
+        rawImg = new Image_NV2A(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_SDL3)
     case Renderers::SDL3:
         rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
@@ -241,6 +277,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_OPENGL_CORE)
     case Renderers::OpenGLCore:
         rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_GX2)
+    case Renderers::GX2:
+        rawImg = new Image_GX2(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_GDI)
@@ -346,7 +387,7 @@ inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t p
 }
 #endif
 
-nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale, bool scratch2) {
 #ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
@@ -376,10 +417,12 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         svgData.resize(endPos + 6);
     }
 
+    if (scratch2) svgData = Scratch2Svg::normalizeText(svgData);
     svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) {
         return nonstd::make_unexpected("LunaSVG failed to parse SVG");
     }
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
@@ -397,8 +440,10 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     const float targetWidth = docW * scale;
     const float targetHeight = docH * scale;
 #else
-    svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
+    const std::string svgData = scratch2 ? Scratch2Svg::normalizeText(svgView) : std::string(svgView);
+    svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
@@ -451,7 +496,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
 #ifdef __XBOX__
     if (!dst) {
-        Scratch::freeUnusedCostumeImages();
+        Scratch::freeUnusedCostumeImages(this);
         dst = (unsigned char *)malloc(pixelsSize);
     }
 #endif
@@ -506,10 +551,6 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     const int width = std::max(1, (int)(svgDocument->width() * finalScale));
     const int height = std::max(1, (int)(svgDocument->height() * finalScale));
 
-    imgData.width = width;
-    imgData.height = height;
-    imgData.scale = finalScale;
-
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
 
@@ -518,7 +559,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
 #ifdef __XBOX__
     if (!dst) {
-        Scratch::freeUnusedCostumeImages();
+        Scratch::freeUnusedCostumeImages(this);
         dst = (unsigned char *)malloc(pixelsSize);
     }
 #endif
@@ -528,6 +569,9 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
 
     if (imgData.pixels != nullptr) free(imgData.pixels);
 
+    imgData.width = width;
+    imgData.height = height;
+    imgData.scale = finalScale;
     imgData.pitch = width * 4;
     imgData.pixels = dst;
 
@@ -537,7 +581,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     return {};
 }
 
-unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
+unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH, const Image *keep) {
     if (srcW <= 0 || srcH <= 0 || !srcPixels) return nullptr;
 
     outW = srcW >> 1;
@@ -546,11 +590,11 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     if (outW <= 0) outW = 1;
     if (outH <= 0) outH = 1;
 
-    unsigned char *dst = (unsigned char *)malloc(outW * outH * 4);
+    unsigned char *dst = (unsigned char *)malloc(static_cast<size_t>(outW) * outH * 4);
 #ifdef __XBOX__
     if (!dst) {
-        Scratch::freeUnusedCostumeImages();
-        dst = (unsigned char *)malloc(outW * outH * 4);
+        Scratch::freeUnusedCostumeImages(keep);
+        dst = (unsigned char *)malloc(static_cast<size_t>(outW) * outH * 4);
     }
 #endif
 
@@ -575,13 +619,14 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     return dst;
 }
 
-nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
+nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality,
+                                                                      const unsigned char *textData, size_t textSize) {
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
 #if defined(__XBOX__)
     if (!pixels) {
-        Scratch::freeUnusedCostumeImages();
+        Scratch::freeUnusedCostumeImages(this);
         pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
     }
     if (!pixels || width <= 0 || height <= 0) {
@@ -592,6 +637,23 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #else
     if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
 #endif
+    if (textData) {
+        int textWidth = 0, textHeight = 0, textChannels = 0;
+        unsigned char *text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);
+#ifdef __XBOX__
+        if (!text) {
+            Scratch::freeUnusedCostumeImages(this);
+            text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);
+        }
+#endif
+        if (!text || textWidth <= 0 || textHeight <= 0) {
+            if (text) stbi_image_free(text);
+            stbi_image_free(pixels);
+            return nonstd::make_unexpected("Failed to decode SB2 bitmap text layer");
+        }
+        Sb2BitmapLayers::composite(pixels, width, height, text, textWidth, textHeight);
+        stbi_image_free(text);
+    }
     imgData.pitch = width * 4;
 
 #ifdef __OGC__ // may break getPixels()
@@ -601,7 +663,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     unsigned char *resultPixels = pixels;
     if (bitmapHalfQuality) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH, this);
         if (!resizedPixels) {
             stbi_image_free(resultPixels);
             return nonstd::make_unexpected("Failed to allocate resized raster buffer");
@@ -619,7 +681,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     // Large images are split into tiles by Image_Xbox, so only cap the decoded size.
     while (width > 2048 || height > 2048) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH, this);
         if (!resizedPixels) {
             if (resultPixels == pixels) {
                 stbi_image_free(resultPixels);
@@ -660,26 +722,42 @@ Image::Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, floa
 }
 
 nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
-    if (fromScratchProject) {
-        if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
+    const auto layers = fromScratchProject && Unzip::currentFormat == ProjectFormat::SB2
+        ? Sb2BitmapLayers::split(filePath) : std::nullopt;
+    if (layers) filePath = layers->first;
+    const auto resolvePath = [fromScratchProject](const std::string &name) {
+        if (fromScratchProject) {
+            if (Unzip::UnpackedInSD) return Unzip::filePath + name;
 #if defined(__XBOX__)
-        else filePath = OS::getScratchFolderLocation() + "project/" + filePath;
+            return OS::getScratchFolderLocation() + "project/" + name;
 #else
-        else filePath = OS::getRomFSLocation() + "project/" + filePath;
+            return OS::getRomFSLocation() + "project/" + name;
 #endif
-    } else filePath = OS::getRomFSLocation() + filePath;
+        }
+        return OS::getRomFSLocation() + name;
+    };
+    filePath = resolvePath(filePath);
 
-    bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
+    const bool isSVG = hasSVGExtension(filePath);
+    isSVGImage = isSVG;
 
     auto buffer = readFileToBuffer(filePath, fromScratchProject);
     if (!buffer.has_value()) return nonstd::make_unexpected(buffer.error());
+    std::vector<unsigned char> textBuffer;
+    if (layers) {
+        auto text = readFileToBuffer(resolvePath(layers->second), fromScratchProject);
+        if (!text.has_value()) return nonstd::make_unexpected(text.error());
+        textBuffer = std::move(text.value());
+    }
 
     if (isSVG) {
-        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.value().data()), buffer.value().size(), imgData.width, imgData.height);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.value().data()), buffer.value().size(), imgData.width, imgData.height, scale,
+                                        fromScratchProject && Unzip::currentFormat == ProjectFormat::SB2);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
-        auto pixels = loadRasterFromMemory(buffer.value().data(), buffer.value().size(), imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory(buffer.value().data(), buffer.value().size(), imgData.width, imgData.height, bitmapHalfQuality,
+                                           textBuffer.empty() ? nullptr : textBuffer.data(), textBuffer.size());
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     }
@@ -690,13 +768,15 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
 }
 
 nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    const auto layers = Unzip::currentFormat == ProjectFormat::SB2 ? Sb2BitmapLayers::split(filePath) : std::nullopt;
+    if (layers) filePath = layers->first;
     void *raw_data = nullptr;
     size_t file_size = 0;
     if (zip != nullptr) {
         raw_data = zip->extractToHeap(filePath, &file_size);
 #if defined(__XBOX__)
         if (!raw_data) {
-            Scratch::freeUnusedCostumeImages();
+            Scratch::freeUnusedCostumeImages(this);
             raw_data = zip->extractToHeap(filePath, &file_size);
         }
 #endif
@@ -704,7 +784,7 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
         raw_data = Unzip::getFileInSB3(filePath, &file_size);
 #if defined(__XBOX__)
         if (!raw_data) {
-            Scratch::freeUnusedCostumeImages();
+            Scratch::freeUnusedCostumeImages(this);
             raw_data = Unzip::getFileInSB3(filePath, &file_size);
         }
 #endif
@@ -722,25 +802,42 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
         ZipArchive *zip;
         void *ptr;
         ~ZipHeapGuard() {
+            if (!ptr) return;
             if (zip) zip->freeHeap(ptr);
             else free(ptr);
         }
     } file_data{zip, raw_data};
+    ZipHeapGuard text_data{zip, nullptr};
+    size_t text_size = 0;
+    if (layers) {
+        const auto extractText = [&]() {
+            return zip ? zip->extractToHeap(layers->second, &text_size) : Unzip::getFileInSB3(layers->second, &text_size);
+        };
+        text_data.ptr = extractText();
+#ifdef __XBOX__
+        if (!text_data.ptr) {
+            Scratch::freeUnusedCostumeImages(this);
+            text_data.ptr = extractText();
+        }
+#endif
+        if (!text_data.ptr || text_size == 0) return nonstd::make_unexpected("Failed to extract SB2 text layer: " + layers->second);
+    }
 
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
+    const bool isSVG = hasSVGExtension(filePath);
+    isSVGImage = isSVG;
 
     if (isSVG) {
         std::vector<unsigned char> buffer(file_size + 1);
         memcpy(buffer.data(), raw_data, file_size);
         buffer[file_size] = '\0';
 
-        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale,
+                                        Unzip::currentFormat == ProjectFormat::SB2);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
-        auto pixels = loadRasterFromMemory((unsigned char *)raw_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory((unsigned char *)raw_data, file_size, imgData.width, imgData.height, bitmapHalfQuality,
+                                           static_cast<const unsigned char *>(text_data.ptr), text_size);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     }

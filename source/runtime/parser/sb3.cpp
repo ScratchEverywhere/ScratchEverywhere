@@ -477,7 +477,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
         }
     }
 
-    if (Render::currentRenderer == Renderers::Citro2D) {
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) {
         if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
             Render::renderMode = Render::BOTH_SCREENS;
         else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -503,7 +503,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
     if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
     } else {
-        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) Scratch::accuratePen = true;
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
         else Scratch::accuratePen = false;
     }
 

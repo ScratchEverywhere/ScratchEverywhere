@@ -1,18 +1,24 @@
 #include "image_xbox.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_xbox.hpp"
+#include <renderers/nv2a/image_nv2a.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <color_effects.hpp>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem.hpp>
 #include <image.hpp>
 #include <log.hpp>
+#include <list>
+#include <memory>
 #include <os.hpp>
 #include <runtime.hpp>
+#include <sb2_bitmap_layers.hpp>
 #include <stb_image.h>
 #include <string>
 #include <translation.hpp>
@@ -35,7 +41,7 @@ static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
 
 // Force an asset to downscale in quality if it exceeds x amount of pixels in either dimension.
-static constexpr int FORCE_DOWNSCALE_DIM = 1024;
+static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
 
 // Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
 // many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
@@ -125,6 +131,94 @@ static TexState &getTexState(SDL_Texture *tex) {
     g_mruTexture = tex;
     g_mruState = &state;
     return state;
+}
+
+struct EffectTile {
+    Image_Xbox *owner;
+    int x, y;
+    ScratchColorTransform effect;
+    SDL_Texture *texture;
+    size_t bytes;
+};
+
+// Cache individual tiles, so even a large effected backdrop can stream through
+// the same bounded cache. Untouched costumes allocate no additional textures.
+static std::list<EffectTile> g_effectTiles;
+static size_t g_effectBytes = 0;
+static size_t g_effectPeakBytes = 0;
+static uint32_t g_effectCreated = 0, g_effectEvicted = 0;
+static constexpr size_t EFFECT_CACHE_BYTES = 8 * 1024 * 1024;
+static constexpr size_t EFFECT_CACHE_TILES = 128;
+
+Image_Xbox::EffectCacheStats Image_Xbox::getEffectCacheStats() {
+    return {g_effectBytes, g_effectPeakBytes, g_effectTiles.size(), g_effectCreated, g_effectEvicted};
+}
+
+static void eraseEffectTile(std::list<EffectTile>::iterator entry) {
+    g_effectBytes -= entry->bytes;
+    safeDestroyTexture(entry->texture);
+    g_effectTiles.erase(entry);
+}
+
+static void clearEffectTiles(Image_Xbox *owner) {
+    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end();) {
+        auto entry = it++;
+        if (entry->owner == owner) eraseEffectTile(entry);
+    }
+}
+
+static SDL_Texture *effectTile(Image_Xbox *owner, const ImageData &source,
+                               const Image_Xbox::Tile &tile, const ScratchColorTransform &effect) {
+    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end(); ++it) {
+        if (it->owner == owner && it->x == tile.x && it->y == tile.y &&
+            it->effect.colorEnabled == effect.colorEnabled && it->effect.hue == effect.hue &&
+            it->effect.brightness == effect.brightness) {
+            SDL_Texture *texture = it->texture;
+            g_effectTiles.splice(g_effectTiles.end(), g_effectTiles, it);
+            return texture;
+        }
+    }
+    auto pot = [](size_t n) { size_t size = 1; while (size < n) size *= 2; return size; };
+    const size_t bytes = (pot(tile.w) * pot(tile.h) * 4 + 4095) & ~size_t(4095);
+    while (!g_effectTiles.empty() &&
+           (g_effectBytes + bytes > EFFECT_CACHE_BYTES || g_effectTiles.size() >= EFFECT_CACHE_TILES)) {
+        ++g_effectEvicted;
+        eraseEffectTile(g_effectTiles.begin());
+    }
+    SDL_Texture *texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
+                                             SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+    while (!texture && !g_effectTiles.empty()) {
+        ++g_effectEvicted;
+        eraseEffectTile(g_effectTiles.begin());
+        texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
+                                    SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
+    }
+    if (!texture) return nullptr;
+    std::unique_ptr<uint8_t, decltype(&std::free)> pixels(
+        static_cast<uint8_t *>(std::malloc(static_cast<size_t>(tile.w) * tile.h * 4)), &std::free);
+    if (!pixels) {
+        safeDestroyTexture(texture);
+        return nullptr;
+    }
+    for (int y = 0; y < tile.h; ++y) {
+        const auto *src = static_cast<const uint8_t *>(source.pixels) + (tile.y + y) * source.pitch + tile.x * 4;
+        auto *dst = pixels.get() + static_cast<size_t>(y) * tile.w * 4;
+        for (int x = 0; x < tile.w; ++x, src += 4, dst += 4) {
+            memcpy(dst, src, 4);
+            if (dst[3]) effect.apply(dst[0], dst[1], dst[2]);
+        }
+    }
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
+    if (!SDL_UpdateTexture(texture, nullptr, pixels.get(), tile.w * 4)) {
+        safeDestroyTexture(texture);
+        return nullptr;
+    }
+    g_effectTiles.push_back({owner, tile.x, tile.y, effect, texture, bytes});
+    g_effectBytes += bytes;
+    g_effectPeakBytes = std::max(g_effectPeakBytes, g_effectBytes);
+    ++g_effectCreated;
+    return texture;
 }
 
 static inline int toPowerOfTwo(int v) {
@@ -472,8 +566,8 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
     return {};
 }
 
-void Image_Xbox::renderTiled(ImageRenderParams &params) {
-    if (tiles.empty()) return;
+void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
+    if (!effects && tiles.empty()) return;
 
     const float &x = params.x;
     const float &y = params.y;
@@ -486,6 +580,8 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     if (opacity <= 0.001f) return;
     const Uint8 alpha = static_cast<Uint8>(opacity * 255);
     if (alpha == 0) return;
+    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
+    const ScratchColorTransform effect(params.colorEffect, params.brightness);
 
     SDL_FRect renderRect;
     renderRect.w = imgData.width / imgData.scale * scale;
@@ -514,36 +610,63 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
     // Every tile rotates around the center of the whole image, not its own center.
     const SDL_FPoint imageCenter = {renderRect.x + renderRect.w / 2.0f, renderRect.y + renderRect.h / 2.0f};
 
-    auto drawAll = [&]() {
-        for (const auto &tile : tiles) {
-            const float ix0 = std::max(static_cast<float>(tile.x), subRect.x);
-            const float iy0 = std::max(static_cast<float>(tile.y), subRect.y);
-            const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subRect.x + subRect.w);
-            const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subRect.y + subRect.h);
-            if (ix1 <= ix0 || iy1 <= iy0) continue;
+    auto drawTile = [&](const Tile &tile, SDL_Texture *renderTexture) {
+        const float ix0 = std::max(static_cast<float>(tile.x), subRect.x);
+        const float iy0 = std::max(static_cast<float>(tile.y), subRect.y);
+        const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subRect.x + subRect.w);
+        const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subRect.y + subRect.h);
+        if (ix1 <= ix0 || iy1 <= iy0) return;
 
-            const SDL_FRect src = {ix0 - tile.x, iy0 - tile.y, ix1 - ix0, iy1 - iy0};
+        const SDL_FRect src = {ix0 - tile.x, iy0 - tile.y, ix1 - ix0, iy1 - iy0};
 
-            float dx0 = (ix0 - subRect.x) * rx;
-            float dx1 = (ix1 - subRect.x) * rx;
-            float dy0 = (iy0 - subRect.y) * ry;
-            float dy1 = (iy1 - subRect.y) * ry;
-            if (params.flip) {
-                const float t = renderRect.w - dx1;
-                dx1 = renderRect.w - dx0;
-                dx0 = t;
-            }
-            SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
-            if (cardinal) {
-                // Snap shared edges so neighbouring tiles never leave seams.
-                const float l = std::round(dst.x), t = std::round(dst.y);
-                const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
-                dst = {l, t, r - l, b - t};
-            }
-            const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
-            SDL_RenderTextureRotated(sdlRenderer, tile.texture, &src, &dst, rotation, &center, flip);
+        float dx0 = (ix0 - subRect.x) * rx;
+        float dx1 = (ix1 - subRect.x) * rx;
+        float dy0 = (iy0 - subRect.y) * ry;
+        float dy1 = (iy1 - subRect.y) * ry;
+        if (params.flip) {
+            const float t = renderRect.w - dx1;
+            dx1 = renderRect.w - dx0;
+            dx0 = t;
         }
+        SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
+        if (cardinal) {
+            // Snap shared edges so neighbouring tiles never leave seams.
+            const float l = std::round(dst.x), t = std::round(dst.y);
+            const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
+            dst = {l, t, r - l, b - t};
+        }
+        const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
+        SDL_RenderTextureRotated(sdlRenderer, renderTexture, &src, &dst, rotation, &center, flip);
     };
+    auto drawAll = [&]() {
+        for (const auto &tile : tiles) drawTile(tile, tile.texture);
+    };
+    if (effects) {
+        for (int y = 0; y < imgData.height; y += TILE_SIZE) {
+            for (int x = 0; x < imgData.width; x += TILE_SIZE) {
+                Tile tile;
+                tile.x = x; tile.y = y;
+                tile.w = std::min(TILE_SIZE, imgData.width - x);
+                tile.h = std::min(TILE_SIZE, imgData.height - y);
+                if (x >= subRect.x + subRect.w || y >= subRect.y + subRect.h ||
+                    x + tile.w <= subRect.x || y + tile.h <= subRect.y) continue;
+                SDL_Texture *effectTexture = effectTile(this, imgData, tile, effect);
+                if (!effectTexture) {
+                    if (!effectWarningLogged) {
+                        Log::logWarning("Failed to allocate color-effect tile: " + std::string(SDL_GetError()));
+                        effectWarningLogged = true;
+                    }
+                    continue;
+                }
+                auto &state = getTexState(effectTexture);
+                if (state.alpha != alpha) { SDL_SetTextureAlphaMod(effectTexture, alpha); state.alpha = alpha; }
+                if (state.blend != normalBlendMode) { SDL_SetTextureBlendMode(effectTexture, normalBlendMode); state.blend = normalBlendMode; }
+                drawTile(tile, effectTexture);
+            }
+        }
+        freeTimer = maxFreeTimer;
+        return;
+    }
 
     auto setAlpha = [&](Uint8 a) {
         for (auto &t : tiles) {
@@ -573,7 +696,6 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
         }
     };
 
-    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
     setAlpha(alpha);
     setColor(255);
     setBlend(normalBlendMode);
@@ -597,6 +719,12 @@ void Image_Xbox::renderTiled(ImageRenderParams &params) {
 }
 
 void Image_Xbox::render(ImageRenderParams &params) {
+    if (params.opacity <= 0.001f) return;
+    const ScratchColorTransform effect(params.colorEffect, params.brightness);
+    if ((effect.colorEnabled || effect.brightness != 0.0f) && ensureColorData()) {
+        renderTiled(params, true);
+        return;
+    }
     if (!tiles.empty()) {
         renderTiled(params);
         return;
@@ -772,12 +900,29 @@ void *Image_Xbox::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
+    const int maxDim = getMaxTextureDim();
+    while (imgData.width > maxDim || imgData.height > maxDim) {
+        int dw, dh;
+        unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
+                                                        imgData.width, imgData.height, dw, dh);
+        if (!downscaled) break;
+        imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
+        free(imgData.pixels);
+        imgData.pixels = downscaled;
+        imgData.width = dw;
+        imgData.height = dh;
+        imgData.pitch = dw * 4;
+    }
+
     if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) return buildTiles();
 
-    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-    if (!texture) {
-        Scratch::freeUnusedCostumeImages();
+    const bool is64MB = !OS::isEnhancedPlatform();
+    if (!is64MB || (imgData.width * imgData.height <= 128 * 128)) {
         texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+        if (!texture) {
+            Scratch::freeUnusedCostumeImages();
+            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+        }
     }
 
     if (!texture) {
@@ -924,13 +1069,16 @@ std::string Image_Xbox::getTextureCacheDir() {
         cachedProjectPath = Unzip::filePath;
         std::string ramMode = OS::isEnhancedPlatform() ? "128m" : "64m";
         cachedDir = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
-                    "_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
+                    "_xbox_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
     }
     return cachedDir;
 }
 
 std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
     if (assetName.empty()) return "";
+    // The disk precacher reads individual archive members. Layered SB2
+    // costumes are composed at load time and retain their own RAM cache key.
+    if (Sb2BitmapLayers::split(assetName)) return "";
     std::string base = assetName;
     size_t lastSlash = base.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
@@ -966,7 +1114,7 @@ static bool writeCompressedTextureCache(const std::string &cachePath, int width,
             numTiles++;
 
     XBTHeader header;
-    memcpy(header.magic, "XBT1", 4);
+    memcpy(header.magic, "XBTX", 4);
     header.version = XBT_VERSION;
     header.width = width;
     header.height = height;
@@ -1023,9 +1171,13 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
 
     XBTHeader header;
     if (fread(&header, sizeof(header), 1, f) != 1 ||
-        memcmp(header.magic, "XBT1", 4) != 0 || header.version != XBT_VERSION ||
+        (memcmp(header.magic, "XBTX", 4) != 0 &&
+         memcmp(header.magic, "XBTN", 4) != 0 &&
+         memcmp(header.magic, "XBT1", 4) != 0) ||
+        (header.version != XBT_VERSION && header.version != 6) ||
         header.numTiles == 0) {
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     }
 
@@ -1036,6 +1188,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
         alphaMask.clear();
         alphaMaskPitch = 0;
         fclose(f);
+        remove(cachePath.c_str());
         return false;
     };
 
@@ -1043,7 +1196,7 @@ bool Image_Xbox::loadFromCache(const std::string &cachePath) {
     imgData.height = header.height;
     imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
     imgData.pitch = header.width * 4;
-    imgData.pixels = nullptr;
+    freePixels(); // A previous color query may have restored the CPU buffer.
     isOpaque = !(header.flags & 1);
 
     alphaMask.clear();
@@ -1135,10 +1288,10 @@ static void freeProjectAsset(void *ptr) {
 
 // Describes how a cache was built. Stored in .complete: a cache built under different settings is rebuilt.
 static std::string textureCacheSignature() {
-    return "xbt=" + std::to_string(XBT_VERSION) +
+    return "xbox_xbt=" + std::to_string(XBT_VERSION) +
            " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
            " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
-           " maxdim=" + std::to_string(FORCE_DOWNSCALE_DIM);
+           " maxdim=" + std::to_string(getMaxTextureDim());
 }
 
 static std::string readTextFile(const std::string &path) {
@@ -1221,8 +1374,35 @@ void Image_Xbox::precacheProjectTextures() {
         if (name.empty()) return;
 
         std::string cachePath = getTextureCachePath(name);
-        if (cachePath.empty() || FileSystem::fileExists(cachePath)) {
-            return;
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            FILE *vf = fopen(cachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+                remove(cachePath.c_str());
+            }
+        }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(name);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            FILE *vf = fopen(altCachePath.c_str(), "rb");
+            if (vf) {
+                XBTHeader vhdr;
+                bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
+                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBT1", 4) == 0) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           vhdr.numTiles > 0);
+                fclose(vf);
+                if (ok) return;
+            }
         }
 
         size_t fileSize = 0;
@@ -1281,7 +1461,8 @@ void Image_Xbox::precacheProjectTextures() {
         }
 
         // Downscale if too large in either dimension, adjusting logical scale to match
-        while (curW > FORCE_DOWNSCALE_DIM || curH > FORCE_DOWNSCALE_DIM) {
+        const int maxDim = getMaxTextureDim();
+        while (curW > maxDim || curH > maxDim) {
             int dw, dh;
             unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
             if (!downscaled) break;
@@ -1346,6 +1527,7 @@ void Image_Xbox::precacheProjectTextures() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
+    clearEffectTiles(this);
     destroyTiles();
     safeDestroyTexture(texture);
     if (!cachedAssetPath.empty()) {
@@ -1356,8 +1538,52 @@ nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
             }
             if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
         }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(cachedAssetPath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) {
+                return {};
+            }
+            if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
+        }
     }
     return setInitialTexture();
+}
+
+bool Image_Xbox::ensureColorData() {
+    if (imgData.pixels) return true;
+    if (colorDataUnavailable || cachedAssetPath.empty()) return false;
+
+    // DXT caches retain only alpha for collisions, and backdrop uploads free
+    // their pixels. Decode the original asset on first color query: compressed
+    // GPU colors are lossy and cannot be used for Scratch's color comparisons.
+    const ImageData saved = imgData;
+    auto result = (Unzip::loader || Unzip::zipArchive)
+        ? init(cachedAssetPath, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, false, saved.scale)
+        : init(cachedAssetPath, true, false, saved.scale);
+    while (result.has_value() && (imgData.width > saved.width || imgData.height > saved.height)) {
+        int width = 0, height = 0;
+        unsigned char *pixels = resizeRaster(static_cast<const unsigned char *>(imgData.pixels),
+                                             imgData.width, imgData.height, width, height);
+        if (!pixels) break;
+        freePixels();
+        imgData.pixels = pixels;
+        imgData.width = width;
+        imgData.height = height;
+        imgData.pitch = width * 4;
+    }
+    if (!result.has_value() || imgData.width != saved.width || imgData.height != saved.height || !imgData.pixels) {
+        freePixels();
+        imgData = saved;
+        colorDataUnavailable = true;
+        Log::logWarning("Unable to restore collision colors: " + cachedAssetPath);
+        return false;
+    }
+    // Preserve the existing texture's coordinate system and all GPU resources.
+    imgData.scale = saved.scale;
+    imgData.format = IMAGE_FORMAT_RGBA32;
+    freeTimer = maxFreeTimer;
+    Log::log("Restored collision colors: " + cachedAssetPath);
+    return true;
 }
 
 Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
@@ -1370,6 +1596,16 @@ Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
     std::string cachePath = getTextureCachePath(filePath);
     if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
         if (loadFromCache(cachePath)) {
+            return;
+        }
+        if (g_cacheLoadOOM) {
+            error = "Out of texture memory loading " + filePath;
+            return;
+        }
+    }
+    std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
+    if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+        if (loadFromCache(altCachePath)) {
             return;
         }
         if (g_cacheLoadOOM) {
@@ -1406,6 +1642,16 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
                 return;
             }
         }
+        std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) {
+                return;
+            }
+            if (g_cacheLoadOOM) {
+                error = "Out of texture memory loading " + filePath;
+                return;
+            }
+        }
     }
 
     const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -1419,6 +1665,7 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
 }
 
 Image_Xbox::~Image_Xbox() {
+    clearEffectTiles(this);
     destroyTiles();
     safeDestroyTexture(texture);
 }

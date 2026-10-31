@@ -77,6 +77,8 @@ class SE_EXPORT BlockExecutor {
      */
     static ScriptThread *startThread(Sprite *sprite, Block *blockID, bool shouldRestart = true);
     static void runThreads();
+    // Reconcile clone deletion and layer ordering after both execution engines have run.
+    static void cleanupSprites();
     static BlockResult runThread(ScriptThread &thread, Sprite &sprite);
     static std::vector<ScriptThread *> threads;
 

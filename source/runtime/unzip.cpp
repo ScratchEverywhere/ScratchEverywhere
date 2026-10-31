@@ -19,8 +19,11 @@
 #include <sys/types.h>
 #include <vector>
 
-#ifdef __XBOX__
+#ifdef RENDERER_XBOX
 #include <renderers/xbox/image_xbox.hpp>
+#endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/image_nv2a.hpp>
 #endif
 
 #ifdef _WIN32
@@ -66,6 +69,7 @@ std::vector<char> Unzip::zipBuffer;
 #endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
 bool Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
@@ -231,7 +235,8 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
+	constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
@@ -261,11 +266,22 @@ bool Unzip::load() {
         loading.cleanup();
         return true;
     } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
         loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
         return true;
     }
 
@@ -286,6 +302,7 @@ void Unzip::openScratchProject(void *arg) {
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
@@ -305,6 +322,7 @@ void Unzip::openScratchProject(void *arg) {
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
 #endif
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
     file = nullptr;
@@ -315,8 +333,19 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
 
-#ifdef __XBOX__
-    Image_Xbox::precacheProjectTextures();
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Log::log("Precaching project textures...");
+		Image_Xbox::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
+#ifdef RENDERER_NV2A
+    if (Render::currentRenderer == Renderers::NV2A) {
+		Log::log("Precaching project textures...");
+        Image_NV2A::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
 #endif
 
     Unzip::projectOpened = 1;

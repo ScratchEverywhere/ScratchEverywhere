@@ -5,6 +5,7 @@
 #include "runtime.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
+#include "xbox_variable_watch.hpp"
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -58,6 +59,11 @@ void Scratch::initializeScratchProject() {
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
+        // appShouldRun() only ever returns false when the platform wants the app
+        // to quit (OS::toExit, or the window/ProcUI saying so) -- never because
+        // the project merely ended. Mark it explicitly so mainLoop() goes straight
+        // to exitApp() instead of reconstructing the main menu just to discard it.
+        OS::toExit = true;
 #ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
             MenuManager::cleanup();
@@ -127,6 +133,14 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        // Bytecode scripts can mark clones for deletion after BlockExecutor's own
+        // cleanup pass. Reconcile the sprite list again before rendering so a stale
+        // frame of clones is not drawn behind the freshly generated ones.
+        BlockExecutor::cleanupSprites();
+        XboxVariableWatch::sample();
+        // Auto-clean sounds are retired by the audio worker and destroyed here, off the
+        // real-time thread, so decoder/buffer frees never stall audio mixing.
+        Mixer::drainRetiredStreams();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
@@ -170,7 +184,27 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
 #ifdef ENABLE_MENU
 
-        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+        const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
+#ifdef __XBOX__
+        // Count wall time, not game frames: slow projects must remain escapable.
+        static Timer pauseHoldTimer(false);
+        static bool holdingPauseStart = false;
+        bool pauseRequested = false;
+        const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+        if (browserProject && startHeld) {
+            if (!holdingPauseStart) {
+                pauseHoldTimer.start();
+                holdingPauseStart = true;
+            }
+            pauseRequested = pauseHoldTimer.hasElapsed(3000);
+        } else {
+            holdingPauseStart = false;
+        }
+        if (pauseRequested) holdingPauseStart = false;
+#else
+        const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
+        if (pauseRequested) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);
             return std::make_pair(true, false);
@@ -200,6 +234,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
 void Scratch::greenFlagClicked() {
     stopClicked();
+    XboxVariableWatch::reset();
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
@@ -228,6 +263,10 @@ void Scratch::stopClicked() {
         currentSprite->ghostEffect = 0.0f;
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
+        currentSprite->fisheyeEffect = 0.0f;
+        currentSprite->whirlEffect = 0.0f;
+        currentSprite->pixelateEffect = 0.0f;
+        currentSprite->mosaicEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
             Mixer::stopSound(sound.fullName);
     }

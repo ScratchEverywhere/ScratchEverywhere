@@ -146,7 +146,6 @@ void *Image_SDL3::getNativeTexture() {
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
-
     if (!texture) {
         const std::string err = "Failed to create texture: " + std::string(SDL_GetError());
         Log::logError(err);

@@ -42,8 +42,14 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
 }
 #endif
 
+#ifdef __XBOX__
+static constexpr size_t MAX_ITEMS = 100000;
+#else
+static constexpr size_t MAX_ITEMS = 10000;
+#endif
+
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
+static std::string truncateLargeJsonLists(const std::string &raw) {
     std::string result;
     result.reserve(raw.size());
     size_t pos = 0;
@@ -102,7 +108,7 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
                     if (depth == 0) break;
                 } else if (ch == ',' && depth == 1) {
                     items_count++;
-                    if (items_count == max_items) {
+                    if (items_count == MAX_ITEMS) {
                         trunc_pos = cur;
                     }
                 }
@@ -126,11 +132,23 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
 
 static nlohmann::json parseProjectJson(const std::string &rawJson) {
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
+#if defined(__XBOX__)
+    // Lists contain authored game data (Appel's maps have 6400 cells). Silently
+    // cutting them to 1000 entries changes the game rather than saving it.
+    if (rawJson.find("Infinity") == std::string::npos) {
+        Log::log("Parsing full project JSON: " + std::to_string(rawJson.size()) + " bytes");
+        auto parsed = nlohmann::json::parse(rawJson);
+        Log::log("Full project JSON parsed.");
+        return parsed;
+    }
+    std::string sanitized = rawJson;
+#else
+    std::string sanitized = truncateLargeJsonLists(rawJson);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");
     }
+#endif
     size_t inf_pos;
     while ((inf_pos = sanitized.find("Infinity")) != std::string::npos) {
         sanitized.replace(inf_pos, 8, "1e9");
@@ -151,7 +169,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
             keepInRam = false;
 #else
             keepInRam = true;
@@ -161,16 +179,21 @@ bool ZipProjectLoader::load(std::istream *file) {
         }
 
 #if defined(__XBOX__)
+        // Embedded projects have no backing file on disk and must always be kept in RAM.
+        if (Scratch::projectType == ProjectType::EMBEDDED) {
+            keepInRam = true;
+        }
+
         // Keeping the archive in RAM only makes sense when it fits comfortably. Larger projects fall back
         // to the file-backed archive instead of exhausting the heap.
         std::streamoff xboxProjectSize = 0;
-        if (keepInRam) {
-            file->clear();
-            file->seekg(0, std::ios::end);
-            xboxProjectSize = file->tellg();
-            file->clear();
-            file->seekg(0, std::ios::beg);
+        file->clear();
+        file->seekg(0, std::ios::end);
+        xboxProjectSize = file->tellg();
+        file->clear();
+        file->seekg(0, std::ios::beg);
 
+        if (keepInRam && Scratch::projectType != ProjectType::EMBEDDED) {
             const std::streamoff budget = OS::isEnhancedPlatform() ? 24 * 1024 * 1024 : 6 * 1024 * 1024;
             if (xboxProjectSize <= 0 || xboxProjectSize > budget) {
                 Log::logWarning("sb3InRam disabled: project is " + std::to_string(xboxProjectSize / 1024) +
@@ -236,6 +259,7 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
+            Log::log("Project JSON parsed from in-RAM archive.");
 #else
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
@@ -280,7 +304,10 @@ bool ZipProjectLoader::load(std::istream *file) {
                 uint64_t file_size = file->tellg();
                 file->clear();
                 file->seekg(0, std::ios::beg);
-                opened = Unzip::zipArchive->openStream(file, file_size);
+                Unzip::zipBuffer.resize(file_size);
+                file->read(Unzip::zipBuffer.data(), static_cast<std::streamsize>(file_size));
+                opened = (static_cast<size_t>(file->gcount()) == file_size) &&
+                         Unzip::zipArchive->openMemory(Unzip::zipBuffer.data(), Unzip::zipBuffer.size());
             }
 
             if (!opened) {
@@ -359,8 +386,10 @@ bool ZipProjectLoader::load(std::istream *file) {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
     }
 
+    Log::log("Loading project extensions and sprites...");
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
+    Log::log("Project sprites loaded.");
     project_json.clear();
     return true;
 }

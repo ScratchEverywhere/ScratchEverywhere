@@ -19,6 +19,9 @@
 #ifdef RENDERER_XBOX
 #include <renderers/xbox/text_xbox.hpp>
 #endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/text_nv2a.hpp>
+#endif
 #ifdef RENDERER_SDL3
 #include <renderers/sdl3/text_sdl3.hpp>
 #endif
@@ -33,6 +36,9 @@
 #endif
 #ifdef RENDERER_OPENGL_CORE
 #include <renderers/opengl_core/text_gl_core.hpp>
+#endif
+#ifdef RENDERER_GX2
+#include <renderers/gx2/text_gx2.hpp>
 #endif
 #ifdef RENDERER_GDI
 #include <renderers/gdi/text_gdi.hpp>
@@ -64,6 +70,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
     case Renderers::Xbox:
         return std::make_unique<TextObjectXbox>(txt, posX, posY, fontPath);
 #endif
+#ifdef RENDERER_NV2A
+    case Renderers::NV2A:
+        return std::make_unique<TextObjectNV2A>(txt, posX, posY, fontPath);
+#endif
 #ifdef RENDERER_SDL3
     case Renderers::SDL3:
         return std::make_unique<TextObjectSDL3>(txt, posX, posY, fontPath);
@@ -83,6 +93,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_OPENGL_CORE
     case Renderers::OpenGLCore:
         return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_GX2
+    case Renderers::GX2:
+        return std::make_unique<TextObjectGX2>(txt, posX, posY, fontPath);
 #endif
 #ifdef RENDERER_GDI
     case Renderers::GDI:

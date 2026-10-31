@@ -24,13 +24,15 @@ set(SE_PLATFORM_DEFINITIONS "__PS4__")
 set(SE_PLATFORM "ps4")
 
 macro(package_platform)
-	# System libraries
+	set(SCE_MODULE "")
+	set(MESA_LIBS "libEGL.so.1;libGLESv2.so.2;libvulkan.so.1;libgallium-26.2.0.so")
+	set(PKG_CONTENT_ID "IV0001-${SE_APP_TITLEID}_00-SCRATCHPS4000000")
+
+	# Link system libraries
 	target_link_libraries(se-interface INTERFACE
 		SceNet SceNetCtl SceSystemService SceUserService)
 
 	# Convert Mesa dynamic libraries into prx
-	set(SCE_MODULE "")
-	set(MESA_LIBS "libEGL.so.1;libGLESv2.so.2;libvulkan.so.1;libgallium-26.2.0.so")
 	file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/sce_module")
 	foreach(MESA_LIB IN LISTS MESA_LIBS)
 		add_custom_command(TARGET scratch-everywhere POST_BUILD
@@ -58,8 +60,25 @@ macro(package_platform)
 			"${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 	endif()
 
+	# Format version in a way it is acceptable by the PS4
+	string(REPLACE "." ";" VERSION_LIST "${SE_APP_VERSION}")
+	list(GET VERSION_LIST 0 VERSION_MAJOR)
+	list(GET VERSION_LIST 1	VERSION_MINOR)
+	list(GET VERSION_LIST 2	VERSION_PATCH)
+	string(LENGTH ${VERSION_MAJOR} MAJOR_LENGTH)
+	string(LENGTH ${VERSION_MINOR} MINOR_LENGTH)
+	if(MAJOR_LENGTH EQUAL 1)
+		set(VERSION_MAJOR "0${VERSION_MAJOR}")
+	endif()
+	if(MINOR_LENGTH EQUAL 1 AND VERSION_PATCH STREQUAL "")
+		set(VERSION_MINOR "${VERSION_MINOR}0")
+	endif()
+	if(NOT VERSION_PATCH STREQUAL "")
+		set(VERSION_MINOR "${VERSION_MINOR}${VERSION_PATCH}")
+	endif()
+
 	# More info about param.sfo at https://github.com/red-prig/fpPS4/wiki/PARAM.SFO
-	set(PKG_CONTENT_ID "IV0001-${SE_APP_TITLEID}_00-SCRATCHPS4000000")
+	set(PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		# Copy ps4 gfx to sce_sys
 		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ps4"
@@ -73,8 +92,8 @@ macro(package_platform)
 		# Generate param.sfo
 		COMMAND ${MKSFO} "${CMAKE_CURRENT_BINARY_DIR}/sce_sys/param.sfo" -i APP_TYPE=1
 			-s4 FORMAT=obs -s4 CATEGORY=gd -s128 TITLE=${SE_APP_NAME}
-			-s12 TITLE_ID=${SE_APP_TITLEID} -s8 APP_VER=${SE_APP_VERSION}
-			-s8 VERSION=${SE_APP_VERSION} -s48 CONTENT_ID=${PKG_CONTENT_ID}
+			-s12 TITLE_ID=${SE_APP_TITLEID} -s8 APP_VER=${PKG_VERSION}
+			-s8 VERSION=${PKG_VERSION} -s48 CONTENT_ID=${PKG_CONTENT_ID}
 			-i ATTRIBUTE=16384 -i DOWNLOAD_DATA_SIZE=0 -i SYSTEM_VER=0
 		# Generate .gp4 with/without romfs
 		COMMAND ${MKGP4} -c ${PKG_CONTENT_ID}

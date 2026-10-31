@@ -39,6 +39,10 @@
 #include <switch.h>
 #endif
 
+#if defined(__PSP__) && defined(RENDERER_SDL3)
+#include <SDL3/SDL_main.h>
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
@@ -253,6 +257,8 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::SDL3;
         } else if (arg == "--xbox") {
             Render::currentRenderer = Renderers::Xbox;
+        } else if (arg == "--nv2a") {
+            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {

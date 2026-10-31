@@ -3,11 +3,24 @@
 #include <algorithm>
 #include <cmath>
 #include <image.hpp>
+#include <image_geometry.hpp>
 #include <log.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <unordered_set>
 #include <vector>
+
+namespace {
+void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
+    sprite->spriteWidth = image.getWidth();
+    sprite->spriteHeight = image.getHeight();
+    const auto offset = image.getSVGViewOffset();
+    // Apply the difference, rather than accumulating offsets on cached loads,
+    // clone copies, or a retry after a temporary missing-image fallback.
+    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidth / 2);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeight / 2);
+}
+}
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = ::round(costumeIndex);
@@ -41,8 +54,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         auto potentialError = it->second->resizeSVG(cachedScale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
 
-        sprite->spriteWidth = it->second->getWidth();
-        sprite->spriteHeight = it->second->getHeight();
+        applyImageGeometry(sprite, costume, *it->second);
 
         if (it->second->getScale() != oldScale) {
             costume.collisionMask = nullptr;
@@ -71,7 +83,11 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     auto onErr = [&](std::string error) -> bool {
         const std::string missingName = "SE__Missingno";
-        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos;
+        // Allocation failures surface under several wordings ("Failed to allocate SVG pixels buffer",
+        // "LunaSVG failed to render SVG to bitmap" when plutovg cannot get its surface, ...). All of them are memory
+        // pressure, not a broken asset, so they must not blacklist the costume forever in failedCostumeImages.
+        const bool transient = error.find("emory") != std::string::npos || error.find("outofmem") != std::string::npos ||
+                               error.find("llocate") != std::string::npos || error.find("failed to render SVG") != std::string::npos;
         if (failedCostumeImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
             if (!transient) failedCostumeImages.insert(costumeName);
@@ -133,14 +149,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     }
 
     if (image) {
-        sprite->spriteWidth = image->getWidth();
-        sprite->spriteHeight = image->getHeight();
-
-        // if rotation center wasn't present in project.json, set a default one
-        if (costume.rotationCenterX == -6767.6767)
-            costume.rotationCenterX = sprite->spriteWidth / 2;
-        if (costume.rotationCenterY == -6767.6767)
-            costume.rotationCenterY = sprite->spriteHeight / 2;
+        applyImageGeometry(sprite, costume, *image);
 
         costumeImages[costumeName] = image;
 #ifdef __XBOX__
@@ -186,10 +195,17 @@ void Scratch::flushCostumeImages() {
     }
 }
 
-void Scratch::freeUnusedCostumeImages() {
+void Scratch::freeUnusedCostumeImages(const Image *keep) {
     std::unordered_set<std::string> activeCostumes;
     activeCostumes.reserve(sprites.size() + 1);
     activeCostumes.insert("SE__Missingno");
+    // An allocation retry may evict inactive costumes while the current image is still
+    // building its GPU texture. Never free that image's CPU pixels out from under it.
+    if (keep) {
+        for (const auto &[id, img] : costumeImages) {
+            if (img.get() == keep) activeCostumes.insert(id);
+        }
+    }
     for (Sprite *sprite : sprites) {
         if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
             activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);

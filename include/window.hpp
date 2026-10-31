@@ -8,11 +8,13 @@
 // note: this is in priority order, so keep that in mind.
 // also make sure the order is the same between WindowingBackends and WindowingBackendNames
 enum class SE_EXPORT WindowingBackends : uint8_t {
+    NV2A,
     SDL3,
     SDL2,
     GLFW,
     N3DS,
     NDS,
+    WiiU,
     SDL1,
     Win32,
     Libretro,
@@ -21,11 +23,13 @@ enum class SE_EXPORT WindowingBackends : uint8_t {
 };
 
 constexpr std::array WindowingBackendNames = {
+    "NV2A",
     "SDL3",
     "SDL2",
     "GLFW",
     "3DS",
     "NDS",
+    "Wii U",
     "SDL1",
     "Windows Native",
     "Libretro",

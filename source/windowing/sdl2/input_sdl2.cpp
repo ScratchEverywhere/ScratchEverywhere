@@ -99,6 +99,12 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
         SDL_GetMouseState(&rawMouseX, &rawMouseY);
         pos[0] = rawMouseX * Render::getPixelDensity();
         pos[1] = rawMouseY * Render::getPixelDensity();
+#elif !defined(PLATFORM_HAS_TOUCH)
+        if (Input::mousePointer.isMoving) {
+            pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+            pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+            return pos;
+        }
 #endif
 #ifdef PLATFORM_HAS_TOUCH
     }
@@ -216,7 +222,7 @@ void InputDevice_SDL2::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)])) {
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_L)]) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
 #endif
     }
     button_handler(SCRATCH_KEY_INDEX::START, SDL_CONTROLLER_BUTTON_INVALID);
@@ -243,8 +249,23 @@ void InputDevice_SDL2::getInput() {
     if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]);
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER)
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);
-    if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER)
+    if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER) {
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_L)]) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+#endif
+    }
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_L)])) {
+        if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
+        if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
+        if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
+        if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::mousePointer.y += 3;
+    }
+    Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+#endif
 
     Input::leftJoystick.first = joyLeftX / 32767.0f;
     Input::leftJoystick.second = joyLeftY / 32767.0f;

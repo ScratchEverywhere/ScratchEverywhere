@@ -1,5 +1,6 @@
 #include "blockUtils.hpp"
 #include <algorithm>
+#include <audio.hpp>
 #include <cmath>
 #include <collision.hpp>
 #include <input.hpp>
@@ -337,6 +338,24 @@ SCRATCH_BLOCK_STRING(sensing, username) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(sensing, username);
+
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, loudness) {
+    return SoundPlayer::getLoudness();
+}
+SCRATCH_BLOCK_DOUBLE(sensing, loudness) {
+    *outValue = block_sensing_loudness_pos_(sprite);
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(sensing, loudness);
+
+SCRATCH_BLOCK_POSITIONAL_SPRITE_B(sensing, loud) {
+    return SoundPlayer::getLoudness() > 10;
+}
+SCRATCH_BLOCK_BOOLEAN(sensing, loud) {
+    *outValue = block_sensing_loud_pos_(sprite);
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(sensing, loud);
 
 SCRATCH_BLOCK_BOOLEAN(sensing, online) {
     *outValue = OS::isOnline();
