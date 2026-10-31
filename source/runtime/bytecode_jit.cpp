@@ -1768,6 +1768,7 @@ class Emitter {
     struct Region {
         BytecodeIndex head = 0, tail = 0;
         std::vector<uint32_t> slots;
+        int64_t counterSlot = -1;
         sljit_label *body = nullptr;
     };
     static constexpr int kFirstPin = 4;
@@ -1786,6 +1787,8 @@ class Emitter {
     std::vector<std::function<void()>> cold_;
     std::vector<int32_t> promotedIndex_;
     std::vector<bool> stringWritten_;
+    std::vector<bool> fused_;
+    BytecodeIndex fuseEnd_ = 0;
 
     AbsState state_;
     uint32_t maxNumbers_ = 0, maxBooleans_ = 0, maxValues_ = 0, maxStrings_ = 0;
@@ -1806,17 +1809,37 @@ class Emitter {
         }
         return -1;
     }
+    bool isCounterPin(uint32_t slot) const { return active_ != nullptr && active_->counterSlot == static_cast<int64_t>(slot); }
+
+    bool wholeCounterAt(BytecodeIndex pc) const {
+        if (pc < 2 || chunk_.instructions[pc - 1].op != BytecodeOp::ConvertNumberToValue || chunk_.instructions[pc - 2].op != BytecodeOp::PushConstNumber || analysis_.isBlockStart(pc - 1)) return false;
+        const double start = chunk_.numberConstants[chunk_.instructions[pc - 2].a];
+        if (!std::isfinite(start) || start != std::floor(start) || std::fabs(start) >= 4503599627370496.0) return false;
+        for (BytecodeIndex q = 0; q < pc; q++) {
+            if (plan_.supported[q] && isJump(chunk_.instructions[q].op) && chunk_.instructions[q].a == pc) return false;
+        }
+        return true;
+    }
+
     bool insideActive(BytecodeIndex target) const { return active_ != nullptr && target >= active_->head && target <= active_->tail; }
 
     void emitSpill() {
         if (active_ == nullptr) return;
         for (size_t i = 0; i < active_->slots.size(); i++)
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]), SLJIT_FR(kFirstPin + static_cast<int>(i)), 0);
+        if (active_->counterSlot >= 0) {
+            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR(kFirstPin + kMaxPins), 0, SLJIT_S3, 0);
+            sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(static_cast<uint32_t>(active_->counterSlot)), SLJIT_FR(kFirstPin + kMaxPins), 0);
+        }
     }
     void emitReload() {
         if (active_ == nullptr) return;
         for (size_t i = 0; i < active_->slots.size(); i++)
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + static_cast<int>(i)), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]));
+        if (active_->counterSlot >= 0) {
+            sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + kMaxPins), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(static_cast<uint32_t>(active_->counterSlot)));
+            sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_S3, 0, SLJIT_FR(kFirstPin + kMaxPins), 0);
+        }
     }
 
     void addCold(std::function<void()> fn) {
@@ -1848,22 +1871,24 @@ class Emitter {
 
     void loadF(sljit_s32 reg, uint32_t slot) {
         if (const int pin = pinOf(slot); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_FR(pin), 0);
+        else if (isCounterPin(slot)) sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, reg, 0, SLJIT_S3, 0);
         else sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot));
     }
     void storeF(uint32_t slot, sljit_s32 reg) {
+        if (isCounterPin(slot)) pinViolation_ = true;
         if (const int pin = pinOf(slot); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(pin), 0, reg, 0);
         else sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0);
     }
     void loadW(sljit_s32 reg, uint32_t slot) {
-        if (pinOf(slot) >= 0) pinViolation_ = true;
+        if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
         sljit_emit_op1(c_, SLJIT_MOV, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot));
     }
     void storeW(uint32_t slot, sljit_s32 reg) {
-        if (pinOf(slot) >= 0) pinViolation_ = true;
+        if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0);
     }
     void storeImmW(uint32_t slot, sljit_sw value) {
-        if (pinOf(slot) >= 0) pinViolation_ = true;
+        if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), SLJIT_IMM, value);
     }
     void storeImmF(uint32_t slot, double value) {
@@ -1969,6 +1994,8 @@ class Emitter {
         callHelper(fn, argTypes);
     }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
+    void emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, uint32_t a, uint32_t b, const AbsState &atTarget);
+    bool fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &jumpPc) const;
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     void emitInlineMod(const BytecodeInstruction &instr);
@@ -2072,12 +2099,12 @@ void Emitter::emitCompareValue(BytecodeCompareKind kind, uint32_t a, uint32_t b)
 
 void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc) {
     const BytecodeCompareKind kind = static_cast<BytecodeCompareKind>(instr.b);
-    const bool jumpIfTrue = instr.op == BytecodeOp::JumpIfNumCompareTrue;
     const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
     state_.numbers -= 2;
-    const AbsState atTarget = state_;
-    const bool backEdge = instr.a <= pc;
+    emitCompareBranch(kind, instr.op == BytecodeOp::JumpIfNumCompareTrue, instr.a, instr.a <= pc, a, b, state_);
+}
 
+void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, uint32_t a, uint32_t b, const AbsState &atTarget) {
     loadF(SLJIT_FR0, a);
     loadF(SLJIT_FR1, b);
     sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
@@ -2094,10 +2121,10 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
         type = jumpIfTrue ? SLJIT_ORDERED_GREATER : SLJIT_ORDERED_LESS_EQUAL;
         break;
     }
-    emitJumpTo(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), instr.a, atTarget, backEdge);
+    emitJumpTo(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), target, atTarget, backEdge);
     sljit_label *fall = sljit_emit_label(c_);
 
-    addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target = instr.a]() {
+    addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target]() {
         sljit_set_label(unordered, sljit_emit_label(c_));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
         callHelper(reinterpret_cast<void *>(&jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
@@ -2109,6 +2136,27 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
         }
         sljit_set_label(no, fall);
     });
+}
+
+bool Emitter::fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &jumpPc) const {
+    static const bool disabled = std::getenv("SE_JIT_NOFUSE") != nullptr;
+    if (disabled) return false;
+    const size_t count = chunk_.instructions.size();
+    bool negated = false;
+    for (BytecodeIndex q = pc + 1; q < count; q++) {
+        if (!plan_.supported[q] || analysis_.isBlockStart(q) || plan_.entryOf[q] >= 0) return false;
+        const BytecodeInstruction &next = chunk_.instructions[q];
+        if (next.op == BytecodeOp::CallNativeBoolean && plan_.nativeShape(next) == NativeShape::Not) {
+            negated = !negated;
+            continue;
+        }
+        if (next.op != BytecodeOp::JumpIfTrue && next.op != BytecodeOp::JumpIfFalse) return false;
+        if (active_ != nullptr && q >= active_->tail) return false;
+        jumpIfTrue = (next.op == BytecodeOp::JumpIfTrue) != negated;
+        jumpPc = q;
+        return true;
+    }
+    return false;
 }
 
 bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain) {
@@ -2831,7 +2879,18 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::NumEquals:
     case BytecodeOp::NumLess:
-    case BytecodeOp::NumGreater:
+    case BytecodeOp::NumGreater: {
+        const BytecodeCompareKind kind = instr.op == BytecodeOp::NumEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::NumLess ? BytecodeCompareKind::Less
+                                                                                                                                           : BytecodeCompareKind::Greater;
+        if (bool jumpIfTrue; fusableBranch(pc, jumpIfTrue, fuseEnd_)) {
+            const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
+            state_.numbers -= 2;
+            const BytecodeIndex target = chunk_.instructions[fuseEnd_].a;
+            for (BytecodeIndex q = pc + 1; q <= fuseEnd_; q++)
+                fused_[q] = true;
+            emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, a, b, state_);
+            return;
+        }
         emitCompareValue(instr.op == BytecodeOp::NumEquals ? BytecodeCompareKind::Equals : instr.op == BytecodeOp::NumLess ? BytecodeCompareKind::Less
                                                                                                                            : BytecodeCompareKind::Greater,
                          numberSlot(state_.numbers - 2), numberSlot(state_.numbers - 1));
@@ -2839,6 +2898,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         state_.booleans++;
         maxBooleans_ = std::max(maxBooleans_, state_.booleans);
         return;
+    }
 
     case BytecodeOp::ValueEquals:
     case BytecodeOp::ValueLess:
@@ -2850,6 +2910,15 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         analysis_.stateBefore(pc, s);
         const bool bothNumeric = s.values.size() >= 2 && Planner::numericLike(s.values[s.values.size() - 1]) && Planner::numericLike(s.values[s.values.size() - 2]);
         if (bothNumeric) {
+            if (bool jumpIfTrue; fusableBranch(pc, jumpIfTrue, fuseEnd_)) {
+                state_.values.pop_back();
+                state_.values.pop_back();
+                const BytecodeIndex target = chunk_.instructions[fuseEnd_].a;
+                for (BytecodeIndex q = pc + 1; q <= fuseEnd_; q++)
+                    fused_[q] = true;
+                emitCompareBranch(kind, jumpIfTrue, target, target <= fuseEnd_, valueSlot(depth - 2), valueSlot(depth - 1), state_);
+                return;
+            }
             emitCompareValue(kind, valueSlot(depth - 2), valueSlot(depth - 1));
         } else {
             CompareDescriptor &compare = code_.compares.emplace_back();
@@ -3086,16 +3155,18 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::RepeatCheck: {
         const uint32_t counter = valueSlot(static_cast<uint32_t>(state_.values.size()) - 1);
+        if (isCounterPin(counter)) {
+            sljit_emit_op2(c_, SLJIT_SUB, SLJIT_S3, 0, SLJIT_S3, 0, SLJIT_IMM, 1);
+            sljit_jump *finished = sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_S3, 0, SLJIT_IMM, 0);
+            state_.values.back().kind = ValueEntry::Number;
+            AbsState exited = state_;
+            exited.values.pop_back();
+            emitJumpTo(finished, instr.a, exited, instr.a <= pc);
+            return;
+        }
         loadF(SLJIT_FR0, counter);
 
-        bool wholeCounter = false;
-        if (pc >= 2 && chunk_.instructions[pc - 1].op == BytecodeOp::ConvertNumberToValue && chunk_.instructions[pc - 2].op == BytecodeOp::PushConstNumber && !analysis_.isBlockStart(pc - 1)) {
-            const double start = chunk_.numberConstants[chunk_.instructions[pc - 2].a];
-            wholeCounter = std::isfinite(start) && start == std::floor(start) && std::fabs(start) < 4503599627370496.0;
-            for (BytecodeIndex q = 0; q < pc && wholeCounter; q++) {
-                if (plan_.supported[q] && isJump(chunk_.instructions[q].op) && chunk_.instructions[q].a == pc) wholeCounter = false;
-            }
-        }
+        const bool wholeCounter = wholeCounterAt(pc);
         if (wholeCounter) {
             sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
             sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
@@ -3324,6 +3395,7 @@ void Emitter::findRegions() {
         std::map<uint32_t, int> uses;
         std::set<uint32_t> disqualified;
         std::vector<uint32_t> counters;
+        std::vector<uint32_t> wholeCounters;
 
         for (BytecodeIndex pc = head; pc <= tail && ok; pc++) {
             if (!analysis_.isReachable(pc)) continue;
@@ -3399,7 +3471,10 @@ void Emitter::findRegions() {
             }
             if (instr.op == BytecodeOp::RepeatCheck) {
                 BytecodeAbstractState state;
-                if (analysis_.stateBefore(pc, state) && !state.values.empty()) counters.push_back(valueSlot(static_cast<uint32_t>(state.values.size()) - 1));
+                if (analysis_.stateBefore(pc, state) && !state.values.empty()) {
+                    counters.push_back(valueSlot(static_cast<uint32_t>(state.values.size()) - 1));
+                    if (wholeCounterAt(pc)) wholeCounters.push_back(counters.back());
+                }
             }
         }
         const bool logRegions = [] {
@@ -3422,6 +3497,10 @@ void Emitter::findRegions() {
         region.head = head;
         region.tail = tail;
         for (uint32_t slot : counters) {
+            if (region.counterSlot < 0 && std::find(wholeCounters.begin(), wholeCounters.end(), slot) != wholeCounters.end()) {
+                region.counterSlot = slot;
+                continue;
+            }
             if (region.slots.size() < kMaxPins && std::find(region.slots.begin(), region.slots.end(), slot) == region.slots.end()) region.slots.push_back(slot);
         }
         uint32_t deepest = 0;
@@ -3486,7 +3565,7 @@ bool Emitter::emit() {
     c_ = sljit_create_compiler(nullptr);
     if (c_ == nullptr) return false;
 
-    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins), 3, 0);
+    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins + 1), 4, 0);
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
@@ -3495,6 +3574,7 @@ bool Emitter::emit() {
         for (size_t i = 0; i < kMaxPins; i++)
             sljit_emit_fset64(c_, SLJIT_FR(kFirstPin + static_cast<int>(i)), -123456.789);
     }
+    if (poisonPins_) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S3, 0, SLJIT_IMM, 0x7ffffff0);
     sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, pollInterval());
     code_.entryTable.assign(plan_.entryPcs.size(), nullptr);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
@@ -3503,6 +3583,7 @@ bool Emitter::emit() {
     findRegions();
 
     labels_.assign(count, nullptr);
+    fused_.assign(count, false);
     bool havePrevious = false;
     BytecodeIndex previous = 0;
     for (BytecodeIndex pc = 0; pc < count; pc++) {
@@ -3522,7 +3603,7 @@ bool Emitter::emit() {
         previous = pc;
 
         if (compiled) {
-            emitInstruction(pc);
+            if (!fused_[pc]) emitInstruction(pc);
             const BytecodeOp op = chunk_.instructions[pc].op;
             if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
             if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill();
