@@ -1771,7 +1771,7 @@ class Emitter {
         sljit_label *body = nullptr;
     };
     static constexpr int kFirstPin = 4;
-    static constexpr size_t kMaxPins = 8;
+    static constexpr size_t kMaxPins = 10;
     std::deque<Region> regions_;
     std::vector<int32_t> regionOf_;
     const Region *active_ = nullptr;
@@ -1867,14 +1867,45 @@ class Emitter {
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), SLJIT_IMM, value);
     }
     void storeImmF(uint32_t slot, double value) {
+        if (const int pin = pinOf(slot); pin >= 0) {
+            sljit_emit_fset64(c_, SLJIT_FR(pin), value);
+            return;
+        }
         sljit_emit_fset64(c_, SLJIT_FR0, value);
         storeF(slot, SLJIT_FR0);
     }
 
+    sljit_s32 readF(uint32_t slot, sljit_s32 scratch) {
+        if (const int pin = pinOf(slot); pin >= 0) return SLJIT_FR(pin);
+        loadF(scratch, slot);
+        return scratch;
+    }
+    sljit_s32 destF(uint32_t slot, sljit_s32 scratch) {
+        const int pin = pinOf(slot);
+        return pin >= 0 ? SLJIT_FR(pin) : scratch;
+    }
+    void commitF(uint32_t slot, sljit_s32 reg) {
+        if (pinOf(slot) < 0) storeF(slot, reg);
+    }
+    void moveF(uint32_t to, uint32_t from) {
+        const int pinTo = pinOf(to), pinFrom = pinOf(from);
+        if (pinTo >= 0 && pinFrom >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(pinTo), 0, SLJIT_FR(pinFrom), 0);
+        else if (pinTo >= 0) loadF(SLJIT_FR(pinTo), from);
+        else if (pinFrom >= 0) storeF(to, SLJIT_FR(pinFrom));
+        else {
+            loadF(SLJIT_FR0, from);
+            storeF(to, SLJIT_FR0);
+        }
+    }
+
     void nanToZero(sljit_s32 reg) {
-        sljit_jump *notNan = sljit_emit_fcmp(c_, SLJIT_ORDERED_EQUAL, reg, 0, reg, 0);
-        sljit_emit_fset64(c_, reg, 0.0);
-        sljit_set_label(notNan, sljit_emit_label(c_));
+        sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, reg, 0, reg, 0);
+        sljit_label *back = sljit_emit_label(c_);
+        addCold([this, nan, back, reg]() {
+            sljit_set_label(nan, sljit_emit_label(c_));
+            sljit_emit_fset64(c_, reg, 0.0);
+            sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), back);
+        });
     }
 
     void callHelper(void *fn, sljit_s32 argTypes) {
@@ -2411,13 +2442,13 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
     case NativeShape::Multiply:
     case NativeShape::Divide: {
         const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
-        loadF(SLJIT_FR0, a);
-        loadF(SLJIT_FR1, b);
+        const sljit_s32 left = readF(a, SLJIT_FR0);
+        const sljit_s32 right = readF(b, SLJIT_FR1);
         const sljit_s32 op = shape == NativeShape::Add ? SLJIT_ADD_F64 : shape == NativeShape::Subtract ? SLJIT_SUB_F64
                                                                      : shape == NativeShape::Multiply   ? SLJIT_MUL_F64
                                                                                                         : SLJIT_DIV_F64;
-        sljit_emit_fop2(c_, op, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        storeF(a, SLJIT_FR0);
+        sljit_emit_fop2(c_, op, left, 0, left, 0, right, 0);
+        commitF(a, left);
         state_.numbers -= 1;
         break;
     }
@@ -2673,16 +2704,18 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::PushVarNumber: {
         ensureVariableNumber(instr.a);
-        loadF(SLJIT_FR0, variableSlot(promoted(instr.a)));
-        nanToZero(SLJIT_FR0);
-        storeF(numberSlot(state_.numbers), SLJIT_FR0);
+        const uint32_t to = numberSlot(state_.numbers);
+        const sljit_s32 reg = destF(to, SLJIT_FR0);
+        if (const int pin = pinOf(variableSlot(promoted(instr.a))); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_FR(pin), 0);
+        else loadF(reg, variableSlot(promoted(instr.a)));
+        nanToZero(reg);
+        commitF(to, reg);
         state_.numbers++;
         return;
     }
     case BytecodeOp::StoreVarNumber: {
         const uint32_t k = promoted(instr.a);
-        loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
-        storeF(variableSlot(k), SLJIT_FR0);
+        moveF(variableSlot(k), numberSlot(state_.numbers - 1));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
         state_.numbers--;
         return;
@@ -2690,11 +2723,11 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     case BytecodeOp::ChangeVarNumber: {
         ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
-        loadF(SLJIT_FR0, variableSlot(k));
-        nanToZero(SLJIT_FR0);
-        loadF(SLJIT_FR1, numberSlot(state_.numbers - 1));
-        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        storeF(variableSlot(k), SLJIT_FR0);
+        const sljit_s32 variable = readF(variableSlot(k), SLJIT_FR0);
+        nanToZero(variable);
+        const sljit_s32 amount = readF(numberSlot(state_.numbers - 1), SLJIT_FR1);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, variable, 0, variable, 0, amount, 0);
+        commitF(variableSlot(k), variable);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
         state_.numbers--;
         return;
