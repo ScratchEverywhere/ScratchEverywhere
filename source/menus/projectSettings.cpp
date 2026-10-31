@@ -152,7 +152,7 @@ void ProjectSettings::init() {
     if (!settings["settings"]["sb3InRam"].is_null()) {
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", settings["settings"]["sb3InRam"].get<bool>()));
     } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__PS2__) || defined(__XBOX__)
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", false));
 #else
         ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", true));
