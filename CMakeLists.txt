@@ -48,7 +48,7 @@ set(SE_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of the outputed ap
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
 
-if(VITA)
+if(VITA OR PS3)
     set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
 else()
     set(SE_APP_TITLEID "NTXS10053" CACHE STRING "Title ID of the outputed app.")
@@ -68,6 +68,8 @@ elseif(PSP)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/psp.cmake")
 elseif(VITA)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/vita.cmake")
+elseif(PS3)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ps3.cmake")
 elseif(NINTENDO_DS)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/nds.cmake")
 elseif(EMSCRIPTEN)

@@ -553,10 +553,10 @@ static void updateViewportOverscan() {
         stageY = (screenH - stageH) / 2.0f;
     }
 
-    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
-    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
-    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
-    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+    s_stageScissorX = static_cast<int>(round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(round(stageH * s_mainViewportScaleY));
 }
 
 // Circle calculation table
@@ -1074,10 +1074,10 @@ void Renderer_NV2A::setScissor(int x, int y, int w, int h) {
     if (s_penTargetActive) {
         p = xgu_set_scissor_rect(p, false, x, y, w, h);
     } else {
-        int sx = static_cast<int>(std::round(x * s_mainViewportScaleX + s_mainViewportOffsetX));
-        int sy = static_cast<int>(std::round(y * s_mainViewportScaleY + s_mainViewportOffsetY));
-        int sw = static_cast<int>(std::round(w * s_mainViewportScaleX));
-        int sh = static_cast<int>(std::round(h * s_mainViewportScaleY));
+        int sx = static_cast<int>(round(x * s_mainViewportScaleX + s_mainViewportOffsetX));
+        int sy = static_cast<int>(round(y * s_mainViewportScaleY + s_mainViewportOffsetY));
+        int sw = static_cast<int>(round(w * s_mainViewportScaleX));
+        int sh = static_cast<int>(round(h * s_mainViewportScaleY));
         if (s_stageScissorActive) {
             int x1 = std::max(sx, s_stageScissorX);
             int y1 = std::max(sy, s_stageScissorY);
@@ -2272,10 +2272,10 @@ void Renderer_NV2A::renderSprites() {
         stageY = (screenH - stageH) / 2.0f;
     }
 
-    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
-    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
-    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
-    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+    s_stageScissorX = static_cast<int>(round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(round(stageH * s_mainViewportScaleY));
 
     s_stageScissorActive = true;
     clearScissor();

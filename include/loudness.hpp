@@ -33,7 +33,7 @@ class LoudnessMeter {
         double value = lastValue;
         value *= 1.63;
         value = std::sqrt(value);
-        return std::clamp(static_cast<int>(std::lround(value * 100.0)), 0, 100);
+        return std::clamp(static_cast<int>(lround(value * 100.0)), 0, 100);
     }
 
     void reset() {

@@ -482,7 +482,7 @@ SCRATCH_BLOCK_POSITIONAL_VOID(motion, ifonedgebounce) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, xposition) {
-    const double rounded = std::round(sprite->xPosition);
+    const double rounded = ::round(sprite->xPosition);
     const double delta = std::fabs(sprite->xPosition - rounded);
     return (delta < 1e-9) ? rounded : sprite->xPosition;
 }
@@ -493,7 +493,7 @@ SCRATCH_BLOCK_DOUBLE(motion, xposition) {
 SCRATCH_BLOCK_SIGNATURE(motion, xposition);
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, yposition) {
-    const double rounded = std::round(sprite->yPosition);
+    const double rounded = ::round(sprite->yPosition);
     const double delta = std::fabs(sprite->yPosition - rounded);
     return (delta < 1e-9) ? rounded : sprite->yPosition;
 }
