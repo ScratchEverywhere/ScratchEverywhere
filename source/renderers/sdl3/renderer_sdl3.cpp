@@ -85,9 +85,9 @@ Renderer_SDL3::Renderer_SDL3() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
-#elif defined (__PS2__)
-    int windowWidth = 640;
-    int windowHeight = 448;
+// #elif defined(__PS2__)
+//     int windowWidth = 640;
+//     int windowHeight = 448;
 #elif defined(__XBOX__)
     int windowWidth = 640;
     int windowHeight = 480;
@@ -103,7 +103,9 @@ Renderer_SDL3::Renderer_SDL3() {
         window = nullptr;
         return;
     }
+
     Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), "");
+
     if (Sdlrenderer == nullptr) {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
@@ -175,12 +177,12 @@ float Renderer_SDL3::getPixelDensity() {
     return 1.0f;
 }
 
-bool Render::initPen() {
-    #ifdef __PS2__
-        Log::logWarning("Pen is not currently supported on PS2");
-        return false;
-    #endif
-    #ifndef __PS2__
+bool Renderer_SDL3::initPen() {
+#ifdef __PS2__
+    Log::logWarning("Pen is not currently supported on PS2");
+    return false;
+#endif
+#ifndef __PS2__
     if (penTexture != nullptr) return true;
 
     constexpr auto penFormat = SDL_PIXELFORMAT_RGBA8888;
@@ -201,11 +203,11 @@ bool Render::initPen() {
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 
     return true;
-    #endif
+#endif
 }
 
-void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    #ifndef __PS2__
+void Renderer_SDL3::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -283,11 +285,11 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
         penVerts.push_back(cv4);
         penVerts.push_back(cv5);
     }
-    #endif
+#endif
 }
 
-void Render::penDotAccurate(Sprite *sprite) {
-    #ifndef __PS2__
+void Renderer_SDL3::penDotAccurate(Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -328,11 +330,11 @@ void Render::penDotAccurate(Sprite *sprite) {
         penVerts.push_back(v1);
         penVerts.push_back(v2);
     }
-    #endif
+#endif
 }
 
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    #ifndef __PS2__
+void Renderer_SDL3::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -377,11 +379,11 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-    #endif
+#endif
 }
 
-void Render::penDotFast(Sprite *sprite) {
-    #ifndef __PS2__
+void Renderer_SDL3::penDotFast(Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -415,11 +417,11 @@ void Render::penDotFast(Sprite *sprite) {
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
-    #endif
+#endif
 }
 
-void Render::penStamp(Sprite *sprite) {
-    #ifndef __PS2__
+void Renderer_SDL3::penStamp(Sprite *sprite) {
+#ifndef __PS2__
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -475,27 +477,29 @@ void Render::penStamp(Sprite *sprite) {
     image->render(params);
 
     SDL_SetRenderTarget(renderer, mainRenderTarget);
-    #endif
+#endif
 }
 
-void Render::penClear() {
-    #ifndef __PS2__
+void Renderer_SDL3::penClear() {
+#ifndef __PS2__
     if (!penTexture || penTexture == nullptr) return;
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
     SDL_RenderClear(Sdlrenderer);
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     penVerts.clear();
-    #endif
+#endif
 }
 
 void Renderer_SDL3::cleanupPen() {
+    #ifndef __PS2__
     if (penTexture != nullptr) {
         SDL_DestroyTexture(penTexture);
         penTexture = nullptr;
     }
     penVerts.clear();
     penVerts.shrink_to_fit();
+    #endif
 }
 
 void Renderer_SDL3::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -610,8 +614,8 @@ void Renderer_SDL3::renderSprites() {
     SDL_RenderPresent(Sdlrenderer);
 }
 
-void Render::renderPenLayer() {
-    #ifndef __PS2__
+void Renderer_SDL3::renderPenLayer() {
+#ifndef __PS2__
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
@@ -636,7 +640,7 @@ void Render::renderPenLayer() {
     }
 
     SDL_RenderTexture(renderer, penTexture, nullptr, &renderRect);
-    #endif
+#endif
 }
 
 bool Renderer_SDL3::appShouldRun() {
