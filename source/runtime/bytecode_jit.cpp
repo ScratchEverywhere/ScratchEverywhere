@@ -156,12 +156,17 @@ struct CallDescriptor {
     std::vector<CallCheck> checks;
     mutable int32_t continuation = -1;
     mutable bool resultNumber = true;
+    mutable uint8_t fast = 0;
+    bool nativeChecks = false;
+    uint32_t argInvalid = 0, argFromFrame = 0, argConstTyped = 0;
 };
 
 struct ReturnDescriptor {
     ExitDescriptor *state = nullptr;
     uint32_t pc = 0;
     bool isReturn = false;
+    uint8_t resultMode = 0;
+    uint32_t resultPosition = 0;
 };
 
 struct Code;
@@ -175,6 +180,7 @@ struct alignas(64) Context {
     bool *timerStarted = nullptr;
     uint32_t numberBase = 0;
     uint32_t booleanBase = 0;
+    uint32_t stringBase = 0;
     uint32_t valueBase = 0;
     uint32_t nativeDepth = 0;
     uint32_t saveTop = 0;
@@ -185,8 +191,13 @@ struct alignas(64) Context {
     int64_t dirty[kMaxPromoted];
     double slots[kMaxSlots];
     List *const *lists = nullptr;
-    uint32_t stringBase = 0;
     uint32_t strHigh = 0;
+    uint32_t stringExcess = 0;
+    uint32_t depthLimit = 0;
+    uint32_t saveCap = 0;
+    double *savePtr = nullptr;
+    bool *threadWarp = nullptr;
+    BytecodeIndex *pendingRecursive = nullptr;
     uint64_t stringVariableUsed[2] = {0, 0};
 };
 
@@ -427,6 +438,16 @@ double fromBits(int64_t bits) {
     return d;
 }
 
+void refreshDepthLimit(Context *ctx) {
+    const size_t depth = ctx->thread->callStack.size();
+    ctx->depthLimit = depth >= MAX_CALL_DEPTH ? 0 : static_cast<uint32_t>(MAX_CALL_DEPTH - depth);
+}
+
+void refreshSave(Context *ctx) {
+    ctx->savePtr = gSave.data();
+    ctx->saveCap = static_cast<uint32_t>(gSave.size());
+}
+
 void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
@@ -445,6 +466,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
         ctx->slots[code.slotBooleans + i] = fromBits(thread.boolStack[ctx->booleanBase + i] ? 1 : 0);
 
     ctx->stringBase = static_cast<uint32_t>(thread.stringStack.size()) - entry.strings;
+    ctx->stringExcess = entry.strings;
 
     ctx->valueBase = static_cast<uint32_t>(thread.valueStack.size()) - static_cast<uint32_t>(entry.valueIsNumber.size());
     for (uint32_t i = 0; i < entry.valueIsNumber.size(); i++) {
@@ -469,6 +491,10 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
     ctx->nativeDepth = 0;
     ctx->saveTop = 0;
     ctx->lazyDepth = 0;
+    ctx->threadWarp = &thread.withoutScreenRefresh;
+    ctx->pendingRecursive = &thread.pendingRecursiveCallPc;
+    refreshDepthLimit(ctx);
+    refreshSave(ctx);
 }
 
 void syncStacks(Context *ctx, const ExitDescriptor *state) {
@@ -484,6 +510,7 @@ void syncStacks(Context *ctx, const ExitDescriptor *state) {
         thread.boolStack[ctx->booleanBase + i] = bitsOf(ctx->slots[code.slotBooleans + i]) != 0;
 
     if (thread.stringStack.size() != ctx->stringBase + state->strings.size()) thread.stringStack.resize(ctx->stringBase + state->strings.size());
+    ctx->stringExcess = static_cast<uint32_t>(state->strings.size());
     for (uint32_t i = 0; i < state->strings.size(); i++) {
         const StrEntry &entry = state->strings[i];
         if (entry.kind == StrEntry::Const) thread.stringStack[ctx->stringBase + i] = ctx->chunk->stringConstants[entry.constant];
@@ -556,6 +583,7 @@ void materializeLazyFrames(Context *ctx) {
         frame.flags &= ~kLazyFlag;
     }
     ctx->lazyDepth = 0;
+    refreshDepthLimit(ctx);
 }
 
 sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
@@ -637,6 +665,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
             lean = false;
         }
         call->leanCallee = lean ? 1 : 0;
+        call->fast = lean && call->resultNumber && call->nativeChecks ? 1 : 0;
     }
     if (call->leanCallee == 0) return false;
     if (thread.stringStack.size() != ctx->stringBase) return false;
@@ -674,7 +703,10 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     }
 
     const size_t need = static_cast<size_t>(n) + b + v;
-    if (ctx->saveTop + need > gSave.size()) gSave.resize(std::max<size_t>(gSave.size() * 2, ctx->saveTop + need + 256));
+    if (ctx->saveTop + need > gSave.size()) {
+        gSave.resize(std::max<size_t>(gSave.size() * 2, ctx->saveTop + need + 256));
+        refreshSave(ctx);
+    }
     double *valueSlots = ctx->slots + code.slotValues;
     double *save = gSave.data() + ctx->saveTop;
     for (uint32_t i = 0; i < n; i++)
@@ -741,6 +773,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     frame.wantsValue = call->wantsValue;
     frame.previousWarp = thread.withoutScreenRefresh;
     thread.callStack.push_back(frame);
+    refreshDepthLimit(ctx);
 
     thread.withoutScreenRefresh = thread.withoutScreenRefresh || proc.runWithoutScreenRefresh;
     thread.pc = proc.entryInstruction;
@@ -833,6 +866,7 @@ sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
 
     const BytecodeCallFrame frame = thread.callStack.back();
     thread.callStack.pop_back();
+    refreshDepthLimit(ctx);
 
     Value value;
     if (ret->isReturn && frame.wantsValue && !thread.valueStack.empty()) {
@@ -2072,6 +2106,9 @@ class Emitter {
         callHelper(fn, argTypes);
     }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
+    BytecodeIndex fr0ItemPc_ = invalidBytecodeIndex;
+    void emitNativeCall(const CallDescriptor &call, BytecodeIndex target, std::vector<sljit_jump *> &slow);
+    void emitNativeReturn(const ReturnDescriptor &ret, std::vector<sljit_jump *> &slow);
     enum class Rounding { Floor,
                           Ceiling,
                           Round };
@@ -2140,8 +2177,27 @@ class Emitter {
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     void emitInlineMod(const BytecodeInstruction &instr);
     bool guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain);
-    void emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector<sljit_jump *> &slow);
-    bool emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain = {}, void *helper = nullptr);
+    void emitListItemAddress(uint32_t slot, const Operand &index, std::vector<sljit_jump *> &slow);
+    bool indexFed(BytecodeIndex item, uint32_t numbersAtItem, Operand &source) const {
+        if (item < 1 || !listLayout().ok || chunk_.instructions[item].op != BytecodeOp::ItemOfList || !plan_.supported[item] || analysis_.isBlockStart(item) || plan_.entryOf[item] >= 0) return false;
+        if (!plan_.topValuesAreNumeric(item, 1)) return false;
+        const BytecodeInstruction &previous = chunk_.instructions[item - 1];
+        if (previous.op == BytecodeOp::PushVarValue) {
+            if (previous.a >= promotedIndex_.size() || promotedIndex_[previous.a] < 0 || stringWritten_[previous.a]) return false;
+            source = {false, variableSlot(static_cast<uint32_t>(promotedIndex_[previous.a])), 0};
+            return true;
+        }
+        if (previous.op == BytecodeOp::ConvertNumberToValue && plan_.supported[item - 1]) {
+            source = {false, numberSlot(numbersAtItem), 0};
+            return true;
+        }
+        return false;
+    }
+    bool feedsIndex(BytecodeIndex push) const {
+        Operand ignored;
+        return push + 1 < chunk_.instructions.size() && indexFed(push + 1, 0, ignored);
+    }
+    bool emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain = {}, void *helper = nullptr, const Operand *index = nullptr);
     bool emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item);
     bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
     BytecodeIndex currentPc_ = 0;
@@ -2190,16 +2246,14 @@ void Emitter::emitExitAt(BytecodeIndex pc, uint32_t result, const AbsState &stat
 }
 
 void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAtTarget) {
-    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_S2, 0, SLJIT_S2, 0, SLJIT_IMM, 1);
-    sljit_jump *proceed = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL | SLJIT_32, SLJIT_S2, 0, SLJIT_IMM, 0);
+    sljit_emit_op2(c_, SLJIT_SUB32 | SLJIT_SET_Z, SLJIT_S2, 0, SLJIT_S2, 0, SLJIT_IMM, 1);
+    pendJump(sljit_emit_jump(c_, SLJIT_NOT_ZERO), target);
     sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, pollInterval());
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     callHelper(reinterpret_cast<void *>(&jitPreempt), SLJIT_ARGS1(W, P));
     sljit_jump *keepGoing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
     emitExitAt(target, static_cast<uint32_t>(BytecodeJit::Result::Yield), stateAtTarget);
-    sljit_label *go = sljit_emit_label(c_);
-    sljit_set_label(proceed, go);
-    sljit_set_label(keepGoing, go);
+    sljit_set_label(keepGoing, sljit_emit_label(c_));
     pendUnconditional(target);
 }
 
@@ -2724,9 +2778,243 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
     }
 }
 
-void Emitter::emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector<sljit_jump *> &slow) {
+void Emitter::emitNativeCall(const CallDescriptor &call, BytecodeIndex target, std::vector<sljit_jump *> &slow) {
+    const uint32_t n = call.numbers, b = call.booleans, v = call.values, argc = call.argCount;
+    const uint32_t kept = v - argc;
+    const uint32_t need = n + b + v;
+    const auto field = [](size_t offset) { return static_cast<sljit_sw>(offset); };
+    const auto load32 = [&](sljit_s32 reg, size_t offset) { sljit_emit_op1(c_, SLJIT_MOV_U32, reg, 0, SLJIT_MEM1(SLJIT_S0), field(offset)); };
+    const auto store32 = [&](size_t offset, sljit_s32 reg) { sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_MEM1(SLJIT_S0), field(offset), reg, 0); };
+
+    emitSpill();
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call.fast));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), 0);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    if (!call.procWarp) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, warp)));
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    }
+    load32(SLJIT_R0, offsetof(Context, lazyDepth));
+    load32(SLJIT_R1, offsetof(Context, depthLimit));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R0, 0, SLJIT_R1, 0));
+    load32(SLJIT_R0, offsetof(Context, stringExcess));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    load32(SLJIT_R0, offsetof(Context, saveTop));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, need);
+    load32(SLJIT_R1, offsetof(Context, saveCap));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R0, 0, SLJIT_R1, 0));
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R3, 0, SLJIT_IMM, 0);
+    bool anyArgument = false;
+    uint32_t invalidMask = 0, keptMask = 0;
+    for (const CallCheck &check : call.checks) {
+        if (check.kind == ValueEntry::Argument) {
+            anyArgument = true;
+            invalidMask |= 1u << check.constant;
+            if (check.index < kept) keptMask |= 1u << check.constant;
+        }
+    }
+    if (anyArgument) {
+        load32(SLJIT_R0, offsetof(Context, lazyDepth));
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+        load32(SLJIT_R0, offsetof(Context, nativeDepth));
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+        sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 5);
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(gFrames));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), field(offsetof(NativeFrame, call)));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), field(offsetof(NativeFrame, flags)));
+        sljit_emit_op2(c_, SLJIT_LSHR, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 2);
+        sljit_emit_op2(c_, SLJIT_AND, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 0x3FFFFFFF);
+        sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R1), field(offsetof(CallDescriptor, argFromFrame)));
+        sljit_emit_op2(c_, SLJIT_AND, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R1), field(offsetof(CallDescriptor, argConstTyped)));
+        sljit_emit_op2(c_, SLJIT_OR, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+        sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R1), field(offsetof(CallDescriptor, argInvalid)));
+        sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, invalidMask);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+        if (keptMask != 0) {
+            sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, keptMask);
+            slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+        }
+    }
+    for (const CallCheck &check : call.checks) {
+        const uint32_t i = check.index;
+        if (check.kind == ValueEntry::Temp) {
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gTempLazy[i]));
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), 0);
+            if (i < kept) {
+                slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 1));
+            } else {
+                sljit_jump *plain = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 1);
+                slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 2));
+                sljit_emit_op2(c_, SLJIT_OR, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_IMM, 1 << (i - kept));
+                sljit_set_label(plain, sljit_emit_label(c_));
+            }
+        } else if (check.kind == ValueEntry::Argument) {
+            if (i < kept) continue;
+            const uint32_t a = check.constant, bit = i - kept;
+            if (a == bit) {
+                sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, 1u << a);
+            } else {
+                sljit_emit_op2(c_, SLJIT_LSHR, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, a);
+                sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+                sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, bit);
+            }
+            sljit_emit_op2(c_, SLJIT_OR, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_R0, 0);
+        } else if (check.kind == ValueEntry::VarValue) {
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(check.constant));
+            sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+            slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R0, 0, SLJIT_IMM, 1));
+        }
+    }
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, savePtr)));
+    load32(SLJIT_R1, offsetof(Context, saveTop));
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R2, 0, SLJIT_R1, 0, SLJIT_IMM, 3);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_R2, 0);
+    for (uint32_t i = 0; i < n; i++) {
+        loadF(SLJIT_FR0, i);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(i) * 8, SLJIT_FR0, 0);
+    }
+    for (uint32_t i = 0; i < b; i++) {
+        loadF(SLJIT_FR0, booleanSlot(i));
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(n + i) * 8, SLJIT_FR0, 0);
+    }
+    for (uint32_t i = 0; i < v; i++) {
+        loadF(SLJIT_FR0, valueSlot(i));
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(n + b + i) * 8, SLJIT_FR0, 0);
+    }
+
+    load32(SLJIT_R0, offsetof(Context, nativeDepth));
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 5);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(gFrames));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R2), field(offsetof(NativeFrame, call)), SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R4, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, numberBase)));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R2), field(offsetof(NativeFrame, numberAndBooleanBase)), SLJIT_R4, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R4, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, stringBase)));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R2), field(offsetof(NativeFrame, stringAndValueBase)), SLJIT_R4, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R4, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, warp)));
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_IMM, 1);
+    sljit_emit_op2(c_, SLJIT_OR, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_IMM, kLazyFlag);
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_IMM, 2);
+    sljit_emit_op2(c_, SLJIT_OR, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_R3, 0);
+    load32(SLJIT_R1, offsetof(Context, saveTop));
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R3, 0, SLJIT_R1, 0, SLJIT_IMM, 32);
+    sljit_emit_op2(c_, SLJIT_OR, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_R3, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R2), field(offsetof(NativeFrame, flags)), SLJIT_R4, 0);
+
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, need);
+    store32(offsetof(Context, saveTop), SLJIT_R1);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+    store32(offsetof(Context, nativeDepth), SLJIT_R0);
+    load32(SLJIT_R0, offsetof(Context, lazyDepth));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+    store32(offsetof(Context, lazyDepth), SLJIT_R0);
+    const auto advance = [&](size_t offset, uint32_t by) {
+        if (by == 0) return;
+        load32(SLJIT_R0, offset);
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, by);
+        store32(offset, SLJIT_R0);
+    };
+    advance(offsetof(Context, numberBase), n);
+    advance(offsetof(Context, booleanBase), b);
+    advance(offsetof(Context, valueBase), kept);
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, pendingRecursive)));
+    sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_MEM1(SLJIT_R0), 0, SLJIT_IMM, -1);
+    if (call.procWarp) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, threadWarp)));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R0), 0, SLJIT_IMM, 1);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, warp)), SLJIT_IMM, 1);
+    }
+    if (kept > 0) {
+        for (uint32_t i = 0; i < argc; i++) {
+            loadF(SLJIT_FR0, valueSlot(kept + i));
+            storeF(valueSlot(i), SLJIT_FR0);
+        }
+    }
+    pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), target});
+}
+
+void Emitter::emitNativeReturn(const ReturnDescriptor &ret, std::vector<sljit_jump *> &slow) {
+    const auto field = [](size_t offset) { return static_cast<sljit_sw>(offset); };
+    const auto load32 = [&](sljit_s32 reg, size_t offset) { sljit_emit_op1(c_, SLJIT_MOV_U32, reg, 0, SLJIT_MEM1(SLJIT_S0), field(offset)); };
+    const auto store32 = [&](size_t offset, sljit_s32 reg) { sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_MEM1(SLJIT_S0), field(offset), reg, 0); };
+
+    emitSpill();
+    load32(SLJIT_R0, offsetof(Context, lazyDepth));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    load32(SLJIT_R4, offsetof(Context, nativeDepth));
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_IMM, 1);
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_IMM, 5);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R4, 0, SLJIT_R4, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(gFrames));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R4), field(offsetof(NativeFrame, call)));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, resultNumber)));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    if (ret.resultMode == 2) {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, wantsValue)));
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    }
+    if (ret.resultMode == 1) loadF(SLJIT_FR1, valueSlot(ret.resultPosition));
+    else sljit_emit_fset64(c_, SLJIT_FR1, 0.0);
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R3, 0, SLJIT_MEM1(SLJIT_R4), field(offsetof(NativeFrame, flags)));
+    sljit_emit_op2(c_, SLJIT_LSHR, SLJIT_R0, 0, SLJIT_R3, 0, SLJIT_IMM, 1);
+    sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+    sljit_emit_op2(c_, SLJIT_LSHR, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_IMM, 32);
+    load32(SLJIT_R1, offsetof(Context, nativeDepth));
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, 1);
+    store32(offsetof(Context, nativeDepth), SLJIT_R1);
+    load32(SLJIT_R1, offsetof(Context, lazyDepth));
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, 1);
+    store32(offsetof(Context, lazyDepth), SLJIT_R1);
+    store32(offsetof(Context, saveTop), SLJIT_R3);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, threadWarp)));
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), 0, SLJIT_R0, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, warp)), SLJIT_R0, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R4), field(offsetof(NativeFrame, numberAndBooleanBase)));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, numberBase)), SLJIT_R1, 0);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R4), field(offsetof(NativeFrame, stringAndValueBase)));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, stringBase)), SLJIT_R1, 0);
+
+    sljit_emit_op2(c_, SLJIT_SHL, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_IMM, 3);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_S0), field(offsetof(Context, savePtr)));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_R1, 0);
+
+    const auto copy = [&]() {
+        sljit_label *top = sljit_emit_label(c_);
+        sljit_jump *done = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R3), 0);
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), 0, SLJIT_FR0, 0);
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R3, 0, SLJIT_R3, 0, SLJIT_IMM, 8);
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 8);
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, 1);
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), top);
+        sljit_set_label(done, sljit_emit_label(c_));
+    };
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, numbers)));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_S0, 0, SLJIT_IMM, slotOffset(0));
+    copy();
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, booleans)));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_S0, 0, SLJIT_IMM, slotOffset(booleanSlot(0)));
+    copy();
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, values)));
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, argCount)));
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R0, 0, SLJIT_S0, 0, SLJIT_IMM, slotOffset(valueSlot(0)));
+    copy();
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, wantsValue)));
+    sljit_jump *noResult = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), 0, SLJIT_FR1, 0);
+    sljit_set_label(noResult, sljit_emit_label(c_));
+    sljit_emit_op1(c_, SLJIT_MOV_S32, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R2), field(offsetof(CallDescriptor, continuation)));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.entryTable.data()));
+    sljit_emit_ijump(c_, SLJIT_JUMP, SLJIT_MEM2(SLJIT_R1, SLJIT_R0), SLJIT_WORD_SHIFT);
+}
+
+void Emitter::emitListItemAddress(uint32_t slot, const Operand &index, std::vector<sljit_jump *> &slow) {
     const ListLayout &layout = listLayout();
-    loadF(SLJIT_FR0, indexSlot);
+    loadOperand(SLJIT_FR0, index);
     sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R2, 0, SLJIT_FR0, 0);
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R2, 0);
     slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0));
@@ -2747,13 +3035,14 @@ void Emitter::emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + static_cast<sljit_sw>(sizeof(void *))));
 }
 
-bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain, void *helper) {
+bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain, void *helper, const Operand *index) {
     const ListLayout &layout = listLayout();
     if (!layout.ok) return false;
     if (helper == nullptr) helper = reinterpret_cast<void *>(&jitListItem);
     const uint32_t out = valueSlot(op.indexPosition);
     std::vector<sljit_jump *> slow = notPlain;
-    emitListItemAddress(op.list, out, slow);
+    const Operand indexSource = index != nullptr ? *index : Operand{false, out, 0};
+    emitListItemAddress(op.list, indexSource, slow);
 
     sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
     slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
@@ -2764,11 +3053,19 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<s
     storeF(out, SLJIT_FR0);
     sljit_label *done = sljit_emit_label(c_);
 
-    addCold([this, slow, flagged, done, &op, out, layout, helper]() {
+    const bool indexNotStored = index != nullptr;
+    addCold([this, slow, flagged, done, &op, out, layout, helper, indexSource, indexNotStored]() {
+        const auto storeIndex = [&]() {
+            if (!indexNotStored) return;
+            loadOperand(SLJIT_FR0, indexSource);
+            storeF(out, SLJIT_FR0);
+        };
         sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, here);
+        storeIndex();
         callListHelper(helper, const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        loadF(SLJIT_FR0, out);
         sljit_jump *back = sljit_emit_jump(c_, SLJIT_JUMP);
         sljit_set_label(back, done);
 
@@ -2793,7 +3090,9 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<s
         storeF(out, SLJIT_FR0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
         sljit_set_label(pooled, sljit_emit_label(c_));
+        storeIndex();
         callListHelper(helper, const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        loadF(SLJIT_FR0, out);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
     });
     return true;
@@ -2806,7 +3105,7 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     const bool typedConstant = item.kind == ValueEntry::Constant && item.constant < chunk_.constants.size() && chunk_.constants[item.constant].isStringTyped() && !chunk_.constants[item.constant].isString();
     if (!layout.ok || (item.kind != ValueEntry::Number && !typedConstant && !variable && !temporary)) return false;
     std::vector<sljit_jump *> slow;
-    emitListItemAddress(op.list, valueSlot(op.indexPosition), slow);
+    emitListItemAddress(op.list, Operand{false, valueSlot(op.indexPosition), 0}, slow);
     if (variable) {
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(item.constant));
         sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
@@ -3350,7 +3649,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
     case BytecodeOp::ConvertNumberToValue: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (!convertFeedsStore(pc)) {
+        if (!convertFeedsStore(pc) && !feedsIndex(pc)) {
             loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
             storeF(valueSlot(depth), SLJIT_FR0);
         }
@@ -3367,7 +3666,8 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         if (top.kind == ValueEntry::Constant) {
             storeImmF(numberSlot(state_.numbers), constantNumber(top.constant));
         } else {
-            loadF(SLJIT_FR0, valueSlot(static_cast<uint32_t>(state_.values.size())));
+            const bool carried = top.kind == ValueEntry::Temp && fr0ItemPc_ + 1 == pc && !analysis_.isBlockStart(pc) && plan_.entryOf[pc] < 0;
+            if (!carried) loadF(SLJIT_FR0, valueSlot(static_cast<uint32_t>(state_.values.size())));
             nanToZero(SLJIT_FR0);
             storeF(numberSlot(state_.numbers), SLJIT_FR0);
         }
@@ -3576,6 +3876,36 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             const AbsValue &value = state_.values[i];
             if (value.kind == ValueEntry::Opaque || value.kind == ValueEntry::Like || value.kind == ValueEntry::Temp || value.kind == ValueEntry::Argument || value.kind == ValueEntry::VarValue) call.checks.push_back({i, value.constant, static_cast<uint8_t>(value.kind)});
         }
+        {
+            static const bool disabled = std::getenv("SE_JIT_NOFASTCALL") != nullptr;
+            const std::vector<AbsValue> &values = state_.values;
+            call.nativeChecks = !disabled && call.leanKinds && call.values <= 16 && call.numbers <= 16 && call.booleans <= 16;
+            for (const CallCheck &check : call.checks) {
+                if (check.kind == ValueEntry::Argument && check.constant >= kMaxTypedArguments) call.nativeChecks = false;
+                if (check.kind == ValueEntry::VarValue && check.constant >= code_.promoted.size()) call.nativeChecks = false;
+            }
+            call.argInvalid = call.argCount >= 32 ? 0 : ~0u << call.argCount;
+            if (values.size() < call.argCount) call.argInvalid = ~0u;
+            else {
+                for (uint32_t j = 0; j < call.argCount; j++) {
+                    const AbsValue &arg = values[values.size() - call.argCount + j];
+                    if (arg.kind == ValueEntry::Number) continue;
+                    if (arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) call.argFromFrame |= 1u << j;
+                    else if (arg.kind == ValueEntry::Constant) {
+                        const int how = numberKindOf(chunk_.constants[arg.constant]);
+                        if (how == 1) call.argConstTyped |= 1u << j;
+                        else if (how < 0) call.argInvalid |= 1u << j;
+                    } else call.argInvalid |= 1u << j;
+                }
+            }
+        }
+        std::vector<sljit_jump *> slowCall;
+        if (call.nativeChecks) {
+            emitNativeCall(call, proc.entryInstruction, slowCall);
+            sljit_label *slowHere = sljit_emit_label(c_);
+            for (sljit_jump *jump : slowCall)
+                sljit_set_label(jump, slowHere);
+        }
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
         callHelper(reinterpret_cast<void *>(&jitCall), SLJIT_ARGS2(W, P, P));
@@ -3592,6 +3922,24 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ret.state = &makeExit(pc, 0, state_);
         ret.pc = pc;
         ret.isReturn = instr.op == BytecodeOp::Return;
+        {
+            static const bool disabled = std::getenv("SE_JIT_NOFASTCALL") != nullptr;
+            if (ret.isReturn && !state_.values.empty()) {
+                if (state_.values.back().kind == ValueEntry::Number) {
+                    ret.resultMode = 1;
+                    ret.resultPosition = static_cast<uint32_t>(state_.values.size()) - 1;
+                } else {
+                    ret.resultMode = 2;
+                }
+            }
+            if (!disabled) {
+                std::vector<sljit_jump *> slowReturn;
+                emitNativeReturn(ret, slowReturn);
+                sljit_label *slowHere = sljit_emit_label(c_);
+                for (sljit_jump *jump : slowReturn)
+                    sljit_set_label(jump, slowHere);
+            }
+        }
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&ret));
         callHelper(reinterpret_cast<void *>(&jitReturn), SLJIT_ARGS2(W, P, P));
@@ -3612,7 +3960,10 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         op.list = instr.a;
         op.indexPosition = depth - 1;
         if (plan_.topValuesAreNumeric(pc, 1)) {
-            if (!emitInlineListItem(op)) callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
+            Operand source;
+            const bool fed = indexFed(pc, state_.numbers, source);
+            if (emitInlineListItem(op, {}, nullptr, fed ? &source : nullptr)) fr0ItemPc_ = pc;
+            else callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
         } else {
             op.item = describe(state_.values[depth - 1]);
             op.itemPosition = depth - 1;
@@ -3623,6 +3974,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             if (guardable) {
                 guardPlainNumber(index, depth - 1, notPlain);
                 inlined = emitInlineListItem(op, notPlain, reinterpret_cast<void *>(&jitListItemAny));
+                if (inlined) fr0ItemPc_ = pc;
             }
             if (!inlined) callListHelper(reinterpret_cast<void *>(&jitListItemAny), op, SLJIT_ARGS2V(P, P));
         }
@@ -3722,7 +4074,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (!feedsCompare(pc)) {
+        if (!feedsCompare(pc) && !feedsIndex(pc)) {
             loadF(SLJIT_FR0, variableSlot(k));
             storeF(valueSlot(depth), SLJIT_FR0);
         }
@@ -4211,7 +4563,7 @@ bool Emitter::emit() {
     c_ = sljit_create_compiler(nullptr);
     if (c_ == nullptr) return false;
 
-    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 3 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins + 1), 6, 0);
+    sljit_emit_enter(c_, 0, SLJIT_ARGS2(W, P, W), 5 | SLJIT_ENTER_FLOAT(kFirstPin + kMaxPins + 1), 6, 0);
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
