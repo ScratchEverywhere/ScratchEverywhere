@@ -14,9 +14,9 @@
 #include <speech_manager.hpp>
 #include <utility>
 
-#ifdef ENABLE_MENU
-#include <pauseMenu.hpp>
-#endif
+// #ifdef ENABLE_MENU
+// #include <pauseMenu.hpp>
+// #endif
 
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
@@ -34,9 +34,9 @@ void Scratch::initializeScratchProject() {
 #endif
     Scratch::nextProject = false;
 
-#ifdef ENABLE_MENU
-    Scratch::pauseMenu = nullptr;
-#endif
+// #ifdef ENABLE_MENU
+//     Scratch::pauseMenu = nullptr;
+// #endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);
@@ -64,24 +64,24 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         // the project merely ended. Mark it explicitly so mainLoop() goes straight
         // to exitApp() instead of reconstructing the main menu just to discard it.
         OS::toExit = true;
-#ifdef ENABLE_MENU
-        if (pauseMenu != nullptr) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
-        }
-#endif
+        // #ifdef ENABLE_MENU
+        //         if (pauseMenu != nullptr) {
+        //             MenuManager::cleanup();
+        //             pauseMenu = nullptr;
+        //         }
+        // #endif
         return std::make_pair(false, false);
     }
-#ifdef ENABLE_MENU
-    if (pauseMenu != nullptr) {
-        MenuManager::render();
-        if (pauseMenu->shouldUnpause) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
-        }
-        return std::make_pair(Render::appShouldRun(), false);
-    }
-#endif
+    // #ifdef ENABLE_MENU
+    //     if (pauseMenu != nullptr) {
+    //         MenuManager::render();
+    //         if (pauseMenu->shouldUnpause) {
+    //             MenuManager::cleanup();
+    //             pauseMenu = nullptr;
+    //         }
+    //         return std::make_pair(Render::appShouldRun(), false);
+    //     }
+    // #endif
 
     bool forcedStep = false;
 #ifdef ENABLE_INSPECTOR
@@ -182,35 +182,35 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             extensions::runUpdateFunctions(extensions::POST_RENDER);
 #endif
         }
-#ifdef ENABLE_MENU
+        // #ifdef ENABLE_MENU
 
-        const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
-#ifdef __XBOX__
-        // Count wall time, not game frames: slow projects must remain escapable.
-        static Timer pauseHoldTimer(false);
-        static bool holdingPauseStart = false;
-        bool pauseRequested = false;
-        const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
-        if (browserProject && startHeld) {
-            if (!holdingPauseStart) {
-                pauseHoldTimer.start();
-                holdingPauseStart = true;
-            }
-            pauseRequested = pauseHoldTimer.hasElapsed(3000);
-        } else {
-            holdingPauseStart = false;
-        }
-        if (pauseRequested) holdingPauseStart = false;
-#else
-        const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
-#endif
-        if (pauseRequested) {
-            pauseMenu = new PauseMenu();
-            MenuManager::changeMenu(pauseMenu);
-            return std::make_pair(true, false);
-        }
+        //         const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
+        // #ifdef __XBOX__
+        //         // Count wall time, not game frames: slow projects must remain escapable.
+        //         static Timer pauseHoldTimer(false);
+        //         static bool holdingPauseStart = false;
+        //         bool pauseRequested = false;
+        //         const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+        //         if (browserProject && startHeld) {
+        //             if (!holdingPauseStart) {
+        //                 pauseHoldTimer.start();
+        //                 holdingPauseStart = true;
+        //             }
+        //             pauseRequested = pauseHoldTimer.hasElapsed(3000);
+        //         } else {
+        //             holdingPauseStart = false;
+        //         }
+        //         if (pauseRequested) holdingPauseStart = false;
+        // #else
+        //         const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+        // #endif
+        //         if (pauseRequested) {
+        //             pauseMenu = new PauseMenu();
+        //             MenuManager::changeMenu(pauseMenu);
+        //             return std::make_pair(true, false);
+        //         }
 
-#endif
+        // #endif
 
         if (shouldStop) {
             if (projectType != ProjectType::UNEMBEDDED && !(projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) {

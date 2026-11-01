@@ -1,3 +1,4 @@
+#include "menuManager.hpp"
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
@@ -17,11 +18,10 @@
 
 #include <log.hpp>
 #ifdef ENABLE_MENU
-#include <menus/mainMenu.hpp>
+#include <mainMenu.hpp>
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -56,16 +56,17 @@ bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
     MainMenu *menu = new MainMenu();
-    MenuManager::changeMenu(menu);
+    MenuManager::currentMenu = menu;
+    // MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {
         MenuManager::render();
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) return false;
-            MenuManager::isProjectLoaded = 0;
-            return true;
-        }
+        // if (MenuManager::isProjectLoaded != 0) {
+        //     if (MenuManager::isProjectLoaded == -1) return false;
+        //     MenuManager::isProjectLoaded = 0;
+        //     return true;
+        // }
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);

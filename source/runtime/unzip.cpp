@@ -12,7 +12,9 @@
 #include <image.hpp>
 #include <istream>
 #include <log.hpp>
-#include <menus/loading.hpp>
+// #ifdef ENABLE_MENU
+// #include <menus/loading.hpp>
+// #endif
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -232,60 +234,60 @@ bool Unzip::load() {
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
-#if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
+    // #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
-    SE_Thread projectThread;
-	constexpr size_t loaderStackSize = 0x262144;
-    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
-        Loading loading;
-        loading.init();
+    //     SE_Thread projectThread;
+    // 	constexpr size_t loaderStackSize = 0x262144;
+    //     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
+    //         Loading loading;
+    //         loading.init();
 
-        while (!Unzip::threadFinished) {
-            loading.render();
-#ifdef __XBOX__
-            SE_Thread::sleep(10);
-#endif
-        }
+    //         while (!Unzip::threadFinished) {
+    //             loading.render();
+    // #ifdef __XBOX__
+    //             SE_Thread::sleep(10);
+    // #endif
+    //         }
 
-        projectThread.join();
+    //         projectThread.join();
 
-        if (Unzip::projectOpened != 1) {
-            loading.cleanup();
-            return false;
-        }
+    //         if (Unzip::projectOpened != 1) {
+    //             loading.cleanup();
+    //             return false;
+    //         }
 
-#ifdef __XBOX__
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-        loading.render();
-        loadInitialImages();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-        loading.render();
-#else
-        loadInitialImages();
-#endif
-        loading.cleanup();
-        return true;
-    } else {
-        Loading loading;
-        loading.init();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
-        loading.render();
+    // #ifdef __XBOX__
+    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    //         loading.render();
+    //         loadInitialImages();
+    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+    //         loading.render();
+    // #else
+    //         loadInitialImages();
+    // #endif
+    //         loading.cleanup();
+    //         return true;
+    //     } else {
+    //         Loading loading;
+    //         loading.init();
+    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+    //         loading.render();
 
-        Unzip::openScratchProject(nullptr);
-        if (Unzip::projectOpened != 1) {
-            loading.cleanup();
-            return false;
-        }
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-        loading.render();
-        loadInitialImages();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-        loading.render();
-        loading.cleanup();
-        return true;
-    }
+    //         Unzip::openScratchProject(nullptr);
+    //         if (Unzip::projectOpened != 1) {
+    //             loading.cleanup();
+    //             return false;
+    //         }
+    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    //         loading.render();
+    //         loadInitialImages();
+    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+    //         loading.render();
+    //         loading.cleanup();
+    //         return true;
+    //     }
 
-#else
+    // #else
     // Non-threaded loading fallback
     Unzip::openScratchProject(nullptr);
     if (Unzip::projectOpened != 1) {
@@ -293,7 +295,7 @@ bool Unzip::load() {
     }
     loadInitialImages();
     return true;
-#endif
+    // #endif
 }
 
 void Unzip::openScratchProject(void *arg) {
@@ -336,15 +338,15 @@ void Unzip::openScratchProject(void *arg) {
 #ifdef RENDERER_XBOX
     if (Render::currentRenderer == Renderers::Xbox) {
         Log::log("Precaching project textures...");
-		Image_Xbox::precacheProjectTextures();
-		Log::log("Project texture precache finished.");
+        Image_Xbox::precacheProjectTextures();
+        Log::log("Project texture precache finished.");
     }
 #endif
 #ifdef RENDERER_NV2A
     if (Render::currentRenderer == Renderers::NV2A) {
-		Log::log("Precaching project textures...");
+        Log::log("Precaching project textures...");
         Image_NV2A::precacheProjectTextures();
-		Log::log("Project texture precache finished.");
+        Log::log("Project texture precache finished.");
     }
 #endif
 

@@ -33,8 +33,8 @@
 #include <vector>
 
 #ifdef ENABLE_MENU
-#include <pauseMenu.hpp>
-#include <popupMenu.hpp>
+// #include <pauseMenu.hpp>
+// #include <popupMenu.hpp>
 #endif
 
 #ifdef ENABLE_INSPECTOR
@@ -96,9 +96,9 @@ bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);
 
-#ifdef ENABLE_MENU
-PauseMenu *Scratch::pauseMenu = nullptr;
-#endif
+// #ifdef ENABLE_MENU
+// PauseMenu *Scratch::pauseMenu = nullptr;
+// #endif
 
 double Scratch::counter = 0;
 
@@ -140,33 +140,33 @@ bool Scratch::initializeRuntime() {
 
 bool Scratch::startScratchProject() {
 
-#ifdef ENABLE_MENU
+    // #ifdef ENABLE_MENU
 
-    if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
-        }
-        popupMenu->cleanup();
-        if (popupMenu->accepted == 0) {
-            cleanupScratchProject();
-            return false;
-        }
-    }
+    //     if (hasNativeExtensions) {
+    //         PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
+    //         MenuManager::changeMenu(popupMenu);
+    //         while (Render::appShouldRun() && popupMenu->accepted == -1) {
+    //             MenuManager::render();
+    //         }
+    //         popupMenu->cleanup();
+    //         if (popupMenu->accepted == 0) {
+    //             cleanupScratchProject();
+    //             return false;
+    //         }
+    //     }
 
-    if (bytecodeCacheTooNew) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACKNOWLEDGE, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
-        }
-        popupMenu->cleanup();
-        cleanupScratchProject();
-        return false;
-    }
+    //     if (bytecodeCacheTooNew) {
+    //         PopupMenu *popupMenu = new PopupMenu(PopupType::ACKNOWLEDGE, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
+    //         MenuManager::changeMenu(popupMenu);
+    //         while (Render::appShouldRun() && popupMenu->accepted == -1) {
+    //             MenuManager::render();
+    //         }
+    //         popupMenu->cleanup();
+    //         cleanupScratchProject();
+    //         return false;
+    //     }
 
-#endif
+    // #endif
 
     std::pair<bool, bool> code;
     initializeScratchProject();
