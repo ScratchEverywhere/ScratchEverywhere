@@ -186,6 +186,7 @@ struct Code {
     std::deque<ListOpDescriptor> listOps;
     std::deque<ValueCallDescriptor> valueCalls;
     std::deque<ShadowDescriptor> shadows;
+    std::vector<uint8_t> constantIsNumber;
     std::deque<StringOp> stringOps;
     std::deque<double> doubles;
     std::deque<CompareDescriptor> compares;
@@ -309,6 +310,9 @@ struct NativeFrame {
     uint64_t flags;
 };
 constexpr uint64_t kLazyFlag = 1, kPreviousWarpFlag = 2;
+constexpr uint32_t kMaxTypedArguments = 30;
+[[gnu::noinline]] Value typedNumberValue(double number) { return Value::stringTypedNumber(number); }
+inline uint64_t frameTyped(const NativeFrame &frame) { return (frame.flags >> 2) & 0x3FFFFFFF; }
 NativeFrame gFrames[MAX_CALL_DEPTH + 1];
 constexpr uint32_t kMaxStrs = 64;
 std::string gStrs[kMaxStrs];
@@ -356,7 +360,11 @@ Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position)
             if (entry.constant >= argc || callState.values.size() < argc) return Value();
             const uint32_t at = static_cast<uint32_t>(callState.values.size()) - argc + entry.constant;
             const ValueEntry &arg = callState.values[at];
-            if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) return Value(ctx->slots[ctx->code->slotValues + entry.constant]);
+            if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) {
+                const double number = ctx->slots[ctx->code->slotValues + entry.constant];
+                if (const uint64_t typedBits = frameTyped(frame); typedBits != 0 && ((typedBits >> entry.constant) & 1) != 0) return typedNumberValue(number);
+                return Value(number);
+            }
             if (arg.kind == ValueEntry::Constant) return ctx->chunk->constants[arg.constant];
             const size_t index = static_cast<size_t>(frame.stringAndValueBase >> 32) + at;
             return index < thread.valueStack.size() ? thread.valueStack[index] : Value();
@@ -368,7 +376,7 @@ Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t position)
         return index < thread.valueStack.size() ? thread.valueStack[index] : Value();
     }
     case ValueEntry::Temp:
-        if (gTempLazy[position]) return Value(ctx->slots[ctx->code->slotValues + position]);
+        if (gTempLazy[position] == 1) return Value(ctx->slots[ctx->code->slotValues + position]);
         return gTemps[position];
     default:
         if (ctx->lazyDepth > 0 && position < gFrames[ctx->nativeDepth - 1].call->argCount) {
@@ -516,10 +524,13 @@ void materializeLazyFrames(Context *ctx) {
         for (uint32_t i = 0; i < b; i++)
             thread.boolStack[booleanBase + i] = bitsOf(save[n + i]) != 0;
         if (thread.valueStack.size() < valueBase + v) thread.valueStack.resize(valueBase + v);
+        const uint32_t firstArgument = v - call->argCount;
         for (uint32_t i = 0; i < v; i++) {
             const ValueEntry &entry = state.values[i];
-            if (entry.kind == ValueEntry::Number || entry.kind == ValueEntry::Temp || entry.kind == ValueEntry::Argument || entry.kind == ValueEntry::VarValue) thread.valueStack[valueBase + i].setNumber(save[n + b + i]);
-            else if (entry.kind == ValueEntry::Constant) thread.valueStack[valueBase + i] = ctx->chunk->constants[entry.constant];
+            if (entry.kind == ValueEntry::Number || entry.kind == ValueEntry::Temp || entry.kind == ValueEntry::Argument || entry.kind == ValueEntry::VarValue) {
+                if (i >= firstArgument && ((frameTyped(frame) >> (i - firstArgument)) & 1) != 0) thread.valueStack[valueBase + i] = Value::stringTypedNumber(save[n + b + i]);
+                else thread.valueStack[valueBase + i].setNumber(save[n + b + i]);
+            } else if (entry.kind == ValueEntry::Constant) thread.valueStack[valueBase + i] = ctx->chunk->constants[entry.constant];
         }
 
         BytecodeCallFrame &real = thread.callStack.emplace_back();
@@ -547,32 +558,39 @@ sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
     return result;
 }
 
-bool variableIsNumber(Context *ctx, uint32_t k) {
-    const int64_t kind = ctx->dirty[k];
-    if (kind == 1 || kind == 2) return true;
-    if (kind >= 5) return ctx->chunk->constants[kind - 5].isRealNumber();
-    if (kind == 3) return gShadows[k].isRealNumber();
-    if (kind == 0) return materializeVariable(ctx, k).isRealNumber();
-    return false;
+int numberKindOf(const Value &value) {
+    if (value.isRealNumber()) return 0;
+    if (value.isStringTyped() && !value.isString()) return 1;
+    return -1;
 }
 
-bool argumentIsNumber(Context *ctx, uint32_t index) {
+int variableNumberKind(Context *ctx, uint32_t k) {
+    const int64_t kind = ctx->dirty[k];
+    if (kind == 1 || kind == 2) return 0;
+    if (kind >= 5) return numberKindOf(ctx->chunk->constants[kind - 5]);
+    if (kind == 3) return numberKindOf(gShadows[k]);
+    if (kind == 0) return numberKindOf(materializeVariable(ctx, k));
+    return -1;
+}
+
+int argumentNumberKind(Context *ctx, uint32_t index) {
     const BytecodeThread &thread = *ctx->thread;
     if (ctx->lazyDepth > 0) {
         const NativeFrame &frame = gFrames[ctx->nativeDepth - 1];
         const ExitDescriptor &callState = *frame.call->state;
         const uint32_t argc = frame.call->argCount;
-        if (index >= argc || callState.values.size() < argc) return false;
+        if (index >= argc || callState.values.size() < argc) return -1;
         const ValueEntry &arg = callState.values[callState.values.size() - argc + index];
-        if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) return true;
-        if (arg.kind == ValueEntry::Constant) return ctx->chunk->constants[arg.constant].isRealNumber();
-        return false;
+        if (arg.kind == ValueEntry::Number) return 0;
+        if (arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) return static_cast<int>((frameTyped(frame) >> index) & 1);
+        if (arg.kind == ValueEntry::Constant) return numberKindOf(ctx->chunk->constants[arg.constant]);
+        return -1;
     }
-    if (thread.callStack.empty()) return false;
+    if (thread.callStack.empty()) return -1;
     const BytecodeCallFrame &frame = thread.callStack.back();
-    if (frame.stackBase < frame.argCount || index >= frame.argCount) return false;
+    if (frame.stackBase < frame.argCount || index >= frame.argCount) return -1;
     const size_t at = static_cast<size_t>(frame.stackBase - frame.argCount) + index;
-    return at < thread.valueStack.size() && thread.valueStack[at].isRealNumber();
+    return at < thread.valueStack.size() ? numberKindOf(thread.valueStack[at]) : -1;
 }
 
 bool lazyCall(Context *ctx, const CallDescriptor *call) {
@@ -608,12 +626,19 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     if (thread.stringStack.size() != ctx->stringBase) return false;
     auto &values = thread.valueStack;
     const uint32_t virtualEntries = ctx->lazyDepth > 0 ? gFrames[ctx->nativeDepth - 1].call->argCount : 0;
+    if (argc > kMaxTypedArguments) return false;
+    uint64_t typed = 0;
     for (uint32_t i = 0; i < v; i++) {
         const ValueEntry::Kind kind = state->values[i].kind;
         if ((kind == ValueEntry::Opaque || kind == ValueEntry::Like) && i >= virtualEntries && ctx->valueBase + i >= values.size()) return false;
-        if (kind == ValueEntry::Temp && !gTempLazy[i] && !gTemps[i].isRealNumber()) return false;
-        if (kind == ValueEntry::Argument && !argumentIsNumber(ctx, state->values[i].constant)) return false;
-        if (kind == ValueEntry::VarValue && !variableIsNumber(ctx, state->values[i].constant)) return false;
+        int how = 0;
+        if (kind == ValueEntry::Temp) how = gTempLazy[i] == 1 ? 0 : gTempLazy[i] == 2 ? 1
+                                                                                      : numberKindOf(gTemps[i]);
+        else if (kind == ValueEntry::Argument) how = argumentNumberKind(ctx, state->values[i].constant);
+        else if (kind == ValueEntry::VarValue) how = variableNumberKind(ctx, state->values[i].constant);
+        if (how < 0) return false;
+        if (how == 1 && i >= v - argc) typed |= uint64_t(1) << (i - (v - argc));
+        else if (how == 1) return false;
     }
 
     const uint32_t kept = v - argc;
@@ -634,7 +659,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     frame.call = call;
     frame.numberAndBooleanBase = static_cast<uint64_t>(ctx->numberBase) | (static_cast<uint64_t>(ctx->booleanBase) << 32);
     frame.stringAndValueBase = static_cast<uint64_t>(ctx->stringBase) | (static_cast<uint64_t>(ctx->valueBase) << 32);
-    frame.flags = kLazyFlag | (thread.withoutScreenRefresh ? kPreviousWarpFlag : 0) | (static_cast<uint64_t>(ctx->saveTop) << 32);
+    frame.flags = kLazyFlag | (thread.withoutScreenRefresh ? kPreviousWarpFlag : 0) | (typed << 2) | (static_cast<uint64_t>(ctx->saveTop) << 32);
     ctx->saveTop += static_cast<uint32_t>(need);
     ctx->nativeDepth++;
     ctx->lazyDepth++;
@@ -2285,12 +2310,19 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[position]));
         notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
         return true;
-    case ValueEntry::VarValue:
+    case ValueEntry::VarValue: {
         if (entry.constant >= code_.promoted.size()) return false;
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(entry.constant));
         sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R2, 0, SLJIT_IMM, 1));
+        sljit_jump *plain = sljit_emit_cmp(c_, SLJIT_LESS_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_R2, 0, SLJIT_IMM, 4));
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 4);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.constantIsNumber.data()));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM2(SLJIT_R0, SLJIT_R2), 0);
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        sljit_set_label(plain, sljit_emit_label(c_));
         return true;
+    }
     default:
         return false;
     }
@@ -2356,7 +2388,12 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<s
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R0), layout.flags, SLJIT_R2, 0);
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R0), layout.tag, SLJIT_IMM, layout.numberTag);
         sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R0), layout.number, SLJIT_FR0, 0);
+        sljit_jump *otherFlags = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.typedFlags);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 2);
+        sljit_jump *marked = sljit_emit_jump(c_, SLJIT_JUMP);
+        sljit_set_label(otherFlags, sljit_emit_label(c_));
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 0);
+        sljit_set_label(marked, sljit_emit_label(c_));
         storeF(out, SLJIT_FR0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
         sljit_set_label(pooled, sljit_emit_label(c_));
@@ -2381,7 +2418,7 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     }
     if (temporary) {
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.itemPosition]));
-        sljit_jump *lazy = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+        sljit_jump *lazy = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gTemps[op.itemPosition]));
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.tag);
         slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
@@ -3001,7 +3038,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 });
             } else if (top.kind == ValueEntry::Temp) {
                 sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[position]));
-                sljit_jump *boxedTemp = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+                sljit_jump *boxedTemp = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
                 loadF(SLJIT_FR0, valueSlot(position));
                 storeF(variableSlot(k), SLJIT_FR0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
@@ -3742,6 +3779,12 @@ bool Emitter::emit() {
         }
     }
     if (code_.promoted.size() > kMaxPromoted) return giveUp("too many variables kept in slots: " + std::to_string(code_.promoted.size()));
+
+    code_.constantIsNumber.assign(chunk_.constants.size() + 1, 0);
+    for (size_t i = 0; i < chunk_.constants.size(); i++) {
+        const Value &constant = chunk_.constants[i];
+        code_.constantIsNumber[i] = !constant.isString() && (constant.isRealNumber() || constant.isStringTyped());
+    }
 
     for (BytecodeIndex pc = 0; pc < count; pc++) {
         BytecodeAbstractState s;
