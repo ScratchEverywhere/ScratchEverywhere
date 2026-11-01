@@ -255,6 +255,7 @@ struct ListLayout {
     sljit_sw valueSize = 0;
     sljit_sw tag = 0, flags = 0, number = 0;
     sljit_sw numberTag = 0, stringTag = 0;
+    uint8_t typedFlags = 0;
 };
 
 #if defined(__clang__) || defined(__GNUC__)
@@ -273,6 +274,9 @@ const ListLayout &listLayout() {
         l.numberTag = v.numberTag;
         l.stringTag = v.stringTag;
 
+        const Value typed = Value::stringTypedNumber(1.0);
+        l.typedFlags = reinterpret_cast<const uint8_t *>(&typed)[l.flags];
+
         List probe;
         probe.items.reserve(8);
         probe.items.push_back(Value(3.5));
@@ -284,7 +288,7 @@ const ListLayout &listLayout() {
         const char *second = begin + l.valueSize;
         l.ok = begin == reinterpret_cast<const char *>(probe.items.data()) && end == begin + 2 * l.valueSize && capacity == begin + 8 * l.valueSize &&
                static_cast<uint8_t>(begin[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(begin + l.number) == 3.5 &&
-               static_cast<uint8_t>(second[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(second + l.number) == -1.25;
+               static_cast<uint8_t>(second[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(second + l.number) == -1.25 && l.typedFlags != 0;
         return l;
     }();
     return layout;
@@ -2013,6 +2017,10 @@ class Emitter {
         callHelper(fn, argTypes);
     }
     void emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc);
+    enum class Rounding { Floor,
+                          Ceiling,
+                          Round };
+    void emitInlineRounding(Rounding kind, uint32_t slot, std::function<void()> general);
     struct Operand {
         bool immediate = false;
         uint32_t slot = 0;
@@ -2031,7 +2039,7 @@ class Emitter {
     void emitInlineMod(const BytecodeInstruction &instr);
     bool guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain);
     void emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector<sljit_jump *> &slow);
-    bool emitInlineListItem(const ListOpDescriptor &op);
+    bool emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain = {}, void *helper = nullptr);
     bool emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item);
     bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
     BytecodeIndex currentPc_ = 0;
@@ -2134,6 +2142,44 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
     emitCompareBranch(kind, instr.op == BytecodeOp::JumpIfNumCompareTrue, instr.a, instr.a <= pc, {false, a, 0}, {false, b, 0}, state_);
 }
 
+void Emitter::emitInlineRounding(Rounding kind, uint32_t slot, std::function<void()> general) {
+    loadF(SLJIT_FR0, slot);
+    sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
+    sljit_jump *unrepresentable = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(0x8000000000000000ull));
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R0, 0);
+    if (kind == Rounding::Ceiling) {
+        sljit_jump *exact = sljit_emit_fcmp(c_, SLJIT_ORDERED_GREATER_EQUAL, SLJIT_FR1, 0, SLJIT_FR0, 0);
+        sljit_emit_fset64(c_, SLJIT_FR2, 1.0);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+        sljit_set_label(exact, sljit_emit_label(c_));
+    } else {
+        sljit_jump *exact = sljit_emit_fcmp(c_, SLJIT_ORDERED_LESS_EQUAL, SLJIT_FR1, 0, SLJIT_FR0, 0);
+        sljit_emit_fset64(c_, SLJIT_FR2, 1.0);
+        sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+        sljit_set_label(exact, sljit_emit_label(c_));
+        if (kind == Rounding::Round) {
+            sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR2, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+            sljit_emit_fset64(c_, SLJIT_FR3, 0.5);
+            sljit_jump *down = sljit_emit_fcmp(c_, SLJIT_ORDERED_LESS, SLJIT_FR2, 0, SLJIT_FR3, 0);
+            sljit_emit_fset64(c_, SLJIT_FR2, 1.0);
+            sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+            sljit_set_label(down, sljit_emit_label(c_));
+        }
+    }
+    sljit_emit_fset64(c_, SLJIT_FR2, 0.0);
+    sljit_jump *zero = sljit_emit_fcmp(c_, SLJIT_ORDERED_EQUAL, SLJIT_FR1, 0, SLJIT_FR2, 0);
+    storeF(slot, SLJIT_FR1);
+    sljit_label *done = sljit_emit_label(c_);
+
+    addCold([this, unrepresentable, zero, done, general]() {
+        sljit_label *here = sljit_emit_label(c_);
+        sljit_set_label(unrepresentable, here);
+        sljit_set_label(zero, here);
+        general();
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+    });
+}
+
 void Emitter::loadOperand(sljit_s32 reg, const Operand &operand) {
     if (operand.immediate) sljit_emit_fset64(c_, reg, operand.value);
     else loadF(reg, operand.slot);
@@ -2230,6 +2276,11 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
     switch (entry.kind) {
     case ValueEntry::Number:
         return true;
+    case ValueEntry::Constant: {
+        if (entry.constant >= chunk_.constants.size()) return false;
+        const Value &constant = chunk_.constants[entry.constant];
+        return !constant.isString() && (constant.isRealNumber() || constant.isStringTyped());
+    }
     case ValueEntry::Temp:
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[position]));
         notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
@@ -2268,11 +2319,12 @@ void Emitter::emitListItemAddress(uint32_t slot, uint32_t indexSlot, std::vector
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + static_cast<sljit_sw>(sizeof(void *))));
 }
 
-bool Emitter::emitInlineListItem(const ListOpDescriptor &op) {
+bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain, void *helper) {
     const ListLayout &layout = listLayout();
     if (!layout.ok) return false;
+    if (helper == nullptr) helper = reinterpret_cast<void *>(&jitListItem);
     const uint32_t out = valueSlot(op.indexPosition);
-    std::vector<sljit_jump *> slow;
+    std::vector<sljit_jump *> slow = notPlain;
     emitListItemAddress(op.list, out, slow);
 
     sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
@@ -2284,11 +2336,11 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op) {
     storeF(out, SLJIT_FR0);
     sljit_label *done = sljit_emit_label(c_);
 
-    addCold([this, slow, flagged, done, &op, out, layout]() {
+    addCold([this, slow, flagged, done, &op, out, layout, helper]() {
         sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, here);
-        callListHelper(reinterpret_cast<void *>(&jitListItem), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        callListHelper(helper, const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
         sljit_jump *back = sljit_emit_jump(c_, SLJIT_JUMP);
         sljit_set_label(back, done);
 
@@ -2308,7 +2360,7 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op) {
         storeF(out, SLJIT_FR0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
         sljit_set_label(pooled, sljit_emit_label(c_));
-        callListHelper(reinterpret_cast<void *>(&jitListItem), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        callListHelper(helper, const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
     });
     return true;
@@ -2318,7 +2370,8 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     const ListLayout &layout = listLayout();
     const bool variable = item.kind == ValueEntry::VarValue && item.constant < code_.promoted.size();
     const bool temporary = item.kind == ValueEntry::Temp;
-    if (!layout.ok || (item.kind != ValueEntry::Number && !variable && !temporary)) return false;
+    const bool typedConstant = item.kind == ValueEntry::Constant && item.constant < chunk_.constants.size() && chunk_.constants[item.constant].isStringTyped() && !chunk_.constants[item.constant].isString();
+    if (!layout.ok || (item.kind != ValueEntry::Number && !typedConstant && !variable && !temporary)) return false;
     std::vector<sljit_jump *> slow;
     emitListItemAddress(op.list, valueSlot(op.indexPosition), slow);
     if (variable) {
@@ -2341,7 +2394,7 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.stringTag));
     loadF(SLJIT_FR2, valueSlot(op.itemPosition));
     sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, 0);
+    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
     sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
     sljit_label *done = sljit_emit_label(c_);
 
@@ -2588,9 +2641,13 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
     }
     case NativeShape::Number: {
         const uint32_t a = numberSlot(state_.numbers - 1);
-        loadF(SLJIT_FR0, a);
-        callHelper(reinterpret_cast<void *>(fn.n_n), SLJIT_ARGS1(F64, F64));
-        storeF(a, SLJIT_FR0);
+        const auto general = [this, a, target = fn.n_n]() {
+            loadF(SLJIT_FR0, a);
+            callHelper(reinterpret_cast<void *>(target), SLJIT_ARGS1(F64, F64));
+            storeF(a, SLJIT_FR0);
+        };
+        if (plan_.opcodeName(instr.a) == "operator_round") emitInlineRounding(Rounding::Round, a, general);
+        else general();
         break;
     }
     case NativeShape::SpriteNumber: {
@@ -2942,6 +2999,18 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                     emitBoxed();
                     sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
                 });
+            } else if (top.kind == ValueEntry::Temp) {
+                sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[position]));
+                sljit_jump *boxedTemp = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+                loadF(SLJIT_FR0, valueSlot(position));
+                storeF(variableSlot(k), SLJIT_FR0);
+                sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
+                sljit_label *done = sljit_emit_label(c_);
+                addCold([this, boxedTemp, done, emitBoxed]() {
+                    sljit_set_label(boxedTemp, sljit_emit_label(c_));
+                    emitBoxed();
+                    sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+                });
             } else {
                 emitBoxed();
             }
@@ -3103,7 +3172,15 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         } else {
             op.item = describe(state_.values[depth - 1]);
             op.itemPosition = depth - 1;
-            callListHelper(reinterpret_cast<void *>(&jitListItemAny), op, SLJIT_ARGS2V(P, P));
+            std::vector<sljit_jump *> notPlain;
+            const AbsValue &index = state_.values[depth - 1];
+            const bool guardable = index.kind == ValueEntry::Temp || (index.kind == ValueEntry::VarValue && index.constant < code_.promoted.size());
+            bool inlined = false;
+            if (guardable) {
+                guardPlainNumber(index, depth - 1, notPlain);
+                inlined = emitInlineListItem(op, notPlain, reinterpret_cast<void *>(&jitListItemAny));
+            }
+            if (!inlined) callListHelper(reinterpret_cast<void *>(&jitListItemAny), op, SLJIT_ARGS2V(P, P));
         }
         state_.values.back().kind = ValueEntry::Temp;
         return;
@@ -3426,12 +3503,32 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
-    case BytecodeOp::MathOp:
-        loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(instr.b));
-        callHelper(reinterpret_cast<void *>(&jitMathOp), SLJIT_ARGS2(F64, F64, W));
-        storeF(numberSlot(state_.numbers - 1), SLJIT_FR0);
-        return;
+    case BytecodeOp::MathOp: {
+        const uint32_t slot = numberSlot(state_.numbers - 1);
+        const auto general = [this, slot, op = static_cast<sljit_sw>(instr.b)]() {
+            loadF(SLJIT_FR0, slot);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, op);
+            callHelper(reinterpret_cast<void *>(&jitMathOp), SLJIT_ARGS2(F64, F64, W));
+            storeF(slot, SLJIT_FR0);
+        };
+        switch (static_cast<BytecodeMathOp>(instr.b)) {
+        case BytecodeMathOp::Abs: {
+            const sljit_s32 reg = readF(slot, SLJIT_FR0);
+            sljit_emit_fop1(c_, SLJIT_ABS_F64, destF(slot, SLJIT_FR0), 0, reg, 0);
+            commitF(slot, destF(slot, SLJIT_FR0));
+            return;
+        }
+        case BytecodeMathOp::Floor:
+            emitInlineRounding(Rounding::Floor, slot, general);
+            return;
+        case BytecodeMathOp::Ceiling:
+            emitInlineRounding(Rounding::Ceiling, slot, general);
+            return;
+        default:
+            general();
+            return;
+        }
+    }
 
     case BytecodeOp::CallNative:
     case BytecodeOp::CallNativeNumber:
@@ -3517,8 +3614,10 @@ void Emitter::findRegions() {
             case BytecodeOp::LengthOf:
             case BytecodeOp::ConvertStringToValue:
             case BytecodeOp::ConvertValueToString:
-            case BytecodeOp::MathOp:
                 hotCalls++;
+                break;
+            case BytecodeOp::MathOp:
+                if (instr.b != static_cast<uint32_t>(BytecodeMathOp::Abs) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Floor) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Ceiling)) hotCalls++;
                 break;
             case BytecodeOp::CallNative:
             case BytecodeOp::CallNativeNumber:
@@ -3526,7 +3625,7 @@ void Emitter::findRegions() {
             case BytecodeOp::CallNativeBoolean: {
                 const NativeShape shape = plan_.nativeShape(instr);
                 const std::string &name = plan_.opcodeName(instr.a);
-                const bool inlined = shape == NativeShape::Add || shape == NativeShape::Subtract || shape == NativeShape::Multiply || shape == NativeShape::Divide || shape == NativeShape::And || shape == NativeShape::Or || shape == NativeShape::Not || name == "operator_mod" || name == "motion_changexby" || name == "motion_changeyby" || name == "motion_setx" || name == "motion_sety" || name == "motion_gotoxy";
+                const bool inlined = shape == NativeShape::Add || shape == NativeShape::Subtract || shape == NativeShape::Multiply || shape == NativeShape::Divide || shape == NativeShape::And || shape == NativeShape::Or || shape == NativeShape::Not || name == "operator_mod" || name == "operator_round" || name == "motion_changexby" || name == "motion_changeyby" || name == "motion_setx" || name == "motion_sety" || name == "motion_gotoxy";
                 if (!inlined) {
                     hotCalls++;
                     listsChange = true;
