@@ -17,6 +17,7 @@
 #include <functional>
 #include <log.hpp>
 #include <map>
+#include <memory>
 #include <set>
 #include <sljitLir.h>
 #include <string>
@@ -134,6 +135,12 @@ struct ExitDescriptor {
     std::vector<StrEntry> strings;
 };
 
+struct CallCheck {
+    uint32_t index = 0;
+    uint32_t constant = 0;
+    uint8_t kind = 0;
+};
+
 struct CallDescriptor {
     ExitDescriptor *state = nullptr;
     uint32_t callPc = 0;
@@ -143,6 +150,12 @@ struct CallDescriptor {
     uint32_t calleeEntry = 0;
     bool leanKinds = false;
     mutable int8_t leanCallee = -1;
+    const BytecodeProcedure *proc = nullptr;
+    bool procWarp = false;
+    uint32_t numbers = 0, booleans = 0, values = 0;
+    std::vector<CallCheck> checks;
+    mutable int32_t continuation = -1;
+    mutable bool resultNumber = true;
 };
 
 struct ReturnDescriptor {
@@ -595,15 +608,14 @@ int argumentNumberKind(Context *ctx, uint32_t index) {
 
 bool lazyCall(Context *ctx, const CallDescriptor *call) {
     BytecodeThread &thread = *ctx->thread;
-    const Code &code = *ctx->code;
-    const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
-    if (!(thread.withoutScreenRefresh || proc.runWithoutScreenRefresh)) return false;
+    if (!(thread.withoutScreenRefresh || call->procWarp)) return false;
     if (thread.callStack.size() + ctx->lazyDepth >= MAX_CALL_DEPTH) return false;
 
-    const ExitDescriptor *state = call->state;
+    const Code &code = *ctx->code;
     const uint32_t argc = call->argCount;
-    const uint32_t n = state->numbers, b = state->booleans, v = static_cast<uint32_t>(state->values.size());
+    const uint32_t n = call->numbers, b = call->booleans, v = call->values;
     if (call->leanCallee < 0) {
+        const ExitDescriptor *state = call->state;
         const EntryDescriptor &entry = code.entries[call->calleeEntry];
         bool lean = argc <= v && entry.numbers == 0 && entry.booleans == 0 && entry.strings == 0 && entry.valueIsNumber.size() == argc;
         for (uint8_t isNumber : entry.valueIsNumber)
@@ -617,31 +629,50 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
                 const bool real = will == ValueEntry::Opaque || will == ValueEntry::Like;
                 lean = (was == ValueEntry::Opaque || was == ValueEntry::Like) ? real : (was == ValueEntry::Number && will == ValueEntry::Number);
             }
+            if (lean) {
+                call->continuation = continuation;
+                call->resultNumber = !call->wantsValue || after.valueKinds[v - argc] == ValueEntry::Number;
+            }
         } else {
             lean = false;
         }
         call->leanCallee = lean ? 1 : 0;
     }
-    if (call->leanCallee == 0 || n > 0xFFFF || b > 0xFFFF || v > 0xFFFF) return false;
+    if (call->leanCallee == 0) return false;
     if (thread.stringStack.size() != ctx->stringBase) return false;
-    auto &values = thread.valueStack;
-    const uint32_t virtualEntries = ctx->lazyDepth > 0 ? gFrames[ctx->nativeDepth - 1].call->argCount : 0;
-    if (argc > kMaxTypedArguments) return false;
-    uint64_t typed = 0;
-    for (uint32_t i = 0; i < v; i++) {
-        const ValueEntry::Kind kind = state->values[i].kind;
-        if ((kind == ValueEntry::Opaque || kind == ValueEntry::Like) && i >= virtualEntries && ctx->valueBase + i >= values.size()) return false;
-        int how = 0;
-        if (kind == ValueEntry::Temp) how = gTempLazy[i] == 1 ? 0 : gTempLazy[i] == 2 ? 1
-                                                                                      : numberKindOf(gTemps[i]);
-        else if (kind == ValueEntry::Argument) how = argumentNumberKind(ctx, state->values[i].constant);
-        else if (kind == ValueEntry::VarValue) how = variableNumberKind(ctx, state->values[i].constant);
-        if (how < 0) return false;
-        if (how == 1 && i >= v - argc) typed |= uint64_t(1) << (i - (v - argc));
-        else if (how == 1) return false;
-    }
 
     const uint32_t kept = v - argc;
+    uint64_t typed = 0;
+    if (!call->checks.empty()) {
+        const auto &values = thread.valueStack;
+        const uint32_t virtualEntries = ctx->lazyDepth > 0 ? gFrames[ctx->nativeDepth - 1].call->argCount : 0;
+        for (const CallCheck &check : call->checks) {
+            const uint32_t i = check.index;
+            int how = 0;
+            switch (check.kind) {
+            case ValueEntry::Opaque:
+            case ValueEntry::Like:
+                if (i >= virtualEntries && ctx->valueBase + i >= values.size()) return false;
+                break;
+            case ValueEntry::Temp:
+                how = gTempLazy[i] == 1 ? 0 : gTempLazy[i] == 2 ? 1
+                                                                : numberKindOf(gTemps[i]);
+                break;
+            case ValueEntry::Argument:
+                how = argumentNumberKind(ctx, check.constant);
+                break;
+            default:
+                how = variableNumberKind(ctx, check.constant);
+                break;
+            }
+            if (how < 0) return false;
+            if (how == 1) {
+                if (i < kept) return false;
+                typed |= uint64_t(1) << (i - kept);
+            }
+        }
+    }
+
     const size_t need = static_cast<size_t>(n) + b + v;
     if (ctx->saveTop + need > gSave.size()) gSave.resize(std::max<size_t>(gSave.size() * 2, ctx->saveTop + need + 256));
     double *valueSlots = ctx->slots + code.slotValues;
@@ -665,7 +696,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     ctx->lazyDepth++;
 
     thread.pendingRecursiveCallPc = invalidBytecodeIndex;
-    thread.withoutScreenRefresh = thread.withoutScreenRefresh || proc.runWithoutScreenRefresh;
+    thread.withoutScreenRefresh = thread.withoutScreenRefresh || call->procWarp;
     ctx->numberBase += n;
     ctx->booleanBase += b;
     ctx->valueBase += kept;
@@ -725,8 +756,7 @@ sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     const ExitDescriptor *state = ret->state;
     NativeFrame &frame = gFrames[ctx->nativeDepth - 1];
     const CallDescriptor *call = frame.call;
-    const ExitDescriptor &callState = *call->state;
-    const uint32_t n = callState.numbers, b = callState.booleans, v = static_cast<uint32_t>(callState.values.size());
+    const uint32_t n = call->numbers, b = call->booleans, v = call->values;
     const uint32_t argc = call->argCount, kept = v - argc;
     const bool wantsValue = call->wantsValue;
 
@@ -770,10 +800,10 @@ sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     ctx->valueBase = static_cast<uint32_t>(frame.stringAndValueBase >> 32);
     ctx->warp = previousWarp ? 1 : 0;
 
-    const int32_t entryId = code.entryIdAt[call->callPc + 1];
+    const int32_t entryId = call->continuation;
     if (wantsValue) {
         valueSlots[kept] = number;
-        if (code.entries[entryId].valueKinds[kept] != ValueEntry::Number) {
+        if (!call->resultNumber) {
             auto &values = thread.valueStack;
             const size_t index = static_cast<size_t>(ctx->valueBase) + kept;
             while (values.size() > index)
@@ -2054,11 +2084,58 @@ class Emitter {
     void loadOperand(sljit_s32 reg, const Operand &operand);
     void emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget);
     bool fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const;
+    bool convertFeedsStore(BytecodeIndex convert) const {
+        const BytecodeIndex next = convert + 1;
+        return next < chunk_.instructions.size() && chunk_.instructions[convert].op == BytecodeOp::ConvertNumberToValue && chunk_.instructions[next].op == BytecodeOp::StoreVarValue && plan_.supported[next] && !analysis_.isBlockStart(next) && plan_.entryOf[next] < 0;
+    }
+    bool numberFedStore(BytecodeIndex store) const { return store > 0 && convertFeedsStore(store - 1); }
     bool feedsCompare(BytecodeIndex push) const {
         Operand a, b;
         return (push + 2 < chunk_.instructions.size() && fedCompare(push + 2, a, b)) || (push + 1 < chunk_.instructions.size() && fedCompare(push + 1, a, b));
     }
     bool fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &jumpPc) const;
+
+    struct CondNode {
+        enum Kind : uint8_t { Leaf,
+                              Not,
+                              And,
+                              Or } kind = Leaf;
+        BytecodeIndex rangeStart = 0, compare = 0;
+        int a = -1, b = -1;
+    };
+    struct CondTree {
+        std::vector<CondNode> nodes;
+        int root = -1;
+        BytecodeIndex jump = 0;
+    };
+    struct CondLabel {
+        sljit_label *label = nullptr;
+        std::vector<sljit_jump *> pending;
+    };
+    struct CondTarget {
+        enum Kind : uint8_t { Fall,
+                              Label,
+                              Bytecode } kind = Fall;
+        CondLabel *label = nullptr;
+        BytecodeIndex pc = 0;
+        bool backEdge = false;
+        std::shared_ptr<AbsState> state;
+    };
+    bool suppressFusion_ = false;
+    std::map<BytecodeIndex, CondTree> conditions_;
+    std::vector<uint8_t> condLeaf_;
+    std::deque<CondLabel> condLabels_;
+    bool conditionOperandOk(BytecodeIndex pc) const;
+    void buildConditions();
+    bool parseCondition(BytecodeIndex jump, CondTree &tree, BytecodeIndex &start) const;
+    void emitCondition(const CondTree &tree, BytecodeIndex start);
+    void emitCond(const CondTree &tree, int id, const CondTarget &whenTrue, const CondTarget &whenFalse, bool fallIsTrue);
+    void emitLeaf(const CondTree &tree, const CondNode &node, const CondTarget &target, bool jumpIfTrue);
+    void emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain = {}, const CompareDescriptor *general = nullptr);
+    static bool guardable(const AbsValue &entry, const Code &code, const BytecodeChunk &chunk);
+    void routeJump(sljit_jump *jump, const CondTarget &target);
+    void routeUnconditional(const CondTarget &target);
+    void bindCondLabel(CondLabel &label);
     void emitNative(const BytecodeInstruction &instr, NativeShape shape);
     bool emitInlineMotion(const BytecodeInstruction &instr, NativeShape shape);
     void emitInlineMod(const BytecodeInstruction &instr);
@@ -2224,7 +2301,7 @@ bool Emitter::fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const {
     if (!Planner::numericLike(s.values[s.values.size() - 1]) || !Planner::numericLike(s.values[s.values.size() - 2])) return false;
     bool jumpIfTrue;
     BytecodeIndex jumpPc;
-    if (!fusableBranch(compare, jumpIfTrue, jumpPc)) return false;
+    if (!(compare < condLeaf_.size() && condLeaf_[compare]) && !fusableBranch(compare, jumpIfTrue, jumpPc)) return false;
     Operand *out[2] = {&a, &b};
     for (int i = 0; i < 2; i++) {
         const BytecodeInstruction &push = chunk_.instructions[compare - 2 + i];
@@ -2278,7 +2355,7 @@ void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, Bytec
 
 bool Emitter::fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &jumpPc) const {
     static const bool disabled = std::getenv("SE_JIT_NOFUSE") != nullptr;
-    if (disabled) return false;
+    if (disabled || suppressFusion_) return false;
     const size_t count = chunk_.instructions.size();
     bool negated = false;
     for (BytecodeIndex q = pc + 1; q < count; q++) {
@@ -2295,6 +2372,325 @@ bool Emitter::fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &j
         return true;
     }
     return false;
+}
+
+bool Emitter::conditionOperandOk(BytecodeIndex pc) const {
+    const BytecodeInstruction &instr = chunk_.instructions[pc];
+    switch (instr.op) {
+    case BytecodeOp::PushConstNumber:
+    case BytecodeOp::PushVarNumber:
+    case BytecodeOp::PushConstValue:
+    case BytecodeOp::PushVarValue:
+    case BytecodeOp::ConvertNumberToValue:
+    case BytecodeOp::ConvertValueToNumber:
+    case BytecodeOp::MathOp:
+    case BytecodeOp::PushArg:
+    case BytecodeOp::ItemOfList:
+    case BytecodeOp::LengthOfList:
+        return true;
+    case BytecodeOp::CallNativeNumber: {
+        const NativeShape shape = plan_.nativeShape(instr);
+        const std::string &name = plan_.opcodeName(instr.a);
+        return shape == NativeShape::Add || shape == NativeShape::Subtract || shape == NativeShape::Multiply || shape == NativeShape::Divide || name == "operator_mod" || name == "operator_round";
+    }
+    default:
+        return false;
+    }
+}
+
+bool Emitter::parseCondition(BytecodeIndex jump, CondTree &tree, BytecodeIndex &start) const {
+    BytecodeAbstractState end;
+    if (!analysis_.stateBefore(jump, end) || end.booleans == 0) return false;
+    const uint32_t n0 = end.numbers, b0 = end.booleans - 1, v0 = static_cast<uint32_t>(end.values.size());
+
+    BytecodeIndex q = jump;
+    bool found = false;
+    while (q > 0 && jump - q < 96) {
+        q--;
+        BytecodeAbstractState s;
+        if (!analysis_.stateBefore(q, s) || !plan_.supported[q]) return false;
+        if (s.numbers == n0 && s.booleans == b0 && s.values.size() == v0 && s.strings == end.strings) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) return false;
+    for (BytecodeIndex p = q + 1; p <= jump; p++) {
+        if (!plan_.supported[p] || analysis_.isBlockStart(p) || plan_.entryOf[p] >= 0) return false;
+    }
+
+    std::vector<int> stack;
+    BytecodeIndex pending = q;
+    for (BytecodeIndex pc = q; pc < jump; pc++) {
+        const BytecodeInstruction &instr = chunk_.instructions[pc];
+        switch (instr.op) {
+        case BytecodeOp::NumEquals:
+        case BytecodeOp::NumLess:
+        case BytecodeOp::NumGreater:
+        case BytecodeOp::ValueEquals:
+        case BytecodeOp::ValueLess:
+        case BytecodeOp::ValueGreater: {
+            if (pending >= pc) return false;
+            BytecodeAbstractState before, atCompare;
+            if (!analysis_.stateBefore(pending, before) || !analysis_.stateBefore(pc, atCompare)) return false;
+            const bool numeric = instr.op == BytecodeOp::NumEquals || instr.op == BytecodeOp::NumLess || instr.op == BytecodeOp::NumGreater;
+            if (atCompare.booleans != before.booleans) return false;
+            if (numeric) {
+                if (atCompare.numbers != before.numbers + 2 || atCompare.values.size() != before.values.size()) return false;
+            } else if (atCompare.values.size() != before.values.size() + 2 || atCompare.numbers != before.numbers) {
+                return false;
+            }
+            CondNode node;
+            node.kind = CondNode::Leaf;
+            node.rangeStart = pending;
+            node.compare = pc;
+            tree.nodes.push_back(node);
+            stack.push_back(static_cast<int>(tree.nodes.size()) - 1);
+            pending = pc + 1;
+            break;
+        }
+        case BytecodeOp::CallNativeBoolean: {
+            const NativeShape shape = plan_.nativeShape(instr);
+            CondNode node;
+            if (shape == NativeShape::Not) {
+                if (stack.empty()) return false;
+                node.kind = CondNode::Not;
+                node.a = stack.back();
+                stack.pop_back();
+            } else if (shape == NativeShape::And || shape == NativeShape::Or) {
+                if (stack.size() < 2) return false;
+                node.kind = shape == NativeShape::And ? CondNode::And : CondNode::Or;
+                node.b = stack.back();
+                stack.pop_back();
+                node.a = stack.back();
+                stack.pop_back();
+            } else {
+                return false;
+            }
+            tree.nodes.push_back(node);
+            stack.push_back(static_cast<int>(tree.nodes.size()) - 1);
+            pending = pc + 1;
+            break;
+        }
+        default:
+            if (!conditionOperandOk(pc)) return false;
+            break;
+        }
+    }
+    if (stack.size() != 1 || pending != jump) return false;
+    tree.root = stack.back();
+    tree.jump = jump;
+    start = q;
+    return true;
+}
+
+void Emitter::buildConditions() {
+    static const bool disabled = std::getenv("SE_JIT_NOCOND") != nullptr;
+    if (disabled) return;
+    const size_t count = chunk_.instructions.size();
+    for (BytecodeIndex pc = 0; pc < count; pc++) {
+        const BytecodeOp op = chunk_.instructions[pc].op;
+        if ((op != BytecodeOp::JumpIfFalse && op != BytecodeOp::JumpIfTrue) || !plan_.supported[pc] || !analysis_.isReachable(pc)) continue;
+        CondTree tree;
+        BytecodeIndex start = 0;
+        if (!parseCondition(pc, tree, start) || conditions_.count(start)) continue;
+        for (const CondNode &node : tree.nodes) {
+            if (node.kind == CondNode::Leaf) condLeaf_[node.compare] = 1;
+        }
+        conditions_[start] = std::move(tree);
+    }
+}
+
+void Emitter::bindCondLabel(CondLabel &label) {
+    label.label = sljit_emit_label(c_);
+    for (sljit_jump *jump : label.pending)
+        sljit_set_label(jump, label.label);
+    label.pending.clear();
+}
+
+void Emitter::routeJump(sljit_jump *jump, const CondTarget &target) {
+    if (target.kind == CondTarget::Bytecode) {
+        emitJumpTo(jump, target.pc, *target.state, target.backEdge);
+    } else if (target.label->label != nullptr) {
+        sljit_set_label(jump, target.label->label);
+    } else {
+        target.label->pending.push_back(jump);
+    }
+}
+
+void Emitter::routeUnconditional(const CondTarget &target) {
+    if (target.kind == CondTarget::Bytecode) {
+        if (target.backEdge) emitBackEdgeThenJump(target.pc, *target.state);
+        else pendUnconditional(target.pc);
+    } else {
+        routeJump(sljit_emit_jump(c_, SLJIT_JUMP), target);
+    }
+}
+
+void Emitter::emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general) {
+    loadOperand(SLJIT_FR0, a);
+    loadOperand(SLJIT_FR1, b);
+    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+    sljit_s32 type;
+    switch (kind) {
+    case BytecodeCompareKind::Equals:
+        type = jumpIfTrue ? SLJIT_ORDERED_EQUAL : SLJIT_ORDERED_NOT_EQUAL;
+        break;
+    case BytecodeCompareKind::Less:
+        type = jumpIfTrue ? SLJIT_ORDERED_LESS : SLJIT_ORDERED_GREATER_EQUAL;
+        break;
+    default:
+        type = jumpIfTrue ? SLJIT_ORDERED_GREATER : SLJIT_ORDERED_LESS_EQUAL;
+        break;
+    }
+    routeJump(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), target);
+    sljit_label *fall = sljit_emit_label(c_);
+
+    addCold([this, unordered, fall, kind, jumpIfTrue, target, notPlain, general]() {
+        sljit_set_label(unordered, sljit_emit_label(c_));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
+        callHelper(reinterpret_cast<void *>(&jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
+        sljit_jump *no = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        routeUnconditional(target);
+        sljit_set_label(no, fall);
+
+        if (general != nullptr) {
+            sljit_label *here = sljit_emit_label(c_);
+            for (sljit_jump *jump : notPlain)
+                sljit_set_label(jump, here);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(general));
+            callHelper(reinterpret_cast<void *>(&jitCompareValues), SLJIT_ARGS2(W, P, P));
+            sljit_jump *skip = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+            routeUnconditional(target);
+            sljit_set_label(skip, fall);
+        }
+    });
+}
+
+bool Emitter::guardable(const AbsValue &entry, const Code &code, const BytecodeChunk &chunk) {
+    switch (entry.kind) {
+    case ValueEntry::Number:
+    case ValueEntry::Temp:
+        return true;
+    case ValueEntry::VarValue:
+        return entry.constant < code.promoted.size();
+    case ValueEntry::Constant: {
+        if (entry.constant >= chunk.constants.size()) return false;
+        const Value &constant = chunk.constants[entry.constant];
+        return !constant.isString() && (constant.isRealNumber() || constant.isStringTyped());
+    }
+    default:
+        return false;
+    }
+}
+
+void Emitter::emitLeaf(const CondTree &, const CondNode &node, const CondTarget &target, bool jumpIfTrue) {
+    for (BytecodeIndex pc = node.rangeStart; pc < node.compare; pc++)
+        emitInstruction(pc);
+    const BytecodeOp op = chunk_.instructions[node.compare].op;
+    const bool numeric = op == BytecodeOp::NumEquals || op == BytecodeOp::NumLess || op == BytecodeOp::NumGreater;
+    const BytecodeCompareKind kind = (op == BytecodeOp::NumEquals || op == BytecodeOp::ValueEquals) ? BytecodeCompareKind::Equals : (op == BytecodeOp::NumLess || op == BytecodeOp::ValueLess) ? BytecodeCompareKind::Less
+                                                                                                                                                                                               : BytecodeCompareKind::Greater;
+    Operand a, b;
+    if (numeric) {
+        a = {false, numberSlot(state_.numbers - 2), 0};
+        b = {false, numberSlot(state_.numbers - 1), 0};
+        state_.numbers -= 2;
+    } else {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        a = {false, valueSlot(depth - 2), 0};
+        b = {false, valueSlot(depth - 1), 0};
+        BytecodeAbstractState at;
+        const bool bothNumeric = analysis_.stateBefore(node.compare, at) && at.values.size() >= 2 && Planner::numericLike(at.values[at.values.size() - 1]) && Planner::numericLike(at.values[at.values.size() - 2]);
+        if (bothNumeric) {
+            if (!fedCompare(node.compare, a, b)) {
+                a = {false, valueSlot(depth - 2), 0};
+                b = {false, valueSlot(depth - 1), 0};
+            }
+        } else if (guardable(state_.values[depth - 2], code_, chunk_) && guardable(state_.values[depth - 1], code_, chunk_)) {
+            CompareDescriptor &compare = code_.compares.emplace_back();
+            compare.kind = kind;
+            compare.a = describe(state_.values[depth - 2]);
+            compare.aPosition = depth - 2;
+            compare.b = describe(state_.values[depth - 1]);
+            compare.bPosition = depth - 1;
+            std::vector<sljit_jump *> notPlain;
+            guardPlainNumber(state_.values[depth - 2], depth - 2, notPlain);
+            guardPlainNumber(state_.values[depth - 1], depth - 1, notPlain);
+            state_.values.pop_back();
+            state_.values.pop_back();
+            emitLeafTest(kind, jumpIfTrue, a, b, target, notPlain, &compare);
+            return;
+        } else {
+            suppressFusion_ = true;
+            emitInstruction(node.compare);
+            suppressFusion_ = false;
+            loadW(SLJIT_R0, booleanSlot(state_.booleans - 1));
+            state_.booleans--;
+            routeJump(sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_NOT_EQUAL : SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0), target);
+            return;
+        }
+        state_.values.pop_back();
+        state_.values.pop_back();
+    }
+    emitLeafTest(kind, jumpIfTrue, a, b, target);
+}
+
+void Emitter::emitCond(const CondTree &tree, int id, const CondTarget &whenTrue, const CondTarget &whenFalse, bool fallIsTrue) {
+    const CondNode &node = tree.nodes[id];
+    switch (node.kind) {
+    case CondNode::Leaf:
+        if (fallIsTrue) emitLeaf(tree, node, whenFalse, false);
+        else emitLeaf(tree, node, whenTrue, true);
+        return;
+    case CondNode::Not:
+        emitCond(tree, node.a, whenFalse, whenTrue, !fallIsTrue);
+        return;
+    case CondNode::And: {
+        CondLabel *end = nullptr;
+        CondTarget leftFalse = whenFalse;
+        if (whenFalse.kind == CondTarget::Fall) {
+            end = &condLabels_.emplace_back();
+            leftFalse = CondTarget{};
+            leftFalse.kind = CondTarget::Label;
+            leftFalse.label = end;
+        }
+        emitCond(tree, node.a, CondTarget{}, leftFalse, true);
+        emitCond(tree, node.b, whenTrue, whenFalse, fallIsTrue);
+        if (end != nullptr) bindCondLabel(*end);
+        return;
+    }
+    case CondNode::Or: {
+        CondLabel *end = nullptr;
+        CondTarget leftTrue = whenTrue;
+        if (whenTrue.kind == CondTarget::Fall) {
+            end = &condLabels_.emplace_back();
+            leftTrue = CondTarget{};
+            leftTrue.kind = CondTarget::Label;
+            leftTrue.label = end;
+        }
+        emitCond(tree, node.a, leftTrue, CondTarget{}, false);
+        emitCond(tree, node.b, whenTrue, whenFalse, fallIsTrue);
+        if (end != nullptr) bindCondLabel(*end);
+        return;
+    }
+    }
+}
+
+void Emitter::emitCondition(const CondTree &tree, BytecodeIndex start) {
+    const BytecodeInstruction &jump = chunk_.instructions[tree.jump];
+    const bool jumpIfTrue = jump.op == BytecodeOp::JumpIfTrue;
+    for (BytecodeIndex pc = start + 1; pc <= tree.jump; pc++)
+        fused_[pc] = true;
+    CondTarget target;
+    target.kind = CondTarget::Bytecode;
+    target.pc = jump.a;
+    target.backEdge = jump.a <= tree.jump;
+    target.state = std::make_shared<AbsState>(state_);
+    if (jumpIfTrue) emitCond(tree, tree.root, target, CondTarget{}, false);
+    else emitCond(tree, tree.root, CondTarget{}, target, true);
 }
 
 bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain) {
@@ -2550,11 +2946,11 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR2, 0, SLJIT_R0, 0);
     slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR2, 0));
 
-    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R0, 0);
-    sljit_jump *nonNegative = sljit_emit_cmp(c_, SLJIT_SIG_GREATER_EQUAL | SLJIT_32, SLJIT_R0, 0, SLJIT_IMM, 0);
-    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R1, 0, SLJIT_IMM, 0, SLJIT_R0, 0);
+    // m = a >> 31 is 0 or -1 and |a| = (a ^ m) - m, all in the integer unit
+    sljit_emit_op2(c_, SLJIT_ASHR32, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 31);
+    sljit_emit_op2(c_, SLJIT_XOR32, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_R2, 0);
+    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
     sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R1, 0);
-    sljit_set_label(nonNegative, sljit_emit_label(c_));
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(magic));
     sljit_emit_op0(c_, SLJIT_LMUL_UW); // R0 = low(magic * n)
@@ -2562,26 +2958,21 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     sljit_emit_op0(c_, SLJIT_LMUL_UW); // R1 = high(low * d) = |a| mod d
 
     sljit_jump *zero = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
-    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R1, 0);
-    sljit_emit_fset64(c_, SLJIT_FR2, static_cast<double>(d));
-    sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
-    sljit_jump *negativeA = sljit_emit_fcmp(c_, SLJIT_ORDERED_LESS, SLJIT_FR0, 0, SLJIT_FR3, 0);
-    // a >= 0
-    if (negativeDivisor) sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
-    else sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_FR1, 0);
-    sljit_jump *joinFromPositive = sljit_emit_jump(c_, SLJIT_JUMP);
-    // a < 0
-    sljit_set_label(negativeA, sljit_emit_label(c_));
-    if (negativeDivisor) sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR3, 0, SLJIT_FR1, 0);
-    else sljit_emit_fop2(c_, SLJIT_SUB_F64, SLJIT_FR0, 0, SLJIT_FR2, 0, SLJIT_FR1, 0);
-    sljit_jump *joinFromNegative = sljit_emit_jump(c_, SLJIT_JUMP);
+    // the result for a negative a is -r, or d - r when the signs of a and the divisor agree: ((r ^ m) - m) + (divisor & mask)
+    sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+    if (negativeDivisor) sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, -1);
+    else sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
+    sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(divisor));
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+    sljit_jump *joinFromValue = sljit_emit_jump(c_, SLJIT_JUMP);
     // a multiple of the divisor: zero with the sign of a
     sljit_set_label(zero, sljit_emit_label(c_));
     sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
     sljit_emit_fop2(c_, SLJIT_MUL_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR3, 0);
     sljit_label *joined = sljit_emit_label(c_);
-    sljit_set_label(joinFromPositive, joined);
-    sljit_set_label(joinFromNegative, joined);
+    sljit_set_label(joinFromValue, joined);
     storeF(a, SLJIT_FR0);
 
     addCold([this, slow, joined, a, b, &fn]() {
@@ -2959,8 +3350,10 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
     case BytecodeOp::ConvertNumberToValue: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
-        storeF(valueSlot(depth), SLJIT_FR0);
+        if (!convertFeedsStore(pc)) {
+            loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
+            storeF(valueSlot(depth), SLJIT_FR0);
+        }
         AbsValue v;
         v.kind = ValueEntry::Number;
         state_.values.push_back(v);
@@ -2991,8 +3384,12 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             storeImmF(variableSlot(k), constantNumber(top.constant));
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 5 + static_cast<sljit_sw>(top.constant));
         } else if (top.kind == ValueEntry::Number) {
-            loadF(SLJIT_FR0, valueSlot(position));
-            storeF(variableSlot(k), SLJIT_FR0);
+            if (numberFedStore(pc)) {
+                moveF(variableSlot(k), numberSlot(state_.numbers));
+            } else {
+                loadF(SLJIT_FR0, valueSlot(position));
+                storeF(variableSlot(k), SLJIT_FR0);
+            }
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
         } else {
             ShadowDescriptor &shadow = code_.shadows.emplace_back();
@@ -3168,6 +3565,16 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         call.leanKinds = state_.strings.empty();
         for (const AbsValue &value : state_.values) {
             if (value.kind != ValueEntry::Number && value.kind != ValueEntry::Constant && value.kind != ValueEntry::Temp && value.kind != ValueEntry::Argument && value.kind != ValueEntry::VarValue && value.kind != ValueEntry::Opaque && value.kind != ValueEntry::Like) call.leanKinds = false;
+        }
+        call.proc = &proc;
+        call.procWarp = proc.runWithoutScreenRefresh;
+        call.numbers = state_.numbers;
+        call.booleans = state_.booleans;
+        call.values = static_cast<uint32_t>(state_.values.size());
+        if (call.numbers > 0xFFFF || call.booleans > 0xFFFF || call.values > 0xFFFF || call.argCount > kMaxTypedArguments) call.leanKinds = false;
+        for (uint32_t i = 0; i < call.values; i++) {
+            const AbsValue &value = state_.values[i];
+            if (value.kind == ValueEntry::Opaque || value.kind == ValueEntry::Like || value.kind == ValueEntry::Temp || value.kind == ValueEntry::Argument || value.kind == ValueEntry::VarValue) call.checks.push_back({i, value.constant, static_cast<uint8_t>(value.kind)});
         }
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&call));
@@ -3827,6 +4234,8 @@ bool Emitter::emit() {
 
     labels_.assign(count, nullptr);
     fused_.assign(count, false);
+    condLeaf_.assign(count, 0);
+    buildConditions();
     bool havePrevious = false;
     BytecodeIndex previous = 0;
     for (BytecodeIndex pc = 0; pc < count; pc++) {
@@ -3847,7 +4256,10 @@ bool Emitter::emit() {
         previous = pc;
 
         if (compiled) {
-            if (!fused_[pc]) emitInstruction(pc);
+            if (!fused_[pc]) {
+                if (const auto found = conditions_.find(pc); found != conditions_.end()) emitCondition(found->second, pc);
+                else emitInstruction(pc);
+            }
             const BytecodeOp op = chunk_.instructions[pc].op;
             if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
             if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill();
