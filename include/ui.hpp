@@ -10,10 +10,6 @@ constexpr uint16_t MAX_ELEMENTS = 1024;
 namespace Flag {
 constexpr uint8_t Visible = 1 << 0;
 constexpr uint8_t Focusable = 1 << 1;
-constexpr uint8_t ScrollY = 1 << 2;
-constexpr uint8_t ScrollX = 1 << 3;
-constexpr uint8_t Dirty = 1 << 4;
-constexpr uint8_t Disabled = 1 << 5;
 constexpr uint8_t Clip = 1 << 6;
 } // namespace Flag
 
@@ -21,13 +17,18 @@ enum class SizeMode : uint8_t {
     Fixed,
     Fit,
     Grow,
-    Percent
 };
 
 enum class ChildDir : uint8_t {
     UpDown,
     LeftRight,
     Grid
+};
+
+enum class AlignMode : uint8_t {
+    Left,
+    Center,
+    Right,
 };
 
 struct Rect {
@@ -60,13 +61,38 @@ struct Padding {
 
 struct Element {
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
-    uint8_t flags = Flag::Visible;
-    ChildDir childDirection = ChildDir::UpDown;
+    uint8_t flags;
     Size w, h;
-    Color color;
+    ChildDir childDirection = ChildDir::UpDown;
+    AlignMode align = AlignMode::Left;
+    uint8_t childGap = 0, scrollX = 0, scrollY = 0;
     Padding padding;
-    uint8_t childGap = 0, align = 0, kind = 0, style = 0;
+    Color color;
     Rect rect;
+};
+
+struct ElementProps {
+    uint8_t flags = Flag::Visible;
+    Size w = Size::fit();
+    Size h = Size::fit();
+    ChildDir childDirection = ChildDir::UpDown;
+    uint8_t childGap = 0;
+    Padding padding = {0, 0, 0, 0};
+    AlignMode align = AlignMode::Left;
+    Color color;
+
+    static inline Element toElement(const ElementProps &p) {
+        Element e;
+        e.w = p.w;
+        e.h = p.h;
+        e.padding = p.padding;
+        e.childGap = p.childGap;
+        e.childDirection = p.childDirection;
+        e.align = p.align;
+        e.flags = p.flags;
+        e.color = p.color;
+        return e;
+    }
 };
 
 struct Pool {
@@ -83,14 +109,31 @@ class Builder {
     uint8_t skipped = 0;
 
     uint16_t append(const Element &e);
-    void layout();
+    uint16_t push(const Element &e);
+    uint16_t leaf(const Element &e);
+    void pop();
+
+    void measure(const int windowWidth, const int windowHeight);
 
   public:
+    void layout();
     void begin(Pool &pool);
-    uint16_t push(const Element &e); // child of current parent, becomes the new parent
-    uint16_t leaf(const Element &e); // child of current parent, not entered
-    void pop();
+
+    template <class F>
+    uint16_t element(const ElementProps &p, F &&body) {
+        const uint16_t id = push(ElementProps::toElement(p));
+        body();
+        pop();
+        return id;
+    }
+
+    uint16_t element(const ElementProps &p) { return leaf(ElementProps::toElement(p)); }
+
     void end();
+};
+
+namespace Painter {
+void render(const Pool &pool);
 };
 
 } // namespace UI

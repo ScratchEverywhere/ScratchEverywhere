@@ -1,5 +1,6 @@
 #include "ui.hpp"
 #include <log.hpp>
+#include <renderer.hpp>
 
 namespace UI {
 
@@ -10,7 +11,6 @@ void Builder::begin(Pool &p) {
     skipped = 0;
 }
 
-// allocates + links an element under the current parent. returns NONE on failure
 uint16_t Builder::append(const Element &e) {
     if (pool->count >= MAX_ELEMENTS) {
         Log::logError("UI: element pool full");
@@ -24,7 +24,7 @@ uint16_t Builder::append(const Element &e) {
     const uint16_t id = pool->count++;
     Element &el = pool->elements[id];
     el = e;
-    el.firstChild = NONE; // never trust links coming from the caller
+    el.firstChild = NONE;
     el.next = NONE;
 
     if (depth == 0) {
@@ -81,19 +81,164 @@ void Builder::end() {
     if (depth != 0 || skipped != 0) Log::logError("UI: unbalanced push/pop");
     depth = 0;
     skipped = 0;
-    layout();
 }
 
-void Builder::layout() {
-    for (int i = pool->count - 1; i < 0; i--) {
+void Builder::measure(const int windowWidth, const int windowHeight) {
+    for (uint16_t i = 0; i < pool->count; i++) {
         Element &e = pool->elements[i];
 
         switch (e.w.mode) {
-        case UI::SizeMode::Fit: {
-            if (e.parent == NONE) break;
-            e.rect.w
+        case SizeMode::Fixed:
+            e.rect.w = e.w.value;
+            break;
+        case SizeMode::Grow: {
+            if (e.parent != NONE) {
+                Element &p = pool->elements[e.parent];
+                e.rect.w = p.rect.w - p.padding.left - p.padding.right;
+            } else e.rect.w = windowWidth;
+            break;
+        }
+        default:
+            e.rect.w = 0;
+            break;
+        }
+        switch (e.h.mode) {
+        case SizeMode::Fixed:
+            e.rect.h = e.h.value;
+            break;
+        case SizeMode::Grow: {
+            if (e.parent != NONE) {
+                Element &p = pool->elements[e.parent];
+                e.rect.h = p.rect.h - p.padding.up - p.padding.down;
+            } else e.rect.h = windowHeight;
+            break;
+        }
+        default:
+            e.rect.h = 0;
+            break;
+        }
+    }
+
+    for (int i = pool->count - 1; i >= 0; i--) {
+        Element &e = pool->elements[i];
+        if (!(e.flags & Flag::Visible)) continue;
+
+        // if (e.w.mode == SizeMode::Fit) e.rect.w += (e.padding.left + e.padding.right);
+        // if (e.h.mode == SizeMode::Fit) e.rect.h += (e.padding.up + e.padding.down);
+
+        if (e.parent == NONE) continue;
+        Element &p = pool->elements[e.parent];
+
+        const bool first = (p.firstChild == i);
+        const int gap = first ? 0 : p.childGap;
+
+        switch (p.childDirection) {
+        case ChildDir::LeftRight: {
+            if (p.w.mode == SizeMode::Fit) p.rect.w += e.rect.w + gap;
+            if (p.h.mode == SizeMode::Fit) p.rect.h = std::max<int>(p.rect.h, e.rect.h);
+            break;
+        }
+        case ChildDir::UpDown: {
+            if (p.h.mode == SizeMode::Fit) p.rect.h += e.rect.h + gap;
+            if (p.w.mode == SizeMode::Fit) p.rect.w = std::max<int>(p.rect.w, e.rect.w);
+            break;
+        }
+        case ChildDir::Grid: {
+            // TODO: grid :yum:
+            break;
         }
         }
+    }
+}
+
+void Builder::layout() {
+    const Renderer *renderer = Render::getGlobalRenderer();
+    const int windowWidth = renderer->window->getWidth();
+    const int windowHeight = renderer->window->getHeight();
+
+    measure(windowWidth, windowHeight);
+
+    for (uint16_t i = 0; i < pool->count; i++) {
+        Element &p = pool->elements[i];
+        if (!(p.flags & Flag::Visible) || p.firstChild == NONE) continue;
+        if (p.childDirection == ChildDir::Grid) continue; // TODO: burppppppppp
+
+        const bool horiz = p.childDirection == ChildDir::LeftRight;
+        auto mainOf = [&](Element &e) -> int16_t & { return horiz ? e.rect.w : e.rect.h; };
+        auto crossOf = [&](Element &e) -> int16_t & { return horiz ? e.rect.h : e.rect.w; };
+        auto mainSz = [&](Element &e) { return horiz ? e.w : e.h; };
+        auto crossSz = [&](Element &e) { return horiz ? e.h : e.w; };
+
+        const int padMain0 = (horiz ? p.padding.left : p.padding.up);
+        const int padMain1 = (horiz ? p.padding.right : p.padding.down);
+        const int padCross0 = (horiz ? p.padding.up : p.padding.left);
+        const int padCross1 = (horiz ? p.padding.down : p.padding.right);
+
+        const int contentMain = mainOf(p) - padMain0 - padMain1;
+        const int contentCross = crossOf(p) - padCross0 - padCross1;
+        const int gap = p.childGap;
+
+        int visible = 0, used = 0, totalWeight = 0;
+        for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
+            Element &e = pool->elements[c];
+            if (!(e.flags & Flag::Visible)) continue;
+            visible++;
+
+            Size ms = mainSz(e), cs = crossSz(e);
+            if (cs.mode == SizeMode::Grow) crossOf(e) = contentCross;
+
+            if (ms.mode == SizeMode::Grow) totalWeight += ms.value ? ms.value : 1;
+            else used += mainOf(e);
+        }
+        if (visible == 0) continue;
+
+        const int leftover = std::max(0, contentMain - used - gap * (visible - 1));
+        int accWeight = 0, given = 0;
+        for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
+            Element &e = pool->elements[c];
+            Size ms = mainSz(e);
+            if (!(e.flags & Flag::Visible) || ms.mode != SizeMode::Grow) continue;
+
+            accWeight += ms.value ? ms.value : 1;
+            const int end = leftover * accWeight / totalWeight;
+            mainOf(e) = end - given;
+            given = end;
+        }
+
+        int cursor = padMain0;
+        for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
+            Element &e = pool->elements[c];
+            if (!(e.flags & Flag::Visible)) continue;
+
+            if (horiz) {
+                e.rect.x = p.rect.x + cursor;
+                e.rect.y = p.rect.y + padCross0;
+            } else {
+                e.rect.y = p.rect.y + cursor;
+                e.rect.x = p.rect.x + padCross0;
+            }
+            cursor += mainOf(e) + gap;
+        }
+    }
+}
+
+void Painter::render(const Pool &pool) {
+    Renderer *renderer = Render::getGlobalRenderer();
+    const int windowWidth = renderer->window->getWidth();
+    const int windowHeight = renderer->window->getHeight();
+
+    for (auto &e : pool.elements) {
+        if (!(e.flags & Flag::Visible)) continue;
+        if (e.rect.x + e.rect.w < 0 || e.rect.y + e.rect.h < 0 || e.rect.x > windowWidth || e.rect.y > windowHeight) continue;
+        if (e.parent != NONE) {
+            const Element &p = pool.elements[e.parent];
+            if (p.flags & Flag::Clip) {
+                if (e.rect.x + e.rect.w < p.rect.x || e.rect.x > p.rect.x + p.rect.w || e.rect.y + e.rect.h < p.rect.y || e.rect.y > p.rect.y + p.rect.h) continue;
+            }
+        }
+
+        // TODO: make drawbox not centered
+        renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), e.color.r, e.color.g, e.color.b, e.color.a);
     }
 }
 
