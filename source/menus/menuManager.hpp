@@ -15,4 +15,5 @@ extern Menu *currentMenu;
 extern UI::Builder builder;
 bool initMainMenu();
 void render();
+void buildMenuBar(UI::Builder &b);
 }; // namespace MenuManager
