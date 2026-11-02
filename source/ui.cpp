@@ -1,4 +1,5 @@
 #include "ui.hpp"
+#include "image.hpp"
 #include <log.hpp>
 #include <renderer.hpp>
 #include <text.hpp>
@@ -119,6 +120,24 @@ uint16_t Builder::text(const TextProps &props) {
     return leaf(e);
 }
 
+uint16_t Builder::image(const ImageProps &props) {
+    ImageProps payload = props;
+
+    auto img = createImageFromFile(props.imagePath, false, false, 1.0f);
+    if (img.has_value()) {
+        payload.image = std::move(img.value());
+    }
+
+    Element e = ElementProps::toElement({.w = Size::fixed(payload.image->getWidth()), .h = Size::fixed(payload.image->getHeight()), .align = props.align});
+    e.kind = ElementKind::Image;
+
+    uint16_t imgId = pool->imageCount++;
+    pool->images[imgId] = std::move(payload);
+    e.payloadId = imgId;
+
+    return leaf(e);
+}
+
 void Builder::measure(const int windowWidth, const int windowHeight) {
     for (uint16_t i = 0; i < pool->count; i++) {
         Element &e = pool->elements[i];
@@ -184,6 +203,12 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
             default:
                 e.rect.h = 0;
                 break;
+            }
+
+            if (e.kind == ElementKind::Image) {
+                const auto &img = pool->images[e.payloadId];
+                e.rect.w = (int16_t)((float)e.rect.w * img.scale);
+                e.rect.h = (int16_t)((float)e.rect.h * img.scale);
             }
         }
     }
@@ -335,6 +360,23 @@ void Painter::render(const Pool &pool) {
         case UI::ElementKind::Text: {
             const auto &txt = pool.texts[e.payloadId];
             txt->render(e.rect.x, e.rect.y);
+            break;
+        }
+        case UI::ElementKind::Image: {
+            const auto &img = pool.images[e.payloadId];
+            if (!img.image) {
+                Log::logError("[UI] Image is null.");
+                break;
+            }
+            ImageRenderParams p = {
+                .x = (float)e.rect.x,
+                .y = (float)e.rect.y,
+                .scale = img.scale,
+                .centered = false,
+            };
+
+            img.image->render(p);
+            break;
         }
         }
     }

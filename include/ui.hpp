@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <image.hpp>
 #include <string>
 #include <text.hpp>
 
@@ -9,6 +10,7 @@ namespace UI {
 constexpr uint16_t NONE = 0xFFFF;
 constexpr uint16_t MAX_ELEMENTS = 1024;
 constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
+constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
 
 extern std::array<std::string, 2> fontPaths;
 
@@ -20,7 +22,8 @@ constexpr uint8_t Clip = 1 << 6;
 
 enum class ElementKind : uint8_t {
     Box,
-    Text
+    Text,
+    Image,
 };
 
 enum class SizeMode : uint8_t {
@@ -77,6 +80,13 @@ struct TextProps {
     AlignMode align = AlignMode::Left;
 };
 
+struct ImageProps {
+    std::string imagePath;
+    float scale = 1.0f;
+    std::shared_ptr<Image> image = nullptr;
+    AlignMode align = AlignMode::Left;
+};
+
 struct Element {
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
     ElementKind kind = ElementKind::Box;
@@ -121,6 +131,9 @@ struct Pool {
 
     std::array<std::shared_ptr<TextObject>, MAX_TEXT_ELEMENTS> texts;
     uint16_t textCount = 0;
+
+    std::array<ImageProps, MAX_IMAGE_ELEMENTS> images;
+    uint16_t imageCount = 0;
 };
 
 class Builder {
@@ -155,6 +168,8 @@ class Builder {
     uint16_t element(const ElementProps &p) { return leaf(ElementProps::toElement(p)); }
 
     uint16_t text(const TextProps &props);
+
+    uint16_t image(const ImageProps &props);
 
     void end();
 };

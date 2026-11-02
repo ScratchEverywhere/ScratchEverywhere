@@ -59,11 +59,7 @@ void MainMenu::build(UI::Builder &b) {
                                 .color = {0, 255, 0, 255},
                             },
                             [&] {
-                                b.element({
-                                    .w = UI::Size::fixed(100),
-                                    .h = UI::Size::fixed(100),
-                                    .color = {0, 0, 255, 255},
-                                });
+                                b.image({.imagePath = "gfx/menu/logo.png", .scale = 1.0});
                             });
               });
 }
