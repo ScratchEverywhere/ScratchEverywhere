@@ -206,17 +206,36 @@ void Builder::layout() {
         }
 
         int cursor = padMain0;
+
+        if (totalWeight == 0 && leftover > 0) {
+            if (p.align == AlignMode::Center) {
+                cursor += leftover / 2;
+            } else if (p.align == AlignMode::Right) {
+                cursor += leftover;
+            }
+        }
+
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
             if (!(e.flags & Flag::Visible)) continue;
 
+            AlignMode crossAlign = (e.align != AlignMode::Left) ? e.align : p.align;
+
+            int crossPos = padCross0;
+            if (crossAlign == AlignMode::Center) {
+                crossPos += (contentCross - crossOf(e)) / 2;
+            } else if (crossAlign == AlignMode::Right) {
+                crossPos += (contentCross - crossOf(e));
+            }
+
             if (horiz) {
                 e.rect.x = p.rect.x + cursor;
-                e.rect.y = p.rect.y + padCross0;
+                e.rect.y = p.rect.y + crossPos;
             } else {
                 e.rect.y = p.rect.y + cursor;
-                e.rect.x = p.rect.x + padCross0;
+                e.rect.x = p.rect.x + crossPos;
             }
+
             cursor += mainOf(e) + gap;
         }
     }
