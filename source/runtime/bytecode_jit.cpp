@@ -3376,6 +3376,28 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     const uint64_t magic = UINT64_C(0xFFFFFFFFFFFFFFFF) / d + 1;
     const bool negativeDivisor = divisor < 0;
 
+    sljit_jump *shadowDone = nullptr;
+    std::vector<sljit_jump *> notShadow;
+    if (kShadowSupported && !negativeDivisor && active_ != nullptr && active_->shadowSlot >= 0 && currentPc_ >= 2 && !analysis_.isBlockStart(currentPc_) && !analysis_.isBlockStart(currentPc_ - 1) &&
+        chunk_.instructions[currentPc_ - 2].op == BytecodeOp::PushVarNumber) {
+        const int64_t source = plan_.promotedVariable(chunk_.instructions[currentPc_ - 2]);
+        if (source >= 0 && static_cast<size_t>(source) < promotedIndex_.size() && promotedIndex_[source] >= 0 && variableSlot(static_cast<uint32_t>(promotedIndex_[source])) == static_cast<uint32_t>(active_->shadowSlot)) {
+            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
+            notShadow.push_back(sljit_emit_jump(c_, SLJIT_OVERFLOW));
+            notShadow.push_back(sljit_emit_cmp(c_, SLJIT_SIG_LESS_EQUAL, SLJIT_S1, 0, SLJIT_IMM, 0));
+            notShadow.push_back(sljit_emit_cmp(c_, SLJIT_SIG_GREATER, SLJIT_S1, 0, SLJIT_IMM, 0x7fffffff));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(magic));
+            sljit_emit_op0(c_, SLJIT_LMUL_UW);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
+            sljit_emit_op0(c_, SLJIT_LMUL_UW);
+            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+            shadowDone = sljit_emit_jump(c_, SLJIT_JUMP);
+            sljit_label *generic = sljit_emit_label(c_);
+            for (sljit_jump *jump : notShadow)
+                sljit_set_label(jump, generic);
+        }
+    }
     loadF(SLJIT_FR0, a);
     std::vector<sljit_jump *> slow;
     sljit_emit_fop1(c_, SLJIT_CONV_S32_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
@@ -3391,6 +3413,7 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     sljit_emit_op0(c_, SLJIT_LMUL_UW);
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
     sljit_label *joined = sljit_emit_label(c_);
+    if (shadowDone != nullptr) sljit_set_label(shadowDone, joined);
     storeF(a, SLJIT_FR0);
 
     addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor]() {
@@ -4734,15 +4757,26 @@ void Emitter::findRegions() {
                 if (std::isfinite(value) && value == std::floor(value) && std::fabs(value) < 2147483648.0) comparedWithConstant.insert(var.a);
             }
         }
+        std::set<uint32_t> moddedByConstant;
+        for (BytecodeIndex pc = head; pc <= tail; pc++) {
+            if (pc < 2 || chunk_.instructions[pc].op != BytecodeOp::CallNativeNumber || chunk_.instructions[pc - 2].op != BytecodeOp::PushVarNumber || chunk_.instructions[pc - 1].op != BytecodeOp::PushConstNumber) continue;
+            if (plan_.opcodeName(chunk_.instructions[pc].a) != "operator_mod") continue;
+            const double divisor = chunk_.numberConstants[chunk_.instructions[pc - 1].a];
+            if (divisor >= 2.0 && divisor < 2147483648.0 && divisor == std::floor(divisor)) moddedByConstant.insert(chunk_.instructions[pc - 2].a);
+        }
         const bool tinyBody = tail - head + 1 <= 12;
         if (kShadowSupported && !noShadow && listAccesses.empty() && hotCalls == 0) {
             int best = 0;
+            bool bestBenefits = false;
             for (const auto &[variable, info] : shadow) {
-                if (!tinyBody && comparedWithConstant.count(variable) == 0) continue;
-                if (!info.first || info.second <= best || disqualified.count(variable) || variable >= promotedIndex_.size() || promotedIndex_[variable] < 0 || stringWritten_[variable]) continue;
+                const bool benefits = comparedWithConstant.count(variable) != 0 || moddedByConstant.count(variable) != 0;
+                if (!tinyBody && !benefits) continue;
+                if (bestBenefits && !benefits) continue;
+                if (!info.first || (benefits == bestBenefits && info.second <= best) || disqualified.count(variable) || variable >= promotedIndex_.size() || promotedIndex_[variable] < 0 || stringWritten_[variable]) continue;
                 const uint32_t slot = variableSlot(static_cast<uint32_t>(promotedIndex_[variable]));
                 if (std::find(region.slots.begin(), region.slots.end(), slot) == region.slots.end()) continue;
                 best = info.second;
+                bestBenefits = benefits;
                 region.shadowSlot = slot;
             }
         }
