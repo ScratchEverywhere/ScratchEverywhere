@@ -539,13 +539,60 @@ std::string Math::utf16CharAt(const std::shared_ptr<const std::string> &str, siz
     return str->substr(offsets[utf16Index], offsets[utf16Index + 1] - offsets[utf16Index]);
 }
 
+namespace {
+char *writeUnsigned(char *out, uint64_t value) {
+    char digits[20];
+    int count = 0;
+    do {
+        digits[count++] = static_cast<char>('0' + value % 10);
+        value /= 10;
+    } while (value != 0);
+    while (count > 0)
+        *out++ = digits[--count];
+    return out;
+}
+
+bool formatShortDecimal(double number, char *out, size_t &length) {
+    const double magnitude = std::fabs(number);
+    if (!(magnitude >= 1e-4 && magnitude < 1e9)) return false;
+    static const double scale[5] = {1.0, 10.0, 100.0, 1000.0, 10000.0};
+    static const uint64_t integerScale[5] = {1, 10, 100, 1000, 10000};
+    for (int places = 1; places < 5; places++) {
+        const double scaled = std::nearbyint(magnitude * scale[places]);
+        if (scaled / scale[places] != magnitude) continue;
+        const uint64_t digits = static_cast<uint64_t>(scaled);
+        char *p = out;
+        if (number < 0) *p++ = '-';
+        p = writeUnsigned(p, digits / integerScale[places]);
+        *p++ = '.';
+        uint64_t fraction = digits % integerScale[places];
+        for (int i = places - 1; i >= 0; i--) {
+            p[i] = static_cast<char>('0' + fraction % 10);
+            fraction /= 10;
+        }
+        p += places;
+        length = static_cast<size_t>(p - out);
+        return true;
+    }
+    return false;
+}
+} // namespace
+
 std::string Math::toString(double number) {
     if (std::isnan(number)) return "NaN";
     if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
     if (number == 0) return "0";
     char buffer[32];
-    d2s_buffered(number, buffer);
-    return std::string(buffer);
+    if (number == std::trunc(number) && std::fabs(number) < 1e15) {
+        char *end = buffer;
+        if (number < 0) *end++ = '-';
+        end = writeUnsigned(end, static_cast<uint64_t>(std::fabs(number)));
+        return std::string(buffer, end);
+    }
+    size_t shortLength;
+    if (formatShortDecimal(number, buffer, shortLength)) return std::string(buffer, shortLength);
+    const int length = d2s_buffered_n(number, buffer);
+    return std::string(buffer, static_cast<size_t>(length));
 }
 
 double Math::degreesToRadians(double degrees) {

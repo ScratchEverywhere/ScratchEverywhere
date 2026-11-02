@@ -34,7 +34,7 @@ long forcedYieldEvery() {
     }();
     return every;
 }
-uint32_t pollInterval() { return forcedYieldEvery() > 0 ? 1 : 64; }
+uint32_t pollInterval() { return forcedYieldEvery() > 0 ? 1 : 1024; }
 
 struct StrEntry {
     enum Kind : uint8_t { Opaque,
@@ -342,6 +342,13 @@ constexpr uint32_t kMaxStrs = 64;
 std::string gStrs[kMaxStrs];
 std::string gStringVariables[kMaxPromoted];
 int8_t gStringAscii[kMaxPromoted];
+sljit_sw gStringChar[kMaxPromoted];
+
+void refreshStringChar(uint32_t k) {
+    const std::string &text = gStringVariables[k];
+    const unsigned char c = text.size() == 1 ? static_cast<unsigned char>(text[0]) : 0x80;
+    gStringChar[k] = c < 0x80 ? static_cast<sljit_sw>(c >= 'A' && c <= 'Z' ? c + 32 : c) : -1;
+}
 
 bool stringVariableIsAscii(uint32_t k) {
     if (gStringAscii[k] < 0) {
@@ -1073,6 +1080,7 @@ void setString(Context *ctx, uint32_t position, std::string &&value) {
 void setStringVariable(Context *ctx, uint32_t k, std::string &&value) {
     gStringVariables[k] = std::move(value);
     gStringAscii[k] = -1;
+    refreshStringChar(k);
     ctx->stringVariableUsed[k >> 6] |= uint64_t(1) << (k & 63);
     ctx->dirty[k] = 4;
 }
@@ -1095,6 +1103,26 @@ void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     }
     setBoolean(Value::compareStrings(static_cast<int>(op->compare), x, y));
     return;
+}
+
+void SLJIT_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
+    const uint32_t k = op->variable;
+    if (ctx->dirty[k] == 4) {
+        const std::string &suffix = stringOf(ctx, op->a, op->aPosition);
+        std::string &text = gStringVariables[k];
+        const bool wasEmpty = text.empty();
+        text += suffix;
+        if (!suffix.empty()) {
+            if (gStringAscii[k] == 1) gStringAscii[k] = -1;
+            if (wasEmpty) refreshStringChar(k);
+            else gStringChar[k] = -1;
+        }
+        return;
+    }
+    const std::string suffix = stringOf(ctx, op->a, op->aPosition);
+    std::string joined = readVariableString(ctx, k);
+    joined += suffix;
+    setStringVariable(ctx, k, std::move(joined));
 }
 
 void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
@@ -1139,18 +1167,9 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
         return;
 
-    case StringOp::AppendVariable: {
-        const std::string suffix = stringOf(ctx, op->a, op->aPosition);
-        if (ctx->dirty[op->variable] == 4) {
-            gStringVariables[op->variable] += suffix;
-            if (gStringAscii[op->variable] == 1) gStringAscii[op->variable] = -1;
-        } else {
-            std::string joined = readVariableString(ctx, op->variable);
-            joined += suffix;
-            setStringVariable(ctx, op->variable, std::move(joined));
-        }
+    case StringOp::AppendVariable:
+        jitStringAppend(ctx, op);
         return;
-    }
 
     case StringOp::Compare:
         jitStringCompare(ctx, op);
@@ -1863,10 +1882,14 @@ class Emitter {
         std::vector<uint32_t> slots;
         int64_t counterSlot = -1;
         int64_t hoistList = -1;
+        bool span = false;
+        int liveHead = -1;
         sljit_label *body = nullptr;
     };
     static constexpr int kFirstPin = 4;
     static constexpr size_t kMaxPins = 10;
+    static constexpr size_t kMaxSpanPins = 6;
+    static constexpr uint32_t kMinSpanInstructions = 4;
     std::deque<Region> regions_;
     std::vector<int32_t> regionOf_;
     const Region *active_ = nullptr;
@@ -1935,18 +1958,24 @@ class Emitter {
 
     bool insideActive(BytecodeIndex target) const { return active_ != nullptr && target >= active_->head && target <= active_->tail; }
 
-    void emitSpill() {
+    int liveNumbersAt(BytecodeIndex pc) const {
+        BytecodeAbstractState state;
+        if (active_ == nullptr || !active_->span || pc >= chunk_.instructions.size() || !analysis_.stateBefore(pc, state)) return -1;
+        return static_cast<int>(state.numbers);
+    }
+
+    void emitSpill(int live = -1) {
         if (active_ == nullptr) return;
-        for (size_t i = 0; i < active_->slots.size(); i++)
+        for (size_t i = 0; i < active_->slots.size() && (live < 0 || static_cast<int>(i) < live); i++)
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]), SLJIT_FR(kFirstPin + static_cast<int>(i)), 0);
         if (active_->counterSlot >= 0) {
             sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR(kFirstPin + kMaxPins), 0, SLJIT_S3, 0);
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_S0), slotOffset(static_cast<uint32_t>(active_->counterSlot)), SLJIT_FR(kFirstPin + kMaxPins), 0);
         }
     }
-    void emitReload() {
+    void emitReload(int live = -1) {
         if (active_ == nullptr) return;
-        for (size_t i = 0; i < active_->slots.size(); i++)
+        for (size_t i = 0; i < active_->slots.size() && (live < 0 || static_cast<int>(i) < live); i++)
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + static_cast<int>(i)), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(active_->slots[i]));
         if (active_->counterSlot >= 0) {
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + kMaxPins), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(static_cast<uint32_t>(active_->counterSlot)));
@@ -1967,7 +1996,7 @@ class Emitter {
         if (active_ != nullptr && !insideActive(target)) {
             addCold([this, jump, target]() {
                 sljit_set_label(jump, sljit_emit_label(c_));
-                emitSpill();
+                emitSpill(liveNumbersAt(target));
                 pending_.push_back({sljit_emit_jump(c_, SLJIT_JUMP), target});
             });
         } else if (active_ != nullptr && target == active_->head) {
@@ -1977,7 +2006,7 @@ class Emitter {
         }
     }
     void pendUnconditional(BytecodeIndex target) {
-        if (active_ != nullptr && !insideActive(target)) emitSpill();
+        if (active_ != nullptr && !insideActive(target)) emitSpill(liveNumbersAt(target));
         pendJump(sljit_emit_jump(c_, SLJIT_JUMP), target);
     }
 
@@ -2083,6 +2112,7 @@ class Emitter {
         void *helper = reinterpret_cast<void *>(&jitStringOp);
         if (op.kind == StringOp::Compare) helper = reinterpret_cast<void *>(&jitStringCompare);
         else if (op.kind == StringOp::LetterOfVariable) helper = reinterpret_cast<void *>(&jitLetterOfVariable);
+        else if (op.kind == StringOp::AppendVariable) helper = reinterpret_cast<void *>(&jitStringAppend);
         callHelper(helper, SLJIT_ARGS2V(P, P));
     }
 
@@ -2197,7 +2227,10 @@ class Emitter {
         Operand ignored;
         return push + 1 < chunk_.instructions.size() && indexFed(push + 1, 0, ignored);
     }
-    bool emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain = {}, void *helper = nullptr, const Operand *index = nullptr);
+    bool emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain = {}, void *helper = nullptr, const Operand *index = nullptr, bool carry = false);
+    bool convertCarries(BytecodeIndex convert) const {
+        return convert < chunk_.instructions.size() && chunk_.instructions[convert].op == BytecodeOp::ConvertValueToNumber && plan_.supported[convert] && !analysis_.isBlockStart(convert) && plan_.entryOf[convert] < 0;
+    }
     bool emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item);
     bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
     BytecodeIndex currentPc_ = 0;
@@ -2357,9 +2390,14 @@ bool Emitter::fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const {
     BytecodeIndex jumpPc;
     if (!(compare < condLeaf_.size() && condLeaf_[compare]) && !fusableBranch(compare, jumpIfTrue, jumpPc)) return false;
     Operand *out[2] = {&a, &b};
+    bool converted = false;
     for (int i = 0; i < 2; i++) {
         const BytecodeInstruction &push = chunk_.instructions[compare - 2 + i];
-        if (push.op == BytecodeOp::PushVarValue) {
+        if (push.op == BytecodeOp::ConvertNumberToValue) {
+            if (converted) return false;
+            converted = true;
+            *out[i] = {false, numberSlot(state_.numbers), 0};
+        } else if (push.op == BytecodeOp::PushVarValue) {
             if (push.a >= promotedIndex_.size() || promotedIndex_[push.a] < 0 || stringWritten_[push.a]) return false;
             *out[i] = {false, variableSlot(static_cast<uint32_t>(promotedIndex_[push.a])), 0};
         } else if (push.op == BytecodeOp::PushConstValue) {
@@ -2420,7 +2458,7 @@ bool Emitter::fusableBranch(BytecodeIndex pc, bool &jumpIfTrue, BytecodeIndex &j
             continue;
         }
         if (next.op != BytecodeOp::JumpIfTrue && next.op != BytecodeOp::JumpIfFalse) return false;
-        if (regionOf_[pc] >= 0 && q >= regions_[regionOf_[pc]].tail) return false;
+        if (regionOf_[pc] >= 0 && !regions_[regionOf_[pc]].span && q >= regions_[regionOf_[pc]].tail) return false;
         jumpIfTrue = (next.op == BytecodeOp::JumpIfTrue) != negated;
         jumpPc = q;
         return true;
@@ -3016,8 +3054,6 @@ void Emitter::emitListItemAddress(uint32_t slot, const Operand &index, std::vect
     const ListLayout &layout = listLayout();
     loadOperand(SLJIT_FR0, index);
     sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R2, 0, SLJIT_FR0, 0);
-    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R2, 0);
-    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0));
     sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0x7fffffff));
     sljit_emit_op2(c_, SLJIT_MUL, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, layout.valueSize);
@@ -3035,7 +3071,7 @@ void Emitter::emitListItemAddress(uint32_t slot, const Operand &index, std::vect
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + static_cast<sljit_sw>(sizeof(void *))));
 }
 
-bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain, void *helper, const Operand *index) {
+bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<sljit_jump *> &notPlain, void *helper, const Operand *index, bool carry) {
     const ListLayout &layout = listLayout();
     if (!layout.ok) return false;
     if (helper == nullptr) helper = reinterpret_cast<void *>(&jitListItem);
@@ -3044,17 +3080,28 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<s
     const Operand indexSource = index != nullptr ? *index : Operand{false, out, 0};
     emitListItemAddress(op.list, indexSource, slow);
 
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
-    slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.flags);
-    sljit_jump *flagged = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+    const uint16_t endianProbe = 1;
+    const bool little = *reinterpret_cast<const uint8_t *>(&endianProbe) == 1;
+    const bool combined = layout.flags == layout.tag + 1;
+    sljit_jump *flagged;
+    if (combined) {
+        sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
+        flagged = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, little ? layout.numberTag : layout.numberTag << 8);
+    } else {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.flags);
+        flagged = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0);
+    }
     sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_MEM1(SLJIT_R1), layout.number);
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 1);
-    storeF(out, SLJIT_FR0);
+    if (!carry) {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&gTempLazy[op.indexPosition]), SLJIT_IMM, 1);
+        storeF(out, SLJIT_FR0);
+    }
     sljit_label *done = sljit_emit_label(c_);
 
     const bool indexNotStored = index != nullptr;
-    addCold([this, slow, flagged, done, &op, out, layout, helper, indexSource, indexNotStored]() {
+    addCold([this, slow, flagged, done, &op, out, layout, helper, indexSource, indexNotStored, combined]() {
         const auto storeIndex = [&]() {
             if (!indexNotStored) return;
             loadOperand(SLJIT_FR0, indexSource);
@@ -3070,6 +3117,10 @@ bool Emitter::emitInlineListItem(const ListOpDescriptor &op, const std::vector<s
         sljit_set_label(back, done);
 
         sljit_set_label(flagged, sljit_emit_label(c_));
+        if (combined) {
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
+            sljit_set_label(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag), here);
+        }
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gTemps[op.indexPosition]));
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.tag);
         sljit_jump *notString = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.stringTag);
@@ -3125,8 +3176,15 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R1), layout.tag);
     slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.stringTag));
     loadF(SLJIT_FR2, valueSlot(op.itemPosition));
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
-    sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
+    const uint16_t endianProbe = 1;
+    const bool little = *reinterpret_cast<const uint8_t *>(&endianProbe) == 1;
+    if (layout.flags == layout.tag + 1) {
+        const sljit_sw flags = typedConstant ? layout.typedFlags : 0;
+        sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, little ? (layout.numberTag | (flags << 8)) : ((layout.numberTag << 8) | flags));
+    } else {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
+    }
     sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
     sljit_label *done = sljit_emit_label(c_);
 
@@ -3245,36 +3303,44 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR2, 0, SLJIT_R0, 0);
     slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR2, 0));
 
-    // m = a >> 31 is 0 or -1 and |a| = (a ^ m) - m, all in the integer unit
-    sljit_emit_op2(c_, SLJIT_ASHR32, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 31);
-    sljit_emit_op2(c_, SLJIT_XOR32, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_R2, 0);
-    sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
-    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R1, 0);
-
+    sljit_emit_op1(c_, SLJIT_MOV_S32, SLJIT_R0, 0, SLJIT_R0, 0);
+    sljit_jump *negative = negativeDivisor ? sljit_emit_jump(c_, SLJIT_JUMP) : sljit_emit_cmp(c_, SLJIT_SIG_LESS_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+    sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(magic));
-    sljit_emit_op0(c_, SLJIT_LMUL_UW); // R0 = low(magic * n)
+    sljit_emit_op0(c_, SLJIT_LMUL_UW);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
-    sljit_emit_op0(c_, SLJIT_LMUL_UW); // R1 = high(low * d) = |a| mod d
-
-    sljit_jump *zero = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
-    // the result for a negative a is -r, or d - r when the signs of a and the divisor agree: ((r ^ m) - m) + (divisor & mask)
-    sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
-    sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
-    if (negativeDivisor) sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, -1);
-    else sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
-    sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(divisor));
-    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+    sljit_emit_op0(c_, SLJIT_LMUL_UW);
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
-    sljit_jump *joinFromValue = sljit_emit_jump(c_, SLJIT_JUMP);
-    // a multiple of the divisor: zero with the sign of a
-    sljit_set_label(zero, sljit_emit_label(c_));
-    sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
-    sljit_emit_fop2(c_, SLJIT_MUL_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR3, 0);
     sljit_label *joined = sljit_emit_label(c_);
-    sljit_set_label(joinFromValue, joined);
     storeF(a, SLJIT_FR0);
 
-    addCold([this, slow, joined, a, b, &fn]() {
+    addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor]() {
+        sljit_set_label(negative, sljit_emit_label(c_));
+        // m = a >> 31 is 0 or -1 and |a| = (a ^ m) - m, all in the integer unit
+        sljit_emit_op2(c_, SLJIT_ASHR32, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 31);
+        sljit_emit_op2(c_, SLJIT_XOR32, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_R2, 0);
+        sljit_emit_op2(c_, SLJIT_SUB32, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+        sljit_emit_op1(c_, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_R1, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(magic));
+        sljit_emit_op0(c_, SLJIT_LMUL_UW);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
+        sljit_emit_op0(c_, SLJIT_LMUL_UW);
+        sljit_jump *zero = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R1, 0, SLJIT_IMM, 0);
+        // the result for a negative a is -r, or d - r when the signs of a and the divisor agree: ((r ^ m) - m) + (divisor & mask)
+        sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+        if (negativeDivisor) sljit_emit_op2(c_, SLJIT_XOR, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_IMM, -1);
+        else sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
+        sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(divisor));
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
+        // a multiple of the divisor: zero with the sign of a
+        sljit_set_label(zero, sljit_emit_label(c_));
+        sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
+        sljit_emit_fop2(c_, SLJIT_MUL_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR3, 0);
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
+
         sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, here);
@@ -3649,7 +3715,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
     case BytecodeOp::ConvertNumberToValue: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (!convertFeedsStore(pc) && !feedsIndex(pc)) {
+        if (!convertFeedsStore(pc) && !feedsIndex(pc) && !feedsCompare(pc)) {
             loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
             storeF(valueSlot(depth), SLJIT_FR0);
         }
@@ -3666,7 +3732,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         if (top.kind == ValueEntry::Constant) {
             storeImmF(numberSlot(state_.numbers), constantNumber(top.constant));
         } else {
-            const bool carried = top.kind == ValueEntry::Temp && fr0ItemPc_ + 1 == pc && !analysis_.isBlockStart(pc) && plan_.entryOf[pc] < 0;
+            const bool carried = top.kind == ValueEntry::Temp && fr0ItemPc_ + 1 == pc && convertCarries(pc);
             if (!carried) loadF(SLJIT_FR0, valueSlot(static_cast<uint32_t>(state_.values.size())));
             nanToZero(SLJIT_FR0);
             storeF(numberSlot(state_.numbers), SLJIT_FR0);
@@ -3962,7 +4028,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         if (plan_.topValuesAreNumeric(pc, 1)) {
             Operand source;
             const bool fed = indexFed(pc, state_.numbers, source);
-            if (emitInlineListItem(op, {}, nullptr, fed ? &source : nullptr)) fr0ItemPc_ = pc;
+            if (emitInlineListItem(op, {}, nullptr, fed ? &source : nullptr, convertCarries(pc + 1))) fr0ItemPc_ = pc;
             else callListHelper(reinterpret_cast<void *>(&jitListItem), op, SLJIT_ARGS2V(P, P));
         } else {
             op.item = describe(state_.values[depth - 1]);
@@ -3973,7 +4039,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             bool inlined = false;
             if (guardable) {
                 guardPlainNumber(index, depth - 1, notPlain);
-                inlined = emitInlineListItem(op, notPlain, reinterpret_cast<void *>(&jitListItemAny));
+                inlined = emitInlineListItem(op, notPlain, reinterpret_cast<void *>(&jitListItemAny), nullptr, convertCarries(pc + 1));
                 if (inlined) fr0ItemPc_ = pc;
             }
             if (!inlined) callListHelper(reinterpret_cast<void *>(&jitListItemAny), op, SLJIT_ARGS2V(P, P));
@@ -4108,8 +4174,8 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     case BytecodeOp::RepeatCheck: {
         const uint32_t counter = valueSlot(static_cast<uint32_t>(state_.values.size()) - 1);
         if (isCounterPin(counter)) {
-            sljit_emit_op2(c_, SLJIT_SUB, SLJIT_S3, 0, SLJIT_S3, 0, SLJIT_IMM, 1);
-            sljit_jump *finished = sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_S3, 0, SLJIT_IMM, 0);
+            sljit_emit_op2(c_, SLJIT_SUB | SLJIT_SET_SIG_LESS, SLJIT_S3, 0, SLJIT_S3, 0, SLJIT_IMM, 1);
+            sljit_jump *finished = sljit_emit_jump(c_, SLJIT_SIG_LESS);
             state_.values.back().kind = ValueEntry::Number;
             AbsState exited = state_;
             exited.values.pop_back();
@@ -4198,6 +4264,32 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         state_.strings.pop_back();
         state_.booleans++;
         maxBooleans_ = std::max(maxBooleans_, state_.booleans);
+        const auto literalChar = [this](const StrEntry &entry) -> int {
+            if (entry.kind != StrEntry::Const) return -1;
+            const std::string &text = chunk_.stringConstants[entry.constant];
+            if (text.size() != 1) return -1;
+            const unsigned char c = static_cast<unsigned char>(text[0]);
+            if (c <= 0x20 || c >= 0x7F || (c >= '0' && c <= '9') || c == '.') return -1;
+            return c >= 'A' && c <= 'Z' ? c + 32 : c;
+        };
+        const bool varFirst = op.a.kind == StrEntry::Variable;
+        const StrEntry &var = varFirst ? op.a : op.b;
+        const int literal = literalChar(varFirst ? op.b : op.a);
+        if (op.compare == BytecodeCompareKind::Equals && var.kind == StrEntry::Variable && literal >= 0) {
+            const uint32_t k = var.constant;
+            sljit_jump *slow = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 4);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&gStringChar[k]));
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), 0);
+            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R0, 0, SLJIT_IMM, literal);
+            sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(op.numberOut), SLJIT_EQUAL);
+            sljit_label *done = sljit_emit_label(c_);
+            addCold([this, slow, done, &op]() {
+                sljit_set_label(slow, sljit_emit_label(c_));
+                callStringOp(op);
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+            });
+            return;
+        }
         callStringOp(op);
         return;
     }
@@ -4519,6 +4611,47 @@ void Emitter::findRegions() {
         for (BytecodeIndex pc = head; pc <= tail; pc++)
             regionOf_[pc] = static_cast<int32_t>(regions_.size()) - 1;
     }
+
+    if (const char *off = std::getenv("SE_JIT_NOSPAN"); off != nullptr && std::string(off) != "0") return;
+    const auto breaksSpan = [&](BytecodeIndex pc) {
+        const BytecodeOp op = chunk_.instructions[pc].op;
+        return op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt;
+    };
+    for (BytecodeIndex head = 0; head < count;) {
+        if (breaksSpan(head)) {
+            head++;
+            continue;
+        }
+        BytecodeIndex tail = head;
+        while (tail + 1 < count && !analysis_.isBlockStart(tail + 1) && !breaksSpan(tail + 1)) tail++;
+        const BytecodeIndex next = tail + 1;
+        bool ok = tail - head + 1 >= kMinSpanInstructions;
+        uint32_t deepest = 0;
+        for (BytecodeIndex pc = head; pc <= tail && ok; pc++) {
+            if (regionOf_[pc] >= 0 || !analysis_.isReachable(pc) || !plan_.supported[pc]) {
+                ok = false;
+                break;
+            }
+            const BytecodeInstruction &instr = chunk_.instructions[pc];
+            if (isJump(instr.op) && instr.a >= head && instr.a <= tail) ok = false;
+            BytecodeAbstractState state;
+            if (analysis_.stateBefore(pc, state)) deepest = std::max(deepest, state.numbers + 1);
+        }
+        if (ok && deepest >= 2) {
+            Region region;
+            region.head = head;
+            region.tail = tail;
+            region.span = true;
+            BytecodeAbstractState atHead;
+            region.liveHead = analysis_.stateBefore(head, atHead) ? static_cast<int>(atHead.numbers) : -1;
+            for (uint32_t slot = 0; slot < std::min<uint32_t>(deepest, kMaxSpanPins); slot++)
+                region.slots.push_back(numberSlot(slot));
+            regions_.push_back(region);
+            for (BytecodeIndex pc = head; pc <= tail; pc++)
+                regionOf_[pc] = static_cast<int32_t>(regions_.size()) - 1;
+        }
+        head = next;
+    }
 }
 
 bool Emitter::emit() {
@@ -4598,7 +4731,7 @@ bool Emitter::emit() {
 
         active_ = regionOf_[pc] >= 0 ? &regions_[regionOf_[pc]] : nullptr;
         if (active_ != nullptr && pc == active_->head) {
-            emitReload();
+            emitReload(active_->span ? active_->liveHead : -1);
             emitHoistLoad();
             regions_[regionOf_[pc]].body = sljit_emit_label(c_);
         }
@@ -4614,7 +4747,7 @@ bool Emitter::emit() {
             }
             const BytecodeOp op = chunk_.instructions[pc].op;
             if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
-            if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill();
+            if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill(liveNumbersAt(pc + 1));
         } else {
             emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), state_);
             havePrevious = false;
