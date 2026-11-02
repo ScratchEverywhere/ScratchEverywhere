@@ -13,5 +13,6 @@ namespace MenuManager {
 extern UI::Pool elements;
 extern Menu *currentMenu;
 extern UI::Builder builder;
+bool initMainMenu();
 void render();
 }; // namespace MenuManager

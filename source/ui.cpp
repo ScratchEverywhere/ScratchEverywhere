@@ -1,12 +1,32 @@
 #include "ui.hpp"
 #include <log.hpp>
 #include <renderer.hpp>
+#include <text.hpp>
 
 namespace UI {
+
+std::array<std::string, 2> fontPaths;
+
+bool Builder::shouldRebuild() {
+    const Renderer *renderer = Render::getGlobalRenderer();
+    const int windowWidth = renderer->window->getWidth();
+    const int windowHeight = renderer->window->getHeight();
+
+    static int oldWindowWidth = 0;
+    static int oldWindowHeight = 0;
+
+    if (oldWindowWidth != windowWidth || oldWindowHeight != windowHeight) {
+        oldWindowWidth = windowWidth;
+        oldWindowHeight = windowHeight;
+        return true;
+    }
+    return dirty;
+}
 
 void Builder::begin(Pool &p) {
     pool = &p;
     pool->count = 0;
+    pool->textCount = 0;
     depth = 0;
     skipped = 0;
 }
@@ -81,41 +101,90 @@ void Builder::end() {
     if (depth != 0 || skipped != 0) Log::logError("UI: unbalanced push/pop");
     depth = 0;
     skipped = 0;
+    dirty = false;
+}
+
+uint16_t Builder::text(const TextProps &props) {
+    Element e = ElementProps::toElement({.w = Size::fit(), .h = Size::fit(), .align = props.align});
+    e.kind = ElementKind::Text;
+
+    uint16_t txtId = pool->textCount++;
+    auto textObj = createTextObject(props.text, 0, 0, fontPaths[props.fontId]);
+    textObj->setColor(Math::color(props.color.r, props.color.g, props.color.b, props.color.a));
+    textObj->setCenterAligned(false);
+    textObj->setScale(props.scale);
+    pool->texts[txtId] = std::move(textObj);
+    e.payloadId = txtId;
+
+    return leaf(e);
 }
 
 void Builder::measure(const int windowWidth, const int windowHeight) {
     for (uint16_t i = 0; i < pool->count; i++) {
         Element &e = pool->elements[i];
 
-        switch (e.w.mode) {
-        case SizeMode::Fixed:
-            e.rect.w = e.w.value;
-            break;
-        case SizeMode::Grow: {
+        if (e.kind == ElementKind::Text) {
+            const auto &txt = pool->texts[e.payloadId];
+
+            int wrapWidth = 0;
             if (e.parent != NONE) {
                 Element &p = pool->elements[e.parent];
-                e.rect.w = p.rect.w - p.padding.left - p.padding.right;
-            } else e.rect.w = windowWidth;
-            break;
-        }
-        default:
-            e.rect.w = 0;
-            break;
-        }
-        switch (e.h.mode) {
-        case SizeMode::Fixed:
-            e.rect.h = e.h.value;
-            break;
-        case SizeMode::Grow: {
-            if (e.parent != NONE) {
-                Element &p = pool->elements[e.parent];
-                e.rect.h = p.rect.h - p.padding.up - p.padding.down;
-            } else e.rect.h = windowHeight;
-            break;
-        }
-        default:
-            e.rect.h = 0;
-            break;
+                if (!(p.flags & Flag::Clip))
+                    wrapWidth = p.rect.w - p.padding.left - p.padding.right;
+            } else {
+                wrapWidth = windowWidth;
+            }
+
+            if (wrapWidth > 0) {
+                txt->setText(txt->wrap(wrapWidth));
+            }
+
+            const std::vector<float> textSize = txt->getSize();
+
+            if (e.w.mode == SizeMode::Fit) e.rect.w = (int16_t)textSize[0];
+            else e.rect.w = wrapWidth;
+
+            if (e.h.mode == SizeMode::Fit) e.rect.h = (int16_t)textSize[1];
+            else if (e.h.mode == SizeMode::Fixed) e.rect.h = e.h.value;
+            else if (e.h.mode == SizeMode::Grow) {
+                if (e.parent != NONE) {
+                    Element &p = pool->elements[e.parent];
+                    e.rect.h = p.rect.h - p.padding.up - p.padding.down;
+                } else {
+                    e.rect.h = windowHeight;
+                }
+            }
+        } else {
+            switch (e.w.mode) {
+            case SizeMode::Fixed:
+                e.rect.w = e.w.value;
+                break;
+            case SizeMode::Grow: {
+                if (e.parent != NONE) {
+                    Element &p = pool->elements[e.parent];
+                    e.rect.w = p.rect.w - p.padding.left - p.padding.right;
+                } else e.rect.w = windowWidth;
+                break;
+            }
+            default:
+                e.rect.w = 0;
+                break;
+            }
+            switch (e.h.mode) {
+            case SizeMode::Fixed:
+                e.rect.h = e.h.value;
+                break;
+            case SizeMode::Grow: {
+                if (e.parent != NONE) {
+                    Element &p = pool->elements[e.parent];
+                    e.rect.h = p.rect.h - p.padding.up - p.padding.down;
+                } else e.rect.h = windowHeight;
+                break;
+            }
+            default:
+                e.rect.h = 0;
+                break;
+            }
         }
     }
 
@@ -123,8 +192,8 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
         Element &e = pool->elements[i];
         if (!(e.flags & Flag::Visible)) continue;
 
-        // if (e.w.mode == SizeMode::Fit) e.rect.w += (e.padding.left + e.padding.right);
-        // if (e.h.mode == SizeMode::Fit) e.rect.h += (e.padding.up + e.padding.down);
+        if (e.w.mode == SizeMode::Fit) e.rect.w += (e.padding.left + e.padding.right);
+        if (e.h.mode == SizeMode::Fit) e.rect.h += (e.padding.up + e.padding.down);
 
         if (e.parent == NONE) continue;
         Element &p = pool->elements[e.parent];
@@ -256,8 +325,18 @@ void Painter::render(const Pool &pool) {
             }
         }
 
-        // TODO: make drawbox not centered
-        renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), e.color.r, e.color.g, e.color.b, e.color.a);
+        switch (e.kind) {
+        case UI::ElementKind::Box: {
+            // TODO: make drawbox not centered
+            renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), e.color.r, e.color.g, e.color.b, e.color.a);
+
+            break;
+        }
+        case UI::ElementKind::Text: {
+            const auto &txt = pool.texts[e.payloadId];
+            txt->render(e.rect.x, e.rect.y);
+        }
+        }
     }
 }
 

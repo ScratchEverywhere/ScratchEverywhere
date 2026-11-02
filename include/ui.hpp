@@ -1,17 +1,27 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <string>
+#include <text.hpp>
 
 namespace UI {
 
 constexpr uint16_t NONE = 0xFFFF;
 constexpr uint16_t MAX_ELEMENTS = 1024;
+constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
+
+extern std::array<std::string, 2> fontPaths;
 
 namespace Flag {
 constexpr uint8_t Visible = 1 << 0;
 constexpr uint8_t Focusable = 1 << 1;
 constexpr uint8_t Clip = 1 << 6;
 } // namespace Flag
+
+enum class ElementKind : uint8_t {
+    Box,
+    Text
+};
 
 enum class SizeMode : uint8_t {
     Fixed,
@@ -59,8 +69,18 @@ struct Padding {
     static inline Padding axis(uint8_t leftRight, uint8_t upDown) { return {leftRight, leftRight, upDown, upDown}; }
 };
 
+struct TextProps {
+    std::string text;
+    uint8_t fontId = 0;
+    float scale = 1.0f;
+    Color color = {0, 0, 0, 255};
+    AlignMode align = AlignMode::Left;
+};
+
 struct Element {
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
+    ElementKind kind = ElementKind::Box;
+    uint16_t payloadId = NONE;
     uint8_t flags;
     Size w, h;
     ChildDir childDirection = ChildDir::UpDown;
@@ -98,6 +118,9 @@ struct ElementProps {
 struct Pool {
     std::array<Element, MAX_ELEMENTS> elements;
     uint16_t count = 0;
+
+    std::array<std::shared_ptr<TextObject>, MAX_TEXT_ELEMENTS> texts;
+    uint16_t textCount = 0;
 };
 
 class Builder {
@@ -116,7 +139,9 @@ class Builder {
     void measure(const int windowWidth, const int windowHeight);
 
   public:
+    bool dirty = true;
     void layout();
+    bool shouldRebuild();
     void begin(Pool &pool);
 
     template <class F>
@@ -128,6 +153,8 @@ class Builder {
     }
 
     uint16_t element(const ElementProps &p) { return leaf(ElementProps::toElement(p)); }
+
+    uint16_t text(const TextProps &props);
 
     void end();
 };

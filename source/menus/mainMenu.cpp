@@ -31,10 +31,20 @@ void MainMenu::build(UI::Builder &b) {
                             [&] {
                                 for (int i = 0; i < 100; i++) {
                                     b.element({
-                                        .w = UI::Size::grow(),
-                                        .h = UI::Size::fixed(20),
-                                        .color = {0, 0, 255, 255},
-                                    });
+                                                  .w = UI::Size::grow(),
+                                                  .h = UI::Size::fit(),
+                                                  .padding = UI::Padding::all(5),
+                                                  .color = {0, 0, 255, 255},
+                                              },
+                                              [&] {
+                                                  b.text({
+                                                      .text = "text i guess",
+                                                      .fontId = 0,
+                                                      .scale = 0.5,
+                                                      .color = {0, 0, 0, 255},
+                                                      .align = UI::AlignMode::Center,
+                                                  });
+                                              });
                                 }
                             });
 
