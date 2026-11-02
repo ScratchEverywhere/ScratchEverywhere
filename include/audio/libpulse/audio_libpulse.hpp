@@ -8,4 +8,6 @@ class SE_EXPORT SoundDevice_Libpulse
   public:
     SoundDevice_Libpulse();
     ~SoundDevice_Libpulse() override;
+
+    int getLoudness() override;
 };

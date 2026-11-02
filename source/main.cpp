@@ -34,6 +34,10 @@
 #include <switch.h>
 #endif
 
+#if defined(__PSP__) && defined(RENDERER_SDL3)
+#include <SDL3/SDL_main.h>
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>

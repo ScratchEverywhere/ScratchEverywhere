@@ -1,6 +1,7 @@
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include <algorithm>
+#include <audio.hpp>
 #include <input.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
@@ -74,6 +75,7 @@ void BlockExecutor::executeWhenGreaterThanHats() {
 
             double current = 0;
             if (menu == "timer") current = BlockExecutor::timer.getTimeMs() / 1000.0;
+            else if (menu == "loudness") current = SoundPlayer::getLoudness();
 
             double threshold = 0;
             Scratch::getInputValueAs(block, "VALUE", &conditionThread, currentSprite, threshold);

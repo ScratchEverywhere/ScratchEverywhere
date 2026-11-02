@@ -173,7 +173,9 @@ void reset(int width, int height, WindowWin32 *win) {
     dpp->BackBufferWidth = width;
     dpp->BackBufferHeight = height;
     if (SUCCEEDED(pD3D->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_R8G8B8, FALSE, D3DMULTISAMPLE_4_SAMPLES, nullptr))) {
-        dpp->MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+        if (SUCCEEDED(pD3D->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, D3DFMT_R8G8B8, FALSE, D3DMULTISAMPLE_4_SAMPLES, nullptr))) {
+            dpp->MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+        }
     }
     IDirect3DDevice9_Reset(pDev, dpp);
 

@@ -7,7 +7,7 @@ if(XBOX)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 endif()
 
-project(ScratchEverywhere VERSION 1.2.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.3.0 LANGUAGES CXX C)
 
 if(APPLE)
     enable_language(OBJC)
@@ -164,7 +164,9 @@ endfunction()
 
 cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLATFORM STREQUAL pc" OFF)
 
-list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
+if(NOT LIBRETRO)
+    list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
+endif()
 if(NOT DEFINED SE_RENDERER_PRIORITY)
     set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "nv2a" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
@@ -282,11 +284,21 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
 if(SE_MENU)
-    file(GLOB_RECURSE GFXFILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-    )
+    if(NINTENDO_DS)
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/mm_ds.wav"
+        )
+    else()
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+        )
+    endif()
+
 else()
     if(NINTENDO_DS)
         file(GLOB_RECURSE GFXFILES
@@ -578,9 +590,9 @@ if(SE_AUDIO)
     target_link_libraries(se-interface INTERFACE audio_interface)
     if(NOT NINTENDO_DS)
         cl_add_dep(se-interface stb_vorbis)
+        cl_add_dep(se-interface tsf)
     endif()
     cl_add_dep(se-interface dr_libs)
-    cl_add_dep(se-interface tsf)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)

@@ -7,18 +7,18 @@
 #include <renderer.hpp>
 #if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
-#if !defined(USE_LIBDLGMOD)
+#ifndef USE_LIBDLGMOD
 #define USE_LIBDLGMOD
 #endif
 #endif
 
-#if defined(__PS4__)
+#ifdef __PS4__
 #include <orbis/SystemService.h>
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
 #endif
 
-#if defined(__XBOX__)
+#ifdef __XBOX__
 #include <direct.h>
 #include <hal/debug.h>
 #include <stdio.h>
@@ -151,6 +151,11 @@ static inline void com1_puts(const char *str) {
     }
 }
 
+#ifndef SE_XBOX_LOG_TO_DISK
+#define SE_XBOX_LOG_TO_DISK 1
+#endif
+
+
 static void xbox_append_log(const char *prefix, const std::string &msg) {
     if (!log_cs_inited) {
         InitializeCriticalSection(&log_cs);
@@ -170,6 +175,7 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
         com1_puts(msg.c_str());
         com1_puts("\n");
     }
+#if SE_XBOX_LOG_TO_DISK
     _mkdir("E:\\ScratchEverywhere");
     FILE *f = fopen("E:\\ScratchEverywhere\\debug.txt", "a");
     if (f) {
@@ -181,6 +187,7 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
         fflush(f);
         fclose(f);
     }
+#endif
 #ifdef SE_XBOX_TRACE_LOG_HOST
     if (trace_socket >= 0) {
         // Keep datagrams small and never make logging wait for a receiver.
@@ -238,7 +245,9 @@ void Log::writeToFile(std::string message) {
 }
 
 void Log::deleteLogFile() {
+#if SE_XBOX_LOG_TO_DISK
     remove("E:\\ScratchEverywhere\\debug.txt");
+#endif
 }
 
 #else
@@ -279,7 +288,7 @@ void Log::logCritical(std::string message, bool fatal) {
         std::cerr << "\x1b[1;31m" << "Critical: " << message << "\x1b[0m" << std::endl;
         writeToFile("<Critical> " + message);
     }
-#if defined(USE_LIBDLGMOD)
+#ifdef USE_LIBDLGMOD
     // Retrieve caption text and button label strings for later use:
     const char *title = widget_get_caption();
     const char *abort = widget_get_button_name(BUTTON_ABORT);

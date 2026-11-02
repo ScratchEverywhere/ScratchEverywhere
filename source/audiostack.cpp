@@ -7,19 +7,19 @@
 #include "runtime.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
+#include <mutex>
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
 
+#include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <algorithm>
-#include <array>
-#include <thread>
 #include <iostream>
 #include <limits>
-#include <mutex>
+#include <thread>
 #include <vector>
 
 SoundConfig::SoundConfig() {
@@ -88,9 +88,14 @@ bool SoundStream::loadAsVorbis() {
 void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
     resampler.reset();
-    // prepareResampler() sizes the buffer after the decoder's rate/channels are known.
+// prepareResampler() sizes the buffer after the decoder's rate/channels are known.
+#ifndef __NDS__
     this->paused.store(false, std::memory_order_relaxed);
     this->auto_clean.store(false, std::memory_order_relaxed);
+#else
+    this->paused = false;
+    this->auto_clean = false;
+#endif
 
     Mixer::mutex.lock();
     auto e = Mixer::configs.find(this->name);
@@ -354,7 +359,12 @@ SoundStream::~SoundStream() {
     }
     Mixer::mutex.unlock();
 
-    while (activeMixers.load(std::memory_order_acquire) != 0) std::this_thread::yield();
+#ifndef __NDS__
+    while (activeMixers.load(std::memory_order_acquire) != 0)
+#else
+    while (activeMixers != 0)
+#endif
+        std::this_thread::yield();
 
     if (this->type == SoundStreamWAV) {
         drwav_uninit(&this->wav);
@@ -397,7 +407,7 @@ int SoundStream::read(float *output, int frames) {
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
 std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
-#ifdef ENABLE_AUDIO
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
 tsf *Mixer::hTsf = nullptr;
 #endif
 void *Mixer::sf2_buffer = nullptr;
@@ -422,10 +432,10 @@ struct MixerStreamSnapshot {
 std::array<MixerStreamSnapshot, MAX_MIXER_STREAMS> mixerSnapshot{};
 std::array<float, MIX_CHUNK_FRAMES * 2> mixerBuffer{};
 SoundStream *retiredStreams = nullptr; // intrusive queue, protected by Mixer::mutex
-#ifdef ENABLE_AUDIO
+#if defined(ENABLE_AUDIO) && !defined(__NDS__)
 std::mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
 #endif
-}
+} // namespace
 
 void Mixer::registerStream(const std::string &name, SoundStream *stream) {
 #ifdef ENABLE_AUDIO
@@ -434,7 +444,11 @@ void Mixer::registerStream(const std::string &name, SoundStream *stream) {
     auto existing = Mixer::streams.find(name);
     if (existing != Mixer::streams.end() && existing->second != stream) {
         SoundStream *replaced = existing->second;
+#ifndef __NDS__
         replaced->paused.store(true, std::memory_order_relaxed);
+#else
+        replaced->paused = true;
+#endif
         Mixer::streams.erase(existing);
         // The audio callback may still hold a lifetime pin. Retiring is safe now; the
         // main-thread reaper releases its decoder/buffers after the callback drops the pin.
@@ -507,17 +521,23 @@ void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
     if (!output || frames <= 0) return;
 
-    // The workspace and each stream resampler are shared across callbacks. Serialize only
-    // audio callbacks, not runtime controls, so they cannot race without holding Mixer::mutex
-    // during potentially slow decoding/resampling.
+// The workspace and each stream resampler are shared across callbacks. Serialize only
+// audio callbacks, not runtime controls, so they cannot race without holding Mixer::mutex
+// during potentially slow decoding/resampling.
+#ifndef __NDS__
     std::lock_guard<std::mutex> callbackLock(mixerCallbackMutex);
+#endif
 
     size_t streamCount = 0;
     Mixer::mutex.lock();
     for (const auto &entry : streams) {
         if (streamCount >= mixerSnapshot.size()) break;
         SoundStream *s = entry.second;
+#ifndef __NDS__
         s->activeMixers.fetch_add(1, std::memory_order_acq_rel);
+#else
+        s->activeMixers += 1;
+#endif
         MixerStreamSnapshot &snapshot = mixerSnapshot[streamCount++];
         snapshot.stream = s;
         snapshot.channels = s->channels;
@@ -527,7 +547,11 @@ void Mixer::requestSound(short *output, int frames) {
         // Scratch's pitch effect ranges from -360 to +360 semitones, i.e. 1/8x to 8x.
         // Clamp here as well so malformed settings cannot trigger callback-time allocation.
         snapshot.pitch = std::clamp(s->config.pitch, 0.125f, 8.0f);
+#ifndef __NDS__
         snapshot.initiallyPaused = s->paused.load(std::memory_order_relaxed);
+#else
+        snapshot.initiallyPaused = s->paused;
+#endif
     }
     Mixer::mutex.unlock();
 
@@ -558,7 +582,11 @@ void Mixer::requestSound(short *output, int frames) {
         for (size_t i = 0; i < streamCount; ++i) {
             const MixerStreamSnapshot &snapshot = mixerSnapshot[i];
             SoundStream *s = snapshot.stream;
+#ifndef __NDS__
             if (!s || snapshot.initiallyPaused || s->paused.load(std::memory_order_relaxed)) continue;
+#else
+            if (!s || snapshot.initiallyPaused || s->paused) continue;
+#endif
 
             const float gainLeft = snapshot.volume * (snapshot.pan <= 0 ? 1.0f : 1.0f - snapshot.pan);
             const float gainRight = snapshot.volume * (snapshot.pan >= 0 ? 1.0f : 1.0f + snapshot.pan);
@@ -566,7 +594,12 @@ void Mixer::requestSound(short *output, int frames) {
             const int mixed = s->resampler.mixStereo(mixerBuffer.data(), chunkFrames, snapshot.channels, step,
                                                      gainLeft, gainRight,
                                                      [s](float *data, int count) { return s->read(data, count); });
-            if (mixed == 0) s->paused.store(true, std::memory_order_relaxed);
+            if (mixed == 0)
+#ifndef __NDS__
+                s->paused.store(true, std::memory_order_relaxed);
+#else
+                s->paused = true;
+#endif
         }
 
         short *chunkOutput = output + static_cast<size_t>(offset) * 2;
@@ -581,7 +614,11 @@ void Mixer::requestSound(short *output, int frames) {
     // Instead, enqueue finished auto-clean streams and let a main-thread mixer API reap them.
     for (auto it = streams.begin(); it != streams.end();) {
         SoundStream *s = it->second;
+#ifndef __NDS__
         if (s->paused.load(std::memory_order_relaxed) && s->auto_clean.load(std::memory_order_relaxed)) {
+#else
+        if (s->paused && s->auto_clean) {
+#endif
             it = streams.erase(it);
             s->nextRetired = retiredStreams;
             retiredStreams = s;
@@ -591,7 +628,11 @@ void Mixer::requestSound(short *output, int frames) {
     }
     for (size_t i = 0; i < streamCount; ++i) {
         if (mixerSnapshot[i].stream) {
+#ifndef __NDS__
             mixerSnapshot[i].stream->activeMixers.fetch_sub(1, std::memory_order_acq_rel);
+#else
+            mixerSnapshot[i].stream->activeMixers -= 1;
+#endif
             mixerSnapshot[i].stream = nullptr;
         }
     }
@@ -609,7 +650,11 @@ void Mixer::drainRetiredStreams() {
     while (pending) {
         SoundStream *next = pending->nextRetired;
         pending->nextRetired = nullptr;
+#ifndef __NDS__
         if (pending->activeMixers.load(std::memory_order_acquire) != 0) {
+#else
+        if (pending->activeMixers != 0) {
+#endif
             // Never make the runtime thread wait for a slow decoder callback. Since the
             // stream has already left the registry, it cannot acquire any new pins.
             Mixer::mutex.lock();
@@ -631,7 +676,11 @@ void Mixer::cleanupAudio() {
     Mixer::mutex.lock();
     pendingStreams.reserve(Mixer::streams.size());
     for (auto &e : Mixer::streams) {
+#ifndef __NDS__
         e.second->paused.store(true, std::memory_order_relaxed);
+#else
+        e.second->paused = true;
+#endif
         pendingStreams.push_back(e.second);
     }
     Mixer::streams.clear();
@@ -652,7 +701,8 @@ void Mixer::cleanupAudio() {
     Mixer::mutex.unlock();
 
     // Destructors can wait for outstanding audio pins, so never hold Mixer::mutex here.
-    for (SoundStream *s : pendingStreams) delete s;
+    for (SoundStream *s : pendingStreams)
+        delete s;
     while (pendingRetired) {
         SoundStream *next = pendingRetired->nextRetired;
         pendingRetired->nextRetired = nullptr;
@@ -664,13 +714,13 @@ void Mixer::cleanupAudio() {
 
 #ifdef ENABLE_AUDIO
 
-#define FIND(blk)                \
+#define FIND(blk)                 \
     Mixer::drainRetiredStreams(); \
-    Mixer::mutex.lock();         \
-                                 \
-    blk;                         \
-                                 \
-    auto e = streams.find(name); \
+    Mixer::mutex.lock();          \
+                                  \
+    blk;                          \
+                                  \
+    auto e = streams.find(name);  \
     if (e != streams.end()) {
 
 #define END \

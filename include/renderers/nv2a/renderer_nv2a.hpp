@@ -120,9 +120,12 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     void applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen);
 
     // NV2A Direct GPU Texture Management
-    NV2ATexture *createTexture(int width, int height, uint32_t format, bool swizzled);
+    // Disabling clearing requires complete caller initialization before binding.
+    NV2ATexture *createTexture(int width, int height, uint32_t format, bool swizzled, bool clearStorage = true);
     void destroyTexture(NV2ATexture *&texture);
     bool updateTexture(NV2ATexture *texture, const void *pixels, int pitch);
+    // Complete CPU writes to fresh or GPU-idle storage; does not wait for readers.
+    void commitTextureUpload(NV2ATexture *texture);
     void setTextureScaleMode(NV2ATexture *texture, NV2AScaleMode scaleMode);
     NV2AScaleMode getTextureScaleMode(const NV2ATexture *texture) const;
 
@@ -136,10 +139,19 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
     void clearScissor();
     void setViewport(int x, int y, int w, int h);
     void drawTriangles(const NV2AVertex *vertices, size_t count);
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    static bool supportsHueTexture(const NV2ATexture *texture);
+    void drawHueQuad(const NV2ATexture *texture, NV2AScaleMode scaleMode,
+                     const NV2AVertex *vertices, double effect);
+#endif
     void drawIndexedTriangles(const NV2AVertex *vertices, const uint16_t *indices, size_t count);
     void drawColorTriangles(const NV2AVertex *vertices, size_t count);
     NV2AVertex *beginDirectVertices(size_t maxCount);
     void endDirectVertices(size_t actualCount);
+#ifdef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+    // Experimental ordinary-quad path; restores the standard textured combiner after drawing.
+    void drawBrightnessTriangles(const NV2AVertex *vertices, size_t count, uint8_t brightness);
+#endif
 
     // Incremented once per beginFrame(); textures used during the current frame must not be overwritten.
     static uint32_t getFrameCounter();

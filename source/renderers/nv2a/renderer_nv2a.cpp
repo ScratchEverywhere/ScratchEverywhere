@@ -32,6 +32,8 @@
 #undef min
 #undef max
 
+#include "dxt_layout.hpp"
+
 // Ring buffer arena size for direct vertex streaming (3 partitions for triple-buffering)
 static constexpr size_t ARENA_PER_FRAME_SIZE = 1024 * 1024;
 static constexpr size_t VERTEX_ARENA_SIZE = ARENA_PER_FRAME_SIZE * 3;
@@ -46,10 +48,7 @@ static uint32_t s_frameIndex = 0;
 
 static void flushRetiredTextures(bool syncGpu); // deferred texture frees, defined below
 
-#ifndef NV2A_PROFILE
-#define NV2A_PROFILE 0 // 1 = log a per-second timing breakdown (CPU/GPU/vsync) via Log::log
-#endif
-#if NV2A_PROFILE
+#ifdef SE_NV2A_PROFILE
 // 733.33 MHz Xbox CPU: cycles -> ms = cycles / 733333.
 static inline uint64_t nv2aTsc() { return __builtin_ia32_rdtsc(); }
 struct NV2AProf {
@@ -58,6 +57,15 @@ struct NV2AProf {
     uint32_t draws = 0, verts = 0, binds = 0, frames = 0;
 };
 static NV2AProf s_prof;
+// Bypasses the NXDK's broken std::to_string(double) implementation
+auto formatMs = [](double timeMs) -> std::string {
+	int ms = static_cast<int>(timeMs);
+	int us = static_cast<int>((timeMs - ms) * 1000.0);
+	std::string usStr = std::to_string(std::abs(us));
+	if (usStr.length() == 1) usStr = "00" + usStr;
+	else if (usStr.length() == 2) usStr = "0" + usStr;
+	return std::to_string(ms) + "." + usStr + " ms";
+};
 #define NV2A_PROF(x) x
 #else
 #define NV2A_PROF(x)
@@ -426,6 +434,10 @@ static inline void unlitCombinerApply() {
     pb_end(p);
 }
 
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+#include "hue_combiners.inc"
+#endif
+
 static inline void textureCombinerApply() {
     uint32_t *p = pb_begin();
     p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
@@ -579,7 +591,6 @@ static unsigned int circleSegmentsFor(double base, double penSize) {
 
 #ifdef SE_XBOX_TRACE_RENDERER
 static void traceEffectCache();
-static bool traceStartupPixels(Renderer_NV2A *renderer);
 #endif
 
 Renderer_NV2A::Renderer_NV2A() {
@@ -686,9 +697,6 @@ Renderer_NV2A::Renderer_NV2A() {
     pb_wait_until_gr_not_busy();
 
     Log::log("Renderer_NV2A hardware initialized: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
-#ifdef SE_XBOX_TRACE_RENDERER
-    traceStartupPixels(this);
-#endif
 #endif
 }
 
@@ -738,8 +746,10 @@ static void freeTextureStorage(NV2ATexture *t) {
 
 static void flushRetiredTextures(bool syncGpu) {
     if (s_retiredTextures.empty()) return;
+
 #ifdef __XBOX__
     if (syncGpu) {
+
         uint32_t *p = pb_begin();
         p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
         pb_end(p);
@@ -747,15 +757,17 @@ static void flushRetiredTextures(bool syncGpu) {
             __asm__ __volatile__("pause");
         }
         pb_wait_until_gr_not_busy();
+
     }
 #else
     (void)syncGpu;
 #endif
     for (NV2ATexture *t : s_retiredTextures) freeTextureStorage(t);
     s_retiredTextures.clear();
+
 }
 
-NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format, bool swizzled) {
+NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format, bool swizzled, bool clearStorage) {
     if (width <= 0 || height <= 0) return nullptr;
 
     auto *tex = new NV2ATexture();
@@ -768,12 +780,12 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
 
     if (tex->isDXT) {
         tex->swizzled = false;
-        tex->dataWidth = npot2pot(width);
-        tex->dataHeight = npot2pot(height);
+        const auto layout = NV2ADxtLayout::make(width, height, format == XGU_TEXTURE_FORMAT_DXT5);
+        tex->dataWidth = layout.width;
+        tex->dataHeight = layout.height;
         tex->uScale = static_cast<float>(width) / static_cast<float>(tex->dataWidth);
         tex->vScale = static_cast<float>(height) / static_cast<float>(tex->dataHeight);
-        int blockBytes = (format == XGU_TEXTURE_FORMAT_DXT5) ? 16 : 8;
-        tex->pitch = std::max(64, ((tex->dataWidth + 3) / 4) * blockBytes);
+        tex->pitch = layout.pitch;
         tex->bytesPerPixel = 1;
         tex->allocationSize = ((tex->dataHeight + 3) / 4) * tex->pitch;
     } else {
@@ -799,6 +811,7 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
     }
 
 #ifdef __XBOX__
+
     tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
     if (!tex->data && !s_retiredTextures.empty()) {
         flushRetiredTextures(true); // reclaim memory held by deferred frees
@@ -815,8 +828,13 @@ NV2ATexture *Renderer_NV2A::createTexture(int width, int height, uint32_t format
         delete tex;
         return nullptr;
     }
+
     tex->dataPhysicalAddress = reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(MmGetPhysicalAddress(tex->data)));
-    memset(tex->data, 0, tex->allocationSize);
+    if (clearStorage) {
+
+        memset(tex->data, 0, tex->allocationSize);
+
+    }
 #endif
     return tex;
 }
@@ -864,16 +882,11 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
     if (!texture || !texture->data || !pixels) return false;
 
     if (texture->isDXT) {
-        int blockBytes = (texture->format == XGU_TEXTURE_FORMAT_DXT5) ? 16 : 8;
-        int rowBytes = ((texture->dataWidth + 3) / 4) * blockBytes;
-        int blockRows = (texture->dataHeight + 3) / 4;
-        for (int r = 0; r < blockRows; ++r) {
-            memcpy(texture->data + static_cast<size_t>(r) * texture->pitch,
-                   static_cast<const uint8_t *>(pixels) + static_cast<size_t>(r) * pitch, rowBytes);
-        }
+        const NV2ADxtLayout::Layout layout{texture->dataWidth, texture->dataHeight, texture->pitch};
+        if (!NV2ADxtLayout::upload(texture->data, layout, static_cast<const uint8_t *>(pixels), pitch,
+                                  texture->texWidth, texture->texHeight,
+                                  texture->format == XGU_TEXTURE_FORMAT_DXT5)) return false;
     } else if (texture->swizzled) {
-        // Swizzling scatters writes in Z-order. Doing that straight into write-combined memory defeats the WC
-        // buffers (every store becomes a partial-line flush), so swizzle into cached RAM and stream it out.
         static uint8_t *s_stage = nullptr;
         static size_t s_stageCap = 0;
         const size_t bytes = texture->allocationSize;
@@ -882,25 +895,45 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
             s_stage = static_cast<uint8_t *>(malloc(bytes));
             s_stageCap = s_stage ? bytes : 0;
         }
+
+        const uint8_t *srcPixels = static_cast<const uint8_t *>(pixels);
+        const int w = texture->texWidth;
+        const int h = texture->texHeight;
+        const int dw = texture->dataWidth;
+        const int dh = texture->dataHeight;
+        const int bpp = texture->bytesPerPixel;
+
         if (s_stage) {
-            if (texture->texWidth != texture->dataWidth || texture->texHeight != texture->dataHeight) {
-                memset(s_stage, 0, bytes); // keep NPOT padding zeroed
+            memset(s_stage, 0, bytes);
+
+            // Copy rows and pad/replicate outer edges if NPOT
+            for (int y = 0; y < dh; ++y) {
+                int sy = std::min(y, h - 1);
+                const uint8_t *srcRow = srcPixels + static_cast<size_t>(sy) * pitch;
+                uint8_t *dstRow = s_stage + static_cast<size_t>(y) * (dw * bpp);
+
+                for (int x = 0; x < dw; ++x) {
+                    int sx = std::min(x, w - 1);
+                    memcpy(dstRow + x * bpp, srcRow + sx * bpp, bpp);
+                }
             }
-            swizzle_subrect(static_cast<const uint8_t *>(pixels),
-                            texture->texWidth, texture->texHeight,
-                            texture->dataWidth, texture->dataHeight,
-                            s_stage, pitch, texture->bytesPerPixel);
-            memcpy(texture->data, s_stage, bytes);
-            if (s_stageCap > 256 * 1024) { // don't pin big staging buffers on a 64MB console
+
+            swizzle_subrect(s_stage,
+                            dw, dh,
+                            dw, dh,
+                            texture->data, dw * bpp, bpp);
+
+            if (s_stageCap > 256 * 1024) {
                 free(s_stage);
                 s_stage = nullptr;
                 s_stageCap = 0;
             }
         } else {
-            swizzle_subrect(static_cast<const uint8_t *>(pixels),
-                            texture->texWidth, texture->texHeight,
-                            texture->dataWidth, texture->dataHeight,
-                            texture->data, pitch, texture->bytesPerPixel);
+            // Fallback path without staging buffer (reuses same replication logic via temporary row buffer if needed)
+            swizzle_subrect(srcPixels,
+                            w, h,
+                            dw, dh,
+                            texture->data, pitch, bpp);
         }
     } else {
         for (int r = 0; r < texture->texHeight; ++r) {
@@ -910,10 +943,22 @@ bool Renderer_NV2A::updateTexture(NV2ATexture *texture, const void *pixels, int 
         }
     }
 
+    commitTextureUpload(texture);
+    return true;
+}
+
+void Renderer_NV2A::commitTextureUpload(NV2ATexture *texture) {
 #ifdef __XBOX__
     nv2a_cache_flush();
+    // Re-emitting the offset made in-place uploads visible in the Xbox probe.
+    // Only refresh an already-bound allocation; a later bind handles others.
+    // This does not make it safe to overwrite memory used by queued draws.
+    if (s_activeTexture == texture) {
+        uint32_t *p = pb_begin();
+        p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
+        pb_end(p);
+    }
 #endif
-    return true;
 }
 
 void Renderer_NV2A::bindTexture(const NV2ATexture *texture) {
@@ -1038,6 +1083,126 @@ void Renderer_NV2A::setBlendMode(NV2ABlendMode mode) {
         textureCombinerApply();
     }
 }
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+bool Renderer_NV2A::supportsHueTexture(const NV2ATexture *texture) {
+    if (!texture || !texture->data || texture->texWidth <= 0 || texture->texHeight <= 0)
+        return false;
+    switch (texture->format) {
+    case XGU_TEXTURE_FORMAT_DXT1:
+    case XGU_TEXTURE_FORMAT_DXT5:
+    case XGU_TEXTURE_FORMAT_A8R8G8B8:
+    case XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED:
+    // Smart compression also chooses these existing sampled RGB(A) formats.
+    // The hue combiners consume texture0 after decoding, with the same alpha
+    // and premultiplication path; no upload or texture conversion is needed.
+    case XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED:
+    case XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED:
+    case XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Renderer_NV2A::drawHueQuad(const NV2ATexture *texture, NV2AScaleMode scaleMode,
+                                const NV2AVertex *vertices, double effect) {
+    // The image checks eligibility before bypassing CPU effect acquisition.
+    // Split RGB weights, not opacity: the second pass must add no alpha.
+    double position = std::fmod(effect, 200.0) * 6.0 / 200.0;
+    if (position < 0) position += 6.0;
+    const int endpoint = std::min(5, static_cast<int>(position));
+    const double weight = position - endpoint;
+    NV2AVertex first[6], second[6];
+    for (int i = 0; i < 6; ++i) {
+        first[i] = second[i] = vertices[i];
+        for (int c = 0; c < 3; ++c) {
+            const int amount = static_cast<int>(vertices[i].color[c] * weight + 0.5);
+            first[i].color[c] -= amount;
+            second[i].color[c] = static_cast<uint8_t>(amount);
+        }
+    }
+    auto blend = [](bool additive) {
+        uint32_t *p = pb_begin();
+        p = xgu_set_blend_func_sfactor(p, XGU_FACTOR_ONE);
+        p = xgu_set_blend_func_dfactor(p, additive ? XGU_FACTOR_ONE : XGU_FACTOR_ONE_MINUS_SRC_ALPHA);
+        pb_end(p);
+    };
+    auto program = [](int k, bool zeroAlpha) {
+        textureCombinerApply();
+        if (k == 1) hueEndpointsCombinerApply(0);
+        else if (k == 2) hue120CombinerApply();
+        else if (k == 3) hue180EndpointCombinerApply();
+        else if (k == 4) rgbRotationCombinerApply();
+        else if (k == 5) hueEndpointsCombinerApply(1);
+        if (zeroAlpha) {
+            uint32_t *p = pb_begin();
+            p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1, k % 2 ? 0x0c040000 : 0);
+            pb_end(p);
+        }
+    };
+    bindTexture(texture, scaleMode);
+    setBlendMode(NV2ABlendMode::Blend);
+    blend(false);
+    program(endpoint, false);
+    drawTriangles(first, 6);
+    blend(true);
+    program((endpoint + 1) % 6, true);
+    drawTriangles(second, 6);
+    // Cached blend/shader enums still describe ordinary textured blending.
+    // Restore the actual registers explicitly before any later ordinary draw.
+    blend(false);
+    textureCombinerApply();
+#ifdef SE_XBOX_TRACE_RENDERER
+    static uint32_t quads = 0, lastReport = 0;
+    ++quads;
+    const uint32_t frame = getFrameCounter();
+    if (quads == 1 || frame - lastReport >= 120) {
+        Log::log("NV2A_HYBRID_HUE: gpuQuads=" + std::to_string(quads) +
+                 " frame=" + std::to_string(frame) + " format=" + std::to_string(texture->format) +
+                 " endpoint=" + std::to_string(endpoint) +
+                 " vertexR=" + std::to_string(vertices[0].color[0]));
+        lastReport = frame;
+    }
+#endif
+}
+#endif
+
+#ifdef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+void Renderer_NV2A::drawBrightnessTriangles(const NV2AVertex *vertices, size_t count, uint8_t brightness) {
+    // Caller binds the source texture first. Blend sets up the existing final
+    // combiner to premultiply RGB by texture alpha * vertex alpha.
+    setBlendMode(NV2ABlendMode::Blend);
+    uint32_t *p = pb_begin();
+    const uint32_t factor = static_cast<uint32_t>(brightness) * 0x00010101u;
+    p = pb_push1(p, NV097_SET_COMBINER_FACTOR0, factor);
+    // Stage 0: clamp(texture.rgb * vertex.rgb + factor0.rgb * 1).
+    // Sources: texture0=8, diffuse=4, factor0=1, zero=0.
+    // Maps: unsigned identity=0, unsigned invert=1 (invert zero gives one).
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW,
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, 0x8) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, 0x4) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x1) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x1));
+    // Write AB+CD to diffuse (4), consumed by the existing final combiner.
+    // Discard the individual products; use a sum, with no dot products,
+    // bias, or scaling. These explicit zero fields preserve the same word.
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW,
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DST, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DST, 0x0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_SUM_DST, 0x4) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE, 0) |
+        XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_OP, 0));
+    pb_end(p);
+    drawTriangles(vertices, count);
+    // Restore even when the next sprite binds the same texture/blend mode;
+    // those setters may otherwise skip their cached state updates.
+    textureCombinerApply();
+}
+#endif
 
 void Renderer_NV2A::setViewport(int x, int y, int w, int h) {
     uint32_t *p = pb_begin();
@@ -1459,330 +1624,13 @@ static void traceEffectCache() {
              " created=" + std::to_string(stats.created) + " evicted=" + std::to_string(stats.evicted));
 }
 
-#ifdef __XBOX__
-struct ProbeRect {
-    int x, y, w, h;
-};
-
-struct ProbeSurface {
-    std::vector<uint8_t> pixels;
-    int w = 0;
-    int h = 0;
-    int pitch = 0;
-};
-
-static void waitForGpuIdle() {
-    uint32_t *pWait = pb_begin();
-    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(pWait);
-    while (pb_busy()) {
-        __asm__ __volatile__("pause");
-    }
-    pb_wait_until_gr_not_busy();
-    XVideoFlushFB();
-    nv2a_cache_flush();
-}
-
-static void setCustomRenderTarget(NV2ATexture *target) {
-    uint32_t *pWait = pb_begin();
-    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
-    pb_end(pWait);
-    while (pb_busy()) {
-        __asm__ __volatile__("pause");
-    }
-    pb_wait_until_gr_not_busy();
-
-    uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, s_penDmaCtx.ChannelID);
-    p = pb_push1(p, NV097_SET_SURFACE_PITCH,
-                 XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, target->pitch) |
-                 XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
-    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(target->dataPhysicalAddress)));
-    p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
-                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, target->texWidth) |
-                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
-    p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
-                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, target->texHeight) |
-                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
-    p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
-                 XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8) |
-                 XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
-                 XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
-    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
-    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
-    p = xgu_set_scissor_rect(p, false, 0, 0, target->texWidth, target->texHeight);
-    pb_end(p);
-
-    s_penTargetActive = true;
-    s_activeTexture = nullptr;
-    s_activeShader = -1;
-}
-
-static void restoreMainTarget() {
-    s_penTargetActive = true;
-    ensureMainTarget();
-}
-
-static ProbeSurface readPixelsFromTarget(const uint8_t *srcData, int srcW, int srcH, int srcPitch, const ProbeRect *rect) {
-    waitForGpuIdle();
-    ProbeSurface surf;
-    if (!srcData) return surf;
-    int rx = 0, ry = 0, rw = srcW, rh = srcH;
-    if (rect) {
-        rx = std::clamp(rect->x, 0, srcW);
-        ry = std::clamp(rect->y, 0, srcH);
-        rw = std::clamp(rect->w, 0, srcW - rx);
-        rh = std::clamp(rect->h, 0, srcH - ry);
-    }
-    if (rw <= 0 || rh <= 0) return surf;
-    surf.w = rw;
-    surf.h = rh;
-    surf.pitch = rw * 4;
-    surf.pixels.resize(static_cast<size_t>(rh) * surf.pitch);
-    for (int row = 0; row < rh; ++row) {
-        memcpy(&surf.pixels[static_cast<size_t>(row) * surf.pitch],
-               srcData + static_cast<size_t>(ry + row) * srcPitch + static_cast<size_t>(rx) * 4,
-               static_cast<size_t>(rw) * 4);
-    }
-    return surf;
-}
-
-static ProbeSurface readMainPixels(const ProbeRect *rect) {
-    return readPixelsFromTarget(reinterpret_cast<const uint8_t *>(pb_back_buffer()),
-                                pb_back_buffer_width(), pb_back_buffer_height(),
-                                pb_back_buffer_pitch(), rect);
-}
-
-static ProbeSurface readTexturePixels(const NV2ATexture *tex, const ProbeRect *rect) {
-    if (!tex) return {};
-    return readPixelsFromTarget(tex->data, tex->texWidth, tex->texHeight, tex->pitch, rect);
-}
-
-static bool readSurfacePixel(const ProbeSurface &surface, int x, int y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
-    if (surface.pixels.empty() || x < 0 || y < 0 || x >= surface.w || y >= surface.h) return false;
-    const uint8_t *p = &surface.pixels[static_cast<size_t>(y) * surface.pitch + static_cast<size_t>(x) * 4];
-    b = p[0];
-    g = p[1];
-    r = p[2];
-    a = p[3];
-    return true;
-}
 #endif
 
-static bool traceStartupPixels(Renderer_NV2A *renderer) {
-    bool passed = true;
-#ifdef __XBOX__
-    float savedScaleX = s_mainViewportScaleX, savedScaleY = s_mainViewportScaleY;
-    float savedOffsetX = s_mainViewportOffsetX, savedOffsetY = s_mainViewportOffsetY;
-    s_mainViewportScaleX = 1.0f;
-    s_mainViewportScaleY = 1.0f;
-    s_mainViewportOffsetX = 0.0f;
-    s_mainViewportOffsetY = 0.0f;
-
-    auto pixel = [&](const ProbeSurface &surface, const char *test, int x, int y,
-                     int expectedR, int expectedG, int expectedB, int tolerance = 0, int expectedA = -1) {
-        uint8_t r = 0, g = 0, b = 0, a = 0;
-        bool read = readSurfacePixel(surface, x, y, r, g, b, a);
-        bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
-                       std::abs(int(g) - expectedG) <= tolerance &&
-                       std::abs(int(b) - expectedB) <= tolerance &&
-                       (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
-        Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
-                 " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
-        passed &= matches;
-    };
-
-    auto clearBlue = [&] {
-        pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), 0xFF0000FF);
-        while (pb_busy()) {
-            __asm__ __volatile__("pause");
-        }
-        pb_wait_until_gr_not_busy();
-    };
-
-    const NV2AVertex triangle[] = {
-        {{0, 0}, {255, 0, 0, 255}, {0, 0}},
-        {{64, 0}, {255, 0, 0, 255}, {0, 0}},
-        {{0, 64}, {255, 0, 0, 255}, {0, 0}}
-    };
-
-    NV2ATexture *texture = renderer->createTexture(2, 2, XGU_TEXTURE_FORMAT_A8R8G8B8, false);
-    const uint32_t green[] = {0xff00ff00, 0xff00ff00, 0xff00ff00, 0xff00ff00};
-    passed &= texture && renderer->updateTexture(texture, green, 8);
-
-    const float texU1 = texture ? texture->uScale : 2.0f;
-    const float texV1 = texture ? texture->vScale : 2.0f;
-    const NV2AVertex destinationQuad[] = {
-        {{64, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-        {{128, 0}, {255, 255, 255, 255}, {texU1, 0.0f}},
-        {{128, 64}, {255, 255, 255, 255}, {texU1, texV1}},
-        {{64, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-        {{128, 64}, {255, 255, 255, 255}, {texU1, texV1}},
-        {{64, 64}, {255, 255, 255, 255}, {0.0f, texV1}}
-    };
-
-    clearBlue();
-    renderer->setBlendMode(NV2ABlendMode::None);
-    renderer->drawColorTriangles(triangle, 3);
-    if (texture) {
-        renderer->bindTexture(texture, false);
-        renderer->setBlendMode(NV2ABlendMode::None);
-        renderer->drawTriangles(destinationQuad, 6);
-    }
-    ProbeSurface pixels = readMainPixels(nullptr);
-    pixel(pixels, "solid", 8, 8, 255, 0, 0);
-    pixel(pixels, "textured", 72, 8, 0, 255, 0);
-    pixel(pixels, "clear", 144, 8, 0, 0, 255);
-
-    clearBlue();
-    uint32_t *p = pb_begin();
-    p = xgu_set_viewport_offset(p, 32.0f, 32.0f, 0.0f, 0.0f);
-    p = xgu_set_scissor_rect(p, false, 32, 32, 64, 64);
-    pb_end(p);
-    renderer->drawColorTriangles(triangle, 3);
-    p = pb_begin();
-    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
-    p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
-    pb_end(p);
-    pixels = readMainPixels(nullptr);
-    pixel(pixels, "viewport-offset", 40, 40, 255, 0, 0);
-    pixel(pixels, "viewport-outside", 8, 8, 0, 0, 255);
-
-    clearBlue();
-    NV2ATexture *target = renderer->createTexture(64, 64, XGU_TEXTURE_FORMAT_A8R8G8B8, false);
-    passed &= target != nullptr;
-    if (target) {
-        setCustomRenderTarget(target);
-        pb_fill(0, 0, target->texWidth, target->texHeight, 0xFF00FF00);
-        while (pb_busy()) {
-            __asm__ __volatile__("pause");
-        }
-        pb_wait_until_gr_not_busy();
-        restoreMainTarget();
-
-        const float tgtU1 = target->uScale;
-        const float tgtV1 = target->vScale;
-        const NV2AVertex targetQuad[] = {
-            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-            {{192, 0}, {255, 255, 255, 255}, {tgtU1, 0.0f}},
-            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
-            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
-            {{128, 64}, {255, 255, 255, 255}, {0.0f, tgtV1}}
-        };
-        renderer->bindTexture(target, false);
-        renderer->setBlendMode(NV2ABlendMode::None);
-        renderer->drawTriangles(targetQuad, 6);
-        pixels = readMainPixels(nullptr);
-        pixel(pixels, "target-restore", 136, 8, 0, 255, 0);
-        pixel(pixels, "target-outside", 208, 8, 0, 0, 255);
-    }
-
-    clearBlue();
-    if (texture) {
-        const NV2AVertex alphaQuad[] = {
-            {{64, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
-            {{128, 0}, {255, 255, 255, 128}, {texU1, 0.0f}},
-            {{128, 64}, {255, 255, 255, 128}, {texU1, texV1}},
-            {{64, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
-            {{128, 64}, {255, 255, 255, 128}, {texU1, texV1}},
-            {{64, 64}, {255, 255, 255, 128}, {0.0f, texV1}}
-        };
-        renderer->bindTexture(texture, false);
-        renderer->setBlendMode(NV2ABlendMode::Blend);
-        renderer->drawTriangles(alphaQuad, 6);
-        pixels = readMainPixels(nullptr);
-        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1, 255);
-    }
-
-    if (texture && target) {
-        setCustomRenderTarget(target);
-        pb_fill(0, 0, target->texWidth, target->texHeight, 0x00000000);
-        while (pb_busy()) {
-            __asm__ __volatile__("pause");
-        }
-        pb_wait_until_gr_not_busy();
-
-        const NV2AVertex entireTargetQuad[] = {
-            {{0, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
-            {{64, 0}, {255, 255, 255, 128}, {texU1, 0.0f}},
-            {{64, 64}, {255, 255, 255, 128}, {texU1, texV1}},
-            {{0, 0}, {255, 255, 255, 128}, {0.0f, 0.0f}},
-            {{64, 64}, {255, 255, 255, 128}, {texU1, texV1}},
-            {{0, 64}, {255, 255, 255, 128}, {0.0f, texV1}}
-        };
-        renderer->bindTexture(texture, false);
-        renderer->setBlendMode(NV2ABlendMode::Blend);
-        renderer->drawTriangles(entireTargetQuad, 6);
-
-        const NV2AVertex halfTriangle[] = {
-            {{0, 0}, {255, 0, 0, 128}, {0, 0}},
-            {{64, 0}, {255, 0, 0, 128}, {0, 0}},
-            {{0, 64}, {255, 0, 0, 128}, {0, 0}}
-        };
-        renderer->unbindTexture();
-        renderer->setBlendMode(NV2ABlendMode::Blend);
-        renderer->drawTriangles(halfTriangle, 3);
-
-        pixels = readTexturePixels(target, nullptr);
-        pixel(pixels, "target-alpha", 52, 52, 0, 128, 0, 1, 128);
-        pixel(pixels, "target-alpha-overlap", 8, 8, 128, 64, 0, 1, 192);
-
-        const ProbeRect targetSample = {8, 8, 4, 4};
-        pixels = readTexturePixels(target, &targetSample);
-        pixel(pixels, "target-subrect", 0, 0, 128, 64, 0, 1, 192);
-
-        restoreMainTarget();
-        renderer->setBlendMode(NV2ABlendMode::None);
-        clearBlue();
-
-        const float tgtU1 = target->uScale;
-        const float tgtV1 = target->vScale;
-        const NV2AVertex targetCompositeQuad[] = {
-            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-            {{192, 0}, {255, 255, 255, 255}, {tgtU1, 0.0f}},
-            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
-            {{128, 0}, {255, 255, 255, 255}, {0.0f, 0.0f}},
-            {{192, 64}, {255, 255, 255, 255}, {tgtU1, tgtV1}},
-            {{128, 64}, {255, 255, 255, 255}, {0.0f, tgtV1}}
-        };
-        renderer->bindTexture(target, false);
-        renderer->setBlendMode(NV2ABlendMode::Premultiplied);
-        renderer->drawTriangles(targetCompositeQuad, 6);
-
-        pixels = readMainPixels(nullptr);
-        pixel(pixels, "target-alpha-composite", 180, 52, 0, 128, 127, 1, 255);
-        pixel(pixels, "target-alpha-overlap-composite", 136, 8, 128, 64, 63, 1, 255);
-
-        const ProbeRect mainSample = {136, 8, 4, 4};
-        pixels = readMainPixels(&mainSample);
-        pixel(pixels, "main-subrect", 0, 0, 128, 64, 63, 1, 255);
-    }
-
-    if (target) renderer->destroyTexture(target);
-    if (texture) renderer->destroyTexture(texture);
-    flushRetiredTextures(true);
-
-    pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), 0xFF000000);
-    while (pb_busy()) {
-        __asm__ __volatile__("pause");
-    }
-    pb_wait_until_gr_not_busy();
-
-    s_mainViewportScaleX = savedScaleX;
-    s_mainViewportScaleY = savedScaleY;
-    s_mainViewportOffsetX = savedOffsetX;
-    s_mainViewportOffsetY = savedOffsetY;
-#endif
-
-    Log::log(passed ? "GPU startup probe passed." : "GPU startup probe FAILED.");
-    return passed;
-}
-#endif
 
 void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
     (void)screen;
     if (!hasFrameBegan) {
+
         NV2A_PROF(const uint64_t tBegin = nv2aTsc(); if (s_prof.tEndExit) s_prof.logic += tBegin - s_prof.tEndExit);
         ensureMainTarget();
         ++s_frameCounter;
@@ -1790,6 +1638,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
 #ifdef __XBOX__
         NV2A_PROF(const uint64_t tVbl0 = nv2aTsc());
         pb_wait_for_vbl();
+
         NV2A_PROF(const uint64_t tVbl1 = nv2aTsc(); s_prof.vbl += tVbl1 - tVbl0);
 
         // Wait for prior pushbuffer DMA and graphics pipeline to be completely idle before resetting pushbuffer head
@@ -1837,6 +1686,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
         s_arenaOffset = s_arenaBase;
 
         NV2A_PROF(s_prof.idle += nv2aTsc() - tVbl1; s_prof.tBuildStart = nv2aTsc());
+
         hasFrameBegan = true;
     }
 }
@@ -1844,6 +1694,7 @@ void Renderer_NV2A::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Renderer_NV2A::endFrame(bool shouldFlush) {
     (void)shouldFlush;
     if (!hasFrameBegan) return;
+
     NV2A_PROF(const uint64_t tEnd0 = nv2aTsc(); s_prof.build += tEnd0 - s_prof.tBuildStart);
     ensureMainTarget();
 
@@ -1861,30 +1712,34 @@ void Renderer_NV2A::endFrame(bool shouldFlush) {
         __asm__ __volatile__("pause");
     }
 
-    // Ensure screen swap and next backbuffer commands are fully flushed
     while (pb_busy()) {
         __asm__ __volatile__("pause");
     }
     pb_wait_until_gr_not_busy();
 #endif
 
+#ifdef SE_NV2A_PROFILE
+    const uint64_t tGpuDone = nv2aTsc();
+    s_prof.gpuWait += tGpuDone - tEnd0;
+    s_prof.tEndExit = tGpuDone;
+#endif
+
     hasFrameBegan = false;
+
 
 #ifdef SE_XBOX_TRACE_RENDERER
     traceEffectCache();
 #endif
 
-#if NV2A_PROFILE
-    s_prof.tEndExit = nv2aTsc();
-    s_prof.gpuWait += s_prof.tEndExit - tEnd0;
+#ifdef SE_NV2A_PROFILE
     if (++s_prof.frames >= 60) {
         const double f = s_prof.frames, c = 733333.0;
-        Log::log("NV2A prof (ms/frame): logic=" + std::to_string(s_prof.logic / c / f) +
-                 " vbl=" + std::to_string(s_prof.vbl / c / f) +
-                 " beginWait=" + std::to_string(s_prof.idle / c / f) +
-                 " build=" + std::to_string(s_prof.build / c / f) +
-                 " (cacheFlush=" + std::to_string(s_prof.flush / c / f) + ")" +
-                 " gpuWait+flip=" + std::to_string(s_prof.gpuWait / c / f) +
+        Log::log("NV2A prof (ms/frame): logic=" + formatMs(s_prof.logic / c / f) +
+                 " vbl=" + formatMs(s_prof.vbl / c / f) +
+                 " beginWait=" + formatMs(s_prof.idle / c / f) +
+                 " build=" + formatMs(s_prof.build / c / f) +
+                 " (cacheFlush=" + formatMs(s_prof.flush / c / f) + ")" +
+                 " gpuWait+flip=" + formatMs(s_prof.gpuWait / c / f) +
                  " | draws=" + std::to_string(s_prof.draws / s_prof.frames) +
                  " verts=" + std::to_string(s_prof.verts / s_prof.frames) +
                  " texBinds=" + std::to_string(s_prof.binds / s_prof.frames));

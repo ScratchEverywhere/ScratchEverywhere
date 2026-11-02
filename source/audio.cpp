@@ -242,6 +242,11 @@ bool SoundPlayer::init() {
     return true;
 }
 
+int SoundPlayer::getLoudness() {
+    if (globalSoundDevice) return globalSoundDevice->getLoudness();
+    return -1;
+}
+
 void SoundPlayer::deinit() {
     if (globalSoundDevice) {
         delete globalSoundDevice;

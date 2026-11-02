@@ -48,6 +48,8 @@ class SE_EXPORT SoundDevice {
      * Set if an error occurs in the constructor.
      */
     std::optional<std::string> error;
+
+    virtual int getLoudness() { return -1; }
 };
 
 extern SoundDevice *globalSoundDevice;
@@ -61,4 +63,6 @@ class SE_EXPORT SoundPlayer {
     // TODO: remove and use SoundDevice exclusively
     static bool init();
     static void deinit();
+
+    static int getLoudness();
 };

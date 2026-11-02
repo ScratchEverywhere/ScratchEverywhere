@@ -22,20 +22,21 @@ class SE_EXPORT Image_NV2A : public Image {
     };
     static EffectCacheStats getEffectCacheStats();
 
+
   private:
     std::vector<Tile> tiles;
 
     nonstd::expected<void, std::string> setInitialTexture();
     nonstd::expected<void, std::string> buildTiles();
     void destroyTiles();
-    void renderTiled(ImageRenderParams &params);
+    void renderTiled(ImageRenderParams &params, bool gpuHue = false);
     void renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex);
     void renderPixelate(ImageRenderParams &params, NV2ATexture *activeTex);
     void renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
                             bool hasWhirl, bool hasFisheye, bool hasMosaic);
 
 	struct EffectHSVA { uint16_t h; uint8_t s, v, a; };
-	
+
     // Looks effects (color/fisheye/whirl/pixelate/mosaic) are evaluated on the CPU into cached textures.
     struct EffectCacheSlot {
         NV2ATexture *texture = nullptr;
@@ -59,7 +60,7 @@ class SE_EXPORT Image_NV2A : public Image {
     EffectCacheSlot effectSlots[2];
     std::vector<uint8_t> effectSource;
     const uint8_t *getEffectSource(int &pitch);
-    NV2ATexture *acquireEffectTexture(const ImageRenderParams &params);
+    NV2ATexture *acquireEffectTexture(const ImageRenderParams &params, bool residentOnly = false);
     void releaseEffects();
 
   public:
@@ -83,4 +84,12 @@ class SE_EXPORT Image_NV2A : public Image {
     bool loadFromCache(const std::string &cachePath);
 
     nonstd::expected<void, std::string> refreshTexture() override;
+
+    // Keep these members in every translation unit: SE_NV2A_PROFILE is
+    // source-specific, while image.cpp also allocates Image_NV2A objects.
+    // Guard diagnostic code, not object layout, to avoid undersized allocations.
+	bool fxTraceInitialized = false;
+	bool fxTraceWasActive = false;
+	const NV2ATexture *fxTraceLastActiveTex = nullptr;
+	NV2AScaleMode fxTraceLastScaleMode = NV2AScaleMode::PixelArt;
 };

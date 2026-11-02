@@ -33,6 +33,22 @@ set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
 # Debugging flags
+option(SE_XBOX_NV2A_FRAME_CAPTURE "Capture 600 runtime frames in memory with routine Xbox logging suppressed" OFF)
+option(SE_XBOX_LOG_TO_DISK "Append Xbox log messages to E:/ScratchEverywhere/debug.txt" ON)
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/log.cpp"
+    APPEND PROPERTY COMPILE_DEFINITIONS "SE_XBOX_LOG_TO_DISK=$<BOOL:${SE_XBOX_LOG_TO_DISK}>")
+option(SE_NV2A_PROFILE "Enable NV2A profiling" OFF)
+option(SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS "Use hardware-accelerated color adjustments" ON)
+option(SE_XBOX_NV2A_HYBRID_HUE "Use experimental GPU hue rendering for eligible draws (CPU fallback retained)" OFF)
+option(SE_XBOX_NV2A_TEST_SUITE "Run the consolidated NV2A hardware regression, workload and visual suite at startup" OFF)
+# Retired probe cache entries must never reactivate individual startup tests.
+get_cmake_property(nv2a_cached_variables CACHE_VARIABLES)
+foreach(nv2a_cached_variable IN LISTS nv2a_cached_variables)
+    if(nv2a_cached_variable MATCHES "^SE_XBOX_NV2A_.*_PROBE$")
+        unset(${nv2a_cached_variable} CACHE)
+        unset(${nv2a_cached_variable})
+    endif()
+endforeach()
 option(SE_XBOX_FORCE_480P "Use 640x480 instead of automatic Xbox HD mode selection" OFF)
 option(SE_XBOX_ALLOW_EXPANDED_RAM "Clear the XBE's 64MB memory limit for expanded consoles" ON)
 option(SE_XBOX_TRACE_GAME_STATE "Log stage variables when opening the runtime pause menu" OFF)
@@ -40,7 +56,7 @@ set(SE_XBOX_TRACE_LOG_HOST "" CACHE STRING "Optional unicast IPv4 destination fo
 set(SE_XBOX_TRACE_LOG_PORT 18194 CACHE STRING "UDP port for optional Xbox diagnostic logs")
 set(SE_XBOX_TRACE_WATCH_VARIABLES "" CACHE STRING "Optional comma-separated stage variables or sprite fields for live diagnostic samples")
 option(SE_XBOX_TRACE_MENU_INPUT "Log bounded Xbox menu handoff input snapshots" OFF)
-option(SE_XBOX_TRACE_RENDERER "Log GPU pixel probes and render-cache statistics" OFF)
+option(SE_XBOX_TRACE_RENDERER "Log render-cache statistics" OFF)
 option(SE_XBOX_DEBUG_SYMBOLS "Keep DWARF symbols for xemu guest debugging" OFF)
 
 if(NOT SE_XBOX_TRACE_LOG_HOST STREQUAL "")
@@ -130,6 +146,58 @@ endif()
 
 if(SE_XBOX_FORCE_480P)
     add_compile_definitions(SE_XBOX_FORCE_480P)
+endif()
+
+if(SE_XBOX_NV2A_TEST_SUITE)
+    # Only these two sources see test interfaces. No runtime feature is enabled.
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_TEST_SUITE SE_XBOX_TRACE_RENDERER)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/tests/nv2a/xbox")
+endif()
+
+if(SE_XBOX_NV2A_HYBRID_HUE)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_HYBRID_HUE)
+endif()
+
+if(SE_XBOX_NV2A_FRAME_CAPTURE)
+    if(NOT SE_XBOX_NV2A_HYBRID_HUE OR NOT SE_XBOX_TRACE_RENDERER)
+        message(FATAL_ERROR "SE_XBOX_NV2A_FRAME_CAPTURE requires hybrid hue and renderer tracing")
+    endif()
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/log.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_FRAME_CAPTURE)
+endif()
+
+if(SE_XBOX_NV2A_HYBRID_HUE AND SE_XBOX_TRACE_RENDERER)
+    # Separate tracing macro: keep production color definitions source-specific.
+    set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/runtime_loop.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_PIPELINE_TRACE)
+endif()
+
+if(SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+    )
+endif()
+
+if(SE_NV2A_PROFILE)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        APPEND PROPERTY COMPILE_DEFINITIONS SE_NV2A_PROFILE
+    )
 endif()
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
