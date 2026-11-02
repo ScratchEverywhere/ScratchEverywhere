@@ -472,7 +472,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
             const bool shapeMatches = chunk_.procedures[instr.a].argCount == argCount && instr.a < nextParams_.size() && nextParams_[instr.a].size() == argCount;
             for (size_t i = 0; i < argCount; i++) {
                 const VType argType = s.values[s.values.size() - argCount + i];
-                if (shapeMatches) nextParams_[instr.a][i] = join(nextParams_[instr.a][i], argType);
+                if (shapeMatches && (procedure < 0 || called_[procedure])) nextParams_[instr.a][i] = join(nextParams_[instr.a][i], argType);
             }
             if (instr.a < callSeen_.size()) callSeen_[instr.a] = true;
             if (!shapeMatches && instr.a < nextParams_.size()) {
@@ -503,7 +503,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
     case BytecodeOp::Return: {
         VType type;
         if (!pop(s, K::Value, &type)) return fail("stack underflow (return value)");
-        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size()) nextReturns_[procedure] = join(nextReturns_[procedure], type);
+        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size() && called_[procedure]) nextReturns_[procedure] = join(nextReturns_[procedure], type);
         return true;
     }
 
@@ -665,7 +665,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (!warp || policy_.warpYieldForgets) forgetVariables(s);
         return true;
     case BytecodeOp::Halt:
-        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size()) nextReturns_[procedure] = join(nextReturns_[procedure], VType::String);
+        if (procedure >= 0 && static_cast<size_t>(procedure) < nextReturns_.size() && called_[procedure]) nextReturns_[procedure] = join(nextReturns_[procedure], VType::String);
         return true;
     }
 
