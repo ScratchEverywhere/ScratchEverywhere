@@ -1881,6 +1881,7 @@ class Emitter {
         BytecodeIndex head = 0, tail = 0;
         std::vector<uint32_t> slots;
         int64_t counterSlot = -1;
+        int64_t shadowSlot = -1;
         int64_t hoistList = -1;
         bool span = false;
         int liveHead = -1;
@@ -1981,6 +1982,29 @@ class Emitter {
             sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(kFirstPin + kMaxPins), 0, SLJIT_MEM1(SLJIT_S0), slotOffset(static_cast<uint32_t>(active_->counterSlot)));
             sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_S3, 0, SLJIT_FR(kFirstPin + kMaxPins), 0);
         }
+        emitShadowSync();
+    }
+
+    static constexpr sljit_sw kShadowNone = static_cast<sljit_sw>(std::numeric_limits<int64_t>::min());
+    static constexpr bool kShadowSupported = sizeof(sljit_sw) == 8;
+
+    void emitShadowSync() {
+        if (!kShadowSupported || active_ == nullptr || active_->shadowSlot < 0) return;
+        const int pin = pinOf(static_cast<uint32_t>(active_->shadowSlot));
+        if (pin < 0) return;
+        const sljit_s32 variable = SLJIT_FR(pin), probe = SLJIT_FR(kFirstPin + kMaxPins);
+        sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_S1, 0, variable, 0);
+        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, probe, 0, SLJIT_S1, 0);
+        sljit_jump *fractional = sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, probe, 0, variable, 0);
+        sljit_emit_op2(c_, SLJIT_ADD, SLJIT_S1, 0, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(1) << 52);
+        sljit_jump *large = sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(1) << 53);
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_S1, 0, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(1) << 52);
+        sljit_jump *done = sljit_emit_jump(c_, SLJIT_JUMP);
+        sljit_label *none = sljit_emit_label(c_);
+        sljit_set_label(fractional, none);
+        sljit_set_label(large, none);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S1, 0, SLJIT_IMM, kShadowNone);
+        sljit_set_label(done, sljit_emit_label(c_));
     }
 
     void addCold(std::function<void()> fn) {
@@ -2080,6 +2104,7 @@ class Emitter {
         if (poisonPins_ && active_ != nullptr) {
             for (size_t i = 0; i < active_->slots.size(); i++)
                 sljit_emit_fset64(c_, SLJIT_FR(kFirstPin + static_cast<int>(i)), -123456.789);
+            if (kShadowSupported && active_->shadowSlot >= 0) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S1, 0, SLJIT_IMM, 123456);
         }
         emitReload();
     }
@@ -2150,6 +2175,7 @@ class Emitter {
     };
     void loadOperand(sljit_s32 reg, const Operand &operand);
     void emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget);
+    void emitCompareBranchFloat(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget);
     bool fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const;
     bool convertFeedsStore(BytecodeIndex convert) const {
         const BytecodeIndex next = convert + 1;
@@ -2199,6 +2225,7 @@ class Emitter {
     void emitCond(const CondTree &tree, int id, const CondTarget &whenTrue, const CondTarget &whenFalse, bool fallIsTrue);
     void emitLeaf(const CondTree &tree, const CondNode &node, const CondTarget &target, bool jumpIfTrue);
     void emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain = {}, const CompareDescriptor *general = nullptr);
+    void emitLeafTestFloat(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general);
     static bool guardable(const AbsValue &entry, const Code &code, const BytecodeChunk &chunk);
     void routeJump(sljit_jump *jump, const CondTarget &target);
     void routeUnconditional(const CondTarget &target);
@@ -2412,6 +2439,32 @@ bool Emitter::fedCompare(BytecodeIndex compare, Operand &a, Operand &b) const {
 }
 
 void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget) {
+    if (kShadowSupported && active_ != nullptr && active_->shadowSlot >= 0 && a.immediate != b.immediate) {
+        const bool variableFirst = !a.immediate;
+        const Operand &variable = variableFirst ? a : b;
+        const Operand &constant = variableFirst ? b : a;
+        if (variable.slot == static_cast<uint32_t>(active_->shadowSlot) && std::isfinite(constant.value) && constant.value == std::floor(constant.value) && std::fabs(constant.value) < 2147483648.0) {
+            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
+            sljit_jump *notInteger = sljit_emit_jump(c_, SLJIT_OVERFLOW);
+            const bool less = kind == BytecodeCompareKind::Less ? variableFirst : (kind == BytecodeCompareKind::Greater ? !variableFirst : false);
+            sljit_s32 type;
+            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL;
+            else if (less) type = jumpIfTrue ? SLJIT_SIG_LESS : SLJIT_SIG_GREATER_EQUAL;
+            else type = jumpIfTrue ? SLJIT_SIG_GREATER : SLJIT_SIG_LESS_EQUAL;
+            emitJumpTo(sljit_emit_cmp(c_, type, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(constant.value)), target, atTarget, backEdge);
+            sljit_label *fall = sljit_emit_label(c_);
+            addCold([this, notInteger, fall, kind, jumpIfTrue, target, backEdge, a, b, atTarget]() {
+                sljit_set_label(notInteger, sljit_emit_label(c_));
+                emitCompareBranchFloat(kind, jumpIfTrue, target, backEdge, a, b, atTarget);
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), fall);
+            });
+            return;
+        }
+    }
+    emitCompareBranchFloat(kind, jumpIfTrue, target, backEdge, a, b, atTarget);
+}
+
+void Emitter::emitCompareBranchFloat(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget) {
     loadOperand(SLJIT_FR0, a);
     loadOperand(SLJIT_FR1, b);
     sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
@@ -2620,6 +2673,32 @@ void Emitter::routeUnconditional(const CondTarget &target) {
 }
 
 void Emitter::emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general) {
+    if (kShadowSupported && active_ != nullptr && active_->shadowSlot >= 0 && a.immediate != b.immediate && notPlain.empty() && general == nullptr) {
+        const bool variableFirst = !a.immediate;
+        const Operand &variable = variableFirst ? a : b;
+        const Operand &constant = variableFirst ? b : a;
+        if (variable.slot == static_cast<uint32_t>(active_->shadowSlot) && std::isfinite(constant.value) && constant.value == std::floor(constant.value) && std::fabs(constant.value) < 2147483648.0) {
+            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
+            sljit_jump *notInteger = sljit_emit_jump(c_, SLJIT_OVERFLOW);
+            const bool less = kind == BytecodeCompareKind::Less ? variableFirst : (kind == BytecodeCompareKind::Greater ? !variableFirst : false);
+            sljit_s32 type;
+            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL;
+            else if (less) type = jumpIfTrue ? SLJIT_SIG_LESS : SLJIT_SIG_GREATER_EQUAL;
+            else type = jumpIfTrue ? SLJIT_SIG_GREATER : SLJIT_SIG_LESS_EQUAL;
+            routeJump(sljit_emit_cmp(c_, type, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(constant.value)), target);
+            sljit_label *fall = sljit_emit_label(c_);
+            addCold([this, notInteger, fall, kind, jumpIfTrue, a, b, target]() {
+                sljit_set_label(notInteger, sljit_emit_label(c_));
+                emitLeafTestFloat(kind, jumpIfTrue, a, b, target, {}, nullptr);
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), fall);
+            });
+            return;
+        }
+    }
+    emitLeafTestFloat(kind, jumpIfTrue, a, b, target, notPlain, general);
+}
+
+void Emitter::emitLeafTestFloat(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general) {
     loadOperand(SLJIT_FR0, a);
     loadOperand(SLJIT_FR1, b);
     sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
@@ -3693,6 +3772,29 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     case BytecodeOp::ChangeVarNumber: {
         ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
+        if (kShadowSupported && active_ != nullptr && active_->shadowSlot == static_cast<int64_t>(variableSlot(k)) && pinOf(variableSlot(k)) >= 0) {
+            const double amount = chunk_.numberConstants[chunk_.instructions[pc - 1].a];
+            const sljit_s32 pin = SLJIT_FR(pinOf(variableSlot(k)));
+            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
+            sljit_jump *notInteger = sljit_emit_jump(c_, SLJIT_OVERFLOW);
+            sljit_emit_op2(c_, SLJIT_ADD, SLJIT_S1, 0, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(amount));
+            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, pin, 0, SLJIT_S1, 0);
+            sljit_label *stored = sljit_emit_label(c_);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
+            state_.numbers--;
+            addCold([this, notInteger, stored, pin, amount]() {
+                sljit_set_label(notInteger, sljit_emit_label(c_));
+                sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, pin, 0, pin, 0);
+                sljit_label *add = sljit_emit_label(c_);
+                sljit_emit_fset64(c_, SLJIT_FR1, amount);
+                sljit_emit_fop2(c_, SLJIT_ADD_F64, pin, 0, pin, 0, SLJIT_FR1, 0);
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), stored);
+                sljit_set_label(nan, sljit_emit_label(c_));
+                sljit_emit_fset64(c_, pin, 0.0);
+                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), add);
+            });
+            return;
+        }
         const sljit_s32 variable = readF(variableSlot(k), SLJIT_FR0);
         nanToZero(variable);
         const sljit_s32 amount = readF(numberSlot(state_.numbers - 1), SLJIT_FR1);
@@ -4457,6 +4559,7 @@ void Emitter::findRegions() {
         bool ok = true;
         int hotCalls = 0;
         std::map<uint32_t, int> uses;
+        std::map<uint32_t, std::pair<bool, int>> shadow;
         std::set<uint32_t> disqualified;
         std::vector<uint32_t> counters;
         std::vector<uint32_t> wholeCounters;
@@ -4528,6 +4631,25 @@ void Emitter::findRegions() {
 
             const int64_t variable = plan_.promotedVariable(instr);
             if (variable >= 0) {
+                auto [shadowEntry, fresh] = shadow.try_emplace(static_cast<uint32_t>(variable), true, 0);
+                switch (instr.op) {
+                case BytecodeOp::PushVarNumber:
+                case BytecodeOp::PushVarValue:
+                    break;
+                case BytecodeOp::ChangeVarNumber: {
+                    bool integer = pc >= 1 && chunk_.instructions[pc - 1].op == BytecodeOp::PushConstNumber && plan_.supported[pc - 1] && !analysis_.isBlockStart(pc);
+                    if (integer) {
+                        const double amount = chunk_.numberConstants[chunk_.instructions[pc - 1].a];
+                        integer = std::isfinite(amount) && amount == std::floor(amount) && std::fabs(amount) >= 1.0 && std::fabs(amount) <= 1024.0;
+                    }
+                    if (integer) shadowEntry->second.second++;
+                    else shadowEntry->second.first = false;
+                    break;
+                }
+                default:
+                    shadowEntry->second.first = false;
+                    break;
+                }
                 switch (instr.op) {
                 case BytecodeOp::PushVarNumber:
                 case BytecodeOp::StoreVarNumber:
@@ -4599,6 +4721,30 @@ void Emitter::findRegions() {
         for (const auto &[negativeUses, slot] : ranked) {
             if (region.slots.size() >= kMaxPins) break;
             region.slots.push_back(slot);
+        }
+        static const bool noShadow = std::getenv("SE_JIT_NOSHADOW") != nullptr;
+        std::set<uint32_t> comparedWithConstant;
+        for (BytecodeIndex pc = head; pc <= tail; pc++) {
+            const BytecodeOp op = chunk_.instructions[pc].op;
+            if (pc < 2 || (op != BytecodeOp::ValueLess && op != BytecodeOp::ValueGreater && op != BytecodeOp::ValueEquals)) continue;
+            for (int side = 0; side < 2; side++) {
+                const BytecodeInstruction &var = chunk_.instructions[pc - 2 + side], &constant = chunk_.instructions[pc - 1 - side];
+                if (var.op != BytecodeOp::PushVarValue || constant.op != BytecodeOp::PushConstValue || constant.a >= chunk_.constants.size() || !chunk_.constants[constant.a].isRealNumber()) continue;
+                const double value = chunk_.constants[constant.a].numberRaw();
+                if (std::isfinite(value) && value == std::floor(value) && std::fabs(value) < 2147483648.0) comparedWithConstant.insert(var.a);
+            }
+        }
+        const bool tinyBody = tail - head + 1 <= 12;
+        if (kShadowSupported && !noShadow && listAccesses.empty() && hotCalls == 0) {
+            int best = 0;
+            for (const auto &[variable, info] : shadow) {
+                if (!tinyBody && comparedWithConstant.count(variable) == 0) continue;
+                if (!info.first || info.second <= best || disqualified.count(variable) || variable >= promotedIndex_.size() || promotedIndex_[variable] < 0 || stringWritten_[variable]) continue;
+                const uint32_t slot = variableSlot(static_cast<uint32_t>(promotedIndex_[variable]));
+                if (std::find(region.slots.begin(), region.slots.end(), slot) == region.slots.end()) continue;
+                best = info.second;
+                region.shadowSlot = slot;
+            }
         }
         if (!listsChange && !listAccesses.empty() && listLayout().ok) {
             const auto hottest = std::max_element(listAccesses.begin(), listAccesses.end(), [](const auto &a, const auto &b) { return a.second < b.second; });
