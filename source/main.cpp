@@ -40,13 +40,6 @@
 #include <filesystem.hpp>
 #endif
 
-#ifdef __ANDROID__
-#include <jni.h>
-#include <SDL_hints.h>
-#include <SDL_system.h>
-#include <SDL_video.h>
-#endif
-
 static void exitApp() {
 #ifdef ENABLE_AUDIO
     SoundPlayer::deinit();
@@ -65,26 +58,11 @@ bool activateMainMenu() {
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
-#ifdef __ANDROID__
-    // Lock initial orientation to portrait on Android
-//    JNIEnv *env = reinterpret_cast<JNIEnv *>(SDL_AndroidGetJNIEnv());
-//    jobject activity = reinterpret_cast<jobject>(SDL_AndroidGetActivity());
-//    jclass clazz = env->GetObjectClass(activity);
-//    jmethodID orientationMethod = env->GetMethodID(clazz, "setRequestedOrientation", "(I)V");
-//    env->CallVoidMethod(activity, orientationMethod, 1); // SCREEN_ORIENTATION_PORTRAIT
-//    SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait")
-#endif
-
     while (Render::appShouldRun()) {
         MenuManager::render();
 
         if (MenuManager::isProjectLoaded != 0) {
             if (MenuManager::isProjectLoaded == -1) return false;
-#ifdef __ANDROID__
-//            env->CallVoidMethod(activity, orientationMethod, 6); // SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-//            env->DeleteLocalRef(clazz);
-//            env->DeleteLocalRef(activity);
-#endif
             MenuManager::isProjectLoaded = 0;
             return true;
         }

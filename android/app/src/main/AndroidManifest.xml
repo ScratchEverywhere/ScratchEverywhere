@@ -43,7 +43,7 @@
 		<activity android:name="io.github.scratcheverywhere.MainActivity"
 			android:label="@string/app_name"
 			android:alwaysRetainTaskState="true"
-			android:launchMode="singleTop"
+			android:launchMode="singleTask"
 			android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
 			android:preferMinimalPostProcessing="true"
 			android:enableOnBackInvokedCallback="false"
@@ -61,22 +61,10 @@
 			<intent-filter>
 				<action android:name="android.intent.action.VIEW" />
 				<category android:name="android.intent.category.DEFAULT" />
-				<category android:name="android.intent.category.BROWSABLE" />
-				<data android:scheme="content" />
-				<data android:host="*" />
-				<data android:pathPattern=".*\\.sb" />
-				<data android:pathPattern=".*\\.sb2" />
-				<data android:pathPattern=".*\\.sb3" />
-			</intent-filter>
-			<intent-filter>
-				<action android:name="android.intent.action.VIEW" />
-				<category android:name="android.intent.category.DEFAULT" />
-				<category android:name="android.intent.category.BROWSABLE" />
-				<data android:scheme="file" />
-				<data android:host="*" />
-				<data android:pathPattern=".*\\.sb" />
-				<data android:pathPattern=".*\\.sb2" />
-				<data android:pathPattern=".*\\.sb3" />
+				<category android:name="android.intent.category.OPENABLE" />
+				<data android:scheme="content"
+					android:host="*"
+					android:mimeType="*/*" />
 			</intent-filter>
 			<!-- Remove until here -->
 		</activity>
