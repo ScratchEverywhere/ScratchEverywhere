@@ -470,6 +470,8 @@ class SE_EXPORT Sprite {
     std::vector<std::pair<double, double>> collisionPoints;
     int spriteWidth = 0;
     int spriteHeight = 0;
+    float spriteWidthExact = 0.0f;
+    float spriteHeightExact = 0.0f;
 
     struct {
         bool down = false;

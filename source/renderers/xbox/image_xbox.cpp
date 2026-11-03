@@ -1,22 +1,23 @@
 #include "image_xbox.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_xbox.hpp"
-#include <renderers/nv2a/image_nv2a.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <color_effects.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <color_effects.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem.hpp>
 #include <image.hpp>
-#include <log.hpp>
 #include <list>
+#include <log.hpp>
 #include <memory>
 #include <os.hpp>
+#include <pixel_snap.hpp>
+#include <renderers/nv2a/image_nv2a.hpp>
 #include <runtime.hpp>
 #include <sb2_bitmap_layers.hpp>
 #include <stb_image.h>
@@ -592,10 +593,13 @@ void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
     const double rotMod = std::fmod(std::abs(rotation), 90.0);
     const bool cardinal = rotMod < 0.001 || rotMod > 89.999;
     if (cardinal) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderRect.x, renderRect.w, snapX, snapW);
+        PixelSnap::span(renderRect.y, renderRect.h, snapY, snapH, true);
+        renderRect.w = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderRect.h = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderRect.x = std::round(snapX);
+        renderRect.y = std::round(snapY);
     }
 
     SDL_FRect subRect = {0.0f, 0.0f, static_cast<float>(imgData.width), static_cast<float>(imgData.height)};
@@ -639,13 +643,15 @@ void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
         SDL_RenderTextureRotated(sdlRenderer, renderTexture, &src, &dst, rotation, &center, flip);
     };
     auto drawAll = [&]() {
-        for (const auto &tile : tiles) drawTile(tile, tile.texture);
+        for (const auto &tile : tiles)
+            drawTile(tile, tile.texture);
     };
     if (effects) {
         for (int y = 0; y < imgData.height; y += TILE_SIZE) {
             for (int x = 0; x < imgData.width; x += TILE_SIZE) {
                 Tile tile;
-                tile.x = x; tile.y = y;
+                tile.x = x;
+                tile.y = y;
                 tile.w = std::min(TILE_SIZE, imgData.width - x);
                 tile.h = std::min(TILE_SIZE, imgData.height - y);
                 if (x >= subRect.x + subRect.w || y >= subRect.y + subRect.h ||
@@ -659,8 +665,14 @@ void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
                     continue;
                 }
                 auto &state = getTexState(effectTexture);
-                if (state.alpha != alpha) { SDL_SetTextureAlphaMod(effectTexture, alpha); state.alpha = alpha; }
-                if (state.blend != normalBlendMode) { SDL_SetTextureBlendMode(effectTexture, normalBlendMode); state.blend = normalBlendMode; }
+                if (state.alpha != alpha) {
+                    SDL_SetTextureAlphaMod(effectTexture, alpha);
+                    state.alpha = alpha;
+                }
+                if (state.blend != normalBlendMode) {
+                    SDL_SetTextureBlendMode(effectTexture, normalBlendMode);
+                    state.blend = normalBlendMode;
+                }
                 drawTile(tile, effectTexture);
             }
         }
@@ -773,10 +785,13 @@ void Image_Xbox::render(ImageRenderParams &params) {
 
     const bool isCardinalRotation = std::fmod(std::abs(rotation), 90.0) < 0.001 || std::fmod(std::abs(rotation), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderRect.x, renderRect.w, snapX, snapW);
+        PixelSnap::span(renderRect.y, renderRect.h, snapY, snapH, true);
+        renderRect.w = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderRect.h = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderRect.x = std::round(snapX);
+        renderRect.y = std::round(snapY);
     }
 
     TexState &state = getTexState(texture);
@@ -1558,8 +1573,8 @@ bool Image_Xbox::ensureColorData() {
     // GPU colors are lossy and cannot be used for Scratch's color comparisons.
     const ImageData saved = imgData;
     auto result = (Unzip::loader || Unzip::zipArchive)
-        ? init(cachedAssetPath, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, false, saved.scale)
-        : init(cachedAssetPath, true, false, saved.scale);
+                      ? init(cachedAssetPath, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, false, saved.scale)
+                      : init(cachedAssetPath, true, false, saved.scale);
     while (result.has_value() && (imgData.width > saved.width || imgData.height > saved.height)) {
         int width = 0, height = 0;
         unsigned char *pixels = resizeRaster(static_cast<const unsigned char *>(imgData.pixels),

@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <math.hpp>
 #include <os.hpp>
+#include <pixel_snap.hpp>
 #include <string>
 #include <unordered_map>
 #include <unzip.hpp>
@@ -17,17 +18,30 @@ void Image_GL::render(ImageRenderParams &params) {
     float y = params.y;
     double rotation = Math::radiansToDegrees(params.rotation);
     float scaleX = params.scale;
-    const float scaleY = params.scale;
+    float scaleY = params.scale;
     const float opacity = params.opacity;
-    const bool centered = params.centered;
+    bool centered = params.centered;
     const bool flip = params.flip;
     const int brightness = params.brightness;
-    const int renderWidth = params.subrect ? params.subrect->w : getWidth();
-    const int renderHeight = params.subrect ? params.subrect->h : getHeight();
+    const float renderWidth = params.subrect ? static_cast<float>(params.subrect->w) : getExactWidth();
+    const float renderHeight = params.subrect ? static_cast<float>(params.subrect->h) : getExactHeight();
 
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     glColor4f(1.0f, 1.0f, 1.0f, opacity);
+
+    if (PixelSnap::unrotated(params.rotation) && renderWidth > 0 && renderHeight > 0) {
+        const float w = renderWidth * std::abs(scaleX);
+        const float h = renderHeight * std::abs(scaleY);
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(centered ? x - w / 2.0f : x, w, left, snappedW);
+        PixelSnap::span(centered ? y - h / 2.0f : y, h, top, snappedH, true);
+        x = left;
+        y = top;
+        scaleX = snappedW / renderWidth;
+        scaleY = snappedH / renderHeight;
+        centered = false;
+    }
 
     glPushMatrix();
     if (flip) x += renderWidth * std::abs(scaleX);

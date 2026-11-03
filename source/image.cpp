@@ -426,6 +426,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
+    logicalWidth = docW;
+    logicalHeight = docH;
 
     if (docW <= 0.0f || docH <= 0.0f) {
         width = 1;
@@ -447,6 +449,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
+    logicalWidth = docW;
+    logicalHeight = docH;
 
     if (docW <= 0.0f || docH <= 0.0f) {
         width = 1;
@@ -858,6 +862,14 @@ int Image::getWidth() {
 
 int Image::getHeight() {
     return imgData.height / imgData.scale;
+}
+
+float Image::getExactWidth() {
+    return logicalWidth > 0.0f ? logicalWidth : static_cast<float>(imgData.width) / imgData.scale;
+}
+
+float Image::getExactHeight() {
+    return logicalHeight > 0.0f ? logicalHeight : static_cast<float>(imgData.height) / imgData.scale;
 }
 
 ImageData Image::getPixels(ImageSubrect rect) {

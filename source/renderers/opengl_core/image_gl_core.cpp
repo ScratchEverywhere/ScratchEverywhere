@@ -4,6 +4,7 @@
 #include <cmath>
 #include <math.hpp>
 #include <os.hpp>
+#include <pixel_snap.hpp>
 #include <renderer.hpp>
 #include <string>
 #include <unzip.hpp>
@@ -56,8 +57,8 @@ static void buildOrthoLocal(float out[16], float l, float r, float b, float t) {
 }
 
 void Image_GLCore::render(ImageRenderParams &params) {
-    const float x = params.x;
-    const float y = params.y;
+    float x = params.x;
+    float y = params.y;
     const bool centered = params.centered;
     const bool flip = params.flip;
     const float opacity = params.opacity;
@@ -73,7 +74,7 @@ void Image_GLCore::render(ImageRenderParams &params) {
     const float scaleX = flip ? -std::abs(params.scale) : std::abs(params.scale);
     const float scaleY = params.scale;
 
-    int renderWidth, renderHeight;
+    float renderWidth, renderHeight;
     float u0 = 0.0f, v0 = 0.0f, u1 = 1.0f, v1 = 1.0f;
 
     if (params.subrect) {
@@ -86,18 +87,35 @@ void Image_GLCore::render(ImageRenderParams &params) {
         u1 = (params.subrect->x + params.subrect->w) / tw;
         v1 = (params.subrect->y + params.subrect->h) / th;
     } else {
-        renderWidth = getWidth();
-        renderHeight = getHeight();
+        renderWidth = getExactWidth();
+        renderHeight = getExactHeight();
     }
 
     float pivotX = centered ? 0.5f : 0.0f;
     float pivotY = centered ? 0.5f : 0.0f;
 
+    float drawW = renderWidth * scaleX;
+    float drawH = renderHeight * scaleY;
+
+    if (PixelSnap::unrotated(rotation) && renderWidth > 0 && renderHeight > 0) {
+        const float absW = std::abs(drawW);
+        const float absH = std::abs(drawH);
+        const float leftEdge = centered ? x - absW / 2.0f : (drawW < 0 ? x - absW : x);
+        const float topEdge = centered ? y - absH / 2.0f : (drawH < 0 ? y - absH : y);
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(leftEdge, absW, left, snappedW);
+        PixelSnap::span(topEdge, absH, top, snappedH, true);
+        x = centered ? left + snappedW / 2.0f : (drawW < 0 ? left + snappedW : left);
+        y = centered ? top + snappedH / 2.0f : (drawH < 0 ? top + snappedH : top);
+        drawW = drawW < 0 ? -snappedW : snappedW;
+        drawH = drawH < 0 ? -snappedH : snappedH;
+    }
+
     float model[16];
     buildModelMatrix(model,
                      x, y,
-                     (float)renderWidth * scaleX,
-                     (float)renderHeight * scaleY,
+                     drawW,
+                     drawH,
                      rotation,
                      pivotX, pivotY);
 

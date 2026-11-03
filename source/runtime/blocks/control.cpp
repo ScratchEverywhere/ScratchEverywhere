@@ -125,6 +125,8 @@ SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
     spriteToClone->rotationStyle = original->rotationStyle;
     spriteToClone->spriteWidth = original->spriteWidth;
     spriteToClone->spriteHeight = original->spriteHeight;
+    spriteToClone->spriteWidthExact = original->spriteWidthExact;
+    spriteToClone->spriteHeightExact = original->spriteHeightExact;
     spriteToClone->instrument = original->instrument;
     spriteToClone->ghostEffect = original->ghostEffect;
     spriteToClone->brightnessEffect = original->brightnessEffect;

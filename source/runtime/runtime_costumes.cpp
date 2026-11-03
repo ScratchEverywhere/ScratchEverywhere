@@ -14,13 +14,13 @@ namespace {
 void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
     sprite->spriteWidth = image.getWidth();
     sprite->spriteHeight = image.getHeight();
+    sprite->spriteWidthExact = image.getExactWidth();
+    sprite->spriteHeightExact = image.getExactHeight();
     const auto offset = image.getSVGViewOffset();
-    // Apply the difference, rather than accumulating offsets on cached loads,
-    // clone copies, or a retry after a temporary missing-image fallback.
-    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidth / 2);
-    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeight / 2);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidthExact / 2.0);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeightExact / 2.0);
 }
-}
+} // namespace
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
@@ -40,6 +40,9 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     Costume &costume = sprite->costumes[sprite->currentCostume];
     const std::string &costumeName = costume.fullName;
+
+    sprite->renderInfo.oldX = -999999.0f;
+    sprite->renderInfo.oldY = -999999.0f;
 
     const int screenWidth = Render::getWidth();
     const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
@@ -69,6 +72,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             costumeImages[costumeName] = missingIt->second;
             sprite->spriteWidth = missingIt->second->getWidth();
             sprite->spriteHeight = missingIt->second->getHeight();
+            sprite->spriteWidthExact = missingIt->second->getExactWidth();
+            sprite->spriteHeightExact = missingIt->second->getExactHeight();
         }
         return;
     }
@@ -111,6 +116,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
         sprite->spriteWidth = 0;
         sprite->spriteHeight = 0;
+        sprite->spriteWidthExact = 0.0f;
+        sprite->spriteHeightExact = 0.0f;
         return false;
     };
 

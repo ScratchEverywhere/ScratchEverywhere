@@ -83,8 +83,8 @@ void *Image_GL2D::getNativeTexture() {
 }
 
 void Image_GL2D::render(ImageRenderParams &params) {
-    int x = params.x;
-    int y = params.y;
+    int x = static_cast<int>(std::lround(params.x));
+    int y = static_cast<int>(std::lround(params.y));
     float scale = params.scale;
     const int16_t rotation = Math::radiansToAngle16(params.rotation);
     const bool &centered = params.centered;

@@ -71,11 +71,13 @@ class SE_EXPORT Image {
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1, bool scratch2 = false);
     inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false,
-                                                                           const unsigned char *textData = nullptr, size_t textSize = 0);
+                                                                               const unsigned char *textData = nullptr, size_t textSize = 0);
 
   protected:
     ImageData imgData;
     std::pair<float, float> svgViewOffset = {0, 0};
+    float logicalWidth = 0.0f;
+    float logicalHeight = 0.0f;
     bool isSVGImage = false;
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
@@ -160,6 +162,8 @@ class SE_EXPORT Image {
 
     int getWidth();
     int getHeight();
+    float getExactWidth();
+    float getExactHeight();
 
     inline float getScale() const { return imgData.scale; }
     inline std::pair<float, float> getSVGViewOffset() const { return svgViewOffset; }

@@ -2,6 +2,7 @@
 #include "nonstd/expected.hpp"
 #include "renderer_gdi.hpp"
 #include <algorithm>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -12,21 +13,33 @@ void Image_GDI::render(ImageRenderParams &params) {
 void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
-    const float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
 
-    p[0].x = params.x;
-    p[0].y = params.y;
-    p[1].x = params.x + renderWidth;
-    p[1].y = params.y;
-    p[2].x = params.x;
-    p[2].y = params.y + renderHeight;
+    float px = params.x;
+    float py = params.y;
+    if (PixelSnap::unrotated(params.rotation)) {
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(params.centered ? px - renderWidth / 2 : px, renderWidth, left, snappedW);
+        PixelSnap::span(params.centered ? py - renderHeight / 2 : py, renderHeight, top, snappedH, true);
+        renderWidth = snappedW;
+        renderHeight = snappedH;
+        px = params.centered ? left + snappedW / 2 : left;
+        py = params.centered ? top + snappedH / 2 : top;
+    }
+
+    p[0].x = px;
+    p[0].y = py;
+    p[1].x = px + renderWidth;
+    p[1].y = py;
+    p[2].x = px;
+    p[2].y = py + renderHeight;
 
     for (i = 0; i < 3; i++) {
-        float sx = params.x;
-        float sy = params.y;
+        float sx = px;
+        float sy = py;
         int x;
         int y;
 

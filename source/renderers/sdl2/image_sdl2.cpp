@@ -2,6 +2,8 @@
 #include "nonstd/expected.hpp"
 #include "renderer_sdl2.hpp"
 #include <algorithm>
+#include <cmath>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -16,9 +18,20 @@ void Image_SDL2::render(ImageRenderParams &params) {
     const bool &centered = params.centered;
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
+    const float floatW = imgData.width / imgData.scale * scale;
+    const float floatH = imgData.height / imgData.scale * scale;
+    const float floatX = centered ? x - (floatW / 2.0f) : x;
+    const float floatY = centered ? y - (floatH / 2.0f) : y;
+
+    float snapLeft, snapTop, snapW, snapH;
+    PixelSnap::span(floatX, floatW, snapLeft, snapW);
+    PixelSnap::span(floatY, floatH, snapTop, snapH, true);
+
     SDL_Rect renderRect;
-    renderRect.w = static_cast<int>(imgData.width / imgData.scale * scale);
-    renderRect.h = static_cast<int>(imgData.height / imgData.scale * scale);
+    renderRect.x = static_cast<int>(std::round(snapLeft));
+    renderRect.y = static_cast<int>(std::round(snapTop));
+    renderRect.w = std::max(1, static_cast<int>(std::round(snapLeft + snapW)) - renderRect.x);
+    renderRect.h = std::max(1, static_cast<int>(std::round(snapTop + snapH)) - renderRect.y);
 
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
@@ -33,14 +46,6 @@ void Image_SDL2::render(ImageRenderParams &params) {
             .y = 0,
             .w = imgData.width,
             .h = imgData.height};
-    }
-
-    if (centered) {
-        renderRect.x = x - (renderRect.w / 2);
-        renderRect.y = y - (renderRect.h / 2);
-    } else {
-        renderRect.x = x;
-        renderRect.y = y;
     }
 
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
