@@ -12,6 +12,10 @@
 #include <string>
 #include <types.hpp>
 #include <vector>
+#include <xbox_menu_trace.hpp>
+#ifdef __XBOX__
+#include <log.hpp>
+#endif
 
 #ifdef __SWITCH__
 extern char nickname[0x21];
@@ -196,8 +200,8 @@ void InputDevice_SDL3::getInput() {
 #endif
 
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
-
     BlockExecutor::executeKeyHats();
+    XboxMenuTrace::gameFrame();
 
 #ifdef PLATFORM_HAS_TOUCH
     int numDevices, numFingers;

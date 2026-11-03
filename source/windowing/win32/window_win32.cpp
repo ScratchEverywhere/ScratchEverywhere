@@ -15,12 +15,6 @@
 #if defined(RENDERER_D3D9)
 #include <renderers/d3d9/renderer_d3d9.hpp>
 #endif
-#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE) || defined(RENDERER_D3D9)
-#define NO_SOFT_SWAPBUFFERS
-#endif
-#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-#define SWAPBUFFERS
-#endif
 
 #include "../../../gfx/windows/resource.h"
 
@@ -70,9 +64,9 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         GetClientRect(hWnd, &r);
 
-#ifndef NO_SOFT_SWAPBUFFERS
-        BitBlt(hDC, 0, 0, self->getWidth(), self->getHeight(), self->hDC, 0, 0, SRCCOPY);
-#endif
+        if (Render::currentRenderer == Renderers::GDI) {
+            BitBlt(hDC, 0, 0, self->getWidth(), self->getHeight(), self->hDC, 0, 0, SRCCOPY);
+        }
         EndPaint(hWnd, &ps);
         break;
     }
@@ -156,21 +150,21 @@ WindowWin32::WindowWin32(int width, int height, const std::string &title) {
         return;
     }
 
-#if defined(_WIN32)
     widget_set_owner(std::to_string((unsigned long long)(void *)this->hWnd).c_str());
-#endif
 
     setDarkTheme(this->hWnd, isDarkTheme());
 
-#ifdef NO_SOFT_SWAPBUFFERS
-    this->winDC = GetDC(this->hWnd);
-    this->hDC = this->winDC;
-#else
-    this->winDC = GetDC(this->hWnd);
-    this->hDC = CreateCompatibleDC(this->winDC);
-    this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
-    SelectObject(this->hDC, this->hBitmap);
+    if (Render::currentRenderer == Renderers::GDI) {
+#if defined(RENDERER_GDI)
+        this->winDC = GetDC(this->hWnd);
+        this->hDC = CreateCompatibleDC(this->winDC);
+        this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
+        SelectObject(this->hDC, this->hBitmap);
 #endif
+    } else {
+        this->winDC = GetDC(this->hWnd);
+        this->hDC = this->winDC;
+    }
 
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
@@ -258,10 +252,12 @@ void WindowWin32::cleanup() {
 #endif
     }
 
-#ifndef NO_SOFT_SWAPBUFFERS
-    DeleteObject(this->hBitmap);
-    DeleteDC(this->hDC);
+    if (Render::currentRenderer == Renderers::GDI) {
+#if defined(RENDERER_GDI)
+        DeleteObject(this->hBitmap);
+        DeleteDC(this->hDC);
 #endif
+    }
     ReleaseDC(this->hWnd, this->winDC);
 
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
@@ -293,12 +289,12 @@ void WindowWin32::swapBuffers() {
         IDirect3DDevice9_Present(this->pDev, nullptr, nullptr, nullptr, nullptr);
 #endif
     } else {
-#if defined(SWAPBUFFERS)
-        SwapBuffers(this->hDC);
-#elif !defined(NO_SOFT_SWAPBUFFERS)
-        InvalidateRect(this->hWnd, nullptr, FALSE);
-        this->pollEvents(); /* this is to pump WM_PAINT */
-#endif
+        if (Render::currentRenderer == Renderers::GDI) {
+            InvalidateRect(this->hWnd, nullptr, FALSE);
+            this->pollEvents(); /* this is to pump WM_PAINT */
+        } else {
+            SwapBuffers(this->hDC);
+        }
     }
 }
 
@@ -315,11 +311,13 @@ void WindowWin32::resize(int width, int height) {
     rc.bottom = height;
     AdjustWindowRect(&rc, GetWindowLongPtr(this->hWnd, GWL_STYLE), FALSE);
 
-#ifndef NO_SOFT_SWAPBUFFERS
-    DeleteObject(this->hBitmap);
-    this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
-    SelectObject(this->hDC, this->hBitmap);
+    if (Render::currentRenderer == Renderers::GDI) {
+#if defined(RENDERER_GDI)
+        DeleteObject(this->hBitmap);
+        this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
+        SelectObject(this->hDC, this->hBitmap);
 #endif
+    }
 
     this->resized = true;
 

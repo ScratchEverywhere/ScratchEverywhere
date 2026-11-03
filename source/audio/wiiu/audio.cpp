@@ -1,5 +1,6 @@
 #include "audio_wiiu.hpp"
 #include "audiostack.hpp"
+#include <algorithm>
 #include <atomic>
 #include <coreinit/cache.h>
 #include <coreinit/core.h>
@@ -10,7 +11,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <log.hpp>
+#include <loudness.hpp>
 #include <malloc.h>
+#include <mic/mic.h>
 #include <sndcore2/core.h>
 #include <sndcore2/voice.h>
 
@@ -37,6 +40,15 @@ static std::string threadError;
 
 static int16_t *sampleBuffer = nullptr;
 static AXVoice *voices[CHANNELS] = {nullptr, nullptr};
+
+static constexpr unsigned MIC_RATE = 32000;
+static constexpr size_t MIC_RING_SAMPLES = 0x2800;
+static constexpr int MIC_STATE_OPEN = 1 << 1;
+static LoudnessMeter micMeter(MIC_RATE);
+static MICWorkMemory micWorkMemory;
+static MICHandle micHandle = -1;
+static int16_t *micRing = nullptr;
+static bool micTried = false;
 
 static int16_t *allocDspBuffer() {
     void *attempts[32];
@@ -233,8 +245,68 @@ SoundDevice_WiiU::SoundDevice_WiiU() {
     error = "Audio not enabled.";
 }
 
+int SoundDevice_WiiU::getLoudness() {
+#ifdef ENABLE_AUDIO
+    if (!micTried) {
+        micTried = true;
+
+        micRing = static_cast<int16_t *>(memalign(0x40, MIC_RING_SAMPLES * sizeof(int16_t)));
+        if (micRing) {
+            memset(micRing, 0, MIC_RING_SAMPLES * sizeof(int16_t));
+            micWorkMemory.sampleMaxCount = MIC_RING_SAMPLES;
+            micWorkMemory.sampleBuffer = micRing;
+
+            MICError micError = MIC_ERROR_OK;
+            micHandle = MICInit(MIC_INSTANCE_0, 0, &micWorkMemory, &micError);
+            if (micError != MIC_ERROR_OK || micHandle < 0) {
+                micHandle = -1;
+            } else if (MICOpen(micHandle) != MIC_ERROR_OK) {
+                MICUninit(micHandle);
+                micHandle = -1;
+            }
+        }
+
+        if (micHandle < 0) {
+            Log::logWarning("Failed to open the GamePad microphone.");
+            free(micRing);
+            micRing = nullptr;
+        }
+    }
+
+    if (micHandle < 0) return -1;
+
+    MICStatus status;
+    if (MICGetStatus(micHandle, &status) == MIC_ERROR_OK && (status.state & MIC_STATE_OPEN) && status.availableData > 0) {
+        DCInvalidateRange(micRing, MIC_RING_SAMPLES * sizeof(int16_t));
+
+        size_t position = static_cast<size_t>(status.bufferPos) % MIC_RING_SAMPLES;
+        size_t remaining = std::min(static_cast<size_t>(status.availableData), MIC_RING_SAMPLES);
+        const int consumed = static_cast<int>(remaining);
+        while (remaining > 0) {
+            const size_t count = std::min(remaining, MIC_RING_SAMPLES - position);
+            micMeter.feed(micRing + position, count);
+            position = (position + count) % MIC_RING_SAMPLES;
+            remaining -= count;
+        }
+        MICSetDataConsumed(micHandle, consumed);
+    }
+    return micMeter.get();
+#else
+    return -1;
+#endif
+}
+
 SoundDevice_WiiU::~SoundDevice_WiiU() {
 #ifdef ENABLE_AUDIO
+    if (micHandle >= 0) {
+        MICClose(micHandle);
+        MICUninit(micHandle);
+        micHandle = -1;
+    }
+    free(micRing);
+    micRing = nullptr;
+    micTried = false;
+
     if (audioThread) {
         audioRunning = false;
         int result;

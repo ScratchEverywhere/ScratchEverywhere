@@ -94,7 +94,3 @@ macro(package_platform)
 		target_link_options(scratch-everywhere PRIVATE "-Wl,--allow-multiple-definition")
 	endif()
 endmacro()
-
-if(WIN32)
-	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
-endif()

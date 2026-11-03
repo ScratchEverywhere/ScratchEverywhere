@@ -1,15 +1,33 @@
 {
   "en_us": "English (United States)",
-  "en_gb": "English (United Kingdom)",
-  "es_419": "Español (Latam)",
-  "es_es": "Español (España)",
+  "en_gb": {
+    "name": "English (United Kingdom)",
+    "fallbacks": ["en_us"]
+  },
+  "es_419": {
+    "name": "Español (Latam)",
+    "fallbacks": ["es_es"]
+  },
+  "es_es": {
+    "name": "Español (España)",
+    "fallbacks": ["es_419"]
+  },
   "ko_kr": "한국어",
   "ja_jp": "日本語",
-  "pt_pt": "Português (Portugal)",
-  "pt_br": "Português (Brasil)",
+  "pt_pt": {
+    "name": "Português (Portugal)",
+    "fallbacks": ["pt_br"]
+  },
+  "pt_br": {
+    "name": "Português (Brasil)",
+    "fallbacks": ["pt_pt"]
+  },
   "ru_ru": "Русский (Россия)",
   "de_de": "Deutsch (Deutschland)",
-  "fr_fr": "French (Français)",
+  "fr_fr": {
+	"name": "French (Français)",
+	"fallbacks": ["en_gb"]
+  },
   "pl_pl": "Polish (Polski)",
   "ro_ro": "Romanian (Română)",
   "az_az": "Azərbaycan dili"

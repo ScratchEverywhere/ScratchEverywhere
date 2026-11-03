@@ -7,17 +7,23 @@ on:
       - cmake/platforms/xbox.cmake
       - cmake/renderers/sdl3.cmake
       - cmake/windowing/sdl3.cmake
+      - cmake/renderers/nv2a.cmake
+      - cmake/windowing/nv2a.cmake
       - cmake/audio/sdl3.cmake
+      - cmake/audio/xbox.cmake
       - cmake/deps/*
       - cmake/patches/*
       - source/runtime/**
       - source/renderers/sdl3/**
       - source/windowing/sdl3/**
+      - source/renderers/nv2a/**
+      - source/windowing/nv2a/**
       - source/*
       - source/platforms/
       - source/platforms/xbox/**
       - source/menus/**
       - source/audio/sdl3/**
+      - source/audio/xbox/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-xbox.yml

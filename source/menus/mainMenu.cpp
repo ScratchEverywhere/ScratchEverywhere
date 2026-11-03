@@ -115,7 +115,7 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-    logo = new MenuImage("gfx/menu/logo.png");
+    logo = new MenuImage("gfx/menu/eventAssets/halloweenLogo.png");
     logo->x = 200;
     logoStartTime.start();
 
@@ -173,17 +173,18 @@ void MainMenu::render() {
     mainMenuControl->input();
 
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+        static bool menuMusicFailed = false;
 #ifdef __NDS__
-        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
+                menuMusicFailed = true;
             } else
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        static bool menuMusicFailed = false;
         if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
@@ -203,7 +204,7 @@ void MainMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 117, 77, 117);
+    Render::beginFrame(0, 77, 69, 89);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -218,7 +219,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
+    Render::beginFrame(1, 77, 69, 89);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();

@@ -409,6 +409,9 @@ struct SE_EXPORT Costume {
     bool isSVG;
     double rotationCenterX;
     double rotationCenterY;
+    // Runtime crop compensation; clones copy these alongside the adjusted center.
+    double imageViewOffsetX = 0;
+    double imageViewOffsetY = 0;
 
     std::shared_ptr<CollisionMask> collisionMask = nullptr;
 };

@@ -32,6 +32,15 @@ static ScriptThread monitorDisplayThread;
 typedef void(APIENTRYP SE_PFNGLBINDFRAMEBUFFERPROC)(GLenum target, GLuint framebuffer);
 static SE_PFNGLBINDFRAMEBUFFERPROC se_glBindFramebuffer;
 
+#ifdef RETRO_ENVIRONMENT_GET_MICROPHONE_INTERFACE
+bool se_libretro_get_microphone_interface(struct retro_microphone_interface *microphoneInterface) {
+    if (!environ_cb) return false;
+    microphoneInterface->interface_version = RETRO_MICROPHONE_INTERFACE_VERSION;
+    return environ_cb(RETRO_ENVIRONMENT_GET_MICROPHONE_INTERFACE, microphoneInterface) &&
+           microphoneInterface->interface_version == RETRO_MICROPHONE_INTERFACE_VERSION;
+}
+#endif
+
 extern "C" {
 void retro_init() {
     srand(time(NULL));

@@ -43,6 +43,7 @@ struct SE_EXPORT CollisionMask {
             if (x < 0 || x >= (int)width || y < 0 || y >= (int)height || !image) return false;
             const int ix = x * imgScaleFactor;
             const int iy = y * imgScaleFactor;
+            if (!image->ensureColorData()) return false;
             if (image->getAlphaAt(ix, iy) == 0) return false;
             image->getColorAt(ix, iy, r, g, b);
             return true;

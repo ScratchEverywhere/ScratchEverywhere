@@ -243,8 +243,15 @@ const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot) {
 
 size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
-    if (!indexValue.isDouble()) {
-        std::string indexStr = indexValue.asString();
+    SE_LIKELY_IF(indexValue.isDouble()) {
+        double d = indexValue.get<double>();
+        if (!std::isfinite(d)) return size;
+        double idx = std::floor(d) - 1;
+        if (idx < 0 || idx >= static_cast<double>(size)) return size;
+        return static_cast<size_t>(idx);
+    }
+    if (indexValue.isString()) {
+        std::string_view indexStr = indexValue.asStringView();
         if (indexStr == "last") return size - 1;
         if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
     }
@@ -257,16 +264,25 @@ size_t resolveListIndex(const Value &indexValue, size_t size) {
 }
 
 void listInsert(List &list, const Value &index, Value item) {
-    std::string indexStr = index.asString();
     size_t pos;
-    if (indexStr == "last") pos = list.items.size();
-    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list.items.size() + 1));
-    else {
+    SE_LIKELY_IF(index.isDouble()) {
         double d = index.get<double>();
         if (!std::isfinite(d)) return;
         double idx = std::floor(d) - 1;
         if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
         pos = static_cast<size_t>(idx);
+    }
+    else {
+        std::string_view indexStr = index.isString() ? index.asStringView() : std::string_view();
+        if (indexStr == "last") pos = list.items.size();
+        else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list.items.size() + 1));
+        else {
+            double d = index.get<double>();
+            if (!std::isfinite(d)) return;
+            double idx = std::floor(d) - 1;
+            if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
+            pos = static_cast<size_t>(idx);
+        }
     }
     if (pos <= list.items.size()) {
         insertValueAt(list.items, pos, std::move(item));
@@ -275,20 +291,26 @@ void listInsert(List &list, const Value &index, Value item) {
 }
 
 void listDelete(List &list, const Value &index) {
-    std::string indexStr = index.asString();
-    if (indexStr == "all") {
-        list.items.clear();
-    } else if (indexStr == "last" && !list.items.empty()) {
-        list.items.pop_back();
-    } else if ((indexStr == "random" || indexStr == "any") && !list.items.empty()) {
-        eraseValueAt(list.items, fastRandomBelow(list.items.size()));
-    } else {
-        double d = index.get<double>();
-        if (std::isfinite(d)) {
-            double idx = std::floor(d) - 1;
-            if (idx >= 0 && idx < static_cast<double>(list.items.size())) {
-                eraseValueAt(list.items, static_cast<size_t>(idx));
-            }
+    if (!index.isDouble() && index.isString()) {
+        std::string_view indexStr = index.asStringView();
+        if (indexStr == "all") {
+            list.items.clear();
+            return;
+        }
+        if (indexStr == "last") {
+            if (!list.items.empty()) list.items.pop_back();
+            return;
+        }
+        if (indexStr == "random" || indexStr == "any") {
+            if (!list.items.empty()) eraseValueAt(list.items, fastRandomBelow(list.items.size()));
+            return;
+        }
+    }
+    double d = index.get<double>();
+    if (std::isfinite(d)) {
+        double idx = std::floor(d) - 1;
+        if (idx >= 0 && idx < static_cast<double>(list.items.size())) {
+            eraseValueAt(list.items, static_cast<size_t>(idx));
         }
     }
 }
@@ -1401,8 +1423,18 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.numberStack.pop_back();
 
                 std::string result;
-                if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) {
-                    if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) result = Math::utf16CharAt(*str, static_cast<size_t>(indexD));
+                Variable *var = variableAt(thread, instr.a);
+                if (var != nullptr) {
+                    if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                        if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) {
+                            result = Math::utf16CharAt(*str, static_cast<size_t>(indexD));
+                        }
+                    } else {
+                        const Value strValue = BlockExecutor::getVariableValueAs<Value>(var);
+                        if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) {
+                            result = strValue.utf16CharAt(static_cast<size_t>(indexD));
+                        }
+                    }
                 }
                 thread.stringStack.push_back(std::move(result));
                 thread.pc++;
@@ -1411,7 +1443,15 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
             SE_CASE(LengthOfVar) {
                 size_t units = 0;
-                if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) units = Math::utf16Length(*str);
+                Variable *var = variableAt(thread, instr.a);
+                if (var != nullptr) {
+                    if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                        units = Math::utf16Length(*str);
+                    } else {
+                        const Value strValue = BlockExecutor::getVariableValueAs<Value>(var);
+                        units = strValue.utf16Length();
+                    }
+                }
                 thread.numberStack.push_back(static_cast<double>(units));
                 thread.pc++;
                 SE_NEXT();

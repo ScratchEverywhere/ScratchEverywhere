@@ -9,6 +9,7 @@ struct SE_EXPORT LanguageInfo {
     unsigned int id;
     std::string key;
     std::string name;
+    std::vector<std::string> fallbacks;
 };
 
 SE_EXPORT const std::vector<LanguageInfo> getLanguages();

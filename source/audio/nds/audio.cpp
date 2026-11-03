@@ -1,5 +1,6 @@
 #include <audio_nds.hpp>
 #include <audiostack.hpp>
+#include <loudness.hpp>
 #ifdef ENABLE_AUDIO
 #include <maxmod9.h>
 #endif
@@ -10,6 +11,17 @@ static mm_word ndsCallback(mm_word length, mm_addr dest, mm_stream_formats forma
 
     Mixer::requestSound((short *)dest, length);
     return length;
+}
+
+static constexpr unsigned MIC_RATE = 8000;
+alignas(32) static u8 micBuffer[1024];
+static LoudnessMeter micMeter(MIC_RATE);
+static bool micTried = false;
+static bool micActive = false;
+
+static void ndsMicCallback(void *completedBuffer, int length) {
+    DC_InvalidateRange(completedBuffer, length);
+    micMeter.feedUnsigned8(static_cast<const u8 *>(completedBuffer), length);
 }
 #endif
 
@@ -30,7 +42,7 @@ SoundDevice_NDS::SoundDevice_NDS() {
             .callback = ndsCallback,
             .format = MM_STREAM_16BIT_STEREO,
             .timer = MM_TIMER2,
-            .manual = false,
+            .manual = true,
     };
     mmStreamOpen(&stream);
     return;
@@ -38,9 +50,24 @@ SoundDevice_NDS::SoundDevice_NDS() {
     error = "Audio is not enabled.";
 }
 
+int SoundDevice_NDS::getLoudness() {
+#ifdef ENABLE_AUDIO
+    if (!micTried) {
+        micTried = true;
+        micActive = soundMicRecord(micBuffer, sizeof(micBuffer), MicFormat_8Bit, MIC_RATE, ndsMicCallback) != 0;
+    }
+    if (micActive) return micMeter.get();
+#endif
+    return -1;
+}
+
 SoundDevice_NDS::~SoundDevice_NDS() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
+    if (micActive) {
+        soundMicOff();
+        micActive = false;
+    }
     mmStreamClose();
 #endif
 }

@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
 COPY . .
 
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBRETRO=ON && cmake --build . -j 2
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBRETRO=ON -DSE_RENDERER=opengl_core -DSE_WINDOWING=libretro && cmake --build . -j 2
 
 FROM scratch AS exporter
 

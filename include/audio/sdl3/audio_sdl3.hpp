@@ -8,4 +8,6 @@ class SE_EXPORT SoundDevice_SDL3 : public SoundDevice {
   public:
     SoundDevice_SDL3();
     ~SoundDevice_SDL3() override;
+
+    int getLoudness() override;
 };

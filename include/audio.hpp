@@ -10,6 +10,7 @@ enum class SE_EXPORT AudioBackends : uint8_t {
     N3DS,
     NDS,
     WiiU,
+    XboxAudio,
     SDL3,
     SDL2,
     SDL1,
@@ -25,6 +26,7 @@ constexpr std::array AudioBackendNames = {
     "3DS",
     "NDS",
     "Wii U",
+    "Xbox",
     "SDL3",
     "SDL2",
     "SDL1",
@@ -46,6 +48,8 @@ class SE_EXPORT SoundDevice {
      * Set if an error occurs in the constructor.
      */
     std::optional<std::string> error;
+
+    virtual int getLoudness() { return -1; }
 };
 
 extern SoundDevice *globalSoundDevice;
@@ -59,4 +63,6 @@ class SE_EXPORT SoundPlayer {
     // TODO: remove and use SoundDevice exclusively
     static bool init();
     static void deinit();
+
+    static int getLoudness();
 };

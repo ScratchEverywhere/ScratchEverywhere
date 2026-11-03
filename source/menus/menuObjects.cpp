@@ -156,6 +156,8 @@ void ButtonObject::render(double xPos, double yPos) {
     if (!buttonTexture || !buttonTexture->image) return;
 #endif
 
+    text->setScale(renderScale * textScale);
+
     if (enableNineslice && this->shouldNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
@@ -164,7 +166,6 @@ void ButtonObject::render(double xPos, double yPos) {
         buttonTexture->image->render(params);
     }
 
-    text->setScale(renderScale * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
