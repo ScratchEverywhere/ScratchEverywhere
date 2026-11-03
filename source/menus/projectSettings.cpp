@@ -42,11 +42,17 @@ RuntimeMode runtimeModeOf(const nlohmann::json &projectSettings) {
             return RuntimeMode::Bytecode;
         }
         if (values.contains("useBytecode") && values["useBytecode"].is_boolean()) {
+#ifdef SE_JIT
+            return values["useBytecode"].get<bool>() ? RuntimeMode::Jit : RuntimeMode::Interpreter;
+#else
             return values["useBytecode"].get<bool>() ? RuntimeMode::Bytecode : RuntimeMode::Interpreter;
+#endif
         }
     }
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
     return RuntimeMode::Interpreter;
+#elif defined(SE_JIT)
+    return RuntimeMode::Jit;
 #else
     return RuntimeMode::Bytecode;
 #endif

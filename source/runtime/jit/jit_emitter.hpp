@@ -75,8 +75,13 @@ class Emitter {
         sljit_label *body = nullptr;
     };
     static constexpr int firstPin = 4;
-    static constexpr size_t maxPins = 10;
-    static constexpr size_t maxSpanPins = 6;
+    static constexpr size_t maxPins = std::min<size_t>(10, SLJIT_NUMBER_OF_FLOAT_REGISTERS - firstPin - 1);
+    static constexpr size_t maxSpanPins = std::min<size_t>(6, maxPins);
+    static_assert(SLJIT_NUMBER_OF_FLOAT_REGISTERS >= firstPin + 2, "the JIT needs four scratch floating point registers, one pin and one temporary");
+    static_assert(SLJIT_NUMBER_OF_SAVED_REGISTERS >= 6, "the JIT keeps the context, poll counter, repeat counter, shadow and list base and limit in saved registers");
+    static_assert(offsetof(Context, slots) % 8 == 0, "number slots must be naturally aligned");
+
+    static constexpr bool nativeFrames = wide;
     static constexpr uint32_t minSpanInstructions = 4;
     std::deque<Region> regions_;
     std::vector<int32_t> regionOf_;
@@ -100,7 +105,8 @@ class Emitter {
 
     static constexpr sljit_sw slotsOffset() { return static_cast<sljit_sw>(offsetof(Context, slots)); }
     static sljit_sw slotOffset(uint32_t slot) { return slotsOffset() + static_cast<sljit_sw>(slot) * 8; }
-    static sljit_sw dirtyOffset(uint32_t k) { return static_cast<sljit_sw>(offsetof(Context, dirty)) + static_cast<sljit_sw>(k) * 8; }
+    static sljit_sw dirtyOffset(uint32_t k) { return lowWord(static_cast<sljit_sw>(offsetof(Context, dirty)) + static_cast<sljit_sw>(k) * 8); }
+    static constexpr sljit_sw warpOffset() { return lowWord(static_cast<sljit_sw>(offsetof(Context, warp))); }
 
     uint32_t numberSlot(uint32_t depth) const { return depth; }
     uint32_t booleanSlot(uint32_t depth) const { return code_.slotBooleans + depth; }
@@ -117,12 +123,12 @@ class Emitter {
     void emitHoistLoad() {
         if (active_ == nullptr || active_->hoistList < 0) return;
         const Runtime::ListLayout &layout = Runtime::listLayout();
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
-        sljit_jump *none = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_S4, 0, SLJIT_IMM, 0);
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S4), static_cast<sljit_sw>(active_->hoistList) * static_cast<sljit_sw>(sizeof(void *)));
-        sljit_jump *missing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_S4, 0, SLJIT_IMM, 0);
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S5, 0, SLJIT_MEM1(SLJIT_S4), layout.items + static_cast<sljit_sw>(sizeof(void *)));
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_S4), layout.items);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
+        sljit_jump *none = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(active_->hoistList) * static_cast<sljit_sw>(sizeof(void *)));
+        sljit_jump *missing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S5, 0, SLJIT_MEM1(SLJIT_R0), layout.items + static_cast<sljit_sw>(sizeof(void *)));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_S4, 0, SLJIT_MEM1(SLJIT_R0), layout.items);
         sljit_jump *loaded = sljit_emit_jump(c_, SLJIT_JUMP);
         sljit_label *zero = sljit_emit_label(c_);
         sljit_set_label(none, zero);
@@ -135,7 +141,7 @@ class Emitter {
     bool isCounterPin(uint32_t slot) const { return active_ != nullptr && active_->counterSlot == static_cast<int64_t>(slot); }
 
     bool wholeCounterAt(BytecodeIndex pc) const {
-        if (pc < 2 || chunk_.instructions[pc - 1].op != BytecodeOp::ConvertNumberToValue || chunk_.instructions[pc - 2].op != BytecodeOp::PushConstNumber || analysis_.isBlockStart(pc - 1)) return false;
+        if (!wide || pc < 2 || chunk_.instructions[pc - 1].op != BytecodeOp::ConvertNumberToValue || chunk_.instructions[pc - 2].op != BytecodeOp::PushConstNumber || analysis_.isBlockStart(pc - 1)) return false;
         const double start = chunk_.numberConstants[chunk_.instructions[pc - 2].a];
         if (!std::isfinite(start) || start != std::floor(start) || std::fabs(start) >= 4503599627370496.0) return false;
         for (BytecodeIndex q = 0; q < pc; q++) {
@@ -173,7 +179,7 @@ class Emitter {
     }
 
     static constexpr sljit_sw shadowNone = static_cast<sljit_sw>(std::numeric_limits<int64_t>::min());
-    static constexpr bool shadowSupported = sizeof(sljit_sw) == 8;
+    static constexpr bool shadowSupported = wide;
 
     void emitShadowSync() {
         if (!shadowSupported || active_ == nullptr || active_->shadowSlot < 0) return;
@@ -233,15 +239,21 @@ class Emitter {
     }
     void loadW(sljit_s32 reg, uint32_t slot) {
         if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
-        sljit_emit_op1(c_, SLJIT_MOV, reg, 0, SLJIT_MEM1(SLJIT_S0), slotOffset(slot));
+        sljit_emit_op1(c_, SLJIT_MOV, reg, 0, SLJIT_MEM1(SLJIT_S0), lowWord(slotOffset(slot)));
     }
     void storeW(uint32_t slot, sljit_s32 reg) {
         if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), reg, 0);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), lowWord(slotOffset(slot)), reg, 0);
+        if (!wide) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), highWord(slotOffset(slot)), SLJIT_IMM, 0);
     }
     void storeImmW(uint32_t slot, sljit_sw value) {
         if (pinOf(slot) >= 0 || isCounterPin(slot)) pinViolation_ = true;
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(slot), SLJIT_IMM, value);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), lowWord(slotOffset(slot)), SLJIT_IMM, value);
+        if (!wide) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), highWord(slotOffset(slot)), SLJIT_IMM, 0);
+    }
+    void storeFlag(uint32_t slot, sljit_s32 flag) {
+        sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), lowWord(slotOffset(slot)), flag);
+        if (!wide) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), highWord(slotOffset(slot)), SLJIT_IMM, 0);
     }
     void storeImmF(uint32_t slot, double value) {
         if (const int pin = pinOf(slot); pin >= 0) {

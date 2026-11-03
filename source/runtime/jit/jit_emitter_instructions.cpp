@@ -342,7 +342,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             if (value.kind == ValueEntry::Opaque || value.kind == ValueEntry::Like || value.kind == ValueEntry::Temp || value.kind == ValueEntry::Argument || value.kind == ValueEntry::VarValue) call.checks.push_back({i, value.constant, static_cast<uint8_t>(value.kind)});
         }
         {
-            static const bool disabled = std::getenv("SE_JIT_NOFASTCALL") != nullptr;
+            static const bool disabled = !nativeFrames || std::getenv("SE_JIT_NOFASTCALL") != nullptr;
             const std::vector<AbsValue> &values = state_.values;
             call.nativeChecks = !disabled && call.leanKinds && call.values <= 16 && call.numbers <= 16 && call.booleans <= 16;
             for (const CallCheck &check : call.checks) {
@@ -388,7 +388,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ret.pc = pc;
         ret.isReturn = instr.op == BytecodeOp::Return;
         {
-            static const bool disabled = std::getenv("SE_JIT_NOFASTCALL") != nullptr;
+            static const bool disabled = !nativeFrames || std::getenv("SE_JIT_NOFASTCALL") != nullptr;
             if (ret.isReturn && !state_.values.empty()) {
                 if (state_.values.back().kind == ValueEntry::Number) {
                     ret.resultMode = 1;
@@ -680,7 +680,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&Runtime::stringChar[k]));
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), 0);
             sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R0, 0, SLJIT_IMM, literal);
-            sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(op.numberOut), SLJIT_EQUAL);
+            storeFlag(op.numberOut, SLJIT_EQUAL);
             sljit_label *done = sljit_emit_label(c_);
             addCold([this, slow, done, &op]() {
                 sljit_set_label(slow, sljit_emit_label(c_));
@@ -829,7 +829,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::Yield: {
         if (const int procedure = analysis_.procedureAt(pc); procedure >= 0 && static_cast<size_t>(procedure) < chunk_.procedures.size() && chunk_.procedures[procedure].runWithoutScreenRefresh) return;
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, warp));
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), warpOffset());
         sljit_jump *warp = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
         emitExitAt(pc + 1, static_cast<uint32_t>(BytecodeJit::Result::Yield), state_);
         sljit_set_label(warp, sljit_emit_label(c_));

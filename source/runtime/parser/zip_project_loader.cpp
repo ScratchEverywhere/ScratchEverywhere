@@ -1,6 +1,9 @@
 #include "zip_project_loader.hpp"
 #include <istream>
 #include <log.hpp>
+#ifdef SE_JIT
+#include <bytecode_jit.hpp>
+#endif
 #include <parser.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
@@ -368,9 +371,34 @@ bool ZipProjectLoader::load(std::istream *file) {
         Scratch::useBytecode = false;
 #else
         Scratch::useBytecode = true;
+#ifdef SE_JIT
+        Scratch::useJit = true;
+#endif
 #endif
     } else {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
+#ifdef SE_JIT
+        Scratch::useJit = Scratch::useBytecode;
+#endif
+    }
+
+    {
+        const char *active = Scratch::useBytecode ? "bytecode VM" : "interpreter";
+        std::string note;
+#ifdef SE_JIT
+        if (Scratch::useBytecode) {
+            if (BytecodeJit::enabled()) {
+                active = "bytecode VM + JIT";
+            } else if (Scratch::useJit) {
+                note = " (JIT requested but unavailable)";
+            }
+        } else if (Scratch::useJit) {
+            note = " (JIT requested but unavailable)";
+        }
+#else
+        if (Scratch::useJit) note = " (JIT requested but this build has no JIT)";
+#endif
+        Log::log(std::string("Runtime: ") + active + note);
     }
 
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);

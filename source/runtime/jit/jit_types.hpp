@@ -5,6 +5,7 @@
 
 #include "blockExecutor.hpp"
 #include "bytecode_analysis.hpp"
+#include "jit_word.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
 #include "runtime/data/blueprint.hpp"

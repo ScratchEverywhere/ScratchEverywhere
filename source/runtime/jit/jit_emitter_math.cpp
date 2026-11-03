@@ -23,8 +23,15 @@ namespace BytecodeJitInternal {
 
 void Emitter::emitInlineRounding(Rounding kind, uint32_t slot, std::function<void()> general) {
     loadF(SLJIT_FR0, slot);
+#if (defined SLJIT_CONFIG_X86 && SLJIT_CONFIG_X86)
     sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
-    sljit_jump *unrepresentable = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(0x8000000000000000ull));
+    sljit_jump *unrepresentable = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(static_cast<sljit_uw>(1) << (sizeof(sljit_sw) * 8 - 1)));
+#else
+    sljit_emit_fop1(c_, SLJIT_ABS_F64, SLJIT_FR1, 0, SLJIT_FR0, 0);
+    sljit_emit_fset64(c_, SLJIT_FR2, wide ? 4503599627370496.0 : 1073741824.0);
+    sljit_jump *unrepresentable = sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_GREATER_EQUAL, SLJIT_FR1, 0, SLJIT_FR2, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_SW_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
+#endif
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR1, 0, SLJIT_R0, 0);
     if (kind == Rounding::Ceiling) {
         sljit_jump *exact = sljit_emit_fcmp(c_, SLJIT_ORDERED_GREATER_EQUAL, SLJIT_FR1, 0, SLJIT_FR0, 0);
@@ -151,7 +158,7 @@ bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape sha
 }
 
 bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) {
-    if (!(std::fabs(divisor) >= 2.0 && std::fabs(divisor) < 2147483648.0) || divisor != std::floor(divisor)) return false;
+    if (!wide || !(std::fabs(divisor) >= 2.0 && std::fabs(divisor) < 2147483648.0) || divisor != std::floor(divisor)) return false;
     const BytecodePositionalFn &fn = link_.positional[instr.a];
     const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
     const uint64_t d = static_cast<uint64_t>(std::fabs(divisor));

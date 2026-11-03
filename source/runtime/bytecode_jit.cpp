@@ -6,6 +6,7 @@
 #include "bytecode_analysis.hpp"
 #include "jit/jit_emitter.hpp"
 #include "jit/jit_planner.hpp"
+#include "jit/jit_probe.hpp"
 #include "jit/jit_runtime.hpp"
 #include "jit/jit_types.hpp"
 #include "renderer.hpp"
@@ -56,7 +57,9 @@ BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk) {
 
     if (!same) {
         BytecodeProgramAnalysis::Environment environment;
+#ifdef ENABLE_CUSTOM_EXTENSIONS
         environment.customExtensions = !Scratch::extensions.empty();
+#endif
         for (const auto &[id, monitor] : Render::monitors) {
             if (monitor.mode == "slider") environment.sliderVariables.insert(id);
         }
@@ -78,8 +81,8 @@ namespace BytecodeJit {
 
 bool enabled() {
     static const char *env = std::getenv("SE_JIT");
-    if (env != nullptr) return std::string(env) != "0";
-    return Scratch::useJit;
+    const bool requested = env != nullptr ? std::string(env) != "0" : Scratch::useJit;
+    return requested && BytecodeJitInternal::backendUsable();
 }
 
 void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {

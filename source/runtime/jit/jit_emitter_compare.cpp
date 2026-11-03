@@ -36,7 +36,7 @@ void Emitter::emitCompareValue(BytecodeCompareKind kind, uint32_t a, uint32_t b)
     const sljit_s32 flag = kind == BytecodeCompareKind::Equals ? SLJIT_F_EQUAL : kind == BytecodeCompareKind::Less ? SLJIT_F_LESS
                                                                                                                    : SLJIT_F_GREATER;
     sljit_emit_fop1(c_, SLJIT_CMP_F64 | setFlag, SLJIT_FR0, 0, SLJIT_FR1, 0);
-    sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), slotOffset(out), flag);
+    storeFlag(out, flag);
     sljit_label *done = sljit_emit_label(c_);
 
     addCold([this, unordered, done, kind, out]() {
