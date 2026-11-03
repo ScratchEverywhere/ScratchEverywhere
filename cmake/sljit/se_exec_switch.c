@@ -1,18 +1,26 @@
 #include "se_exec_arena.h"
+#include <stdio.h>
 #include <switch.h>
 
 #define SE_SWITCH_JIT_SIZE (8u << 20)
 
 static Jit jit;
 static se_exec_arena arena;
+static char failure[96];
 static int ready = 0;
 static int executable = 0;
 
 static int ensure(void) {
     if (ready) return 1;
-    if (R_FAILED(jitCreate(&jit, SE_SWITCH_JIT_SIZE))) return 0;
+    const Result rc = jitCreate(&jit, SE_SWITCH_JIT_SIZE);
+    if (R_FAILED(rc)) {
+        snprintf(failure, sizeof(failure), "jitCreate failed: module %u description %u (not launched as a title/application?)", (unsigned)R_MODULE(rc), (unsigned)R_DESCRIPTION(rc));
+        se_exec_fail(failure);
+        return 0;
+    }
     if (!se_exec_arena_init(&arena, jitGetRwAddr(&jit), SE_SWITCH_JIT_SIZE)) {
         jitClose(&jit);
+        se_exec_fail("could not set up the JIT arena");
         return 0;
     }
     ready = 1;
@@ -27,10 +35,15 @@ static long alias_offset(void) {
 void *se_sljit_malloc_exec(unsigned long size) {
     if (!ensure()) return NULL;
     if (executable) {
-        if (R_FAILED(jitTransitionToWritable(&jit))) return NULL;
+        if (R_FAILED(jitTransitionToWritable(&jit))) {
+            se_exec_fail("jitTransitionToWritable failed");
+            return NULL;
+        }
         executable = 0;
     }
-    return se_exec_arena_alloc(&arena, size);
+    void *ptr = se_exec_arena_alloc(&arena, size);
+    if (ptr == NULL) se_exec_fail("JIT memory is full");
+    return ptr;
 }
 
 void se_sljit_free_exec(void *ptr) {

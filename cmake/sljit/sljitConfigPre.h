@@ -30,6 +30,7 @@ const char *se_sljit_exec_failure(void);
 #define SLJIT_FREE_EXEC(ptr, exec_allocator_data) se_sljit_free_exec(ptr)
 
 #ifdef SE_SLJIT_DUAL_MAPPING
+#define SLJIT_PROT_EXECUTABLE_ALLOCATOR 1
 #define SLJIT_EXEC_OFFSET(ptr) se_sljit_exec_offset(ptr)
 #endif
 
