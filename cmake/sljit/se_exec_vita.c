@@ -14,12 +14,12 @@ static int ensure(void) {
     if (uid < 0) return 0;
     void *base = NULL;
     if (sceKernelGetMemBlockBase(uid, &base) < 0 || base == NULL || !se_exec_arena_init(&arena, base, SE_VITA_JIT_SIZE)) {
-        sceKernelFreeMemBlockForVM(uid);
+        sceKernelFreeMemBlock(uid);
         return 0;
     }
-    if (sceKernelCloseVMDomain() < 0) {
+    if (sceKernelOpenVMDomain() < 0) {
         se_exec_arena_destroy(&arena);
-        sceKernelFreeMemBlockForVM(uid);
+        sceKernelFreeMemBlock(uid);
         return 0;
     }
     block = uid;
@@ -31,7 +31,7 @@ static int ensure(void) {
 void *se_sljit_malloc_exec(unsigned long size) {
     if (!ensure()) return NULL;
     if (executable) {
-        if (sceKernelCloseVMDomain() < 0) return NULL;
+        if (sceKernelOpenVMDomain() < 0) return NULL;
         executable = 0;
     }
     return se_exec_arena_alloc(&arena, size);
@@ -52,9 +52,9 @@ void se_sljit_update_wx(void *from, void *to, int want_executable) {
     (void)to;
     if (!ready) return;
     if (want_executable && !executable) {
-        if (sceKernelOpenVMDomain() >= 0) executable = 1;
+        if (sceKernelCloseVMDomain() >= 0) executable = 1;
     } else if (!want_executable && executable) {
-        if (sceKernelCloseVMDomain() >= 0) executable = 0;
+        if (sceKernelOpenVMDomain() >= 0) executable = 0;
     }
 }
 
