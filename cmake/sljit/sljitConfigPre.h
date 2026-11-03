@@ -1,6 +1,10 @@
 #ifndef SE_SLJITCONFIGPRE_H
 #define SE_SLJITCONFIGPRE_H
 
+#if defined(__arm__) && defined(__ARM_PCS) && !defined(__ARM_PCS_VFP) && !defined(__SOFTFP__)
+#define __SOFTFP__ 1
+#endif
+
 #ifdef SE_SLJIT_CUSTOM_EXEC
 
 #ifdef __cplusplus

@@ -17,6 +17,8 @@ struct Results {
     int64_t cells[2];
 };
 
+inline double SLJIT_FUNC probeCallee(double value, sljit_sw count) { return value * static_cast<double>(count) + 0.5; }
+
 class ProbeProgram {
   public:
     explicit ProbeProgram(sljit_compiler *compiler) : c_(compiler) {}
@@ -80,6 +82,11 @@ class ProbeProgram {
             sljit_emit_op2(c_, SLJIT_LSHR, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 32);
             word(23, SLJIT_R0);
         }
+
+        sljit_emit_fset64(c_, SLJIT_FR0, 1.5);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 4);
+        sljit_emit_icall(c_, SLJIT_CALL, SLJIT_ARGS2(F64, F64, W), SLJIT_IMM, reinterpret_cast<sljit_sw>(&probeCallee));
+        number(4, SLJIT_FR0);
 
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), lowWord(cellOffset(0)), SLJIT_IMM, 1);
         if (!wide) sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), highWord(cellOffset(0)), SLJIT_IMM, 0);
@@ -175,6 +182,7 @@ inline bool probeBackend(void (*report)(const char *message, const char *detail)
     ok &= check("truncating conversion to word", w[3] == 123456);
     ok &= check("integer to float conversion", d[0] == -77.0 && d[1] == 9.0);
     ok &= check("float constants and absolute value", d[2] == 3.25 && d[3] == 2.5);
+    ok &= check("calling a function with a float argument and result", d[4] == 6.5);
     ok &= check("unordered comparison", w[4] == 1 && w[5] == 0 && w[6] == 1);
     ok &= check("ordered comparison", w[7] == 1 && w[8] == 0 && w[9] == 1 && w[10] == 1 && w[13] == 1);
     ok &= check("ordered comparison with NaN", w[11] == 1 && w[12] == 0);
