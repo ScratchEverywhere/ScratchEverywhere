@@ -433,7 +433,17 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
     std::string content;
 
-    if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+    if (UnpackedInSD) {
+        std::string folder = filePath;
+        while (!folder.empty() && folder.back() == '/')
+            folder.pop_back();
+        std::ifstream file(folder + ".sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folder + ".sb3.json");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    } else if (Scratch::projectType != ProjectType::UNEMBEDDED) {
 #ifdef USE_BUNDLE
         auto project = Bundle::project();
         auto entry = project.find(folderPath);
