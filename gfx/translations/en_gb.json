@@ -44,5 +44,9 @@
   "version.prefix.release": "Release",
   "version.prefix.releaseCanidate": "Release Candidate",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Dev Build"
+  "version.prefix.dev": "Dev Build",
+  "ui.settings.renderer": "",
+  "ui.settings.windowing": "",
+  "ui.settings.audioEngine": "",
+  "ui.loading.caching": ""
 }
