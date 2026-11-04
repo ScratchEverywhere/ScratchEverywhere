@@ -48,25 +48,85 @@ endfunction()
 function(_recipe_lua51_source)
 	if(SE_LUA_BACKEND STREQUAL "luajit")
 		message(FATAL_ERROR "We don't support building LuaJIT from source yet.")
-	else()
-		cl_import_source(
-			NAME lua51
-			DOWNLOAD_ONLY
-			URL "https://www.lua.org/ftp/lua-5.1.5.tar.gz"
-		)
+	endif()
 
-		file(GLOB lua_sources "${CL_SOURCE_DIR}/src/*.c")
-		list(REMOVE_ITEM lua_sources "${CL_SOURCE_DIR}/src/lua.c" "${CL_SOURCE_DIR}/src/luac.c") # We only need the lib
-		add_library(lua51 STATIC ${lua_sources})
-		target_include_directories(lua51 SYSTEM PUBLIC
-			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/src>
-			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/etc>
-		)
+	set(_lua_version "5.1.5")
+	set(_lua_sha256 "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333")
+	set(_lua_archive "${CMAKE_BINARY_DIR}/_deps_cache/lua-${_lua_version}.tar.gz")
+	set(_lua_extract "${CMAKE_BINARY_DIR}/_deps_cache/lua-${_lua_version}")
 
-		if(XBOX)
-			target_compile_definitions(lua51 PUBLIC LUA_ANSI)
+	# Needed since lua.org is unstable
+	set(_lua_mirrors
+		${SE_LUA51_URL}
+		"https://www.lua.org/ftp/lua-${_lua_version}.tar.gz"
+		"https://sources.voidlinux.org/lua51-${_lua_version}/lua-${_lua_version}.tar.gz"
+		"https://fossies.org/linux/misc/lua-${_lua_version}.tar.gz"
+	)
+
+	if(NOT EXISTS "${_lua_extract}/lua-${_lua_version}/src/lapi.c")
+		file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps_cache")
+
+		set(_lua_ok FALSE)
+		if(EXISTS "${_lua_archive}")
+			file(SHA256 "${_lua_archive}" _existing_hash)
+			if(_existing_hash STREQUAL _lua_sha256)
+				set(_lua_ok TRUE)
+			endif()
 		endif()
 
-		set(SE_USED_LUA "lua51" CACHE INTERNAL "Resolved Lua backend used by lua51/sol2")
+		if(NOT _lua_ok)
+			foreach(_attempt RANGE 1 2)
+				foreach(_url IN LISTS _lua_mirrors)
+					if(NOT _url)
+						continue()
+					endif()
+					message(STATUS "[lua51] Downloading ${_url} (attempt ${_attempt})")
+					file(DOWNLOAD "${_url}" "${_lua_archive}"
+						EXPECTED_HASH SHA256=${_lua_sha256}
+						TIMEOUT 60
+						INACTIVITY_TIMEOUT 20
+						TLS_VERIFY ON
+						STATUS _dl_status
+					)
+					list(GET _dl_status 0 _dl_code)
+					if(_dl_code EQUAL 0)
+						set(_lua_ok TRUE)
+						break()
+					endif()
+					list(GET _dl_status 1 _dl_msg)
+					message(WARNING "[lua51] Mirror failed: ${_url}: ${_dl_msg}")
+					file(REMOVE "${_lua_archive}")
+				endforeach()
+				if(_lua_ok)
+					break()
+				endif()
+			endforeach()
+		endif()
+
+		if(NOT _lua_ok)
+			message(FATAL_ERROR
+				"[lua51] Could not download Lua ${_lua_version} from any mirror. "
+				"Install the system package (liblua5.1-0-dev / lua51 pkg-config) "
+				"or pass -DSE_LUA51_URL=<url or local path to lua-${_lua_version}.tar.gz>.")
+		endif()
+
+		file(REMOVE_RECURSE "${_lua_extract}")
+		file(ARCHIVE_EXTRACT INPUT "${_lua_archive}" DESTINATION "${_lua_extract}")
 	endif()
+
+	set(_lua_src_dir "${_lua_extract}/lua-${_lua_version}")
+
+	file(GLOB lua_sources "${_lua_src_dir}/src/*.c")
+	list(REMOVE_ITEM lua_sources "${_lua_src_dir}/src/lua.c" "${_lua_src_dir}/src/luac.c") # We only need the lib
+	add_library(lua51 STATIC ${lua_sources})
+	target_include_directories(lua51 SYSTEM PUBLIC
+		$<BUILD_INTERFACE:${_lua_src_dir}/src>
+		$<BUILD_INTERFACE:${_lua_src_dir}/etc>
+	)
+
+	if(XBOX)
+		target_compile_definitions(lua51 PUBLIC LUA_ANSI)
+	endif()
+
+	set(SE_USED_LUA "lua51" CACHE INTERNAL "Resolved Lua backend used by lua51/sol2")
 endfunction()
