@@ -133,7 +133,7 @@ inline const Value &peekEntry(Context *ctx, const ValueEntry &entry, uint32_t po
 void refreshDepthLimit(Context *ctx);
 void refreshSave(Context *ctx);
 void loadFrame(Context *ctx, const EntryDescriptor &entry);
-void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId);
+sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId);
 void syncStacks(Context *ctx, const ExitDescriptor *state);
 void commitVariables(Context *ctx);
 void materializeLazyFrames(Context *ctx);

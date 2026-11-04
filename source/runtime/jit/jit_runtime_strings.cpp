@@ -104,7 +104,8 @@ void setStringVariable(Context *ctx, uint32_t k, std::string &&value) {
 }
 
 void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
-    ctx->slots[ctx->code->slotVariables + k] = Conversions::stringToNumber(stringVariables[k]);
+    const double number = Conversions::stringToNumber(stringVariables[k]);
+    ctx->slots[ctx->code->slotVariables + k] = number == number ? number : 0.0;
 }
 
 void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {

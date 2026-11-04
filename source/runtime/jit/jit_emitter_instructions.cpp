@@ -54,16 +54,16 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const sljit_s32 reg = destF(to, SLJIT_FR0);
         if (const int pin = pinOf(variableSlot(promoted(instr.a))); pin >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, reg, 0, SLJIT_FR(pin), 0);
         else loadF(reg, variableSlot(promoted(instr.a)));
-        nanToZero(reg);
         commitF(to, reg);
         state_.numbers++;
         return;
     }
     case BytecodeOp::StoreVarNumber: {
         const uint32_t k = promoted(instr.a);
-        moveF(variableSlot(k), numberSlot(state_.numbers - 1));
+        const sljit_s32 written = moveF(variableSlot(k), numberSlot(state_.numbers - 1));
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
         state_.numbers--;
+        if (!topIsNonNan(pc)) guardNanWrite(written, pc + 1);
         return;
     }
     case BytecodeOp::ChangeVarNumber: {
@@ -81,24 +81,20 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             state_.numbers--;
             addCold([this, notInteger, stored, pin, amount]() {
                 sljit_set_label(notInteger, sljit_emit_label(c_));
-                sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, pin, 0, pin, 0);
-                sljit_label *add = sljit_emit_label(c_);
                 sljit_emit_fset64(c_, SLJIT_FR1, amount);
                 sljit_emit_fop2(c_, SLJIT_ADD_F64, pin, 0, pin, 0, SLJIT_FR1, 0);
                 sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), stored);
-                sljit_set_label(nan, sljit_emit_label(c_));
-                sljit_emit_fset64(c_, pin, 0.0);
-                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), add);
             });
             return;
         }
         const sljit_s32 variable = readF(variableSlot(k), SLJIT_FR0);
-        nanToZero(variable);
         const sljit_s32 amount = readF(numberSlot(state_.numbers - 1), SLJIT_FR1);
         sljit_emit_fop2(c_, SLJIT_ADD_F64, variable, 0, variable, 0, amount, 0);
         commitF(variableSlot(k), variable);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
         state_.numbers--;
+        const bool finiteConstant = pc >= 1 && !analysis_.isBlockStart(pc) && chunk_.instructions[pc - 1].op == BytecodeOp::PushConstNumber && std::isfinite(chunk_.numberConstants[chunk_.instructions[pc - 1].a]);
+        if (!finiteConstant) guardNanWrite(variable, pc + 1);
         return;
     }
 
@@ -145,30 +141,43 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const AbsValue top = state_.values.back();
         state_.values.pop_back();
         const uint32_t position = static_cast<uint32_t>(state_.values.size());
+        const AbsState exitState = state_;
+        const BytecodeIndex nextPc = pc + 1;
         if (top.kind == ValueEntry::Constant) {
-            storeImmF(variableSlot(k), constantNumber(top.constant));
+            const double number = constantNumber(top.constant);
+            storeImmF(variableSlot(k), number == number ? number : 0.0);
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 5 + static_cast<sljit_sw>(top.constant));
         } else if (top.kind == ValueEntry::Number) {
+            sljit_s32 written;
+            bool clean = false;
             if (numberFedStore(pc)) {
-                moveF(variableSlot(k), numberSlot(state_.numbers));
+                written = moveF(variableSlot(k), numberSlot(state_.numbers));
+                clean = pc >= 2 && !analysis_.isBlockStart(pc - 1) && nonNanEnding(pc - 2);
             } else {
                 loadF(SLJIT_FR0, valueSlot(position));
                 storeF(variableSlot(k), SLJIT_FR0);
+                written = SLJIT_FR0;
             }
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
+            if (!clean) guardNanWrite(written, nextPc);
         } else {
             ShadowDescriptor &shadow = code_.shadows.emplace_back();
             shadow.variable = k;
             shadow.entry = describe(top);
             shadow.position = position;
 
-            const auto emitBoxed = [this, k, position, &shadow]() {
+            const auto emitBoxed = [this, k, position, &shadow, exitState, nextPc]() {
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&shadow));
                 callHelper(reinterpret_cast<void *>(&Runtime::jitStoreShadow), SLJIT_ARGS2V(P, P));
                 loadF(SLJIT_FR0, valueSlot(position));
                 storeF(variableSlot(k), SLJIT_FR0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 3);
+                sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR0, 0);
+                addCold([this, nan, nextPc, exitState]() {
+                    sljit_set_label(nan, sljit_emit_label(c_));
+                    emitExitAt(nextPc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), exitState);
+                });
             };
 
             if (top.kind == ValueEntry::VarValue && top.constant < code_.promoted.size()) {
@@ -205,6 +214,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 loadF(SLJIT_FR0, valueSlot(position));
                 storeF(variableSlot(k), SLJIT_FR0);
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
+                guardNanWrite(SLJIT_FR0, nextPc);
                 sljit_label *done = sljit_emit_label(c_);
                 addCold([this, boxedTemp, done, emitBoxed]() {
                     sljit_set_label(boxedTemp, sljit_emit_label(c_));

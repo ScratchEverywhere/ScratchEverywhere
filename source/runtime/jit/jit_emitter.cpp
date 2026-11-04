@@ -69,7 +69,14 @@ bool Emitter::emit() {
 
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_S1, 0);
-    callHelper(reinterpret_cast<void *>(&Runtime::jitEnter), SLJIT_ARGS2V(P, W));
+    callHelper(reinterpret_cast<void *>(&Runtime::jitEnter), SLJIT_ARGS2(W, P, W));
+    sljit_jump *declined = sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+    sljit_label *entered = sljit_emit_label(c_);
+    addCold([this, declined, entered]() {
+        sljit_set_label(declined, sljit_emit_label(c_));
+        sljit_emit_return(c_, SLJIT_MOV, SLJIT_IMM, static_cast<sljit_sw>(BytecodeJit::Result::Interpret));
+    });
+    (void)entered;
     if (poisonPins_) {
         for (size_t i = 0; i < maxPins; i++)
             sljit_emit_fset64(c_, SLJIT_FR(firstPin + static_cast<int>(i)), -123456.789);

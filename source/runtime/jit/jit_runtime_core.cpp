@@ -180,7 +180,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
 }
 
-void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
+sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
     const EntryDescriptor &entry = code.entries[entryId];
@@ -189,7 +189,18 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
 
     std::memset(ctx->dirty, 0, code.promoted.size() * sizeof(int64_t));
     for (uint32_t k : entry.loadVariables) {
-        ctx->slots[code.slotVariables + k] = rawVariableNumber(variableAt(thread, code.promoted[k]));
+        const Variable *var = variableAt(thread, code.promoted[k]);
+        const double number = rawVariableNumber(var);
+        if (number != number) {
+            // a number NaN stays with the VM; a string that reads as NaN reads as zero (toNumber)
+            if (var != nullptr && var->value.index() != 2) {
+                thread.jitSuppressOnce = true;
+                return 1;
+            }
+            ctx->slots[code.slotVariables + k] = 0.0;
+            continue;
+        }
+        ctx->slots[code.slotVariables + k] = number;
     }
 
     ctx->nativeDepth = 0;
@@ -199,6 +210,7 @@ void SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
     ctx->pendingRecursive = &thread.pendingRecursiveCallPc;
     refreshDepthLimit(ctx);
     refreshSave(ctx);
+    return 0;
 }
 
 void syncStacks(Context *ctx, const ExitDescriptor *state) {
@@ -618,6 +630,17 @@ double SLJIT_FUNC jitMathOp(double value, sljit_sw op) {
 }
 
 sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {
+    static const bool checkNaN = std::getenv("SE_JIT_CHECKNAN") != nullptr;
+    if (checkNaN) {
+        for (uint32_t k = 0; k < ctx->code->promoted.size(); k++) {
+            if (ctx->dirty[k] == 0) continue; // only writes can break the invariant; slots of variables this entry did not load are uninitialized
+            const double number = ctx->slots[ctx->code->slotVariables + k];
+            if (number != number) {
+                Log::logCritical("JIT: a promoted variable's slot holds NaN (variable " + std::to_string(k) + ")", true);
+                std::abort();
+            }
+        }
+    }
     if (const long every = forcedYieldEvery(); every > 0) {
         static long polls = 0;
         if (++polls % every == 0) return 1;

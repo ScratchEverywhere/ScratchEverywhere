@@ -691,10 +691,14 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
 #ifdef SE_JIT
         if (jitEntries != nullptr) {
-            const int32_t jitEntry = jitEntries[thread.pc];
-            if (jitEntry >= 0) {
-                if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
-                continue;
+            if (thread.jitSuppressOnce) {
+                thread.jitSuppressOnce = false;
+            } else {
+                const int32_t jitEntry = jitEntries[thread.pc];
+                if (jitEntry >= 0) {
+                    if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
+                    continue;
+                }
             }
         }
 #endif

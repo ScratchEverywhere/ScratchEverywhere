@@ -317,15 +317,59 @@ class Emitter {
     void commitF(uint32_t slot, sljit_s32 reg) {
         if (pinOf(slot) < 0) storeF(slot, reg);
     }
-    void moveF(uint32_t to, uint32_t from) {
+    sljit_s32 moveF(uint32_t to, uint32_t from) {
         const int pinTo = pinOf(to), pinFrom = pinOf(from);
-        if (pinTo >= 0 && pinFrom >= 0) sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(pinTo), 0, SLJIT_FR(pinFrom), 0);
-        else if (pinTo >= 0) loadF(SLJIT_FR(pinTo), from);
-        else if (pinFrom >= 0) storeF(to, SLJIT_FR(pinFrom));
-        else {
-            loadF(SLJIT_FR0, from);
-            storeF(to, SLJIT_FR0);
+        if (pinTo >= 0 && pinFrom >= 0) {
+            sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_FR(pinTo), 0, SLJIT_FR(pinFrom), 0);
+            return SLJIT_FR(pinTo);
         }
+        if (pinTo >= 0) {
+            loadF(SLJIT_FR(pinTo), from);
+            return SLJIT_FR(pinTo);
+        }
+        if (pinFrom >= 0) {
+            storeF(to, SLJIT_FR(pinFrom));
+            return SLJIT_FR(pinFrom);
+        }
+        loadF(SLJIT_FR0, from);
+        storeF(to, SLJIT_FR0);
+        return SLJIT_FR0;
+    }
+
+    bool nonNanEnding(BytecodeIndex end) const {
+        if (end >= chunk_.instructions.size() || !plan_.supported[end]) return false;
+        const BytecodeInstruction &instr = chunk_.instructions[end];
+        switch (instr.op) {
+        case BytecodeOp::PushConstNumber:
+            return !std::isnan(chunk_.numberConstants[instr.a]);
+        case BytecodeOp::PushVarNumber:
+            return true;
+        case BytecodeOp::MathOp:
+            if (instr.b != static_cast<uint32_t>(BytecodeMathOp::Abs) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Floor) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Ceiling)) return false;
+            return end >= 1 && !analysis_.isBlockStart(end) && nonNanEnding(end - 1);
+        case BytecodeOp::CallNativeNumber: {
+            const NativeShape shape = plan_.nativeShape(instr);
+            if (shape != NativeShape::Add && shape != NativeShape::Subtract && shape != NativeShape::Multiply && shape != NativeShape::Divide) return false;
+            if (end < 2 || analysis_.isBlockStart(end) || analysis_.isBlockStart(end - 1)) return false;
+            const BytecodeInstruction &right = chunk_.instructions[end - 1];
+            if (right.op != BytecodeOp::PushConstNumber) return false;
+            const double constant = chunk_.numberConstants[right.a];
+            if (!std::isfinite(constant) || ((shape == NativeShape::Multiply || shape == NativeShape::Divide) && constant == 0.0)) return false;
+            return nonNanEnding(end - 2);
+        }
+        default:
+            return false;
+        }
+    }
+    bool topIsNonNan(BytecodeIndex pc) const { return pc >= 1 && !analysis_.isBlockStart(pc) && nonNanEnding(pc - 1); }
+
+    void guardNanWrite(sljit_s32 reg, BytecodeIndex next) {
+        sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, reg, 0, reg, 0);
+        const AbsState exitState = state_;
+        addCold([this, nan, next, exitState]() {
+            sljit_set_label(nan, sljit_emit_label(c_));
+            emitExitAt(next, static_cast<uint32_t>(BytecodeJit::Result::Interpret), exitState);
+        });
     }
 
     void nanToZero(sljit_s32 reg) {

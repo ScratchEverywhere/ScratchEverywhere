@@ -376,6 +376,7 @@ struct SE_EXPORT BytecodeThread {
 
     int finished = true;
     bool withoutScreenRefresh = false;
+    bool jitSuppressOnce = false;
 
     std::vector<double> numberStack;
     std::vector<std::string> stringStack;
