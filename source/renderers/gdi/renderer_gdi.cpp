@@ -295,7 +295,7 @@ void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Renderer_GDI::endFrame(bool shouldFlush) {
-    Sleep(16);
+    //Sleep(16);
     if (this->window) this->window->swapBuffers();
     hasFrameBegan = false;
 }

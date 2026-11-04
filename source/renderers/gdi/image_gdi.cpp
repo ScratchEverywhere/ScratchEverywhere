@@ -228,11 +228,15 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     PatBlt(hDC, 0, 0, cxDest, cyDest, BLACKNESS);
 
+#if 0
     if (p3.x == p[1].x && p3.y == p[2].y) {
         StretchBlt(hDC, 0, 0, cxDest, cyDest, src, x, y, cx, cy, SRCCOPY);
     } else {
         PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
     }
+#else
+    PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
+#endif
     GdiAlphaBlend(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, bf);
     // StretchBlt(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, SRCCOPY);
 
