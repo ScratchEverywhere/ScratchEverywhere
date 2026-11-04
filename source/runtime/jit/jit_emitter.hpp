@@ -166,13 +166,30 @@ class Emitter {
     }
     static sljit_sw poolOffset(int index) { return static_cast<sljit_sw>(offsetof(Context, pool)) + static_cast<sljit_sw>(index) * 8; }
 
+    static bool exactReciprocal(double c) {
+        int exponent;
+        return std::isfinite(c) && c != 0.0 && std::fabs(std::frexp(c, &exponent)) == 0.5 && exponent > -1000 && exponent < 1000;
+    }
+    static double poolValue(NativeShape shape, double c) { return shape == NativeShape::Divide && exactReciprocal(c) ? 1.0 / c : c; }
+    static sljit_s32 poolOp(NativeShape shape, double c) {
+        switch (shape) {
+        case NativeShape::Add:
+            return SLJIT_ADD_F64;
+        case NativeShape::Subtract:
+            return SLJIT_SUB_F64;
+        case NativeShape::Multiply:
+            return SLJIT_MUL_F64;
+        default:
+            return exactReciprocal(c) ? SLJIT_MUL_F64 : SLJIT_DIV_F64;
+        }
+    }
     bool poolOperandFollows(BytecodeIndex pc) {
         if (pc + 1 >= chunk_.instructions.size() || analysis_.isBlockStart(pc + 1)) return false;
         const BytecodeInstruction &next = chunk_.instructions[pc + 1];
         if (next.op != BytecodeOp::CallNativeNumber) return false;
         const NativeShape shape = plan_.nativeShape(next);
         if (shape != NativeShape::Add && shape != NativeShape::Subtract && shape != NativeShape::Multiply && shape != NativeShape::Divide) return false;
-        return poolIndex(chunk_.numberConstants[chunk_.instructions[pc].a]) >= 0;
+        return poolIndex(poolValue(shape, chunk_.numberConstants[chunk_.instructions[pc].a])) >= 0;
     }
 
     bool shadowChangeFollows(BytecodeIndex pc) {
@@ -349,6 +366,9 @@ class Emitter {
             return end >= 1 && !analysis_.isBlockStart(end) && nonNanEnding(end - 1);
         case BytecodeOp::CallNativeNumber: {
             const NativeShape shape = plan_.nativeShape(instr);
+            if (shape == NativeShape::NumberNumber && plan_.opcodeName(instr.a) == "operator_mod") {
+                return wide && end >= 2 && !analysis_.isBlockStart(end) && chunk_.instructions[end - 1].op == BytecodeOp::PushConstNumber && constantModDivisor(chunk_.numberConstants[chunk_.instructions[end - 1].a]);
+            }
             if (shape != NativeShape::Add && shape != NativeShape::Subtract && shape != NativeShape::Multiply && shape != NativeShape::Divide) return false;
             if (end < 2 || analysis_.isBlockStart(end) || analysis_.isBlockStart(end - 1)) return false;
             const BytecodeInstruction &right = chunk_.instructions[end - 1];
@@ -549,6 +569,7 @@ class Emitter {
         return convert < chunk_.instructions.size() && chunk_.instructions[convert].op == BytecodeOp::ConvertValueToNumber && plan_.supported[convert] && !analysis_.isBlockStart(convert) && plan_.entryOf[convert] < 0;
     }
     bool emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &item);
+    bool emitInlineListAdd(const ListOpDescriptor &op, const AbsValue &item);
     bool emitConstantMod(const BytecodeInstruction &instr, double divisor);
     BytecodeIndex currentPc_ = 0;
     ExitDescriptor &makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state);

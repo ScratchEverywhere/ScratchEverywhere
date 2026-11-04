@@ -159,6 +159,65 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
     return true;
 }
 
+bool Emitter::emitInlineListAdd(const ListOpDescriptor &op, const AbsValue &item) {
+    const Runtime::ListLayout &layout = Runtime::listLayout();
+    const bool variable = item.kind == ValueEntry::VarValue && item.constant < code_.promoted.size();
+    const bool temporary = item.kind == ValueEntry::Temp;
+    const bool typedConstant = item.kind == ValueEntry::Constant && item.constant < chunk_.constants.size() && chunk_.constants[item.constant].isStringTyped() && !chunk_.constants[item.constant].isString();
+    if (!layout.ok || (item.kind != ValueEntry::Number && !typedConstant && !variable && !temporary)) return false;
+    std::vector<sljit_jump *> slow;
+    if (variable) {
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(item.constant));
+        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R2, 0, SLJIT_IMM, 1));
+    }
+    if (temporary) {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&Runtime::tempLazy[op.itemPosition]));
+        sljit_jump *lazy = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&Runtime::temps[op.itemPosition]));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.tag);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, layout.numberTag));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.flags);
+        slow.push_back(sljit_emit_cmp(c_, SLJIT_NOT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        sljit_set_label(lazy, sljit_emit_label(c_));
+    }
+
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), offsetof(Context, lists));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_R0), static_cast<sljit_sw>(op.list) * static_cast<sljit_sw>(sizeof(void *)));
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+    const sljit_sw pointer = static_cast<sljit_sw>(sizeof(void *));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + pointer);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), layout.items + 2 * pointer));
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_R0), layout.items);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, static_cast<sljit_sw>(BYTECODE_MAX_LIST_ITEMS) * layout.valueSize);
+    slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_R2, 0));
+
+    loadF(SLJIT_FR2, valueSlot(op.itemPosition));
+    const uint16_t endianProbe = 1;
+    const bool little = *reinterpret_cast<const uint8_t *>(&endianProbe) == 1;
+    if (layout.flags == layout.tag + 1) {
+        const sljit_sw flags = typedConstant ? layout.typedFlags : 0;
+        sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, little ? (layout.numberTag | (flags << 8)) : ((layout.numberTag << 8) | flags));
+    } else {
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
+    }
+    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
+    sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, layout.valueSize);
+    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), layout.items + pointer, SLJIT_R1, 0);
+    sljit_label *done = sljit_emit_label(c_);
+
+    addCold([this, slow, done, &op]() {
+        sljit_label *here = sljit_emit_label(c_);
+        for (sljit_jump *jump : slow)
+            sljit_set_label(jump, here);
+        callListHelper(reinterpret_cast<void *>(&Runtime::jitListAdd), const_cast<ListOpDescriptor &>(op), SLJIT_ARGS2V(P, P));
+        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+    });
+    return true;
+}
+
 } // namespace BytecodeJitInternal
 
 #endif

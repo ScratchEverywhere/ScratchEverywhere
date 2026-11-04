@@ -500,8 +500,9 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         op.list = instr.a;
         op.itemPosition = depth - 1;
         op.item = describe(state_.values[depth - 1]);
+        const bool inlined = emitInlineListAdd(op, state_.values[depth - 1]);
         state_.values.pop_back();
-        callListHelper(reinterpret_cast<void *>(&Runtime::jitListAdd), op, SLJIT_ARGS2V(P, P));
+        if (!inlined) callListHelper(reinterpret_cast<void *>(&Runtime::jitListAdd), op, SLJIT_ARGS2V(P, P));
         return;
     }
     case BytecodeOp::DeleteAllOfList: {

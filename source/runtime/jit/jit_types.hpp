@@ -173,7 +173,7 @@ struct ReturnDescriptor {
 
 struct Code;
 
-inline constexpr uint32_t constantPoolSize = 16;
+inline constexpr uint32_t constantPoolSize = 64;
 
 struct alignas(64) Context {
     BytecodeThread *thread = nullptr;

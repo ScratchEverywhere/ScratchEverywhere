@@ -26,7 +26,8 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
                                                                      : shape == NativeShape::Multiply   ? SLJIT_MUL_F64
                                                                                                         : SLJIT_DIV_F64;
         if (currentPc_ >= 1 && chunk_.instructions[currentPc_ - 1].op == BytecodeOp::PushConstNumber && poolOperandFollows(currentPc_ - 1)) {
-            sljit_emit_fop2(c_, op, left, 0, left, 0, SLJIT_MEM1(SLJIT_S0), poolOffset(poolIndex(chunk_.numberConstants[chunk_.instructions[currentPc_ - 1].a])));
+            const double constant = chunk_.numberConstants[chunk_.instructions[currentPc_ - 1].a];
+            sljit_emit_fop2(c_, poolOp(shape, constant), left, 0, left, 0, SLJIT_MEM1(SLJIT_S0), poolOffset(poolIndex(poolValue(shape, constant))));
         } else {
             const sljit_s32 right = readF(b, SLJIT_FR1);
             sljit_emit_fop2(c_, op, left, 0, left, 0, right, 0);
