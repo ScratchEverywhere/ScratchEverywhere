@@ -48,6 +48,11 @@ class SE_EXPORT BytecodeCompiler {
     BytecodeIndex procedureSlot(Block *definitionBlock) const;
 
     bool inStatementContext() const { return statementContext_; }
+    uint32_t blockDepth() const { return blockDepth_; }
+    void recordCallSite(BytecodeIndex pc) {
+        chunk_.callSitePcs.push_back(pc);
+        chunk_.callSiteDepths.push_back(blockDepth_);
+    }
 
     BytecodeChunk &chunk() { return chunk_; }
     BytecodeLinkTable &link() { return link_; }
@@ -66,4 +71,5 @@ class SE_EXPORT BytecodeCompiler {
 
     const std::vector<std::string> *currentArgumentNames_ = nullptr;
     bool statementContext_ = false;
+    uint32_t blockDepth_ = 0;
 };

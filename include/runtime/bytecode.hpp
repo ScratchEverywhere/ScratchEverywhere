@@ -1,6 +1,7 @@
 #pragma once
 #include "color.hpp"
 #include "value.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -14,7 +15,7 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-inline constexpr uint16_t bytecodeCacheVersion = 4;
+inline constexpr uint16_t bytecodeCacheVersion = 6;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
 inline constexpr unsigned int BYTECODE_MAX_LIST_ITEMS = 200000;
@@ -111,6 +112,7 @@ enum class BytecodeOp : uint8_t {
 
     RepeatCheck,
     ForEachCheck,
+    SetForEachBound,
     Wait,
     BroadcastAndWait,
     PlaySoundUntilDone,
@@ -204,6 +206,13 @@ struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeScript> scripts;
 
     std::vector<BytecodeIndex> escapeBlockOrdinals;
+
+    std::vector<BytecodeIndex> callSitePcs;
+    std::vector<BytecodeIndex> callSiteDepths;
+    uint32_t callSiteDepth(BytecodeIndex pc) const {
+        auto it = std::lower_bound(callSitePcs.begin(), callSitePcs.end(), pc);
+        return (it != callSitePcs.end() && *it == pc) ? callSiteDepths[static_cast<size_t>(it - callSitePcs.begin())] : 0;
+    }
 
     std::vector<BytecodeIndex> escapeWriteStart;
     std::vector<BytecodeIndex> escapeWriteCount;
@@ -343,6 +352,17 @@ struct SE_EXPORT BytecodeCallFrame {
     bool wantsValue = false;
     bool previousWarp = false;
 };
+
+inline bool bytecodeIsRecursiveCall(const BytecodeChunk &chunk, const std::vector<BytecodeCallFrame> &callStack, BytecodeIndex procedure, BytecodeIndex callPc) {
+    uint32_t between = chunk.callSiteDepth(callPc);
+    for (size_t i = callStack.size(); i-- > 0;) {
+        if (between > 5) return false;
+        const BytecodeCallFrame &frame = callStack[i];
+        if (frame.procedureIndex == procedure) return true;
+        between += 1 + chunk.callSiteDepth(frame.returnInstruction - 1);
+    }
+    return false;
+}
 
 struct SE_EXPORT BytecodeThread {
     uint64_t id = 0;

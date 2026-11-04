@@ -768,6 +768,16 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::SetForEachBound: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        const uint32_t boundSlot = valueSlot(depth - 2);
+        loadF(SLJIT_FR0, numberSlot(state_.numbers - 1));
+        storeF(boundSlot, SLJIT_FR0);
+        state_.numbers--;
+        state_.values[depth - 2].kind = ValueEntry::Number;
+        return;
+    }
+
     case BytecodeOp::ForEachCheck: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         const uint32_t counter = valueSlot(depth - 1), bound = valueSlot(depth - 2);

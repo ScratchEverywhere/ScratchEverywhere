@@ -344,7 +344,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
 
                 newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
                 Scratch::blocks.push_back(newBlock);
-                newSprite->hats[opcode].insert(newBlock);
+                newSprite->hats[opcode].push_back(newBlock);
 
                 if (!data.contains("next") || data["next"].is_null()) {
                     Parser::log("\t\t\t! No next block");

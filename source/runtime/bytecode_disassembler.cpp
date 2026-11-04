@@ -220,6 +220,8 @@ const char *mnemonic(BytecodeOp op) {
         return "RepeatCheck";
     case BytecodeOp::ForEachCheck:
         return "ForEachCheck";
+    case BytecodeOp::SetForEachBound:
+        return "SetForEachBound";
     case BytecodeOp::Wait:
         return "Wait";
     case BytecodeOp::BroadcastAndWait:

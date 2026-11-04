@@ -561,7 +561,7 @@ void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
         Block *headBlock = parseSb2Block(firstBlock, sprite);
         if (!headBlock) continue;
 
-        sprite->hats[headBlock->opcode].insert(headBlock);
+        sprite->hats[headBlock->opcode].push_back(headBlock);
         headBlock->nextBlock = buildSb2BlockChain(restOfScript, sprite, nullptr);
         Parser::setSubstackSb3(headBlock);
     }

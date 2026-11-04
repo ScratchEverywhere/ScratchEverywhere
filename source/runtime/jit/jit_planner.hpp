@@ -329,6 +329,8 @@ struct Planner {
             return topValueIsNumber(pc);
         case BytecodeOp::ForEachCheck:
             return instr.b < variableCount && topValuesAreNumeric(pc, 2);
+        case BytecodeOp::SetForEachBound:
+            return topValuesAreNumeric(pc, 2);
         case BytecodeOp::PopValue:
             return true;
         case BytecodeOp::PushConstValue: {

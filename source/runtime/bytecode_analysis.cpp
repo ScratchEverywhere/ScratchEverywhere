@@ -563,6 +563,11 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (s.values.empty()) return fail("stack underflow (repeat counter)");
         s.values.back() = VType::Number;
         return true;
+    case BytecodeOp::SetForEachBound:
+        if (s.values.size() < 2) return fail("stack underflow (for each bound)");
+        if (!pop(s, K::Number)) return fail("stack underflow (number)");
+        s.values[s.values.size() - 2] = VType::Number;
+        return true;
     case BytecodeOp::ForEachCheck:
         if (s.values.size() < 2) return fail("stack underflow (for each counter)");
         s.values.back() = VType::Number;

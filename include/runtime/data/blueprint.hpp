@@ -493,7 +493,7 @@ class SE_EXPORT Sprite {
     std::unordered_map<std::string, size_t> costumeNameIndex;
     std::unordered_map<std::string, Broadcast> broadcasts;
 
-    std::unordered_map<std::string, std::unordered_set<Block *>> hats;
+    std::unordered_map<std::string, std::vector<Block *>> hats;
     std::unordered_map<std::string, Block *> customHatBlock;
 
     std::unique_ptr<BytecodeChunk> bytecode;

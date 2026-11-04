@@ -17,6 +17,8 @@
 
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
+static BytecodeThread *runningThread = nullptr;
+
 #ifdef SE_BYTECODE_STATS
 std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> BytecodeExecutor::factTables;
 
@@ -1027,14 +1029,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 const BytecodeProcedure &proc = thread.chunk->procedures[procIndex];
 
                 if (!thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh && thread.pendingRecursiveCallPc != thread.pc) {
-                    bool isRecursiveCall = false;
-                    for (const BytecodeCallFrame &existing : thread.callStack) {
-                        if (existing.procedureIndex == procIndex) {
-                            isRecursiveCall = true;
-                            break;
-                        }
-                    }
-                    if (isRecursiveCall) {
+                    if (bytecodeIsRecursiveCall(*thread.chunk, thread.callStack, procIndex, thread.pc)) {
                         thread.pendingRecursiveCallPc = thread.pc;
                         goto done;
                     }
@@ -1330,6 +1325,13 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.pc++;
                 SE_NEXT();
             }
+            SE_CASE(SetForEachBound) {
+                const double bound = thread.numberStack.back();
+                thread.numberStack.pop_back();
+                if (thread.valueStack.size() >= 2) thread.valueStack[thread.valueStack.size() - 2] = Value(bound);
+                thread.pc++;
+                SE_NEXT();
+            }
             SE_CASE(Wait) {
                 if (!thread.isSleeping) {
                     double seconds = thread.numberStack.back();
@@ -1338,7 +1340,11 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     thread.waitTimer.start();
                     thread.isSleeping = true;
                     Scratch::forceRedraw = true;
-                    goto done;
+                    if (!thread.withoutScreenRefresh) goto done;
+                    if (thread.sleepTimer > 0.0) {
+                        thread.sleepTimer = 0.0;
+                        goto done;
+                    }
                 }
                 if (thread.waitTimer.hasElapsed(static_cast<int>(thread.sleepTimer * 1000.0))) {
                     thread.isSleeping = false;
@@ -1844,9 +1850,14 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
 
     if (restartIndex != static_cast<size_t>(-1)) {
         BytecodeThread *old = threads[restartIndex];
-        old->finished = true;
-        old->killed = true;
         if (old->escapedToLegacy) killLegacyThread(old->legacyThreadId);
+        threads[restartIndex] = newThread;
+        if (old == runningThread) {
+            return newThread;
+        }
+        if (old->bridgeThread) releaseScriptThread(old->bridgeThread);
+        delete old;
+        return newThread;
     }
     threads.push_back(newThread);
 
@@ -1891,7 +1902,16 @@ void BytecodeExecutor::runThreads() {
             continue;
         }
 
-        if (!thread->escapedToLegacy) runThread(*thread);
+        if (!thread->escapedToLegacy) {
+            runningThread = thread;
+            runThread(*thread);
+            runningThread = nullptr;
+        }
+
+        if (i < threads.size() && threads[i] != thread && std::find(threads.begin(), threads.end(), thread) == threads.end()) {
+            if (thread->bridgeThread) releaseScriptThread(thread->bridgeThread);
+            delete thread;
+        }
 
         if (Scratch::shouldStop) return;
         i++;

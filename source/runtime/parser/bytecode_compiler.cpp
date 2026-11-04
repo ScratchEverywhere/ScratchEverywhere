@@ -259,7 +259,10 @@ Block *BytecodeCompiler::substackBlock(Block *block, const std::string &inputNam
 }
 
 bool BytecodeCompiler::compileSubstack(Block *block, const std::string &inputName, Block *stopBlock, BytecodeIndex &outFirstInstr) {
-    return compileBlockChain(substackBlock(block, inputName), stopBlock, outFirstInstr);
+    blockDepth_++;
+    const bool compiled = compileBlockChain(substackBlock(block, inputName), stopBlock, outFirstInstr);
+    blockDepth_--;
+    return compiled;
 }
 
 namespace {

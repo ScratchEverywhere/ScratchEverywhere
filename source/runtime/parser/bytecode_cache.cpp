@@ -262,6 +262,8 @@ void writeChunk(std::ostream &out, const BytecodeChunk &chunk) {
     }
 
     writeIndexVec(out, chunk.escapeBlockOrdinals);
+    writeIndexVec(out, chunk.callSitePcs);
+    writeIndexVec(out, chunk.callSiteDepths);
     writeIndexVec(out, chunk.escapeWriteStart);
     writeIndexVec(out, chunk.escapeWriteCount);
     writeIndexVec(out, chunk.escapeWrittenVariables);
@@ -373,6 +375,7 @@ bool readChunk(std::istream &in, BytecodeChunk &chunk) {
     }
 
     if (!readIndexVec(in, chunk.escapeBlockOrdinals)) return false;
+    if (!readIndexVec(in, chunk.callSitePcs) || !readIndexVec(in, chunk.callSiteDepths) || chunk.callSitePcs.size() != chunk.callSiteDepths.size()) return false;
     if (!readIndexVec(in, chunk.escapeWriteStart) || !readIndexVec(in, chunk.escapeWriteCount) || !readIndexVec(in, chunk.escapeWrittenVariables)) return false;
     if (chunk.escapeWriteStart.size() != chunk.escapeBlockOrdinals.size() || chunk.escapeWriteCount.size() != chunk.escapeBlockOrdinals.size()) return false;
 

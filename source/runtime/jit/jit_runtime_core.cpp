@@ -459,12 +459,10 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
 
     if (!thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh && thread.pendingRecursiveCallPc != call->callPc) {
-        for (const BytecodeCallFrame &existing : thread.callStack) {
-            if (existing.procedureIndex == call->procedure) {
-                thread.pendingRecursiveCallPc = call->callPc;
-                thread.pc = call->callPc;
-                return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Yield);
-            }
+        if (bytecodeIsRecursiveCall(*ctx->chunk, thread.callStack, call->procedure, call->callPc)) {
+            thread.pendingRecursiveCallPc = call->callPc;
+            thread.pc = call->callPc;
+            return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Yield);
         }
     }
     thread.pendingRecursiveCallPc = invalidBytecodeIndex;
