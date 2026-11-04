@@ -1,3 +1,4 @@
+#include <cstdio>
 #include "bytecode_executor.hpp"
 #ifdef SE_JIT
 #include "bytecode_jit.hpp"
@@ -1866,6 +1867,23 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
     threads.push_back(newThread);
 
     return newThread;
+}
+
+void BytecodeExecutor::dumpThreads() {
+    std::fprintf(stderr, "[diag] %zu bytecode threads, %zu legacy threads\n", threads.size(), BlockExecutor::threads.size());
+    for (const BytecodeThread *thread : threads) {
+        std::fprintf(stderr, "[diag]   thread %llu sprite=%s hat=%u pc=%u finished=%d warp=%d callDepth=%zu sleeping=%d waitingBroadcast=%d waitingSound=%d escapedToLegacy=%d killed=%d",
+                     static_cast<unsigned long long>(thread->id), thread->sprite != nullptr ? thread->sprite->name.c_str() : "?", static_cast<unsigned>(thread->hatInstruction), static_cast<unsigned>(thread->pc),
+                     thread->finished, thread->withoutScreenRefresh ? 1 : 0, thread->callStack.size(), thread->isSleeping ? 1 : 0, thread->isWaitingForBroadcast ? 1 : 0, thread->isWaitingForSound ? 1 : 0,
+                     thread->escapedToLegacy ? 1 : 0, thread->killed ? 1 : 0);
+        if (thread->isWaitingForBroadcast) {
+            std::fprintf(stderr, " waitingOn=[");
+            for (uint64_t id : thread->waitHandle)
+                std::fprintf(stderr, " %llu(%s)", static_cast<unsigned long long>(id), BlockExecutor::isThreadRunning(id) ? "running" : "gone");
+            std::fprintf(stderr, " ]");
+        }
+        std::fprintf(stderr, "\n");
+    }
 }
 
 void BytecodeExecutor::runThreads() {

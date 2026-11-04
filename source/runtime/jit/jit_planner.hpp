@@ -555,6 +555,23 @@ struct Planner {
         }
         if (uses.size() <= maxPromoted) return;
 
+        std::vector<int32_t> inLoop(count + 1, 0);
+        for (BytecodeIndex pc = 0; pc < count; pc++) {
+            const BytecodeInstruction &instr = chunk.instructions[pc];
+            if (isJump(instr.op) && instr.a < count && instr.a <= pc) {
+                inLoop[instr.a]++;
+                inLoop[pc + 1]--;
+            }
+        }
+        for (BytecodeIndex pc = 1; pc <= count; pc++)
+            inLoop[pc] += inLoop[pc - 1];
+        uses.clear();
+        for (BytecodeIndex pc = 0; pc < count; pc++) {
+            if (!supported[pc]) continue;
+            const int64_t variable = promotedVariable(chunk.instructions[pc]);
+            if (variable >= 0) uses[variable] += inLoop[pc] > 0 ? 16 : 1;
+        }
+
         std::vector<std::pair<uint32_t, int64_t>> ranked;
         for (const auto &[variable, n] : uses)
             ranked.push_back({n, variable});

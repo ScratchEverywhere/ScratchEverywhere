@@ -27,8 +27,9 @@
 
 namespace BytecodeJitInternal {
 
-constexpr uint32_t maxSlots = 480;
-constexpr uint32_t maxPromoted = 128;
+constexpr uint32_t maxSlots = 1024;
+constexpr uint32_t maxPromoted = 512;
+constexpr uint32_t promotedWords = maxPromoted / 64;
 inline long forcedYieldEvery() {
     static const long every = [] {
         const char *p = std::getenv("SE_JIT_FORCEYIELD");
@@ -190,7 +191,7 @@ struct alignas(64) Context {
     uint32_t saveTop = 0;
     uint32_t lazyDepth = 0;
     uint32_t tempHigh = 0;
-    uint64_t shadowUsed[2] = {0, 0};
+    uint64_t shadowUsed[promotedWords] = {};
     uint64_t warp = 0;
     int64_t dirty[maxPromoted];
     double slots[maxSlots];
@@ -202,7 +203,7 @@ struct alignas(64) Context {
     double *savePtr = nullptr;
     bool *threadWarp = nullptr;
     BytecodeIndex *pendingRecursive = nullptr;
-    uint64_t stringVariableUsed[2] = {0, 0};
+    uint64_t stringVariableUsed[promotedWords] = {};
     double one = 1.0;
     double pool[constantPoolSize];
 };

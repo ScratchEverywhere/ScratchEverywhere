@@ -27,6 +27,8 @@ class SE_EXPORT BytecodeExecutor {
 
     static void runThread(BytecodeThread &thread);
 
+    static void dumpThreads();
+
 #ifdef SE_BYTECODE_STATS
     static std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> factTables;
     static std::string takeStatsReport();

@@ -201,10 +201,16 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
     std::memset(Runtime::tempLazy, 0, sizeof Runtime::tempLazy);
     for (uint32_t i = 0; i < ctx.strHigh; i++)
         std::string().swap(Runtime::strs[i]);
-    for (uint32_t k = 0; (ctx.stringVariableUsed[0] | ctx.stringVariableUsed[1]) != 0 && k < maxPromoted; k++) {
+    const auto anyUsed = [](const uint64_t *words) {
+        uint64_t any = 0;
+        for (uint32_t w = 0; w < promotedWords; w++)
+            any |= words[w];
+        return any != 0;
+    };
+    for (uint32_t k = 0; anyUsed(ctx.stringVariableUsed) && k < maxPromoted; k++) {
         if (ctx.stringVariableUsed[k >> 6] & (uint64_t(1) << (k & 63))) std::string().swap(Runtime::stringVariables[k]);
     }
-    for (uint32_t k = 0; (ctx.shadowUsed[0] | ctx.shadowUsed[1]) != 0 && k < maxPromoted; k++) {
+    for (uint32_t k = 0; anyUsed(ctx.shadowUsed) && k < maxPromoted; k++) {
         if (ctx.shadowUsed[k >> 6] & (uint64_t(1) << (k & 63))) Runtime::shadowValues[k] = Value();
     }
     return result;
