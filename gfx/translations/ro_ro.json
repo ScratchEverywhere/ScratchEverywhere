@@ -41,5 +41,12 @@
   "version.prefix.release": "Versiune Public",
   "version.prefix.releaseCanidate": "Canditidă Public",
   "version.prefix.nightly": "Nightly",
-  "ui.settings.runtime": "Runtime"
+  "ui.settings.runtime": "Runtime",
+  "ui.settings.renderer": "",
+  "ui.settings.windowing": "",
+  "ui.settings.audioEngine": "",
+  "ui.loading.caching": "",
+  "ui.popup.bytecodeCacheTooNew": "",
+  "version.prefix.alpha": "",
+  "version.prefix.dev": ""
 }
