@@ -40,5 +40,7 @@
   "version.prefix.beta": "Beta Build",
   "version.prefix.release": "Release",
   "version.prefix.releaseCanidate": "Release Candidate",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "ui.settings.runtime": "Środowisko wykonawcze",
+  "ui.settings.renderer": "Renderer"
 }
