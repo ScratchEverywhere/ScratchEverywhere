@@ -596,6 +596,12 @@ std::string Math::toString(double number) {
     return std::string(buffer, static_cast<size_t>(length));
 }
 
+double Math::jsRound(double value) {
+    if (!std::isfinite(value)) return value;
+    const double floored = std::floor(value);
+    return (value - floored >= 0.5) ? floored + 1 : floored;
+}
+
 double Math::degreesToRadians(double degrees) {
     return degrees * M_PI / 180.0;
 }

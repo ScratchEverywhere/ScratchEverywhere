@@ -5,6 +5,7 @@
 #include <image.hpp>
 #include <image_geometry.hpp>
 #include <log.hpp>
+#include <math.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <unordered_set>
@@ -23,7 +24,7 @@ void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
 } // namespace
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
-    costumeIndex = std::round(costumeIndex);
+    costumeIndex = Math::jsRound(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
 #ifdef __XBOX__

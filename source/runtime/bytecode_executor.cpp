@@ -1559,7 +1559,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
             SE_CASE(SetEffectTo) {
                 Value v = popValue(thread, BytecodeStackKind::Value);
-                if (v.isNumeric()) applyEffect(thread.sprite, static_cast<BytecodeEffect>(instr.b), v.get<double>(), true);
+                applyEffect(thread.sprite, static_cast<BytecodeEffect>(instr.b), v.get<double>(), true);
                 thread.pc++;
                 SE_NEXT();
             }

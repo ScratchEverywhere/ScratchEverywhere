@@ -146,6 +146,26 @@ SCRATCH_BLOCK(sound, stopallsounds) {
 }
 SCRATCH_BLOCK_SIGNATURE(sound, stopallsounds);
 
+bool updateSoundEffect(Sprite *sprite, std::string effect, double amount, bool change) {
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::tolower);
+
+    if (effect == "pitch") {
+        sprite->pitch = std::clamp(static_cast<float>(change ? sprite->pitch + amount : amount), -360.0f, 360.0f);
+        for (Sound sound : sprite->sounds) {
+            Mixer::setPitch(sound.fullName, sprite->pitch);
+        }
+        return true;
+    }
+    if (effect == "pan") {
+        sprite->pan = std::clamp(static_cast<float>(change ? sprite->pan + amount : amount), -100.0f, 100.0f);
+        for (Sound sound : sprite->sounds) {
+            Mixer::setPan(sound.fullName, sprite->pan);
+        }
+        return true;
+    }
+    return false;
+}
+
 SCRATCH_BLOCK(sound, changeeffectby) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps != 0) {
@@ -158,18 +178,9 @@ SCRATCH_BLOCK(sound, changeeffectby) {
     if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount) ||
         !Scratch::getInputValueAs(block, "EFFECT", thread, sprite, effect)) return BlockResult::REPEAT;
 
-    if (effect == "PITCH") {
-        sprite->pitch += amount;
-        sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
-        for (Sound sound : sprite->sounds) {
-            Mixer::setPitch(sound.fullName, sprite->pitch);
-        }
-    } else if (effect == "PAN") {
-        sprite->pan += amount;
-        sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
-        for (Sound sound : sprite->sounds) {
-            Mixer::setPan(sound.fullName, sprite->pan);
-        }
+    if (!updateSoundEffect(sprite, effect, amount, true)) {
+        thread->eraseState(block);
+        return BlockResult::CONTINUE;
     }
     state->completedSteps = 1;
     return BlockResult::REPEAT;
@@ -177,27 +188,25 @@ SCRATCH_BLOCK(sound, changeeffectby) {
 SCRATCH_BLOCK_BLOCKING_SIGNATURE(sound, changeeffectby, {"VALUE", BytecodeStackKind::Number}, {"EFFECT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(sound, seteffectto) {
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps != 0) {
+        thread->eraseState(block);
+        return BlockResult::CONTINUE;
+    }
+
     double amount;
     std::string effect;
     if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount) ||
         !Scratch::getInputValueAs(block, "EFFECT", thread, sprite, effect)) return BlockResult::REPEAT;
 
-    if (effect == "PITCH") {
-        sprite->pitch = amount;
-        sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
-        for (Sound sound : sprite->sounds) {
-            Mixer::setPitch(sound.fullName, sprite->pitch);
-        }
-    } else if (effect == "PAN") {
-        sprite->pan = amount;
-        sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
-        for (Sound sound : sprite->sounds) {
-            Mixer::setPan(sound.fullName, sprite->pan);
-        }
+    if (!updateSoundEffect(sprite, effect, amount, false)) {
+        thread->eraseState(block);
+        return BlockResult::CONTINUE;
     }
-    return BlockResult::CONTINUE;
+    state->completedSteps = 1;
+    return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(sound, seteffectto, {"VALUE", BytecodeStackKind::Number}, {"EFFECT", BytecodeStackKind::String});
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(sound, seteffectto, {"VALUE", BytecodeStackKind::Number}, {"EFFECT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK_POSITIONAL_VOID(sound, cleareffects) {
     sprite->pitch = 0.0f;

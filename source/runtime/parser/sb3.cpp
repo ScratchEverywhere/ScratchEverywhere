@@ -168,7 +168,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             newSprite->currentCostume = target["currentCostume"].get<int>();
         }
         if (target.contains("volume")) {
-            newSprite->volume = target["volume"].get<int>();
+            newSprite->volume = target["volume"].get<double>();
         }
         if (target.contains("x")) {
             newSprite->xPosition = target["x"].get<float>();

@@ -30,6 +30,8 @@ SE_EXPORT std::string toString(double number);
 
 SE_EXPORT int color(int r, int g, int b, int a);
 
+SE_EXPORT double jsRound(double value);
+
 SE_EXPORT double degreesToRadians(double degrees);
 
 SE_EXPORT double radiansToDegrees(double radians);

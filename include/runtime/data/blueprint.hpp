@@ -439,7 +439,7 @@ class SE_EXPORT Sprite {
     double xPosition;
     double yPosition;
     double rotation;
-    float size;
+    double size;
     int layer;
     RenderInfo renderInfo;
 

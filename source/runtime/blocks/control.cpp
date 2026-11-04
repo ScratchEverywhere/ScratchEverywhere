@@ -131,7 +131,10 @@ SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
     spriteToClone->ghostEffect = original->ghostEffect;
     spriteToClone->brightnessEffect = original->brightnessEffect;
     spriteToClone->colorEffect = original->colorEffect;
-    spriteToClone->volume = original->volume;
+    spriteToClone->fisheyeEffect = original->fisheyeEffect;
+    spriteToClone->whirlEffect = original->whirlEffect;
+    spriteToClone->pixelateEffect = original->pixelateEffect;
+    spriteToClone->mosaicEffect = original->mosaicEffect;
     spriteToClone->pitch = original->pitch;
     spriteToClone->pan = original->pan;
     spriteToClone->penData = original->penData;

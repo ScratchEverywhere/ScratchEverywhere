@@ -64,7 +64,7 @@ bool BytecodeCompiler::isStaticallyKind(const ParsedInput *input, BytecodeStackK
     case ParsedInput::VALUE:
         switch (kind) {
         case BytecodeStackKind::Number:
-            return input->value.isDouble();
+            return input->value.isDouble() && !input->value.isNaN();
         case BytecodeStackKind::String:
             return input->value.isString();
         case BytecodeStackKind::Boolean:
