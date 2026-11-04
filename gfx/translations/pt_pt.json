@@ -45,5 +45,9 @@
   "version.prefix.release": "Lançamento",
   "version.prefix.releaseCanidate": "Candidato a Lançamento",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Versão em Desenvolvimento"
+  "version.prefix.dev": "Versão em Desenvolvimento",
+  "ui.settings.deleteUnpacked": "Eliminar Projeto Desempacotado",
+  "ui.settings.dectalk": "Usar DECtalk",
+  "ui.loading.caching": "Cache de Imagens",
+  "ui.popup.bytecodeCacheTooNew": "Este projeto desempacotado é de uma versão mais recente do Scratch Everywhere!, por favor desempacote o projeto outra vez or use a versão empacotada."
 }
