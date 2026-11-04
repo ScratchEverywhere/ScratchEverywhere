@@ -153,7 +153,7 @@ the community to understand your suggestion and find related suggestions.
   up to you to make a strong case to convince the project's developers of the
   merits of this feature. Keep in mind that we want features that will be useful
   to the majority of our users and not just a small subset. If you're just
-  targeting a minority of users, consider writing an add-on/plugin library.
+  targeting a minority of users, consider writing an extension.
 
 <!-- omit in toc -->
 
@@ -200,8 +200,12 @@ See [`PORTING.md`](/PORTING.md).
 
 You can pretty much do whatever you want since we usually end up squashing PRs
 anyway. The two most common commit styles are conventional commits and Nate's.
-Nate's style goes like `[Affected Code] Change` so some examples are:
-`[Runtime] Added move steps support` or `[SDL, 3DS] Improved Image Memory`.
+Nate's commit style is similar to conventional commits, but with only the
+affected code/platform encased in brackets. Some examples are:
+
+- `[Runtime] Added move steps support`
+- `[SDL, 3DS] Improved Image Memory`.
+- `[NDS] Fix white bottom screen`
 
 ### Markdown
 
@@ -216,6 +220,10 @@ brackets at the beginning of the list item:
 
 We also use `deno fmt` to format our Markdown files. You should probably set up
 formatting on save for convenience.
+
+Finally, in all documentation, we follow a standard arrangement of platforms.
+Specifically, platforms are listed in the order that they appear in the
+[intro page](https://scratcheverywhere.github.io/intro).
 
 <!-- omit in toc -->
 
