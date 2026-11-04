@@ -9,11 +9,20 @@ class SE_EXPORT Menu {
     virtual ~Menu() = default;
 };
 
+enum class MenuId : uint8_t {
+    None,
+    MainMenu,
+    ProjectMenu,
+    SettingsMenu,
+};
+
 namespace MenuManager {
 extern UI::Pool elements;
-extern Menu *currentMenu;
+extern MenuId currentMenu;
+extern std::unordered_map<MenuId, std::unique_ptr<Menu>> loadedMenus;
 extern UI::Builder builder;
 bool initMainMenu();
 void render();
 void buildMenuBar(UI::Builder &b);
+void changeMenu(MenuId id);
 }; // namespace MenuManager

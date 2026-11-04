@@ -1,12 +1,76 @@
 #include "ui.hpp"
 #include "image.hpp"
+#include "input.hpp"
 #include <log.hpp>
 #include <renderer.hpp>
+#include <string>
 #include <text.hpp>
 
 namespace UI {
 
 std::array<std::string, 2> fontPaths;
+std::array<Style, 32> theme;
+
+// TODO: move this somewhere else, and add ability to load theme from file
+// TODO: put font loading here too
+void loadTheme() {
+    theme[StyleId::None] = {
+        .normal = {.color = {0, 0, 0, 0}, .round = 0},
+        .has = 0,
+    };
+    theme[StyleId::Tab] = {
+        .normal = {.color = {92, 60, 90, 255}, .round = 12},
+        .focused = {.color = {206, 138, 184, 255}, .round = 12},
+        .pressed = {.color = {118, 75, 114, 255}, .round = 12},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
+    theme[StyleId::TabPressed] = {
+        .normal = {.color = {118, 75, 114, 255}, .round = 8},
+    };
+}
+
+void Builder::input() {
+    // TODO: Input class changes
+    Input::getInput();
+    const int mouseX = Input::mousePointer.rawX;
+    const int mouseY = Input::mousePointer.rawY;
+    const size_t mouseHeldFrames = Input::mousePointer.heldFrames;
+
+    static size_t oldHeldFrames = 0;
+    static int oldMouseX = 0;
+    static int oldMouseY = 0;
+
+    bool found = false;
+    for (int i = pool->count - 1; i >= 0; i--) {
+        Element &e = pool->elements[i];
+        if (!(e.flags & Flag::Focusable)) continue;
+        // TODO: account for scroll containers
+        if (!found && mouseX >= e.rect.x && mouseX < e.rect.x + e.rect.w &&
+            mouseY >= e.rect.y && mouseY < e.rect.y + e.rect.h) {
+            found = true;
+
+            if (Input::mousePointer.isPressed) {
+                e.state = StateFlag::Pressed;
+
+                if (mouseHeldFrames == 1) {
+                    oldMouseX = mouseX;
+                    oldMouseY = mouseY;
+                }
+
+            } else if (mouseHeldFrames == 0 && oldHeldFrames != 0 &&
+                       std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
+                if (e.onClickId != NONE) {
+                    pool->callbacks[e.onClickId]();
+                }
+            } else {
+                e.state = StateFlag::Focused;
+            }
+
+        } else e.state = StateFlag::Normal;
+    }
+
+    oldHeldFrames = mouseHeldFrames;
+}
 
 bool Builder::shouldRebuild() {
     const Renderer *renderer = Render::getGlobalRenderer();
@@ -28,6 +92,8 @@ void Builder::begin(Pool &p) {
     pool = &p;
     pool->count = 0;
     pool->textCount = 0;
+    pool->imageCount = 0;
+    pool->callbackCount = 0;
     depth = 0;
     skipped = 0;
 }
@@ -106,7 +172,7 @@ void Builder::end() {
 }
 
 uint16_t Builder::text(const TextProps &props) {
-    Element e = ElementProps::toElement({.w = Size::fit(), .h = Size::fit(), .align = props.align});
+    Element e = ElementProps::toElement({.w = Size::fit(), .h = Size::fit(), .align = props.align, .color = props.color});
     e.kind = ElementKind::Text;
 
     uint16_t txtId = pool->textCount++;
@@ -128,7 +194,7 @@ uint16_t Builder::image(const ImageProps &props) {
         payload.image = std::move(img.value());
     }
 
-    Element e = ElementProps::toElement({.w = Size::fixed(payload.image->getWidth()), .h = Size::fixed(payload.image->getHeight()), .align = props.align});
+    Element e = ElementProps::toElement({.w = Size::fixed(payload.image->getWidth()), .h = Size::fixed(payload.image->getHeight()), .align = props.align, .color = {0, 0, 0, 255}});
     e.kind = ElementKind::Image;
 
     uint16_t imgId = pool->imageCount++;
@@ -340,7 +406,9 @@ void Painter::render(const Pool &pool) {
     const int windowWidth = renderer->window->getWidth();
     const int windowHeight = renderer->window->getHeight();
 
-    for (auto &e : pool.elements) {
+    for (uint16_t i = 0; i < pool.count; i++) {
+        const Element &e = pool.elements[i];
+
         if (!(e.flags & Flag::Visible)) continue;
         if (e.rect.x + e.rect.w < 0 || e.rect.y + e.rect.h < 0 || e.rect.x > windowWidth || e.rect.y > windowHeight) continue;
         if (e.parent != NONE) {
@@ -352,9 +420,15 @@ void Painter::render(const Pool &pool) {
 
         switch (e.kind) {
         case UI::ElementKind::Box: {
-            // TODO: make drawbox not centered
-            renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), e.color.r, e.color.g, e.color.b, e.color.a);
+            const StateStyle &style = theme[e.style].get(e.state);
+            const Color color = e.style == StyleId::None ? e.color : style.color;
+            if (color.a == 0) continue;
 
+            // TODO: make drawbox not centered
+            if (style.round == 0)
+                renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), color.r, color.g, color.b, color.a);
+            else
+                renderer->drawRoundedBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), style.round, color.r, color.g, color.b, color.a);
             break;
         }
         case UI::ElementKind::Text: {
@@ -368,11 +442,14 @@ void Painter::render(const Pool &pool) {
                 Log::logError("[UI] Image is null.");
                 break;
             }
+            float centerX = (float)e.rect.x + ((float)e.rect.w / 2.0f);
+            float centerY = (float)e.rect.y + ((float)e.rect.h / 2.0f);
+
             ImageRenderParams p = {
-                .x = (float)e.rect.x,
-                .y = (float)e.rect.y,
+                .x = centerX,
+                .y = centerY,
                 .scale = img.scale,
-                .centered = false,
+                .centered = true,
             };
 
             img.image->render(p);

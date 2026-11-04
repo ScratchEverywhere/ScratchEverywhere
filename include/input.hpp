@@ -34,6 +34,8 @@ class SE_EXPORT Input {
     struct Mouse {
         int x;
         int y;
+        int rawX;
+        int rawY;
         size_t heldFrames;
         bool isPressed;
         bool isMoving;

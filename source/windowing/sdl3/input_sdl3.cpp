@@ -209,10 +209,11 @@ void InputDevice_SDL3::getInput() {
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        int touchX = touchPosition.x, touchY = touchPosition.y;
-        Input::applyInputViewportOffset(touchX, touchY);
-        Input::scaleViewportToRenderSpace(touchX, touchY, Render::getWidth(), Render::getHeight());
-        auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
+        Input::mousePointer.rawX = touchPosition.x;
+        Input::mousePointer.rawY = touchPosition.y;
+        Input::applyInputViewportOffset(Input::mousePointer.rawX, Input::mousePointer.rawY);
+        Input::scaleViewportToRenderSpace(Input::mousePointer.rawX, Input::mousePointer.rawY, Render::getWidth(), Render::getHeight());
+        auto coords = Scratch::screenToScratchCoords(Input::mousePointer.rawX, Input::mousePointer.rawY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
         Input::mousePointer.isPressed = touchActive;
@@ -229,6 +230,8 @@ void InputDevice_SDL3::getInput() {
 
     // Get raw mouse coordinates
     std::array<int, 2> rawMouse = getTouchPosition();
+    Input::mousePointer.rawX = rawMouse[0];
+    Input::mousePointer.rawY = rawMouse[1];
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;

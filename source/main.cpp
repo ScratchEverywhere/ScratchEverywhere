@@ -60,9 +60,6 @@ bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
     if (!MenuManager::initMainMenu()) return false;
-    MainMenu *menu = new MainMenu();
-    MenuManager::currentMenu = menu;
-    // MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {
         MenuManager::render();

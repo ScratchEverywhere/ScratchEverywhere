@@ -20,6 +20,12 @@ constexpr uint8_t Focusable = 1 << 1;
 constexpr uint8_t Clip = 1 << 6;
 } // namespace Flag
 
+namespace StateFlag {
+constexpr uint8_t Focused = 1 << 0;
+constexpr uint8_t Pressed = 1 << 1;
+constexpr uint8_t Normal = 1 << 2;
+} // namespace StateFlag
+
 enum class ElementKind : uint8_t {
     Box,
     Text,
@@ -72,6 +78,33 @@ struct Padding {
     static inline Padding axis(uint8_t leftRight, uint8_t upDown) { return {leftRight, leftRight, upDown, upDown}; }
 };
 
+enum StyleId : uint8_t {
+    None,
+    Tab,
+    TabPressed,
+};
+
+struct StateStyle {
+    Color color;
+    Color textColor;
+    uint8_t round;
+};
+
+struct Style {
+    StateStyle normal, focused, pressed;
+
+    // use StateFlag for this
+    uint8_t has = 0;
+
+    const StateStyle &get(uint8_t s) const {
+        if ((s & StateFlag::Pressed) && (has & 2)) return pressed;
+        if ((s & (StateFlag::Focused | StateFlag::Pressed)) && (has & 1)) return focused;
+        return normal;
+    }
+};
+
+extern std::array<Style, 32> theme;
+
 struct TextProps {
     std::string text;
     uint8_t fontId = 0;
@@ -91,6 +124,7 @@ struct Element {
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
     ElementKind kind = ElementKind::Box;
     uint16_t payloadId = NONE;
+    uint16_t onClickId = NONE;
     uint8_t flags;
     Size w, h;
     ChildDir childDirection = ChildDir::UpDown;
@@ -98,6 +132,10 @@ struct Element {
     uint8_t childGap = 0, scrollX = 0, scrollY = 0;
     Padding padding;
     Color color;
+
+    uint8_t style, state;
+    uint16_t id;
+
     Rect rect;
 };
 
@@ -110,6 +148,9 @@ struct ElementProps {
     Padding padding = {0, 0, 0, 0};
     AlignMode align = AlignMode::Left;
     Color color;
+    uint8_t style = StyleId::None;
+    uint16_t id;
+    std::function<void()> onClick = nullptr;
 
     static inline Element toElement(const ElementProps &p) {
         Element e;
@@ -121,6 +162,8 @@ struct ElementProps {
         e.align = p.align;
         e.flags = p.flags;
         e.color = p.color;
+        e.style = p.style;
+        e.id = p.id;
         return e;
     }
 };
@@ -134,6 +177,9 @@ struct Pool {
 
     std::array<ImageProps, MAX_IMAGE_ELEMENTS> images;
     uint16_t imageCount = 0;
+
+    std::array<std::function<void()>, MAX_IMAGE_ELEMENTS> callbacks;
+    uint16_t callbackCount = 0;
 };
 
 class Builder {
@@ -156,16 +202,33 @@ class Builder {
     void layout();
     bool shouldRebuild();
     void begin(Pool &pool);
+    void input();
 
     template <class F>
     uint16_t element(const ElementProps &p, F &&body) {
-        const uint16_t id = push(ElementProps::toElement(p));
+        Element e = ElementProps::toElement(p);
+
+        if (p.onClick) {
+            e.onClickId = pool->callbackCount;
+            pool->callbacks[pool->callbackCount++] = p.onClick;
+        }
+
+        const uint16_t id = push(e);
         body();
         pop();
         return id;
     }
 
-    uint16_t element(const ElementProps &p) { return leaf(ElementProps::toElement(p)); }
+    uint16_t element(const ElementProps &p) {
+        Element e = ElementProps::toElement(p);
+
+        if (p.onClick) {
+            e.onClickId = pool->callbackCount;
+            pool->callbacks[pool->callbackCount++] = std::move(p.onClick);
+        }
+
+        return leaf(e);
+    }
 
     uint16_t text(const TextProps &props);
 
@@ -177,5 +240,7 @@ class Builder {
 namespace Painter {
 void render(const Pool &pool);
 };
+
+void loadTheme();
 
 } // namespace UI
