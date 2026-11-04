@@ -325,6 +325,7 @@ void Image_GLCore::setInitialTexture() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
                  imgData.width, imgData.height,
                  0, GL_RGBA, GL_UNSIGNED_BYTE, imgData.pixels);
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GLCore::refreshTexture() {

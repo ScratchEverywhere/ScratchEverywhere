@@ -68,6 +68,7 @@ class SE_EXPORT Image {
 #endif
 
     bool loadFont(const std::string &family);
+    void releaseSVGDocumentIfFinal(float requestedScale, float renderedScale);
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1, bool scratch2 = false);
     inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false,
@@ -75,12 +76,24 @@ class SE_EXPORT Image {
 
   protected:
     ImageData imgData;
+    std::vector<uint8_t> alpha8;
+    struct {
+        std::string path;
+        ZipArchive *zip = nullptr;
+        bool useZip = false;
+        bool fromProject = true;
+        bool halfQuality = false;
+        bool valid = false;
+    } reloadInfo;
+    bool colorDataUnavailable = false;
     std::pair<float, float> svgViewOffset = {0, 0};
     float logicalWidth = 0.0f;
     float logicalHeight = 0.0f;
     bool isSVGImage = false;
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
+
+    void discardColorData();
 
     std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
@@ -115,7 +128,7 @@ class SE_EXPORT Image {
     virtual ~Image();
 
     // Color sensing needs CPU pixels even when a renderer keeps only GPU data.
-    virtual bool ensureColorData() { return imgData.pixels != nullptr; }
+    virtual bool ensureColorData();
 
     virtual ImageData getPixels(ImageSubrect rect);
     inline ImageData getPixels() {
@@ -125,11 +138,17 @@ class SE_EXPORT Image {
 #ifdef __XBOX__
     std::vector<uint8_t> alphaMask;
     int alphaMaskPitch = 0;
+#endif
 
     inline int getPixelWidth() const { return imgData.width; }
     inline int getPixelHeight() const { return imgData.height; }
-    inline bool hasAlphaData() const { return imgData.pixels != nullptr || isOpaque || !alphaMask.empty(); }
+    inline bool hasAlphaData() const {
+        return imgData.pixels != nullptr || isOpaque || !alpha8.empty()
+#ifdef __XBOX__
+               || !alphaMask.empty()
 #endif
+            ;
+    }
 
     inline uint8_t getAlphaAt(int x, int y) const {
         if (x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
@@ -141,7 +160,7 @@ class SE_EXPORT Image {
             return ((alphaMask[static_cast<size_t>(y) * alphaMaskPitch + (x >> 3)] >> (x & 7)) & 1) ? 255 : 0;
 #endif
         if (!imgData.pixels)
-            return 0;
+            return alpha8.empty() ? 0 : alpha8[static_cast<size_t>(y) * imgData.width + x];
         const uint8_t *px =
             static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
         return px[3];

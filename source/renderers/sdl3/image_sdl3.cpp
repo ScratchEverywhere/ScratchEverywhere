@@ -165,6 +165,8 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
         return nonstd::make_unexpected(err);
     }
 
+    discardColorData();
+
     return {};
 }
 

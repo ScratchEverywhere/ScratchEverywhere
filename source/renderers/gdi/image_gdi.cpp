@@ -132,6 +132,8 @@ void Image_GDI::setInitialTexture() {
     }
 
     SelectObject(this->hDC, this->hBitmap);
+
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GDI::refreshTexture() {

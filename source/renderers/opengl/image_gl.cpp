@@ -167,11 +167,7 @@ void Image_GL::setInitialTexture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgData.width, imgData.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData.pixels);
 
-    /** some platforms may need this to be freed due to RAM limits,
-     *  but they then wont be able to support Image::getPixels()
-     *  */
-    // free(imgData.pixels);
-    // imgData.pixels = nullptr;
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GL::refreshTexture() {

@@ -206,7 +206,9 @@ void Image_GX2::setInitialTexture() {
     if (!GX2Gfx::createTexture(texture, imgData.width, imgData.height, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8,
                                imgData.pixels, imgData.pitch)) {
         error = "Failed to create GX2 texture";
+        return;
     }
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GX2::refreshTexture() {
@@ -214,6 +216,7 @@ nonstd::expected<void, std::string> Image_GX2::refreshTexture() {
                                 imgData.pixels, imgData.pitch)) {
         return nonstd::make_unexpected(std::string("Failed to refresh GX2 texture"));
     }
+    discardColorData();
     return {};
 }
 

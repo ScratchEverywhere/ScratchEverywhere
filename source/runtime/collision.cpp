@@ -28,7 +28,11 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     }
 
 #ifdef __XBOX__
-    {
+    constexpr bool alphaOnly = true;
+#else
+    const bool alphaOnly = imgFind->second->getPixels().pixels == nullptr && imgFind->second->hasAlphaData();
+#endif
+    if (alphaOnly) {
         const std::shared_ptr<Image> &image = imgFind->second;
         if (!image->hasAlphaData()) return nullptr;
 
@@ -63,7 +67,6 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
         mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
         return mask;
     }
-#endif
 
     ImageData imgData = imgFind->second->getPixels();
     if (!imgData.pixels) return nullptr;

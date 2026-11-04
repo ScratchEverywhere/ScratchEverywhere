@@ -2,10 +2,10 @@
 #include "nonstd/expected.hpp"
 #include "os.hpp"
 #include "renderer.hpp"
-#include <sb2_bitmap_layers.hpp>
-#include <cstdlib>
 #include <cctype>
+#include <cstdlib>
 #include <log.hpp>
+#include <sb2_bitmap_layers.hpp>
 #ifdef __XBOX__
 #include <runtime.hpp>
 #endif
@@ -103,7 +103,7 @@ bool Image::loadFont(const std::string &family) {
     }
     if (it->second.isLoaded) return true;
 
-    const std::string &path = it->second.path;
+    const std::string &path = Render::currentRenderer == Renderers::Headless ? std::string("gfx/ingame/fonts/Grand9KPixel") : it->second.path; // font doesn't matter for headless and Grand9KPixel is smallest on memory
 
 #ifdef USE_BUNDLE
     auto entry = Bundle::assets().find(OS::getRomFSLocation() + path + ".ttf");
@@ -387,6 +387,12 @@ inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t p
 }
 #endif
 
+void Image::releaseSVGDocumentIfFinal(float requestedScale, float renderedScale) {
+#ifdef ENABLE_SVG
+    if (renderedScale < requestedScale || (maxScale != 0 && renderedScale >= maxScale)) svgDocument.reset();
+#endif
+}
+
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale, bool scratch2) {
 #ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
@@ -491,6 +497,12 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
 
+    if (Render::currentRenderer == Renderers::Headless) {
+        imgData.pitch = width * 4;
+        svgDocument.reset();
+        return (unsigned char *)calloc(1, 4);
+    }
+
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
 #endif
@@ -512,6 +524,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     }
 
     reorderPixels(src, dst, pixelsSize);
+    releaseSVGDocumentIfFinal(scale, finalScale);
 
     imgData.pitch = width * 4;
 
@@ -570,6 +583,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     reorderPixels(src, dst, pixelsSize);
+    releaseSVGDocumentIfFinal(scale, finalScale);
 
     if (imgData.pixels != nullptr) free(imgData.pixels);
 
@@ -624,7 +638,7 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
 }
 
 nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality,
-                                                                      const unsigned char *textData, size_t textSize) {
+                                                                           const unsigned char *textData, size_t textSize) {
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
@@ -726,8 +740,15 @@ Image::Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, floa
 }
 
 nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    reloadInfo.path = filePath;
+    reloadInfo.zip = nullptr;
+    reloadInfo.useZip = false;
+    reloadInfo.fromProject = fromScratchProject;
+    reloadInfo.halfQuality = bitmapHalfQuality;
+    reloadInfo.valid = true;
     const auto layers = fromScratchProject && Unzip::currentFormat == ProjectFormat::SB2
-        ? Sb2BitmapLayers::split(filePath) : std::nullopt;
+                            ? Sb2BitmapLayers::split(filePath)
+                            : std::nullopt;
     if (layers) filePath = layers->first;
     const auto resolvePath = [fromScratchProject](const std::string &name) {
         if (fromScratchProject) {
@@ -772,6 +793,11 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
 }
 
 nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    reloadInfo.path = filePath;
+    reloadInfo.zip = zip;
+    reloadInfo.useZip = true;
+    reloadInfo.halfQuality = bitmapHalfQuality;
+    reloadInfo.valid = true;
     const auto layers = Unzip::currentFormat == ProjectFormat::SB2 ? Sb2BitmapLayers::split(filePath) : std::nullopt;
     if (layers) filePath = layers->first;
     void *raw_data = nullptr;
@@ -849,6 +875,41 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
     if (!imgData.pixels) return nonstd::make_unexpected("Failed to load image from zip: " + filePath);
 
     return {};
+}
+
+void Image::discardColorData() {
+    if (!imgData.pixels || !reloadInfo.valid || imgData.width <= 0 || imgData.height <= 0) return;
+
+    if (!isOpaque) {
+        alpha8.resize(static_cast<size_t>(imgData.width) * imgData.height);
+        for (int y = 0; y < imgData.height; y++) {
+            const uint8_t *row = static_cast<const uint8_t *>(imgData.pixels) + static_cast<size_t>(y) * imgData.pitch;
+            uint8_t *out = alpha8.data() + static_cast<size_t>(y) * imgData.width;
+            for (int x = 0; x < imgData.width; x++)
+                out[x] = row[x * 4 + 3];
+        }
+    }
+    freePixels();
+}
+
+bool Image::ensureColorData() {
+    if (imgData.pixels) return true;
+    if (colorDataUnavailable || !reloadInfo.valid) return false;
+
+    const ImageData saved = imgData;
+    const auto info = reloadInfo;
+    auto result = info.useZip ? init(info.path, info.zip, info.halfQuality, saved.scale)
+                              : init(info.path, info.fromProject, info.halfQuality, saved.scale);
+    if (!result.has_value() || !imgData.pixels || imgData.width != saved.width || imgData.height != saved.height) {
+        freePixels();
+        imgData = saved;
+        colorDataUnavailable = true;
+        Log::logWarning("Unable to restore color data: " + info.path);
+        return false;
+    }
+    imgData.scale = saved.scale;
+    freeTimer = maxFreeTimer;
+    return true;
 }
 
 Image::~Image() {

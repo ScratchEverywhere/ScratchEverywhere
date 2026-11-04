@@ -216,6 +216,8 @@ void Image_D3D9::setInitialTexture() {
         b[i + 3] = src[3];
     }
     IDirect3DTexture9_UnlockRect(this->pTex, 0);
+
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_D3D9::refreshTexture() {
