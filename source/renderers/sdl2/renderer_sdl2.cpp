@@ -102,6 +102,9 @@ Renderer_SDL2::Renderer_SDL2() {
 #elif defined(__PSP__)
     int windowWidth = 480;
     int windowHeight = 272;
+#elif defined(__PS2__)
+    int windowWidth = 640;
+    int windowHeight = 448;
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -134,6 +137,9 @@ Renderer_SDL2::Renderer_SDL2() {
         window = nullptr;
         return;
     }
+#ifdef __PS2__
+    SDL_SetHint(SDL_HINT_PS2_DYNAMIC_VSYNC, "1");
+#endif
 #if defined(WEBOS) || defined(__PSP__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
@@ -212,6 +218,12 @@ float Renderer_SDL2::getPixelDensity() {
 }
 
 bool Renderer_SDL2::initPen() {
+#ifdef __PS2__
+    Log::logWarning("Pen is not currently supported on PS2");
+    return false;
+#endif
+
+#ifndef __PS2__
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
@@ -228,9 +240,11 @@ bool Renderer_SDL2::initPen() {
     SDL_RenderClear(Sdlrenderer);
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     return true;
+#endif
 }
 
 void Renderer_SDL2::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -275,9 +289,11 @@ void Renderer_SDL2::penMoveFast(double x1, double y1, double x2, double y2, Spri
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
+#endif
 }
 
 void Renderer_SDL2::penDotFast(Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -311,9 +327,11 @@ void Renderer_SDL2::penDotFast(Sprite *sprite) {
     penVerts.push_back(v1);
     penVerts.push_back(v3);
     penVerts.push_back(v2);
+#endif
 }
 
 void Renderer_SDL2::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -391,9 +409,11 @@ void Renderer_SDL2::penMoveAccurate(double x1, double y1, double x2, double y2, 
         penVerts.push_back(cv4);
         penVerts.push_back(cv5);
     }
+#endif
 }
 
 void Renderer_SDL2::penDotAccurate(Sprite *sprite) {
+#ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
 
@@ -434,9 +454,11 @@ void Renderer_SDL2::penDotAccurate(Sprite *sprite) {
         penVerts.push_back(v1);
         penVerts.push_back(v2);
     }
+#endif
 }
 
 void Renderer_SDL2::penStamp(Sprite *sprite) {
+#ifndef __PS2__
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -492,24 +514,29 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
     image->render(params);
 
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+#endif
 }
 
 void Renderer_SDL2::penClear() {
+#ifndef __PS2__
     if (!penTexture || penTexture == nullptr) return;
     SDL_SetRenderTarget(Sdlrenderer, penTexture);
     SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
     SDL_RenderClear(Sdlrenderer);
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     if (!penVerts.empty()) penVerts.clear();
+#endif
 }
 
 void Renderer_SDL2::cleanupPen() {
+#ifndef __PS2__
     if (penTexture != nullptr) {
         SDL_DestroyTexture(penTexture);
         penTexture = nullptr;
     }
     penVerts.clear();
     penVerts.shrink_to_fit();
+#endif
 }
 
 void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -641,6 +668,7 @@ void Renderer_SDL2::renderSprites() {
 }
 
 void Renderer_SDL2::renderPenLayer() {
+#ifndef __PS2__
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
@@ -665,6 +693,7 @@ void Renderer_SDL2::renderPenLayer() {
     }
 
     SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
+#endif
 }
 
 bool Renderer_SDL2::appShouldRun() {
