@@ -5,6 +5,10 @@
 #define __SOFTFP__ 1
 #endif
 
+#if defined(SE_SLJIT_X87) && SE_SLJIT_X87
+#define SLJIT_IS_FPU_AVAILABLE 1
+#endif
+
 #ifdef SE_SLJIT_CUSTOM_EXEC
 
 #ifdef __cplusplus
