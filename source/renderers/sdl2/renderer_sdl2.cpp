@@ -55,6 +55,12 @@ SDL_Texture *penTexture = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
+static std::vector<uint8_t> penColorPixels;
+static SDL_Rect penColorRect = {0, 0, 0, 0};
+static double penColorScale = 1.0;
+static int penColorTexW = 0;
+static int penColorTexH = 0;
+
 void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -510,6 +516,49 @@ void Renderer_SDL2::cleanupPen() {
     }
     penVerts.clear();
     penVerts.shrink_to_fit();
+}
+
+void Renderer_SDL2::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    penColorPixels.clear();
+    penColorRect = {0, 0, 0, 0};
+    if (penTexture == nullptr) return;
+
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penColorTexW, &penColorTexH);
+    penColorScale = penColorTexH / static_cast<double>(Scratch::projectHeight);
+
+    const int x0 = std::clamp(static_cast<int>(std::floor(minX * penColorScale + penColorTexW / 2.0)) - 1, 0, penColorTexW);
+    const int y0 = std::clamp(static_cast<int>(std::floor(-maxY * penColorScale + penColorTexH / 2.0)) - 1, 0, penColorTexH);
+    const int x1 = std::clamp(static_cast<int>(std::ceil(maxX * penColorScale + penColorTexW / 2.0)) + 2, 0, penColorTexW);
+    const int y1 = std::clamp(static_cast<int>(std::ceil(-minY * penColorScale + penColorTexH / 2.0)) + 2, 0, penColorTexH);
+    if (x1 <= x0 || y1 <= y0) return;
+
+    SDL_Texture *previous = SDL_GetRenderTarget(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    if (!penVerts.empty()) {
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
+        SDL_RenderGeometry(Sdlrenderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
+        penVerts.clear();
+    }
+
+    const SDL_Rect rect = {x0, y0, x1 - x0, y1 - y0};
+    penColorPixels.resize(static_cast<size_t>(rect.w) * rect.h * 4);
+    if (SDL_RenderReadPixels(Sdlrenderer, &rect, SDL_PIXELFORMAT_RGBA32, penColorPixels.data(), rect.w * 4) == 0) penColorRect = rect;
+    else penColorPixels.clear();
+    SDL_SetRenderTarget(Sdlrenderer, previous);
+}
+
+bool Renderer_SDL2::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (penColorPixels.empty()) return false;
+    const int px = static_cast<int>(std::floor(x * penColorScale + penColorTexW / 2.0)) - penColorRect.x;
+    const int py = static_cast<int>(std::floor(-y * penColorScale + penColorTexH / 2.0)) - penColorRect.y;
+    if (px < 0 || py < 0 || px >= penColorRect.w || py >= penColorRect.h) return false;
+    const uint8_t *pixel = &penColorPixels[(static_cast<size_t>(py) * penColorRect.w + px) * 4];
+    r = pixel[0];
+    g = pixel[1];
+    b = pixel[2];
+    a = pixel[3];
+    return a != 0;
 }
 
 void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {

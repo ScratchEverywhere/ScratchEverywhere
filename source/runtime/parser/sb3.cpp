@@ -115,6 +115,11 @@ void logBytecodeAnalysis() {
 } // namespace
 #endif
 
+static std::string shadowFieldValue(Block &shadow, const std::string &fieldName) {
+    if (shadow.fieldMap.find(fieldName) == shadow.fieldMap.end() && shadow.fields.size() == 1) return shadow.fields.front().second.value;
+    return Scratch::getFieldValue(shadow, fieldName);
+}
+
 void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
     Parser::log("Loading sprites:");
@@ -687,7 +692,7 @@ void Parser::loadInputsSb3(Block &block, Sprite *newSprite, const std::string &b
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
-                        block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
+                        block.inputs.push_back({inputName, ParsedInput(Value(shadowFieldValue(*newBlock, it->second)))});
                         block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;
@@ -711,7 +716,7 @@ void Parser::loadInputsSb3(Block &block, Sprite *newSprite, const std::string &b
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
-                        block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
+                        block.inputs.push_back({inputName, ParsedInput(Value(shadowFieldValue(*newBlock, it->second)))});
                         block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;

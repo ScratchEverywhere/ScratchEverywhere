@@ -28,6 +28,8 @@ static unsigned int penTexture = 0;
 static int penWidth = 0;
 static int penHeight = 0;
 
+static std::vector<uint8_t> penColorPixels;
+
 namespace {
 void drawCircle(float x, float y, float radius, ColorRGBA color, uint8_t alpha) {
     int segments = 20;
@@ -265,6 +267,33 @@ void Renderer_GL::cleanupPen() {
         glDeleteTextures(1, &penTexture);
         penTexture = 0;
     }
+}
+
+void Renderer_GL::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    penColorPixels.clear();
+    if (penTexture == 0) return;
+
+    penColorPixels.resize(static_cast<size_t>(penWidth) * penHeight * 4);
+    glPushAttrib(GL_TEXTURE_BIT | GL_CLIENT_PIXEL_STORE_BIT);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glBindTexture(GL_TEXTURE_2D, penTexture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, penColorPixels.data());
+    glPopAttrib();
+}
+
+bool Renderer_GL::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (penColorPixels.empty()) return false;
+    const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
+    const int px = static_cast<int>(std::floor(x * scale + penWidth / 2.0));
+    const int row = penHeight - 1 - static_cast<int>(std::floor(-y * scale + penHeight / 2.0));
+    if (px < 0 || row < 0 || px >= penWidth || row >= penHeight) return false;
+
+    const uint8_t *pixel = &penColorPixels[(static_cast<size_t>(row) * penWidth + px) * 4];
+    r = pixel[0];
+    g = pixel[1];
+    b = pixel[2];
+    a = static_cast<uint8_t>(std::lround(std::sqrt(pixel[3] / 255.0) * 255.0));
+    return a != 0;
 }
 
 void Renderer_GL::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {

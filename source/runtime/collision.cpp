@@ -376,7 +376,7 @@ static std::vector<Sprite *> colorEnvironment(Sprite *self, float selfRadius) {
 
 static bool environmentColorAt(const std::vector<Sprite *> &environment, float x, float y,
                                uint8_t &r, uint8_t &g, uint8_t &b) {
-    float accR = 0, accG = 0, accB = 0, accAlpha = 0;
+    float accR = 255, accG = 255, accB = 255, accAlpha = 1;
     bool penApplied = false;
     auto compositePen = [&]() {
         penApplied = true;

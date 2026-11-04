@@ -568,6 +568,37 @@ void makeReadable(RenderTarget &target) {
                   target.colorBuffer.surface.image, target.colorBuffer.surface.imageSize);
 }
 
+bool createReadback(Readback &out, int width, int height) {
+    if (width <= 0 || height <= 0) return false;
+
+    Readback readback;
+    initSurface(readback.surface, width, height, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_SURFACE_USE_TEXTURE, GX2_TILE_MODE_LINEAR_ALIGNED);
+    void *memory = allocate(readback.surface.imageSize, readback.surface.alignment);
+    if (!memory) {
+        Log::logError("[GX2] Out of memory for a " + std::to_string(width) + "x" + std::to_string(height) + " readback surface");
+        return false;
+    }
+    std::memset(memory, 0, readback.surface.imageSize);
+    readback.surface.image = memory;
+    readback.width = width;
+    readback.height = height;
+    readback.valid = true;
+    out = readback;
+    return true;
+}
+
+void destroyReadback(Readback &readback) {
+    if (readback.valid) deferFree(readback.surface.image);
+    readback = Readback{};
+}
+
+void readTarget(RenderTarget &source, Readback &readback) {
+    GX2CopySurface(&source.colorBuffer.surface, 0, 0, &readback.surface, 0, 0);
+    GX2Flush();
+    GX2DrawDone();
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU, readback.surface.image, readback.surface.imageSize);
+}
+
 void waitIdle() {
     if (!ProcUIInForeground()) return;
     GX2Flush();
