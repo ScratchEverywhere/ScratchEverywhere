@@ -173,6 +173,8 @@ struct ReturnDescriptor {
 
 struct Code;
 
+inline constexpr uint32_t constantPoolSize = 16;
+
 struct alignas(64) Context {
     BytecodeThread *thread = nullptr;
     const BytecodeChunk *chunk = nullptr;
@@ -202,6 +204,7 @@ struct alignas(64) Context {
     BytecodeIndex *pendingRecursive = nullptr;
     uint64_t stringVariableUsed[2] = {0, 0};
     double one = 1.0;
+    double pool[constantPoolSize];
 };
 
 struct Code {
@@ -222,6 +225,7 @@ struct Code {
     std::vector<int32_t> entryIdAt;
     std::vector<void *> entryTable;
     std::vector<uint32_t> promoted;
+    std::vector<double> pool;
     uint32_t slotBooleans = 0;
     uint32_t slotValues = 0;
     uint32_t slotVariables = 0;

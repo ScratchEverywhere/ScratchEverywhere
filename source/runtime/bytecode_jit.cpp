@@ -193,6 +193,7 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
     ctx.timerStarted = &sliceTimerStarted;
     if (thread.link != nullptr && thread.link->lists.size() >= chunk.listSlots.size()) ctx.lists = thread.link->lists.data();
     const Code &code = *chunk.jit;
+    if (!code.pool.empty()) std::memcpy(ctx.pool, code.pool.data(), code.pool.size() * sizeof(double));
     const Result result = static_cast<Result>(code.fn(&ctx, entryId));
 
     for (uint32_t i = 0; i < ctx.tempHigh; i++)

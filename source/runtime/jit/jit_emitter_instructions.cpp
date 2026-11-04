@@ -30,7 +30,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
 
     case BytecodeOp::PushConstNumber:
-        if (!shadowChangeFollows(pc) && !constantModFollows(pc)) storeImmF(numberSlot(state_.numbers), chunk_.numberConstants[instr.a]);
+        if (!shadowChangeFollows(pc) && !constantModFollows(pc) && !poolOperandFollows(pc)) storeImmF(numberSlot(state_.numbers), chunk_.numberConstants[instr.a]);
         state_.numbers++;
         maxNumbers_ = std::max(maxNumbers_, state_.numbers);
         return;

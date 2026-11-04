@@ -72,8 +72,9 @@ void SLJIT_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow) {
 }
 
 sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
-    const Value a = materializeEntry(ctx, compare->a, compare->aPosition);
-    const Value b = materializeEntry(ctx, compare->b, compare->bPosition);
+    Value scratchA, scratchB;
+    const Value &a = peekEntry(ctx, compare->a, compare->aPosition, scratchA);
+    const Value &b = peekEntry(ctx, compare->b, compare->bPosition, scratchB);
     switch (compare->kind) {
     case BytecodeCompareKind::Equals:
         return a == b;
@@ -131,7 +132,8 @@ double SLJIT_FUNC jitListLength(Context *ctx, const ListOpDescriptor *op) {
 
 double SLJIT_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
-    const Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    Value scratch;
+    const Value &item = peekEntry(ctx, op->item, op->itemPosition, scratch);
     if (list == nullptr) return 0.0;
     const size_t found = bytecodeFindInList(list->items, item);
     return found < list->items.size() ? static_cast<double>(found + 1) : 0.0;
@@ -139,7 +141,8 @@ double SLJIT_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
 
 sljit_sw SLJIT_FUNC jitListContains(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
-    const Value item = materializeEntry(ctx, op->item, op->itemPosition);
+    Value scratch;
+    const Value &item = peekEntry(ctx, op->item, op->itemPosition, scratch);
     if (list == nullptr) return 0;
     return bytecodeFindInList(list->items, item) < list->items.size() ? 1 : 0;
 }

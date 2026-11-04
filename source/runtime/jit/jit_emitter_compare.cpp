@@ -124,9 +124,20 @@ void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, Bytec
 }
 
 void Emitter::emitCompareBranchFloat(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget) {
-    loadOperand(SLJIT_FR0, a);
-    loadOperand(SLJIT_FR1, b);
-    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
+    sljit_s32 left = SLJIT_FR0, right = SLJIT_FR1;
+    sljit_sw rightOffset = 0;
+    if (a.immediate) loadOperand(SLJIT_FR0, a);
+    else left = readF(a.slot, SLJIT_FR0);
+    const int poolSlot = b.immediate ? poolIndex(b.value) : -1;
+    if (poolSlot >= 0) {
+        right = SLJIT_MEM1(SLJIT_S0);
+        rightOffset = poolOffset(poolSlot);
+    } else if (b.immediate) {
+        loadOperand(SLJIT_FR1, b);
+    } else {
+        right = readF(b.slot, SLJIT_FR1);
+    }
+    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, left, 0, right, rightOffset);
 
     sljit_s32 type;
     switch (kind) {
@@ -140,11 +151,13 @@ void Emitter::emitCompareBranchFloat(BytecodeCompareKind kind, bool jumpIfTrue, 
         type = jumpIfTrue ? SLJIT_ORDERED_GREATER : SLJIT_ORDERED_LESS_EQUAL;
         break;
     }
-    emitJumpTo(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), target, atTarget, backEdge);
+    emitJumpTo(sljit_emit_fcmp(c_, type, left, 0, right, rightOffset), target, atTarget, backEdge);
     sljit_label *fall = sljit_emit_label(c_);
 
-    addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target]() {
+    addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target, a, b]() {
         sljit_set_label(unordered, sljit_emit_label(c_));
+        loadOperand(SLJIT_FR0, a);
+        loadOperand(SLJIT_FR1, b);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
         callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
         sljit_jump *no = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);

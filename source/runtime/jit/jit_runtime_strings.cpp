@@ -240,16 +240,19 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
     }
 
     case StringOp::LetterOf: {
-        const Value text = materializeEntry(ctx, op->value, op->valuePosition);
+        Value scratch;
+        const Value &text = peekEntry(ctx, op->value, op->valuePosition, scratch);
         const double index = std::floor(number(op->numberIn)) - 1;
         std::string letter;
         if (index >= 0 && index < static_cast<double>(text.utf16Length())) letter = text.utf16CharAt(static_cast<size_t>(index));
         setString(ctx, op->outPosition, std::move(letter));
         return;
     }
-    case StringOp::LengthOf:
-        setNumber(static_cast<double>(materializeEntry(ctx, op->value, op->valuePosition).utf16Length()));
+    case StringOp::LengthOf: {
+        Value scratch;
+        setNumber(static_cast<double>(peekEntry(ctx, op->value, op->valuePosition, scratch).utf16Length()));
         return;
+    }
 
     case StringOp::ValueToString:
         setString(ctx, op->outPosition, materializeEntry(ctx, op->value, op->valuePosition).get<std::string>());

@@ -22,11 +22,15 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
     case NativeShape::Divide: {
         const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
         const sljit_s32 left = readF(a, SLJIT_FR0);
-        const sljit_s32 right = readF(b, SLJIT_FR1);
         const sljit_s32 op = shape == NativeShape::Add ? SLJIT_ADD_F64 : shape == NativeShape::Subtract ? SLJIT_SUB_F64
                                                                      : shape == NativeShape::Multiply   ? SLJIT_MUL_F64
                                                                                                         : SLJIT_DIV_F64;
-        sljit_emit_fop2(c_, op, left, 0, left, 0, right, 0);
+        if (currentPc_ >= 1 && chunk_.instructions[currentPc_ - 1].op == BytecodeOp::PushConstNumber && poolOperandFollows(currentPc_ - 1)) {
+            sljit_emit_fop2(c_, op, left, 0, left, 0, SLJIT_MEM1(SLJIT_S0), poolOffset(poolIndex(chunk_.numberConstants[chunk_.instructions[currentPc_ - 1].a])));
+        } else {
+            const sljit_s32 right = readF(b, SLJIT_FR1);
+            sljit_emit_fop2(c_, op, left, 0, left, 0, right, 0);
+        }
         commitF(a, left);
         state_.numbers -= 1;
         break;

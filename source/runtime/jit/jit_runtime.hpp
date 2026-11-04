@@ -116,6 +116,20 @@ inline Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t po
     }
 }
 
+inline const Value &peekEntry(Context *ctx, const ValueEntry &entry, uint32_t position, Value &scratch) {
+    switch (entry.kind) {
+    case ValueEntry::Constant:
+        return ctx->chunk->constants[entry.constant];
+    case ValueEntry::Temp:
+        if (tempLazy[position] != 1) return temps[position];
+        break;
+    default:
+        break;
+    }
+    scratch = materializeEntry(ctx, entry, position);
+    return scratch;
+}
+
 void refreshDepthLimit(Context *ctx);
 void refreshSave(Context *ctx);
 void loadFrame(Context *ctx, const EntryDescriptor &entry);

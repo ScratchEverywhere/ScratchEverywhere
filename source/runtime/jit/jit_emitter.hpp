@@ -150,6 +150,31 @@ class Emitter {
         return true;
     }
 
+    int poolIndex(double value) {
+        uint64_t bits;
+        std::memcpy(&bits, &value, sizeof bits);
+        static const bool disabled = std::getenv("SE_JIT_NOPOOL") != nullptr;
+        if (bits == 0 || disabled) return -1;
+        for (size_t i = 0; i < code_.pool.size(); i++) {
+            uint64_t other;
+            std::memcpy(&other, &code_.pool[i], sizeof other);
+            if (other == bits) return static_cast<int>(i);
+        }
+        if (code_.pool.size() >= constantPoolSize) return -1;
+        code_.pool.push_back(value);
+        return static_cast<int>(code_.pool.size() - 1);
+    }
+    static sljit_sw poolOffset(int index) { return static_cast<sljit_sw>(offsetof(Context, pool)) + static_cast<sljit_sw>(index) * 8; }
+
+    bool poolOperandFollows(BytecodeIndex pc) {
+        if (pc + 1 >= chunk_.instructions.size() || analysis_.isBlockStart(pc + 1)) return false;
+        const BytecodeInstruction &next = chunk_.instructions[pc + 1];
+        if (next.op != BytecodeOp::CallNativeNumber) return false;
+        const NativeShape shape = plan_.nativeShape(next);
+        if (shape != NativeShape::Add && shape != NativeShape::Subtract && shape != NativeShape::Multiply && shape != NativeShape::Divide) return false;
+        return poolIndex(chunk_.numberConstants[chunk_.instructions[pc].a]) >= 0;
+    }
+
     bool shadowChangeFollows(BytecodeIndex pc) {
         if (!shadowSupported || active_ == nullptr || active_->shadowSlot < 0 || pc + 1 >= chunk_.instructions.size() || analysis_.isBlockStart(pc + 1)) return false;
         const BytecodeInstruction &next = chunk_.instructions[pc + 1];
