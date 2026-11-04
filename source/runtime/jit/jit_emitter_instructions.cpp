@@ -30,7 +30,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
 
     case BytecodeOp::PushConstNumber:
-        storeImmF(numberSlot(state_.numbers), chunk_.numberConstants[instr.a]);
+        if (!shadowChangeFollows(pc) && !constantModFollows(pc)) storeImmF(numberSlot(state_.numbers), chunk_.numberConstants[instr.a]);
         state_.numbers++;
         maxNumbers_ = std::max(maxNumbers_, state_.numbers);
         return;
@@ -176,12 +176,11 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(source));
                 sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
                 sljit_jump *other = sljit_emit_cmp(c_, SLJIT_GREATER, SLJIT_R0, 0, SLJIT_IMM, 1);
-                loadF(SLJIT_FR0, variableSlot(source));
-                storeF(variableSlot(k), SLJIT_FR0);
+                moveF(variableSlot(k), variableSlot(source));
                 sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 2);
                 sljit_label *done = sljit_emit_label(c_);
 
-                addCold([this, other, done, source, k, emitBoxed]() {
+                addCold([this, other, done, source, k, position, emitBoxed]() {
                     sljit_set_label(other, sljit_emit_label(c_));
                     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(source));
                     sljit_jump *boxed0 = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
@@ -195,6 +194,8 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                     sljit_set_label(boxed0, general);
                     sljit_set_label(boxed3, general);
                     sljit_set_label(boxed4, general);
+                    loadF(SLJIT_FR0, variableSlot(source));
+                    storeF(valueSlot(position), SLJIT_FR0);
                     emitBoxed();
                     sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
                 });
@@ -539,7 +540,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         ensureVariableNumber(instr.a);
         const uint32_t k = promoted(instr.a);
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (!feedsCompare(pc) && !feedsIndex(pc)) {
+        if (!feedsCompare(pc) && !feedsIndex(pc) && !feedsVarStore(pc)) {
             loadF(SLJIT_FR0, variableSlot(k));
             storeF(valueSlot(depth), SLJIT_FR0);
         }
@@ -782,18 +783,17 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         const uint32_t counter = valueSlot(depth - 1), bound = valueSlot(depth - 2);
         const uint32_t k = promoted(instr.b);
-        loadF(SLJIT_FR0, counter);
-        nanToZero(SLJIT_FR0);
-        loadF(SLJIT_FR1, bound);
-        nanToZero(SLJIT_FR1);
+        const sljit_s32 counterReg = readF(counter, SLJIT_FR0);
+        nanToZero(counterReg);
+        const sljit_s32 boundReg = readF(bound, SLJIT_FR1);
+        nanToZero(boundReg);
         AbsState exited = state_;
         exited.values.pop_back();
         exited.values.pop_back();
-        sljit_jump *done = sljit_emit_fcmp(c_, SLJIT_ORDERED_GREATER_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        sljit_emit_fset64(c_, SLJIT_FR1, 1.0);
-        sljit_emit_fop2(c_, SLJIT_ADD_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
-        storeF(counter, SLJIT_FR0);
-        storeF(variableSlot(k), SLJIT_FR0);
+        sljit_jump *done = sljit_emit_fcmp(c_, SLJIT_ORDERED_GREATER_EQUAL, counterReg, 0, boundReg, 0);
+        sljit_emit_fop2(c_, SLJIT_ADD_F64, counterReg, 0, counterReg, 0, SLJIT_MEM1(SLJIT_S0), static_cast<sljit_sw>(offsetof(Context, one)));
+        commitF(counter, counterReg);
+        storeF(variableSlot(k), counterReg);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_S0), dirtyOffset(k), SLJIT_IMM, 1);
         state_.values.back().kind = ValueEntry::Number;
         emitJumpTo(done, instr.a, exited, instr.a <= pc);

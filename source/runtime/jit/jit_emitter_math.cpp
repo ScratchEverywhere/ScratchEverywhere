@@ -158,12 +158,14 @@ bool Emitter::emitInlineMotion(const BytecodeInstruction &instr, NativeShape sha
 }
 
 bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) {
-    if (!wide || !(std::fabs(divisor) >= 2.0 && std::fabs(divisor) < 2147483648.0) || divisor != std::floor(divisor)) return false;
+    if (!wide || !constantModDivisor(divisor)) return false;
     const BytecodePositionalFn &fn = link_.positional[instr.a];
     const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
     const uint64_t d = static_cast<uint64_t>(std::fabs(divisor));
     const uint64_t magic = UINT64_C(0xFFFFFFFFFFFFFFFF) / d + 1;
     const bool negativeDivisor = divisor < 0;
+    const sljit_s32 source = readF(a, SLJIT_FR0);
+    const sljit_s32 out = destF(a, SLJIT_FR0);
 
     sljit_jump *shadowDone = nullptr;
     std::vector<sljit_jump *> notShadow;
@@ -180,18 +182,17 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
             sljit_emit_op0(c_, SLJIT_LMUL_UW);
             sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
             sljit_emit_op0(c_, SLJIT_LMUL_UW);
-            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+            sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, out, 0, SLJIT_R1, 0);
             shadowDone = sljit_emit_jump(c_, SLJIT_JUMP);
             sljit_label *generic = sljit_emit_label(c_);
             for (sljit_jump *jump : notShadow)
                 sljit_set_label(jump, generic);
         }
     }
-    loadF(SLJIT_FR0, a);
     std::vector<sljit_jump *> slow;
-    sljit_emit_fop1(c_, SLJIT_CONV_S32_FROM_F64, SLJIT_R0, 0, SLJIT_FR0, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_S32_FROM_F64, SLJIT_R0, 0, source, 0);
     sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR2, 0, SLJIT_R0, 0);
-    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, SLJIT_FR0, 0, SLJIT_FR2, 0));
+    slow.push_back(sljit_emit_fcmp(c_, SLJIT_UNORDERED_OR_NOT_EQUAL, source, 0, SLJIT_FR2, 0));
 
     sljit_emit_op1(c_, SLJIT_MOV_S32, SLJIT_R0, 0, SLJIT_R0, 0);
     sljit_jump *negative = negativeDivisor ? sljit_emit_jump(c_, SLJIT_JUMP) : sljit_emit_cmp(c_, SLJIT_SIG_LESS_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
@@ -200,12 +201,12 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     sljit_emit_op0(c_, SLJIT_LMUL_UW);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(d));
     sljit_emit_op0(c_, SLJIT_LMUL_UW);
-    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+    sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, out, 0, SLJIT_R1, 0);
     sljit_label *joined = sljit_emit_label(c_);
     if (shadowDone != nullptr) sljit_set_label(shadowDone, joined);
-    storeF(a, SLJIT_FR0);
+    commitF(a, out);
 
-    addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor]() {
+    addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor, source, out]() {
         sljit_set_label(negative, sljit_emit_label(c_));
         // m = a >> 31 is 0 or -1 and |a| = (a ^ m) - m, all in the integer unit
         sljit_emit_op2(c_, SLJIT_ASHR32, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 31);
@@ -224,17 +225,18 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
         else sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
         sljit_emit_op2(c_, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(divisor));
         sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
-        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, SLJIT_FR0, 0, SLJIT_R1, 0);
+        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_S32, out, 0, SLJIT_R1, 0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
         // a multiple of the divisor: zero with the sign of a
         sljit_set_label(zero, sljit_emit_label(c_));
         sljit_emit_fset64(c_, SLJIT_FR3, 0.0);
-        sljit_emit_fop2(c_, SLJIT_MUL_F64, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR3, 0);
+        sljit_emit_fop2(c_, SLJIT_MUL_F64, out, 0, source, 0, SLJIT_FR3, 0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
 
         sljit_label *here = sljit_emit_label(c_);
         for (sljit_jump *jump : slow)
             sljit_set_label(jump, here);
+        storeImmF(b, divisor);
         loadF(SLJIT_FR0, a);
         loadF(SLJIT_FR1, b);
         callHelper(reinterpret_cast<void *>(fn.nn_n), SLJIT_ARGS2(F64, F64, F64));

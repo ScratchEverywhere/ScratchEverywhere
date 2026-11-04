@@ -201,6 +201,7 @@ struct alignas(64) Context {
     bool *threadWarp = nullptr;
     BytecodeIndex *pendingRecursive = nullptr;
     uint64_t stringVariableUsed[2] = {0, 0};
+    double one = 1.0;
 };
 
 struct Code {

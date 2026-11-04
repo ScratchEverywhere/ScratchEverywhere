@@ -150,6 +150,22 @@ class Emitter {
         return true;
     }
 
+    bool shadowChangeFollows(BytecodeIndex pc) {
+        if (!shadowSupported || active_ == nullptr || active_->shadowSlot < 0 || pc + 1 >= chunk_.instructions.size() || analysis_.isBlockStart(pc + 1)) return false;
+        const BytecodeInstruction &next = chunk_.instructions[pc + 1];
+        if (next.op != BytecodeOp::ChangeVarNumber) return false;
+        const uint32_t slot = variableSlot(promoted(next.a));
+        return active_->shadowSlot == static_cast<int64_t>(slot) && pinOf(slot) >= 0;
+    }
+
+    bool constantModFollows(BytecodeIndex pc) const {
+        if (!wide || pc + 1 >= chunk_.instructions.size() || analysis_.isBlockStart(pc + 1)) return false;
+        const BytecodeInstruction &next = chunk_.instructions[pc + 1];
+        if (next.op != BytecodeOp::CallNativeNumber || plan_.nativeShape(next) != NativeShape::NumberNumber || plan_.opcodeName(next.a) != "operator_mod") return false;
+        return constantModDivisor(chunk_.numberConstants[chunk_.instructions[pc].a]);
+    }
+    static bool constantModDivisor(double divisor) { return std::fabs(divisor) >= 2.0 && std::fabs(divisor) < 2147483648.0 && divisor == std::floor(divisor); }
+
     bool insideActive(BytecodeIndex target) const { return active_ != nullptr && target >= active_->head && target <= active_->tail; }
 
     int liveNumbersAt(BytecodeIndex pc) const {
@@ -379,6 +395,12 @@ class Emitter {
     bool convertFeedsStore(BytecodeIndex convert) const {
         const BytecodeIndex next = convert + 1;
         return next < chunk_.instructions.size() && chunk_.instructions[convert].op == BytecodeOp::ConvertNumberToValue && chunk_.instructions[next].op == BytecodeOp::StoreVarValue && plan_.supported[next] && !analysis_.isBlockStart(next) && plan_.entryOf[next] < 0;
+    }
+    bool feedsVarStore(BytecodeIndex push) const {
+        const BytecodeIndex next = push + 1;
+        if (next >= chunk_.instructions.size() || chunk_.instructions[next].op != BytecodeOp::StoreVarValue || !plan_.supported[next] || analysis_.isBlockStart(next) || plan_.entryOf[next] >= 0) return false;
+        const int64_t source = plan_.promotedVariable(chunk_.instructions[push]);
+        return source >= 0 && static_cast<size_t>(source) < promotedIndex_.size() && promotedIndex_[source] >= 0 && static_cast<uint32_t>(promotedIndex_[source]) < code_.promoted.size();
     }
     bool numberFedStore(BytecodeIndex store) const { return store > 0 && convertFeedsStore(store - 1); }
     bool feedsCompare(BytecodeIndex push) const {
