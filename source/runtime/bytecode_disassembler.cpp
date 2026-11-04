@@ -42,33 +42,54 @@ std::string escapeTargetForSlot(const BytecodeLinkTable *link, BytecodeIndex slo
 
 const char *mathOpName(BytecodeMathOp op) {
     switch (op) {
-    case BytecodeMathOp::Abs: return "abs";
-    case BytecodeMathOp::Floor: return "floor";
-    case BytecodeMathOp::Ceiling: return "ceiling";
-    case BytecodeMathOp::Sqrt: return "sqrt";
-    case BytecodeMathOp::Sin: return "sin";
-    case BytecodeMathOp::Cos: return "cos";
-    case BytecodeMathOp::Tan: return "tan";
-    case BytecodeMathOp::Asin: return "asin";
-    case BytecodeMathOp::Acos: return "acos";
-    case BytecodeMathOp::Atan: return "atan";
-    case BytecodeMathOp::Ln: return "ln";
-    case BytecodeMathOp::Log: return "log";
-    case BytecodeMathOp::Exp: return "e ^";
-    case BytecodeMathOp::Pow10: return "10 ^";
+    case BytecodeMathOp::Abs:
+        return "abs";
+    case BytecodeMathOp::Floor:
+        return "floor";
+    case BytecodeMathOp::Ceiling:
+        return "ceiling";
+    case BytecodeMathOp::Sqrt:
+        return "sqrt";
+    case BytecodeMathOp::Sin:
+        return "sin";
+    case BytecodeMathOp::Cos:
+        return "cos";
+    case BytecodeMathOp::Tan:
+        return "tan";
+    case BytecodeMathOp::Asin:
+        return "asin";
+    case BytecodeMathOp::Acos:
+        return "acos";
+    case BytecodeMathOp::Atan:
+        return "atan";
+    case BytecodeMathOp::Ln:
+        return "ln";
+    case BytecodeMathOp::Log:
+        return "log";
+    case BytecodeMathOp::Exp:
+        return "e ^";
+    case BytecodeMathOp::Pow10:
+        return "10 ^";
     }
     return "<unknown mathop>";
 }
 
 const char *effectName(BytecodeEffect effect) {
     switch (effect) {
-    case BytecodeEffect::Color: return "color";
-    case BytecodeEffect::Fisheye: return "fisheye";
-    case BytecodeEffect::Whirl: return "whirl";
-    case BytecodeEffect::Pixelate: return "pixelate";
-    case BytecodeEffect::Mosaic: return "mosaic";
-    case BytecodeEffect::Brightness: return "brightness";
-    case BytecodeEffect::Ghost: return "ghost";
+    case BytecodeEffect::Color:
+        return "color";
+    case BytecodeEffect::Fisheye:
+        return "fisheye";
+    case BytecodeEffect::Whirl:
+        return "whirl";
+    case BytecodeEffect::Pixelate:
+        return "pixelate";
+    case BytecodeEffect::Mosaic:
+        return "mosaic";
+    case BytecodeEffect::Brightness:
+        return "brightness";
+    case BytecodeEffect::Ghost:
+        return "ghost";
     }
     return "<unknown effect>";
 }
@@ -111,6 +132,8 @@ const char *mnemonic(BytecodeOp op) {
         return "StoreVarColor";
     case BytecodeOp::StoreVarValue:
         return "StoreVarValue";
+    case BytecodeOp::AppendVarString:
+        return "AppendVarString";
     case BytecodeOp::ChangeVarNumber:
         return "ChangeVarNumber";
     case BytecodeOp::AddToList:
@@ -318,6 +341,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
     case BytecodeOp::StoreVarBoolean:
     case BytecodeOp::StoreVarColor:
     case BytecodeOp::StoreVarValue:
+    case BytecodeOp::AppendVarString:
     case BytecodeOp::ChangeVarNumber:
         out << "  ; var \"" << variableNameForSlot(chunk, instr.a) << "\"";
         return;

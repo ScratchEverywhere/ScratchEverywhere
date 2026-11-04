@@ -1,6 +1,9 @@
 #include "zip_project_loader.hpp"
 #include <istream>
 #include <log.hpp>
+#ifdef SE_JIT
+#include <bytecode_jit.hpp>
+#endif
 #include <parser.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
@@ -375,15 +378,46 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
-    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
-    if (useBytecodeSetting.is_null()) {
+    const auto runtimeSetting = Unzip::getSetting("runtime");
+    const auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    Scratch::useJit = false;
+    if (runtimeSetting.is_string()) {
+        const std::string runtime = runtimeSetting.get<std::string>();
+        Scratch::useBytecode = runtime != "interpreter";
+        Scratch::useJit = runtime == "jit";
+    } else if (useBytecodeSetting.is_null()) {
 #if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
         Scratch::useBytecode = false;
 #else
         Scratch::useBytecode = true;
+#ifdef SE_JIT
+        Scratch::useJit = true;
+#endif
 #endif
     } else {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
+#ifdef SE_JIT
+        Scratch::useJit = Scratch::useBytecode;
+#endif
+    }
+
+    {
+        const char *active = Scratch::useBytecode ? "bytecode VM" : "interpreter";
+        std::string note;
+#ifdef SE_JIT
+        if (Scratch::useBytecode) {
+            if (BytecodeJit::enabled()) {
+                active = "bytecode VM + JIT";
+            } else if (Scratch::useJit) {
+                note = " (JIT requested but unavailable)";
+            }
+        } else if (Scratch::useJit) {
+            note = " (JIT requested but unavailable)";
+        }
+#else
+        if (Scratch::useJit) note = " (JIT requested but this build has no JIT)";
+#endif
+        Log::log(std::string("Runtime: ") + active + note);
     }
 
     Log::log("Loading project extensions and sprites...");

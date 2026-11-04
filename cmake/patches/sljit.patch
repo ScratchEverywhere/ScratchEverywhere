@@ -1,0 +1,19 @@
+--- a/sljit_src/sljitNativeX86_common.c
++++ b/sljit_src/sljitNativeX86_common.c
+@@ -3281,6 +3281,8 @@ static sljit_s32 emit_groupf_ext(struct sljit_compiler *compiler,
+ static SLJIT_INLINE sljit_s32 emit_sse2_load(struct sljit_compiler *compiler,
+ 	sljit_s32 single, sljit_s32 dst, sljit_s32 src, sljit_sw srcw)
+ {
++	if (FAST_IS_REG(src))
++		return emit_groupf(compiler, MOVAPS_x_xm | EX86_SSE2, dst, src, srcw);
+ 	return emit_groupf(compiler, MOVSD_x_xm | (single ? EX86_PREF_F3 : EX86_PREF_F2) | EX86_SSE2, dst, src, srcw);
+ }
+ 
+@@ -3336,6 +3338,7 @@ static SLJIT_INLINE sljit_s32 sljit_emit_fop1_conv_f64_from_sw(struct sljit_compiler *compiler, sljit_s32 op,
+ 		srcw = 0;
+ 	}
+ 
++	FAIL_IF(emit_groupf(compiler, XORPD_x_xm | EX86_SSE2, dst_r, dst_r, 0));
+ 	FAIL_IF(emit_groupf(compiler, CVTSI2SD_x_rm | EX86_SELECT_F2_F3(op) | EX86_SSE2_OP1, dst_r, src, srcw));
+ 
+ #if (defined SLJIT_CONFIG_X86_64 && SLJIT_CONFIG_X86_64)

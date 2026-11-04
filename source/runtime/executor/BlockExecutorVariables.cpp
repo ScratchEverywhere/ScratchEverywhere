@@ -20,7 +20,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
                 var.value = newValue.asDouble();
             } else if constexpr (std::is_same_v<T, std::shared_ptr<const std::string>>) {
                 if (newValue.isString()) var.value = newValue.getStringPtr();
-                else var.value = std::make_shared<const std::string>(newValue.asString());
+                else var.value = std::make_shared<std::string>(newValue.asString());
             } else if constexpr (std::is_same_v<T, bool>) {
                 var.value = newValue.asBoolean();
             } else if constexpr (std::is_same_v<T, Value>) {
@@ -150,7 +150,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
+                if (!item.isStringTyped() || Math::utf16Length(item.get<std::string>()) > 1) {
                     seperator = " ";
                     break;
                 }
@@ -169,7 +169,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : globalListIt->second.items) {
-            if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
+            if (!item.isStringTyped() || Math::utf16Length(item.get<std::string>()) > 1) {
                 seperator = " ";
                 break;
             }

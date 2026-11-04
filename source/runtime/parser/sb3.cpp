@@ -1,5 +1,6 @@
 #include "blockExecutor.hpp"
 #include "bytecode_cache.hpp"
+#include "bytecode_compiler.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
@@ -12,8 +13,107 @@
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <translation.hpp>
+#include <unordered_set>
 #include <unzip.hpp>
 #include <variant>
+
+#ifdef SE_BYTECODE_STATS
+#include "bytecode_analysis.hpp"
+#include "bytecode_disassembler.hpp"
+#include "bytecode_executor.hpp"
+#include <cstdlib>
+#include <fstream>
+#include <log.hpp>
+#include <map>
+
+namespace {
+std::string describe(const char *label, const BytecodeAnalysisStats &t, uint32_t entries, uint32_t failed) {
+    return std::string("[analysis total, ") + label + "] entries=" + std::to_string(entries) + " failed=" + std::to_string(failed) +
+           " instrs=" + std::to_string(t.reachable) +
+           " demotedAccesses=" + std::to_string(t.demotedAccessesKnown) + "/" + std::to_string(t.demotedAccesses) +
+           " pushVarValue=" + std::to_string(t.pushVarValueKnown) + "/" + std::to_string(t.pushVarValue) +
+           " storeVarValue=" + std::to_string(t.storeVarValueKnown) + "/" + std::to_string(t.storeVarValue) +
+           " convertValueTo*=" + std::to_string(t.convertValueToTypedKnown) + "/" + std::to_string(t.convertValueToTyped) +
+           " pushArg=" + std::to_string(t.pushArgKnown) + "/" + std::to_string(t.pushArg) +
+           " procCalls(keep facts)=" + std::to_string(t.procedureCallsKeepingFacts) + "/" + std::to_string(t.procedureCalls) +
+           " valueCalls(typed)=" + std::to_string(t.procedureValueCallsTyped) + "/" + std::to_string(t.procedureValueCalls);
+}
+
+void logBytecodeAnalysis() {
+    std::vector<BytecodeProgramAnalysis::Input> inputs;
+    for (Sprite *sprite : Scratch::sprites) {
+        if (!sprite->bytecode || !sprite->bytecodeLink) continue;
+        if (const char *dumpPath = std::getenv("SE_DUMP_BYTECODE")) {
+            std::ofstream(std::string(dumpPath) + "." + sprite->name + ".txt") << BytecodeDisassembler::disassemble(*sprite->bytecode, sprite->bytecodeLink.get());
+        }
+        inputs.push_back({sprite->name, sprite->bytecode.get(), sprite->bytecodeLink.get()});
+    }
+
+    for (int mode = 0; mode < 2; mode++) {
+        BytecodeAnalysisStats total;
+        uint32_t entries = 0, failed = 0;
+        for (const auto &input : inputs) {
+            BytecodeAnalysisPolicy policy;
+            policy.interprocedural = mode == 1;
+            BytecodeAnalysis analysis(*input.chunk, *input.link, policy);
+            analysis.run();
+            const BytecodeAnalysisStats &st = analysis.stats();
+            total.reachable += st.reachable;
+            total.demotedAccesses += st.demotedAccesses;
+            total.demotedAccessesKnown += st.demotedAccessesKnown;
+            total.pushVarValue += st.pushVarValue;
+            total.pushVarValueKnown += st.pushVarValueKnown;
+            total.storeVarValue += st.storeVarValue;
+            total.storeVarValueKnown += st.storeVarValueKnown;
+            total.convertValueToTyped += st.convertValueToTyped;
+            total.convertValueToTypedKnown += st.convertValueToTypedKnown;
+            total.pushArg += st.pushArg;
+            total.pushArgKnown += st.pushArgKnown;
+            total.procedureCalls += st.procedureCalls;
+            total.procedureCallsKeepingFacts += st.procedureCallsKeepingFacts;
+            total.procedureValueCalls += st.procedureValueCalls;
+            total.procedureValueCallsTyped += st.procedureValueCallsTyped;
+            entries += static_cast<uint32_t>(analysis.entries().size());
+            for (const BytecodeEntryResult &e : analysis.entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(mode == 0 ? "per chunk, no procedure summaries" : "per chunk, procedure summaries", total, entries, failed));
+    }
+
+    for (int warpKeeps = 0; warpKeeps < 2; warpKeeps++) {
+        BytecodeProgramAnalysis::Environment environment;
+        environment.customExtensions = !Scratch::extensions.empty();
+        for (const auto &[id, monitor] : Render::monitors) {
+            if (monitor.mode == "slider") environment.sliderVariables.insert(id);
+        }
+        BytecodeAnalysisPolicy policy;
+        policy.warpYieldForgets = warpKeeps != 1;
+        BytecodeProgramAnalysis program(inputs, environment, policy);
+        const bool ok = program.run();
+
+        uint32_t entries = 0, failed = 0;
+        for (const auto &analysis : program.chunks()) {
+            entries += static_cast<uint32_t>(analysis->entries().size());
+            for (const BytecodeEntryResult &e : analysis->entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(warpKeeps == 0 ? "whole program" : "whole program, warp yields keep facts",
+                          program.totalStats(), entries, failed) +
+                 (ok ? "" : " NOT VERIFIED"));
+        if (const char *check = std::getenv("SE_FACT_CHECK")) {
+            if (warpKeeps == (std::string(check) == "warp" ? 1 : 0)) {
+                for (size_t i = 0; i < program.inputs().size(); i++) {
+                    BytecodeExecutor::factTables[program.inputs()[i].chunk] = program.chunks()[i]->readFacts();
+                }
+            }
+        }
+        if (warpKeeps == 0) Log::log("[analysis variables] " + program.variableReport().substr(0, program.variableReport().find('\n')));
+    }
+}
+} // namespace
+#endif
 
 void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
@@ -23,6 +123,19 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Scratch::sprites.reserve(spriteAmount);
 
     BytecodeCache::beginLoadSession();
+
+    if (Scratch::useBytecode) {
+        std::unordered_set<std::string> assetNames;
+        for (const auto &target : spritesData) {
+            for (const char *kind : {"costumes", "sounds"}) {
+                if (!target.contains(kind) || !target[kind].is_array()) continue;
+                for (const auto &asset : target[kind]) {
+                    if (asset.contains("name") && asset["name"].is_string()) assetNames.insert(asset["name"].get<std::string>());
+                }
+            }
+        }
+        BytecodeCompiler::setReservedLiterals(std::move(assetNames));
+    }
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -325,7 +438,12 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
 
+    BytecodeCompiler::clearReservedLiterals();
     BytecodeCache::endLoadSession();
+
+#ifdef SE_BYTECODE_STATS
+    logBytecodeAnalysis();
+#endif
 
     Scratch::sortSprites();
 

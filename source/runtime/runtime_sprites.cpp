@@ -1,5 +1,5 @@
-#include "runtime.hpp"
 #include "collision.hpp"
+#include "runtime.hpp"
 #include <algorithm>
 #include <cmath>
 #include <input.hpp>

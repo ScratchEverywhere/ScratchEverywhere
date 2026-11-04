@@ -186,7 +186,7 @@ Value extensions::objectToValue(sol::object object) {
 
 sol::object extensions::valueToObject(sol::state_view luaState, Value val) {
     if (val.isUndefined()) return sol::lua_nil;
-    if (val.isString()) return sol::make_object(luaState, val.get<std::string>());
+    if (val.isStringTyped()) return sol::make_object(luaState, val.get<std::string>());
     if (val.isDouble()) return sol::make_object(luaState, val.get<double>());
     if (val.isBoolean()) return sol::make_object(luaState, val.get<bool>());
     if (val.isColor()) return sol::make_object(luaState, val.get<Color>());

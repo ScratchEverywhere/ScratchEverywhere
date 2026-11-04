@@ -16,7 +16,7 @@
   "ui.settings.fps": "Показать FPS",
   "ui.settings.keepProjectInRam": "Держать проект в ОЗУ",
   "ui.settings.warp": "Warp Таймер",
-  "ui.settings.runtime": "Сред. выполн. байт-кода",
+  "ui.settings.runtime": "Сред. выполн.",
   "ui.settings.username": "Имя пользователя",
   "ui.settings.name": "Имя",
   "ui.settings.path": "Польз. путь",
