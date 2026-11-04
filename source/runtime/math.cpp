@@ -597,11 +597,11 @@ std::string Math::toString(double number) {
 }
 
 double Math::degreesToRadians(double degrees) {
-    return degrees * (M_PI / 180.0);
+    return degrees * M_PI / 180.0;
 }
 
 double Math::radiansToDegrees(double radians) {
-    return radians * (180.0 / M_PI);
+    return radians * 180.0 / M_PI;
 }
 
 int16_t Math::radiansToAngle16(float radians) {

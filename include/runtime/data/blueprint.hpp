@@ -438,8 +438,8 @@ class SE_EXPORT Sprite {
     int currentCostume;
     double xPosition;
     double yPosition;
+    double rotation;
     float size;
-    float rotation;
     int layer;
     RenderInfo renderInfo;
 

@@ -62,6 +62,7 @@ struct SE_EXPORT AABB {
 };
 
 SE_EXPORT AABB getSpriteBounds(Sprite *sprite);
+SE_EXPORT AABB getFenceBounds(Sprite *sprite);
 
 SE_EXPORT bool pointInSpriteFast(Sprite *sprite, float x, float y);
 SE_EXPORT bool spriteInSpriteFast(Sprite *a, Sprite *b);

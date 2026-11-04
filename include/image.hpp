@@ -88,6 +88,7 @@ class SE_EXPORT Image {
     bool colorDataUnavailable = false;
     std::pair<float, float> svgViewOffset = {0, 0};
     float logicalWidth = 0.0f;
+    bool logicalSizeKnown = false;
     float logicalHeight = 0.0f;
     bool isSVGImage = false;
 

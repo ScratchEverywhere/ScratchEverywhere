@@ -2,7 +2,10 @@
 #include "nonstd/expected.hpp"
 #include "os.hpp"
 #include "renderer.hpp"
+#include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <log.hpp>
 #include <sb2_bitmap_layers.hpp>
@@ -393,6 +396,16 @@ void Image::releaseSVGDocumentIfFinal(float requestedScale, float renderedScale)
 #endif
 }
 
+#ifdef ENABLE_SVG
+static std::pair<float, float> svgViewBoxOrigin(lunasvg::Document &document) {
+    const std::string viewBox = document.documentElement().getAttribute("viewBox");
+    float x = 0, y = 0, w = 0, h = 0;
+    if (std::sscanf(viewBox.c_str(), "%f%*[ ,]%f%*[ ,]%f%*[ ,]%f", &x, &y, &w, &h) != 4) return {0, 0};
+    if (!std::isfinite(x) || !std::isfinite(y)) return {0, 0};
+    return {x, y};
+}
+#endif
+
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale, bool scratch2) {
 #ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
@@ -428,11 +441,12 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     if (!svgDocument) {
         return nonstd::make_unexpected("LunaSVG failed to parse SVG");
     }
-    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : svgViewBoxOrigin(*svgDocument);
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
     logicalWidth = docW;
+    logicalSizeKnown = true;
     logicalHeight = docH;
 
     if (docW <= 0.0f || docH <= 0.0f) {
@@ -451,11 +465,12 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     const std::string svgData = scratch2 ? Scratch2Svg::normalizeText(svgView) : std::string(svgView);
     svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
-    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : std::pair<float, float>{0, 0};
+    svgViewOffset = scratch2 ? Scratch2Svg::normalizeMeasurements(*svgDocument) : svgViewBoxOrigin(*svgDocument);
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
     logicalWidth = docW;
+    logicalSizeKnown = true;
     logicalHeight = docH;
 
     if (docW <= 0.0f || docH <= 0.0f) {
@@ -926,10 +941,12 @@ int Image::getHeight() {
 }
 
 float Image::getExactWidth() {
+    if (logicalSizeKnown) return std::max(logicalWidth, 0.0f);
     return logicalWidth > 0.0f ? logicalWidth : static_cast<float>(imgData.width) / imgData.scale;
 }
 
 float Image::getExactHeight() {
+    if (logicalSizeKnown) return std::max(logicalHeight, 0.0f);
     return logicalHeight > 0.0f ? logicalHeight : static_cast<float>(imgData.height) / imgData.scale;
 }
 

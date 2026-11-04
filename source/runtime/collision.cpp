@@ -7,6 +7,7 @@
 #include "types.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <log.hpp>
 
 #ifdef __XBOX__
@@ -581,6 +582,53 @@ collision::AABB collision::getSpriteBounds(Sprite *sprite) {
         finalX + halfW,
         finalY + halfH,
         finalY - halfH};
+}
+
+collision::AABB collision::getFenceBounds(Sprite *sprite) {
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+
+#ifdef __XBOX__
+    const double spriteSize = getEffectiveSpriteSize(sprite, costume);
+#else
+    const double spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5 : sprite->size;
+#endif
+    const double scale = spriteSize * 0.01;
+
+    const double width = sprite->spriteWidthExact;
+    const double height = sprite->spriteHeightExact;
+
+    const double left = -costume.rotationCenterX * scale;
+    const double right = (width - costume.rotationCenterX) * scale;
+    const double top = costume.rotationCenterY * scale;
+    const double bottom = -(height - costume.rotationCenterY) * scale;
+    const double cornersX[4] = {left, right, right, left};
+    const double cornersY[4] = {top, top, bottom, bottom};
+
+    const bool flip = sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0;
+    double rotSin = 0.0;
+    double rotCos = 1.0;
+    if (sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND) {
+        const double radians = (90.0 - sprite->rotation) * M_PI / 180.0;
+        rotSin = std::sin(radians);
+        rotCos = std::cos(radians);
+    }
+
+    double minX = std::numeric_limits<double>::infinity(), maxX = -minX, minY = minX, maxY = -minX;
+    for (int i = 0; i < 4; i++) {
+        const double cornerX = flip ? -cornersX[i] : cornersX[i];
+        const double x = cornerX * rotCos - cornersY[i] * rotSin;
+        const double y = cornerX * rotSin + cornersY[i] * rotCos;
+        minX = std::min(minX, x);
+        maxX = std::max(maxX, x);
+        minY = std::min(minY, y);
+        maxY = std::max(maxY, y);
+    }
+
+    return {
+        static_cast<float>(sprite->xPosition + minX),
+        static_cast<float>(sprite->xPosition + maxX),
+        static_cast<float>(sprite->yPosition + maxY),
+        static_cast<float>(sprite->yPosition + minY)};
 }
 
 bool collision::pointInSpriteFast(Sprite *sprite, float x, float y) {
