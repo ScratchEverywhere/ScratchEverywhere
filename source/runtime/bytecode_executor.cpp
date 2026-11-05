@@ -1199,6 +1199,16 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 SE_NEXT();
             }
             SE_CASE(ConvertStringToValue) {
+                if (thread.pc + 1 < static_cast<BytecodeIndex>(thread.chunk->instructions.size()) &&
+                    thread.chunk->instructions[thread.pc + 1].op == BytecodeOp::ConvertValueToNumber) {
+                    const std::string &str = thread.stringStack.back();
+                    const auto parsed = Math::parseNumber(str);
+                    const double num = parsed.has_value() ? *parsed : 0.0;
+                    thread.stringStack.pop_back();
+                    thread.numberStack.push_back(num);
+                    thread.pc += 2;
+                    SE_NEXT();
+                }
                 std::string v = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
                 thread.valueStack.push_back(Value(std::move(v)));

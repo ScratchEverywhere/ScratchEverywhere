@@ -418,6 +418,16 @@ bool ZipProjectLoader::load(std::istream *file) {
         if (Scratch::useJit) note = " (JIT requested but this build has no JIT)";
 #endif
         Log::log(std::string("Runtime: ") + active + note);
+#if defined(__XBOX__)
+        Log::log(std::string("[runtime select] setting='") +
+                 (runtimeSetting.is_string() ? runtimeSetting.get<std::string>() : "(none)") +
+                 "' useBytecode=" + (Scratch::useBytecode ? "true" : "false") +
+                 " useJit=" + (Scratch::useJit ? "true" : "false")
+#ifdef SE_JIT
+                 + " jitEnabled=" + (BytecodeJit::enabled() ? "true" : "false")
+#endif
+        );
+#endif
     }
 
     Log::log("Loading project extensions and sprites...");

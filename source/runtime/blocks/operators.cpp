@@ -138,7 +138,7 @@ static bool stringVariableSlot(BytecodeCompiler &compiler, Block *block, Bytecod
     const ParsedInput *input = Scratch::getInput(block, "STRING");
     if (input == nullptr || input->inputType != ParsedInput::VARIABLE || input->list) return false;
     Variable *var = BlockExecutor::getVariable(input->variableId, compiler.sprite());
-    if (var == nullptr || !std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) return false;
+    if (var == nullptr) return false;
     slot = compiler.variableSlot(input->variableId);
     return true;
 }
