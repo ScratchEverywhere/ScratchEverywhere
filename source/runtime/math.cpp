@@ -7,6 +7,7 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <limits>
 #include <math.h>
@@ -650,15 +651,25 @@ bool Math::containsCaseInsensitive(std::string_view haystack, std::string_view n
     if (isAsciiOnly(haystack) && isAsciiOnly(needle)) {
         if (needle.size() > haystack.size()) return false;
         const unsigned char first = asciiLowerChar(static_cast<unsigned char>(needle[0]));
+        const unsigned char firstUpper = (first >= 'a' && first <= 'z') ? static_cast<unsigned char>(first - ('a' - 'A')) : first;
+        const char *const begin = haystack.data();
         const size_t last = haystack.size() - needle.size();
-        for (size_t i = 0; i <= last; i++) {
-            if (asciiLowerChar(static_cast<unsigned char>(haystack[i])) != first) continue;
+        const char *nextLower = static_cast<const char *>(std::memchr(begin, first, last + 1));
+        const char *nextUpper = firstUpper != first ? static_cast<const char *>(std::memchr(begin, firstUpper, last + 1)) : nullptr;
+        for (;;) {
+            const char *candidate = nextLower;
+            if (nextUpper != nullptr && (candidate == nullptr || nextUpper < candidate)) candidate = nextUpper;
+            if (candidate == nullptr) return false;
             size_t j = 1;
-            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(haystack[i + j])) == asciiLowerChar(static_cast<unsigned char>(needle[j])))
+            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(candidate[j])) == asciiLowerChar(static_cast<unsigned char>(needle[j])))
                 j++;
             if (j == needle.size()) return true;
+            const size_t from = static_cast<size_t>(candidate - begin) + 1;
+            if (from > last) return false;
+            const size_t remaining = last + 1 - from;
+            if (candidate == nextLower) nextLower = static_cast<const char *>(std::memchr(begin + from, first, remaining));
+            else nextUpper = static_cast<const char *>(std::memchr(begin + from, firstUpper, remaining));
         }
-        return false;
     }
 
     return toLowerCaseJs(haystack).find(toLowerCaseJs(needle)) != std::string::npos;
