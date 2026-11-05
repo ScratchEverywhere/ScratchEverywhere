@@ -23,9 +23,17 @@ void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
 }
 } // namespace
 
+#ifdef __XBOX__
+static bool s_costumeCacheDirty = true;
+#endif
+
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = Math::jsRound(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+#ifdef __XBOX__
+    s_costumeCacheDirty = true;
+#endif
 
 #ifdef __XBOX__
     if (costumeImages.size() >= (sprites.size() + 2)) {
@@ -161,6 +169,9 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
         costumeImages[costumeName] = image;
 #ifdef __XBOX__
+        s_costumeCacheDirty = true;
+#endif
+#ifdef __XBOX__
         if (sprite->isStage) {
             image->freePixels();
         }
@@ -204,6 +215,9 @@ void Scratch::flushCostumeImages() {
 }
 
 void Scratch::freeUnusedCostumeImages(const Image *keep) {
+#ifdef __XBOX__
+    if (!s_costumeCacheDirty && keep == nullptr) return;
+#endif
     std::unordered_set<std::string> activeCostumes;
     activeCostumes.reserve(sprites.size() + 1);
     activeCostumes.insert("SE__Missingno");
@@ -220,16 +234,6 @@ void Scratch::freeUnusedCostumeImages(const Image *keep) {
         }
     }
 
-#ifdef __XBOX__
-    for (Sprite *sprite : sprites) {
-        for (auto &costume : sprite->costumes) {
-            if (!activeCostumes.count(costume.fullName)) {
-                costume.collisionMask = nullptr;
-            }
-        }
-    }
-#endif
-
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
         if (id == "SE__Missingno") continue;
@@ -238,7 +242,23 @@ void Scratch::freeUnusedCostumeImages(const Image *keep) {
         }
     }
 
+#ifdef __XBOX__
+    if (!toDelete.empty()) {
+        std::unordered_set<std::string> deletingSet(toDelete.begin(), toDelete.end());
+        for (Sprite *sprite : sprites) {
+            for (auto &costume : sprite->costumes) {
+                if (deletingSet.count(costume.fullName)) {
+                    costume.collisionMask = nullptr;
+                }
+            }
+        }
+    }
+#endif
+
     for (const std::string &id : toDelete) {
         costumeImages.erase(id);
     }
+#ifdef __XBOX__
+    s_costumeCacheDirty = false;
+#endif
 }
