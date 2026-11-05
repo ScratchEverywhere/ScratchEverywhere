@@ -32,7 +32,7 @@ struct ListLayout {
     sljit_sw items = 0;
     sljit_sw valueSize = 0;
     sljit_sw tag = 0, flags = 0, number = 0;
-    sljit_sw numberTag = 0, stringTag = 0;
+    sljit_sw numberTag = 0, stringTag = 0, booleanTag = 0;
     uint8_t typedFlags = 0;
 };
 
@@ -111,6 +111,10 @@ inline Value materializeEntry(Context *ctx, const ValueEntry &entry, uint32_t po
     case ValueEntry::Temp:
         if (tempLazy[position] == 1) return Value(ctx->slots[ctx->code->slotValues + position]);
         return temps[position];
+    case ValueEntry::Boolean: {
+        const double d = ctx->slots[ctx->code->slotValues + position];
+        return Value(bitsOf(d) != 0);
+    }
     default:
         return materializeEntrySlow(ctx, entry, position);
     }
@@ -150,6 +154,7 @@ void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call);
 double SLJIT_FUNC jitRepeatRemaining(double counter);
 sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind);
 double SLJIT_FUNC jitMathOp(double value, sljit_sw op);
+double SLJIT_FUNC jitRandomInt(double a, double b);
 sljit_sw SLJIT_FUNC jitPreempt(Context *ctx);
 
 void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op);

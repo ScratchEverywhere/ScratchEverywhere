@@ -25,6 +25,7 @@ void Emitter::resetStateFromAnalysis(BytecodeIndex pc) {
         AbsValue v;
         if (type == BytecodeValueType::Number) v.kind = ValueEntry::Number;
         else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) v.kind = ValueEntry::Like;
+        else if (type == BytecodeValueType::Boolean) v.kind = ValueEntry::Boolean;
         else v.kind = ValueEntry::Opaque;
         state_.values.push_back(v);
     }

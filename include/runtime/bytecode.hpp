@@ -404,4 +404,14 @@ struct SE_EXPORT BytecodeThread {
     bool killed = false;
 
     ScriptThread *bridgeThread = nullptr;
+#if defined(__XBOX__)
+    uint64_t nativeEntries = 0;
+    uint64_t nativeYields = 0;
+    uint64_t nativeDeopts = 0;
+    uint64_t nativeHalts = 0;
+    uint64_t interpreterSteps = 0;
+    bool statsReported = false;
+#endif
 };
+
+uint64_t fastRandomBelow(uint64_t bound);

@@ -109,9 +109,31 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     for (const BytecodeProcedure &proc : chunk.procedures)
         roots.push_back(proc.entryInstruction);
 
+#if defined(__XBOX__)
+    std::string spriteName = "(unknown)";
+    for (Sprite *s : Scratch::sprites) {
+        if (s && s->bytecode.get() == &chunk) {
+            spriteName = s->name;
+            break;
+        }
+    }
+#endif
+
     Planner planner(chunk, link, analysis);
     planner.plan(roots);
-    if (planner.entryPcs.empty()) return;
+    if (planner.entryPcs.empty()) {
+#if defined(__XBOX__)
+        std::string blockers;
+        std::vector<std::pair<uint32_t, uint8_t>> ranked;
+        for (const auto &[op, n] : planner.loopBlockers)
+            ranked.push_back({n, op});
+        std::sort(ranked.rbegin(), ranked.rend());
+        for (size_t i = 0; i < ranked.size() && i < 12; i++)
+            blockers += " " + std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+        Log::log("[jit compile] sprite '" + spriteName + "' REJECTED (0 entries). Loop blockers:" + blockers);
+#endif
+        return;
+    }
 
     auto code = std::make_shared<BytecodeJitCode>();
     for (BytecodeIndex pc : planner.entryPcs) {
@@ -120,18 +142,33 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         EntryDescriptor e;
         e.numbers = s.numbers;
         e.booleans = s.booleans;
-        e.valueIsNumber.assign(s.values.size(), 1);
+        e.valueIsNumber.clear();
         for (BytecodeValueType type : s.values) {
-            if (type == BytecodeValueType::Number) e.valueKinds.push_back(ValueEntry::Number);
-            else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) e.valueKinds.push_back(ValueEntry::Like);
-            else e.valueKinds.push_back(ValueEntry::Opaque);
+            if (type == BytecodeValueType::Number) {
+                e.valueKinds.push_back(ValueEntry::Number);
+                e.valueIsNumber.push_back(1);
+            } else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) {
+                e.valueKinds.push_back(ValueEntry::Like);
+                e.valueIsNumber.push_back(1);
+            } else if (type == BytecodeValueType::Boolean) {
+                e.valueKinds.push_back(ValueEntry::Boolean);
+                e.valueIsNumber.push_back(0);
+            } else {
+                e.valueKinds.push_back(ValueEntry::Opaque);
+                e.valueIsNumber.push_back(0);
+            }
         }
         e.strings = s.strings;
         code->entries.push_back(std::move(e));
     }
 
     Emitter emitter(chunk, link, analysis, planner, *code);
-    if (!emitter.emit()) return;
+    if (!emitter.emit()) {
+#if defined(__XBOX__)
+        Log::log("[jit compile] sprite '" + spriteName + "' REJECTED by emitter");
+#endif
+        return;
+    }
 
     for (size_t i = 0; i < code->entries.size(); i++) {
         for (BytecodeIndex variable : planner.entryReads[i]) {
@@ -150,9 +187,41 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     }
     if (!anyVisible) {
         chunk.jitEntryAt.clear();
+#if defined(__XBOX__)
+        std::string blockers;
+        std::vector<std::pair<uint32_t, uint8_t>> ranked;
+        for (const auto &[op, n] : planner.loopBlockers)
+            ranked.push_back({n, op});
+        std::sort(ranked.rbegin(), ranked.rend());
+        for (size_t i = 0; i < ranked.size() && i < 12; i++)
+            blockers += " op" + std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+        Log::log("[jit compile] sprite '" + spriteName + "' REJECTED (no visible entry points, " +
+                 std::to_string(planner.entryPcs.size()) + " raw entries). Loop blockers:" + blockers);
+#endif
         return;
     }
     chunk.jit = code;
+#if defined(__XBOX__)
+    {
+        size_t compiled = 0, reachable = 0;
+        for (size_t pc = 0; pc < chunk.instructions.size(); pc++) {
+            if (analysis.isReachable(static_cast<BytecodeIndex>(pc))) reachable++;
+            if (planner.supported[pc]) compiled++;
+        }
+        std::string blockers;
+        std::vector<std::pair<uint32_t, uint8_t>> ranked;
+        for (const auto &[op, n] : planner.loopBlockers)
+            ranked.push_back({n, op});
+        std::sort(ranked.rbegin(), ranked.rend());
+        for (size_t i = 0; i < ranked.size() && i < 12; i++)
+            blockers += " " + std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+        Log::log("[jit compile] sprite '" + spriteName + "' SUCCESS: compiled " +
+                 std::to_string(compiled) + "/" + std::to_string(reachable) + " insns, " +
+                 std::to_string(code->entries.size()) + " entries, " +
+                 std::to_string(code->promoted.size()) + " promoted vars in " +
+                 std::to_string(compileTimer.getTimeMsDouble()) + " ms. Loop blockers:" + blockers);
+    }
+#endif
 
     if (const char *log = std::getenv("SE_JIT_LOG"); log != nullptr && std::string(log) != "0") {
         size_t compiled = 0, reachable = 0;

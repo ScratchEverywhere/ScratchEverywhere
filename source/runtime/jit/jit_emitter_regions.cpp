@@ -83,6 +83,7 @@ void Emitter::findRegions() {
             case BytecodeOp::LengthOf:
             case BytecodeOp::ConvertStringToValue:
             case BytecodeOp::ConvertValueToString:
+            case BytecodeOp::RandomInt:
                 hotCalls++;
                 break;
             case BytecodeOp::MathOp:

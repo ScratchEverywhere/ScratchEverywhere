@@ -161,10 +161,11 @@ bool Emitter::emitInlineListReplace(const ListOpDescriptor &op, const AbsValue &
 
 bool Emitter::emitInlineListAdd(const ListOpDescriptor &op, const AbsValue &item) {
     const Runtime::ListLayout &layout = Runtime::listLayout();
+    const bool isBoolean = item.kind == ValueEntry::Boolean;
     const bool variable = item.kind == ValueEntry::VarValue && item.constant < code_.promoted.size();
     const bool temporary = item.kind == ValueEntry::Temp;
     const bool typedConstant = item.kind == ValueEntry::Constant && item.constant < chunk_.constants.size() && chunk_.constants[item.constant].isStringTyped() && !chunk_.constants[item.constant].isString();
-    if (!layout.ok || (item.kind != ValueEntry::Number && !typedConstant && !variable && !temporary)) return false;
+    if (!layout.ok || (item.kind != ValueEntry::Number && !isBoolean && !typedConstant && !variable && !temporary)) return false;
     std::vector<sljit_jump *> slow;
     if (variable) {
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(item.constant));
@@ -193,17 +194,34 @@ bool Emitter::emitInlineListAdd(const ListOpDescriptor &op, const AbsValue &item
     sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, static_cast<sljit_sw>(BYTECODE_MAX_LIST_ITEMS) * layout.valueSize);
     slow.push_back(sljit_emit_cmp(c_, SLJIT_GREATER_EQUAL, SLJIT_R1, 0, SLJIT_R2, 0));
 
-    loadF(SLJIT_FR2, valueSlot(op.itemPosition));
     const uint16_t endianProbe = 1;
     const bool little = *reinterpret_cast<const uint8_t *>(&endianProbe) == 1;
-    if (layout.flags == layout.tag + 1) {
-        const sljit_sw flags = typedConstant ? layout.typedFlags : 0;
-        sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, little ? (layout.numberTag | (flags << 8)) : ((layout.numberTag << 8) | flags));
+    if (isBoolean) {
+        loadW(SLJIT_R2, valueSlot(op.itemPosition));
+        sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R2, 0, SLJIT_IMM, 0);
+        sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_NOT_EQUAL);
+        if (layout.flags == layout.tag + 1) {
+            sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, little ? layout.booleanTag : (layout.booleanTag << 8));
+        } else {
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.booleanTag);
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, 0);
+        }
+        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_IMM, 0);
+        if (!wide) {
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R1), layout.number + static_cast<sljit_sw>(sizeof(sljit_sw)), SLJIT_IMM, 0);
+        }
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_R2, 0);
     } else {
-        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
-        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
+        loadF(SLJIT_FR2, valueSlot(op.itemPosition));
+        if (layout.flags == layout.tag + 1) {
+            const sljit_sw flags = typedConstant ? layout.typedFlags : 0;
+            sljit_emit_op1(c_, SLJIT_MOV_U16, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, little ? (layout.numberTag | (flags << 8)) : ((layout.numberTag << 8) | flags));
+        } else {
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.tag, SLJIT_IMM, layout.numberTag);
+            sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_MEM1(SLJIT_R1), layout.flags, SLJIT_IMM, typedConstant ? layout.typedFlags : 0);
+        }
+        sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
     }
-    sljit_emit_fop1(c_, SLJIT_MOV_F64, SLJIT_MEM1(SLJIT_R1), layout.number, SLJIT_FR2, 0);
     sljit_emit_op2(c_, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, layout.valueSize);
     sljit_emit_op1(c_, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), layout.items + pointer, SLJIT_R1, 0);
     sljit_label *done = sljit_emit_label(c_);

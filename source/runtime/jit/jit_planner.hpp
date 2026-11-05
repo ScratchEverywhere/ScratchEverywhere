@@ -310,6 +310,7 @@ struct Planner {
         case BytecodeOp::PopNumber:
         case BytecodeOp::PopBoolean:
         case BytecodeOp::ConvertNumberToValue:
+        case BytecodeOp::ConvertBooleanToValue:
         case BytecodeOp::Jump:
         case BytecodeOp::JumpIfFalse:
         case BytecodeOp::JumpIfTrue:
@@ -319,6 +320,7 @@ struct Planner {
         case BytecodeOp::JumpIfNumCompareFalse:
         case BytecodeOp::JumpIfNumCompareTrue:
         case BytecodeOp::MathOp:
+        case BytecodeOp::RandomInt:
         case BytecodeOp::Yield:
             return true;
         case BytecodeOp::PushVarNumber:

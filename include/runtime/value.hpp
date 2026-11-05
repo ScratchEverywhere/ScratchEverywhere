@@ -177,7 +177,7 @@ class SE_EXPORT Value {
 
     struct Layout {
         size_t size, tag, flags, number;
-        uint8_t numberTag, stringTag, stringTypedFlag;
+        uint8_t numberTag, stringTag, stringTypedFlag, booleanTag;
     };
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -185,7 +185,8 @@ class SE_EXPORT Value {
 #endif
     static Layout layout() {
         return {sizeof(Value), offsetof(Value, tag), offsetof(Value, flags), offsetof(Value, storage),
-                static_cast<uint8_t>(Tag::NUMBER), static_cast<uint8_t>(Tag::STRING_ID), FLAG_STRING_TYPED};
+                static_cast<uint8_t>(Tag::NUMBER), static_cast<uint8_t>(Tag::STRING_ID), FLAG_STRING_TYPED,
+                static_cast<uint8_t>(Tag::BOOLEAN)};
     }
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop

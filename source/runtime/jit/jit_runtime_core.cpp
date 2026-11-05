@@ -70,6 +70,7 @@ const ListLayout &listLayout() {
         l.number = static_cast<sljit_sw>(v.number);
         l.numberTag = v.numberTag;
         l.stringTag = v.stringTag;
+        l.booleanTag = v.booleanTag;
 
         const Value typed = Value::stringTypedNumber(1.0);
         l.typedFlags = reinterpret_cast<const uint8_t *>(&typed)[l.flags];
@@ -78,14 +79,17 @@ const ListLayout &listLayout() {
         probe.items.reserve(8);
         probe.items.push_back(Value(3.5));
         probe.items.push_back(Value(-1.25));
+        probe.items.push_back(Value(true));
         const char *base = reinterpret_cast<const char *>(&probe) + l.items;
         const char *begin = *reinterpret_cast<const char *const *>(base);
         const char *end = *reinterpret_cast<const char *const *>(base + sizeof(void *));
         const char *capacity = *reinterpret_cast<const char *const *>(base + 2 * sizeof(void *));
         const char *second = begin + l.valueSize;
-        l.ok = begin == reinterpret_cast<const char *>(probe.items.data()) && end == begin + 2 * l.valueSize && capacity == begin + 8 * l.valueSize &&
+        const char *third = begin + 2 * l.valueSize;
+        l.ok = begin == reinterpret_cast<const char *>(probe.items.data()) && end == begin + 3 * l.valueSize && capacity == begin + 8 * l.valueSize &&
                static_cast<uint8_t>(begin[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(begin + l.number) == 3.5 &&
-               static_cast<uint8_t>(second[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(second + l.number) == -1.25 && l.typedFlags != 0;
+               static_cast<uint8_t>(second[l.tag]) == l.numberTag && *reinterpret_cast<const double *>(second + l.number) == -1.25 &&
+               static_cast<uint8_t>(third[l.tag]) == l.booleanTag && *reinterpret_cast<const bool *>(third + l.number) == true && l.typedFlags != 0;
         return l;
     }();
     return layout;
@@ -107,6 +111,10 @@ Value materializeVariableSlow(Context *ctx, uint32_t k) {
 
 Value materializeEntrySlow(Context *ctx, const ValueEntry &entry, uint32_t position) {
     switch (entry.kind) {
+    case ValueEntry::Boolean: {
+        const double d = ctx->slots[ctx->code->slotValues + position];
+        return Value(bitsOf(d) != 0);
+    }
     case ValueEntry::Argument: {
         const BytecodeThread &thread = *ctx->thread;
         if (ctx->lazyDepth > 0) {
@@ -174,7 +182,8 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
 
     ctx->valueBase = static_cast<uint32_t>(thread.valueStack.size()) - static_cast<uint32_t>(entry.valueIsNumber.size());
     for (uint32_t i = 0; i < entry.valueIsNumber.size(); i++) {
-        if (entry.valueIsNumber[i]) ctx->slots[code.slotValues + i] = thread.valueStack[ctx->valueBase + i].numberRaw();
+        if (i < entry.valueKinds.size() && entry.valueKinds[i] == ValueEntry::Boolean) ctx->slots[code.slotValues + i] = fromBits(thread.valueStack[ctx->valueBase + i].asBoolean() ? 1 : 0);
+        else if (entry.valueIsNumber[i]) ctx->slots[code.slotValues + i] = thread.valueStack[ctx->valueBase + i].numberRaw();
     }
 
     ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
@@ -286,6 +295,8 @@ void materializeLazyFrames(Context *ctx) {
             if (entry.kind == ValueEntry::Number || entry.kind == ValueEntry::Temp || entry.kind == ValueEntry::Argument || entry.kind == ValueEntry::VarValue) {
                 if (i >= firstArgument && ((frameTyped(frame) >> (i - firstArgument)) & 1) != 0) thread.valueStack[valueBase + i] = Value::stringTypedNumber(save[n + b + i]);
                 else thread.valueStack[valueBase + i].setNumber(save[n + b + i]);
+            } else if (entry.kind == ValueEntry::Boolean) {
+                thread.valueStack[valueBase + i] = Value(bitsOf(save[n + b + i]) != 0);
             } else if (entry.kind == ValueEntry::Constant) thread.valueStack[valueBase + i] = ctx->chunk->constants[entry.constant];
         }
 
@@ -627,6 +638,13 @@ sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind) {
 
 double SLJIT_FUNC jitMathOp(double value, sljit_sw op) {
     return bytecodeMathOpApply(static_cast<BytecodeMathOp>(op), value);
+}
+
+double SLJIT_FUNC jitRandomInt(double a, double b) {
+    if (a == b) return a;
+    const double from = std::min(a, b);
+    const double to = std::max(a, b);
+    return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1.0 - from)));
 }
 
 sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {

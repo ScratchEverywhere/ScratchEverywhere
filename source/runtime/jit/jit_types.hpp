@@ -64,7 +64,8 @@ struct ValueEntry {
                           Like,
                           VarValue,
                           Argument,
-                          Temp
+                          Temp,
+                          Boolean
     };
     Kind kind = Opaque;
     uint32_t constant = 0;

@@ -107,12 +107,10 @@ std::string BytecodeExecutor::takeStatsReport() {
 }
 #endif
 
-namespace {
+static uint64_t randState0 = 0;
+static uint64_t randState1 = 0;
 
-uint64_t randState0 = 0;
-uint64_t randState1 = 0;
-
-uint64_t fastRandomNext() {
+static uint64_t fastRandomNext() {
     if (randState0 == 0 && randState1 == 0) {
         std::random_device rd;
         randState0 = (static_cast<uint64_t>(rd()) << 32) ^ rd() ^ 0x9E3779B97F4A7C15ULL;
@@ -132,13 +130,15 @@ uint64_t fastRandomNext() {
     return randState0 + randState1;
 }
 
-double fastRandomDouble() {
+static double fastRandomDouble() {
     return static_cast<double>(fastRandomNext() >> 11) * (1.0 / 9007199254740992.0);
 }
 
 uint64_t fastRandomBelow(uint64_t bound) {
     return fastRandomNext() % bound;
 }
+
+namespace {
 
 #define SE_BYTECODE_COMPUTED_GOTO 0
 
@@ -697,11 +697,29 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             } else {
                 const int32_t jitEntry = jitEntries[thread.pc];
                 if (jitEntry >= 0) {
+#if defined(__XBOX__)
+                    thread.nativeEntries++;
+                    const BytecodeJit::Result res = BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted);
+                    if (res == BytecodeJit::Result::Yield) {
+                        thread.nativeYields++;
+                        goto done;
+                    }
+                    if (thread.finished) {
+                        thread.nativeHalts++;
+                    } else {
+                        thread.nativeDeopts++;
+                    }
+                    continue;
+#else
                     if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
                     continue;
+#endif
                 }
             }
         }
+#endif
+#if defined(__XBOX__)
+        thread.interpreterSteps++;
 #endif
 
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
@@ -1754,6 +1772,18 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
     }
 
 done:;
+#if defined(__XBOX__)
+    if (thread.finished && !thread.statsReported) {
+        thread.statsReported = true;
+        const std::string spriteName = thread.sprite ? thread.sprite->name : "<unknown>";
+        Log::log("[jit exec] sprite '" + spriteName + "' hat=" + std::to_string(thread.hatInstruction) +
+                 " nativeEntries=" + std::to_string(thread.nativeEntries) +
+                 " nativeYields=" + std::to_string(thread.nativeYields) +
+                 " nativeDeopts=" + std::to_string(thread.nativeDeopts) +
+                 " nativeHalts=" + std::to_string(thread.nativeHalts) +
+                 " interpreterSteps=" + std::to_string(thread.interpreterSteps));
+    }
+#endif
 }
 
 bool BytecodeExecutor::isRunning(Sprite *sprite, Block *hat) {

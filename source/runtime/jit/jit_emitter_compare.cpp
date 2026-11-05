@@ -201,6 +201,7 @@ bool Emitter::conditionOperandOk(BytecodeIndex pc) const {
     case BytecodeOp::ConvertNumberToValue:
     case BytecodeOp::ConvertValueToNumber:
     case BytecodeOp::MathOp:
+    case BytecodeOp::RandomInt:
     case BytecodeOp::PushArg:
     case BytecodeOp::ItemOfList:
     case BytecodeOp::LengthOfList:

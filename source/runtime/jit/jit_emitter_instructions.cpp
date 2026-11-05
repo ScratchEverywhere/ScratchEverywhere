@@ -121,6 +121,18 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         maxValues_ = std::max(maxValues_, depth + 1);
         return;
     }
+    case BytecodeOp::ConvertBooleanToValue: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        const uint32_t boolSlot = booleanSlot(state_.booleans - 1);
+        loadW(SLJIT_R0, boolSlot);
+        storeW(valueSlot(depth), SLJIT_R0);
+        AbsValue v;
+        v.kind = ValueEntry::Boolean;
+        state_.values.push_back(v);
+        state_.booleans--;
+        maxValues_ = std::max(maxValues_, depth + 1);
+        return;
+    }
     case BytecodeOp::ConvertValueToNumber: {
         const AbsValue top = state_.values.back();
         state_.values.pop_back();
@@ -836,6 +848,16 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
             general();
             return;
         }
+    }
+
+    case BytecodeOp::RandomInt: {
+        const uint32_t a = numberSlot(state_.numbers - 2), b = numberSlot(state_.numbers - 1);
+        loadF(SLJIT_FR0, a);
+        loadF(SLJIT_FR1, b);
+        callHelper(reinterpret_cast<void *>(&Runtime::jitRandomInt), SLJIT_ARGS2(F64, F64, F64));
+        storeF(a, SLJIT_FR0);
+        state_.numbers -= 1;
+        return;
     }
 
     case BytecodeOp::CallNative:

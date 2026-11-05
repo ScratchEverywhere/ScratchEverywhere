@@ -364,6 +364,8 @@ class Emitter {
         case BytecodeOp::MathOp:
             if (instr.b != static_cast<uint32_t>(BytecodeMathOp::Abs) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Floor) && instr.b != static_cast<uint32_t>(BytecodeMathOp::Ceiling)) return false;
             return end >= 1 && !analysis_.isBlockStart(end) && nonNanEnding(end - 1);
+        case BytecodeOp::RandomInt:
+            return end >= 2 && !analysis_.isBlockStart(end) && !analysis_.isBlockStart(end - 1) && nonNanEnding(end - 1) && nonNanEnding(end - 2);
         case BytecodeOp::CallNativeNumber: {
             const NativeShape shape = plan_.nativeShape(instr);
             if (shape == NativeShape::NumberNumber && plan_.opcodeName(instr.a) == "operator_mod") {
