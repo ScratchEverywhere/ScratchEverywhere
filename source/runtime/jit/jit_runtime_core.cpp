@@ -182,7 +182,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
 
     ctx->valueBase = static_cast<uint32_t>(thread.valueStack.size()) - static_cast<uint32_t>(entry.valueIsNumber.size());
     for (uint32_t i = 0; i < entry.valueIsNumber.size(); i++) {
-        if (i < entry.valueKinds.size() && entry.valueKinds[i] == ValueEntry::Boolean) ctx->slots[code.slotValues + i] = fromBits(thread.valueStack[ctx->valueBase + i].asBoolean() ? 1 : 0);
+        if (i < entry.valueKinds.size() && entry.valueKinds[i] == ValueEntry::Boolean) ctx->slots[code.slotValues + i] = thread.valueStack[ctx->valueBase + i].asBoolean() ? 1.0 : 0.0;
         else if (entry.valueIsNumber[i]) ctx->slots[code.slotValues + i] = thread.valueStack[ctx->valueBase + i].numberRaw();
     }
 

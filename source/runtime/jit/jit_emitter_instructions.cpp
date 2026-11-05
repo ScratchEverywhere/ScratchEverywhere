@@ -125,7 +125,8 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
         const uint32_t boolSlot = booleanSlot(state_.booleans - 1);
         loadW(SLJIT_R0, boolSlot);
-        storeW(valueSlot(depth), SLJIT_R0);
+        sljit_emit_fop1(c_, SLJIT_CONV_F64_FROM_SW, SLJIT_FR0, 0, SLJIT_R0, 0);
+        storeF(valueSlot(depth), SLJIT_FR0);
         AbsValue v;
         v.kind = ValueEntry::Boolean;
         state_.values.push_back(v);

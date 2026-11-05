@@ -157,6 +157,9 @@ void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
         if (var != nullptr) {
             if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
                 if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
+            } else {
+                const Value value = materializeVariable(ctx, op->variable);
+                if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
             }
         }
     } else if (kind == 4) {
@@ -166,6 +169,9 @@ void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
         } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
             letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
         }
+    } else {
+        const Value value = materializeVariable(ctx, op->variable);
+        if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
     }
     return;
 }
@@ -232,9 +238,12 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
             const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
             if (var != nullptr) {
                 if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) units = Math::utf16Length(*text);
+                else units = materializeVariable(ctx, op->variable).utf16Length();
             }
         } else if (kind == 4) {
             units = stringVariableIsAscii(op->variable) ? stringVariables[op->variable].size() : Math::utf16Length(std::string_view(stringVariables[op->variable]));
+        } else {
+            units = materializeVariable(ctx, op->variable).utf16Length();
         }
         setNumber(static_cast<double>(units));
         return;
