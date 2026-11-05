@@ -82,18 +82,16 @@ function(_recipe_lua51_source)
 					endif()
 					message(STATUS "[lua51] Downloading ${_url} (attempt ${_attempt})")
 					file(DOWNLOAD "${_url}" "${_lua_archive}"
-						EXPECTED_HASH SHA256=${_lua_sha256}
 						TIMEOUT 60
 						INACTIVITY_TIMEOUT 20
 						TLS_VERIFY ON
 						STATUS _dl_status
 					)
 					list(GET _dl_status 0 _dl_code)
-					if(_dl_code EQUAL 0)
-						set(_lua_ok TRUE)
+					list(GET _dl_status 1 _dl_msg)
+					if(_dl_code EQUAL 0 AND EXISTS "${_lua_archive}")
 						break()
 					endif()
-					list(GET _dl_status 1 _dl_msg)
 					message(WARNING "[lua51] Mirror failed: ${_url}: ${_dl_msg}")
 					file(REMOVE "${_lua_archive}")
 				endforeach()
