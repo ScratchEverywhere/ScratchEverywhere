@@ -189,7 +189,8 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         return;
 
     case StringOp::StoreVariable:
-        setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
+        if (op->a.kind == StrEntry::Temp) setStringVariable(ctx, op->variable, std::move(strs[op->aPosition]));
+        else setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
         return;
 
     case StringOp::AppendVariable:
@@ -265,6 +266,10 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
     }
 
     case StringOp::ValueToString:
+        if (op->value.kind == ValueEntry::Number) {
+            setString(ctx, op->outPosition, Math::toString(ctx->slots[code.slotValues + op->valuePosition]));
+            return;
+        }
         setString(ctx, op->outPosition, materializeEntry(ctx, op->value, op->valuePosition).get<std::string>());
         return;
     case StringOp::StringToValue: {
