@@ -164,8 +164,6 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     const uint64_t d = static_cast<uint64_t>(std::fabs(divisor));
     const uint64_t magic = UINT64_C(0xFFFFFFFFFFFFFFFF) / d + 1;
     const bool negativeDivisor = divisor < 0;
-    const AbsState beforeMod = state_;
-    const BytecodeIndex modPc = currentPc_;
     const sljit_s32 source = readF(a, SLJIT_FR0);
     const sljit_s32 out = destF(a, SLJIT_FR0);
 
@@ -208,7 +206,7 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
     if (shadowDone != nullptr) sljit_set_label(shadowDone, joined);
     commitF(a, out);
 
-    addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor, source, out, beforeMod, modPc]() {
+    addCold([this, slow, negative, joined, a, b, &fn, magic, d, divisor, negativeDivisor, source, out]() {
         sljit_set_label(negative, sljit_emit_label(c_));
         // m = a >> 31 is 0 or -1 and |a| = (a ^ m) - m, all in the integer unit
         sljit_emit_op2(c_, SLJIT_ASHR32, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 31);
@@ -242,11 +240,6 @@ bool Emitter::emitConstantMod(const BytecodeInstruction &instr, double divisor) 
         loadF(SLJIT_FR0, a);
         loadF(SLJIT_FR1, b);
         callHelper(reinterpret_cast<void *>(fn.nn_n), SLJIT_ARGS2(F64, F64, F64));
-        sljit_jump *nanResult = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR0, 0);
-        addCold([this, nanResult, modPc, beforeMod]() {
-            sljit_set_label(nanResult, sljit_emit_label(c_));
-            emitExitAt(modPc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), beforeMod);
-        });
         storeF(a, SLJIT_FR0);
         sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), joined);
     });

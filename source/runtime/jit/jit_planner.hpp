@@ -196,7 +196,7 @@ struct Planner {
         for (BytecodeIndex q = pc + 1; q < count; q++) {
             const BytecodeInstruction &between = chunk.instructions[q - 1];
             if (variable >= 0) {
-                if (between.op == BytecodeOp::ItemOfList) {
+                if (between.op == BytecodeOp::ItemOfList || (between.op == BytecodeOp::StoreVarValue && between.a == static_cast<BytecodeIndex>(variable))) {
                     BytecodeAbstractState before;
                     if (analysis.stateBefore(q - 1, before) && before.values.size() == position + 1) return true;
                 }
@@ -385,6 +385,8 @@ struct Planner {
         case BytecodeOp::ValueGreater:
         case BytecodeOp::ConvertValueToNumber:
             return true;
+        case BytecodeOp::StoreVarBoolean:
+            return instr.a < variableCount;
         case BytecodeOp::StoreVarValue:
             return instr.a < variableCount;
         case BytecodeOp::CallNative:

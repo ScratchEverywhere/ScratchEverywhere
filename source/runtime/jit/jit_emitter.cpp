@@ -41,6 +41,16 @@ bool Emitter::emit() {
     }
     if (code_.promoted.size() > maxPromoted) return giveUp("too many variables kept in slots: " + std::to_string(code_.promoted.size()));
 
+    code_.strictNaN.assign(code_.promoted.size(), 0);
+    for (BytecodeIndex pc = 2; pc < count; pc++) {
+        const BytecodeOp op = chunk_.instructions[pc].op;
+        if (op != BytecodeOp::ValueEquals && op != BytecodeOp::ValueLess && op != BytecodeOp::ValueGreater) continue;
+        for (BytecodeIndex operand = pc - 2; operand < pc; operand++) {
+            const BytecodeInstruction &push = chunk_.instructions[operand];
+            if (push.op == BytecodeOp::PushVarValue && push.a < promotedIndex_.size() && promotedIndex_[push.a] >= 0) code_.strictNaN[promotedIndex_[push.a]] = 1;
+        }
+    }
+
     code_.constantIsNumber.assign(chunk_.constants.size() + 1, 0);
     for (size_t i = 0; i < chunk_.constants.size(); i++) {
         const Value &constant = chunk_.constants[i];

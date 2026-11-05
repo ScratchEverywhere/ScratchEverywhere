@@ -197,19 +197,32 @@ sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
     loadFrame(ctx, entry);
 
     std::memset(ctx->dirty, 0, code.promoted.size() * sizeof(int64_t));
+    std::memset(ctx->plainLoaded, 0, code.promoted.size());
+    std::memset(ctx->numericTagged, 0, code.promoted.size());
     for (uint32_t k : entry.loadVariables) {
         const Variable *var = variableAt(thread, code.promoted[k]);
         const double number = rawVariableNumber(var);
         if (number != number) {
-            // a number NaN stays with the VM; a string that reads as NaN reads as zero (toNumber)
-            if (var != nullptr && var->value.index() != 2) {
+            ctx->slots[code.slotVariables + k] = 0.0;
+            if (var == nullptr || var->value.index() == 2) continue;
+            if (code.strictNaN[k]) {
                 thread.jitSuppressOnce = true;
                 return 1;
             }
-            ctx->slots[code.slotVariables + k] = 0.0;
+            shadowValues[k] = BlockExecutor::getVariableValueAs<Value>(const_cast<Variable *>(var));
+            ctx->shadowUsed[k >> 6] |= uint64_t(1) << (k & 63);
+            ctx->dirty[k] = 3;
             continue;
         }
         ctx->slots[code.slotVariables + k] = number;
+        if (var != nullptr && (var->value.index() == 1 || (var->value.index() == 0 && std::get<Value>(var->value).isDouble()))) {
+            ctx->numericTagged[k] = 1;
+            if (var->value.index() == 1 || std::get<Value>(var->value).isRealNumber()) {
+                ctx->dirty[k] = 2;
+                ctx->plainLoaded[k] = 1;
+                ctx->loadedNumber[k] = number;
+            }
+        }
     }
 
     ctx->nativeDepth = 0;
@@ -259,9 +272,10 @@ void commitVariables(Context *ctx) {
     for (uint32_t k = 0; k < code.promoted.size(); k++) {
         const int64_t kind = ctx->dirty[k];
         if (kind == 0) continue;
+        const double value = ctx->slots[code.slotVariables + k];
+        if (ctx->plainLoaded[k] && (kind == 1 || kind == 2) && bitsOf(value) == bitsOf(ctx->loadedNumber[k])) continue;
         Variable *var = resolveOrCreateVariable(thread, code.promoted[k]);
         if (var == nullptr) continue;
-        const double value = ctx->slots[code.slotVariables + k];
         if (kind == 1) var->value = value;
         else if (kind == 2) var->value = Value(value);
         else if (kind == 3) var->value = shadowValues[k];
@@ -336,7 +350,7 @@ int variableNumberKind(Context *ctx, uint32_t k) {
     const int64_t kind = ctx->dirty[k];
     if (kind == 1 || kind == 2) return 0;
     if (kind >= 5) return numberKindOf(ctx->chunk->constants[kind - 5]);
-    if (kind == 3) return numberKindOf(shadowValues[k]);
+    if (kind == 3) return shadowValues[k].numberRaw() != shadowValues[k].numberRaw() ? -1 : numberKindOf(shadowValues[k]);
     if (kind == 0) return numberKindOf(materializeVariable(ctx, k));
     return -1;
 }
@@ -651,7 +665,7 @@ sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {
     static const bool checkNaN = std::getenv("SE_JIT_CHECKNAN") != nullptr;
     if (checkNaN) {
         for (uint32_t k = 0; k < ctx->code->promoted.size(); k++) {
-            if (ctx->dirty[k] == 0) continue; // only writes can break the invariant; slots of variables this entry did not load are uninitialized
+            if (ctx->dirty[k] == 0) continue;
             const double number = ctx->slots[ctx->code->slotVariables + k];
             if (number != number) {
                 Log::logCritical("JIT: a promoted variable's slot holds NaN (variable " + std::to_string(k) + ")", true);

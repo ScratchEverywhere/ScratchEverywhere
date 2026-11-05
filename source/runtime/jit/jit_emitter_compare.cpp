@@ -555,12 +555,19 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(entry.constant));
         sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
         sljit_jump *plain = sljit_emit_cmp(c_, SLJIT_LESS_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_SIG_LESS, SLJIT_R2, 0, SLJIT_IMM, 4));
+        sljit_jump *constantKind = sljit_emit_cmp(c_, SLJIT_SIG_GREATER_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 4);
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 3));
+        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), static_cast<sljit_sw>(offsetof(Context, numericTagged)) + static_cast<sljit_sw>(entry.constant));
+        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        sljit_jump *tagged = sljit_emit_jump(c_, SLJIT_JUMP);
+        sljit_set_label(constantKind, sljit_emit_label(c_));
         sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 4);
         sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.constantIsNumber.data()));
         sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM2(SLJIT_R0, SLJIT_R2), 0);
         notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
-        sljit_set_label(plain, sljit_emit_label(c_));
+        sljit_label *usable = sljit_emit_label(c_);
+        sljit_set_label(plain, usable);
+        sljit_set_label(tagged, usable);
         return true;
     }
     default:

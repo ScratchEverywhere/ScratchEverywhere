@@ -27,8 +27,8 @@
 
 namespace BytecodeJitInternal {
 
-constexpr uint32_t maxSlots = 1024;
-constexpr uint32_t maxPromoted = 512;
+constexpr uint32_t maxSlots = 2048;
+constexpr uint32_t maxPromoted = 1024;
 constexpr uint32_t promotedWords = maxPromoted / 64;
 inline long forcedYieldEvery() {
     static const long every = [] {
@@ -206,6 +206,9 @@ struct alignas(64) Context {
     BytecodeIndex *pendingRecursive = nullptr;
     uint64_t stringVariableUsed[promotedWords] = {};
     double one = 1.0;
+    double loadedNumber[maxPromoted];
+    uint8_t plainLoaded[maxPromoted];
+    uint8_t numericTagged[maxPromoted];
     double pool[constantPoolSize];
 };
 
@@ -227,6 +230,7 @@ struct Code {
     std::vector<int32_t> entryIdAt;
     std::vector<void *> entryTable;
     std::vector<uint32_t> promoted;
+    std::vector<uint8_t> strictNaN;
     std::vector<double> pool;
     uint32_t slotBooleans = 0;
     uint32_t slotValues = 0;

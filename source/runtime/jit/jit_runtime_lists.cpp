@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <sljitLir.h>
 #include <utility>
 
@@ -68,10 +69,75 @@ void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
 
 void SLJIT_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow) {
     shadowValues[shadow->variable] = materializeEntry(ctx, shadow->entry, shadow->position);
+    ctx->numericTagged[shadow->variable] = shadowValues[shadow->variable].isDouble() && !shadowValues[shadow->variable].isNaN() ? 1 : 0;
     ctx->shadowUsed[shadow->variable >> 6] |= uint64_t(1) << (shadow->variable & 63);
 }
 
+void SLJIT_FUNC jitStoreBoolean(Context *ctx, sljit_sw k, sljit_sw value) {
+    ctx->slots[ctx->code->slotVariables + k] = value != 0 ? 1.0 : 0.0;
+    ctx->numericTagged[k] = 0;
+    shadowValues[k] = Value(value != 0);
+    ctx->shadowUsed[k >> 6] |= uint64_t(1) << (k & 63);
+    ctx->dirty[k] = 3;
+}
+
+void SLJIT_FUNC jitSetNaN(Context *ctx, sljit_sw k) {
+    ctx->slots[ctx->code->slotVariables + k] = 0.0;
+    ctx->numericTagged[k] = 0;
+    shadowValues[k] = Value(std::numeric_limits<double>::quiet_NaN());
+    ctx->shadowUsed[k >> 6] |= uint64_t(1) << (k & 63);
+    ctx->dirty[k] = 3;
+}
+
+static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position, double &out) {
+    switch (entry.kind) {
+    case ValueEntry::Number:
+        out = ctx->slots[ctx->code->slotValues + position];
+        return true;
+    case ValueEntry::Constant: {
+        const Value &constant = ctx->chunk->constants[entry.constant];
+        if (!constant.isDouble()) return false;
+        out = constant.numberRaw();
+        return true;
+    }
+    case ValueEntry::VarValue: {
+        const uint32_t k = entry.constant;
+        const int64_t kind = ctx->dirty[k];
+        if (kind == 1 || kind == 2) {
+            out = ctx->slots[ctx->code->slotVariables + k];
+            return true;
+        }
+        if ((kind == 0 || kind == 3) && ctx->numericTagged[k]) {
+            out = ctx->slots[ctx->code->slotVariables + k];
+            return true;
+        }
+        return false;
+    }
+    case ValueEntry::Temp: {
+        if (tempLazy[position] == 1 || tempLazy[position] == 2) {
+            out = ctx->slots[ctx->code->slotValues + position];
+            return true;
+        }
+        if (!temps[position].isDouble()) return false;
+        out = temps[position].numberRaw();
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
 sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
+    if (double x, y; entryNumber(ctx, compare->a, compare->aPosition, x) && entryNumber(ctx, compare->b, compare->bPosition, y) && x == x && y == y) {
+        switch (compare->kind) {
+        case BytecodeCompareKind::Equals:
+            return x == y;
+        case BytecodeCompareKind::Less:
+            return x < y;
+        default:
+            return x > y;
+        }
+    }
     Value scratchA, scratchB;
     const Value &a = peekEntry(ctx, compare->a, compare->aPosition, scratchA);
     const Value &b = peekEntry(ctx, compare->b, compare->bPosition, scratchB);

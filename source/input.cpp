@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <log.hpp>
 #include <renderer.hpp>
 
@@ -52,6 +53,7 @@ void Input::getInput() {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (const char *automatic = std::getenv("SE_AUTOANSWER"); automatic != nullptr) return automatic;
     if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
     return "";
 }
@@ -126,7 +128,8 @@ void Input::applyControls(std::string controlsFilePath) {
                         Log::log("Loaded control: " + key + " -> " + name);
                     };
                     if (value.is_array()) {
-                        for (const auto &button : value) bind(button);
+                        for (const auto &button : value)
+                            bind(button);
                     } else {
                         bind(value);
                     }

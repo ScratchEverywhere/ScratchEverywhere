@@ -252,8 +252,8 @@ static bool silhouettePixel(const CollisionMask &mask, const Sprite *sprite, flo
     const float v = (localY + static_cast<float>(costume.rotationCenterY)) / height;
     if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f) return false;
 
-    outX = std::round(u * static_cast<float>(mask.width - 1));
-    outY = std::round(v * static_cast<float>(mask.height - 1));
+    outX = std::floor(u * static_cast<float>(mask.width - 1));
+    outY = std::floor(v * static_cast<float>(mask.height - 1));
     return true;
 }
 

@@ -163,6 +163,8 @@ void SLJIT_FUNC jitListInsertAny(Context *ctx, const ListOpDescriptor *op);
 void SLJIT_FUNC jitListDeleteAny(Context *ctx, const ListOpDescriptor *op);
 void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op);
 void SLJIT_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow);
+void SLJIT_FUNC jitSetNaN(Context *ctx, sljit_sw k);
+void SLJIT_FUNC jitStoreBoolean(Context *ctx, sljit_sw k, sljit_sw value);
 sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare);
 void SLJIT_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op);
 void SLJIT_FUNC jitListAdd(Context *ctx, const ListOpDescriptor *op);

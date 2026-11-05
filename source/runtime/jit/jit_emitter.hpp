@@ -368,9 +368,6 @@ class Emitter {
             return end >= 2 && !analysis_.isBlockStart(end) && !analysis_.isBlockStart(end - 1) && nonNanEnding(end - 1) && nonNanEnding(end - 2);
         case BytecodeOp::CallNativeNumber: {
             const NativeShape shape = plan_.nativeShape(instr);
-            if (shape == NativeShape::NumberNumber && plan_.opcodeName(instr.a) == "operator_mod") {
-                return wide && end >= 2 && !analysis_.isBlockStart(end) && chunk_.instructions[end - 1].op == BytecodeOp::PushConstNumber && constantModDivisor(chunk_.numberConstants[chunk_.instructions[end - 1].a]);
-            }
             if (shape != NativeShape::Add && shape != NativeShape::Subtract && shape != NativeShape::Multiply && shape != NativeShape::Divide) return false;
             if (end < 2 || analysis_.isBlockStart(end) || analysis_.isBlockStart(end - 1)) return false;
             const BytecodeInstruction &right = chunk_.instructions[end - 1];
@@ -385,12 +382,23 @@ class Emitter {
     }
     bool topIsNonNan(BytecodeIndex pc) const { return pc >= 1 && !analysis_.isBlockStart(pc) && nonNanEnding(pc - 1); }
 
-    void guardNanWrite(sljit_s32 reg, BytecodeIndex next) {
+    void guardNanWrite(sljit_s32 reg, BytecodeIndex next, uint32_t k) {
         sljit_jump *nan = sljit_emit_fcmp(c_, SLJIT_UNORDERED, reg, 0, reg, 0);
-        const AbsState exitState = state_;
-        addCold([this, nan, next, exitState]() {
+        if (code_.strictNaN[k]) {
+            const AbsState exitState = state_;
+            addCold([this, nan, next, exitState]() {
+                sljit_set_label(nan, sljit_emit_label(c_));
+                emitExitAt(next, static_cast<uint32_t>(BytecodeJit::Result::Interpret), exitState);
+            });
+            return;
+        }
+        sljit_label *back = sljit_emit_label(c_);
+        addCold([this, nan, back, k]() {
             sljit_set_label(nan, sljit_emit_label(c_));
-            emitExitAt(next, static_cast<uint32_t>(BytecodeJit::Result::Interpret), exitState);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, static_cast<sljit_sw>(k));
+            callHelper(reinterpret_cast<void *>(&Runtime::jitSetNaN), SLJIT_ARGS2V(P, W));
+            sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), back);
         });
     }
 
