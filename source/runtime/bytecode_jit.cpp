@@ -4,6 +4,7 @@
 
 #include "bytecode.hpp"
 #include "bytecode_analysis.hpp"
+#include "jit/ir/hir.hpp"
 #include "jit/jit_emitter.hpp"
 #include "jit/jit_planner.hpp"
 #include "jit/jit_probe.hpp"
@@ -101,6 +102,14 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     BytecodeAnalysis &analysis = *analysisPtr;
     for (const BytecodeEntryResult &entry : analysis.entries()) {
         if (!entry.ok) return;
+    }
+
+    if (const char *ir = std::getenv("SE_JIT_IR"); ir != nullptr && std::string(ir) != "0") {
+        Timer irTimer;
+        BytecodeJitIR::BuildResult built = BytecodeJitIR::build(chunk, link, analysis);
+        const std::vector<std::string> problems = BytecodeJitIR::verify(built.function);
+        Log::log(BytecodeJitIR::summary(built, problems) + "; " + std::to_string(irTimer.getTimeMsDouble()) + " ms");
+        if (std::string(ir) == "dump") Log::log(BytecodeJitIR::print(built.function, &chunk));
     }
 
     std::vector<BytecodeIndex> roots;
