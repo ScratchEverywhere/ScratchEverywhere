@@ -113,6 +113,24 @@ static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position
         }
         return false;
     }
+    case ValueEntry::Argument: {
+        if (ctx->lazyDepth == 0) return false;
+        const NativeFrame &frame = frames[ctx->nativeDepth - 1];
+        const ExitDescriptor &callState = *frame.call->state;
+        const uint32_t argc = frame.call->argCount;
+        if (entry.constant >= argc || callState.values.size() < argc) return false;
+        const ValueEntry &arg = callState.values[callState.values.size() - argc + entry.constant];
+        if (arg.kind == ValueEntry::Constant) {
+            const Value &constant = ctx->chunk->constants[arg.constant];
+            if (!constant.isDouble()) return false;
+            out = constant.numberRaw();
+            return true;
+        }
+        if (arg.kind != ValueEntry::Number && arg.kind != ValueEntry::Temp && arg.kind != ValueEntry::Argument && arg.kind != ValueEntry::VarValue) return false;
+        if (((frameTyped(frame) >> entry.constant) & 1) != 0) return false;
+        out = ctx->slots[ctx->code->slotValues + entry.constant];
+        return true;
+    }
     case ValueEntry::Temp: {
         if (tempLazy[position] == 1 || tempLazy[position] == 2) {
             out = ctx->slots[ctx->code->slotValues + position];

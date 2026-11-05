@@ -351,7 +351,13 @@ int variableNumberKind(Context *ctx, uint32_t k) {
     if (kind == 1 || kind == 2) return 0;
     if (kind >= 5) return numberKindOf(ctx->chunk->constants[kind - 5]);
     if (kind == 3) return shadowValues[k].numberRaw() != shadowValues[k].numberRaw() ? -1 : numberKindOf(shadowValues[k]);
-    if (kind == 0) return numberKindOf(materializeVariable(ctx, k));
+    if (kind == 0) {
+        const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[k]);
+        if (var == nullptr) return -1;
+        if (std::holds_alternative<double>(var->value)) return 0;
+        if (const Value *value = std::get_if<Value>(&var->value)) return numberKindOf(*value);
+        return -1;
+    }
     return -1;
 }
 
