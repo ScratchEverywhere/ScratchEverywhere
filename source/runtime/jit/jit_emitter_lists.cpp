@@ -197,7 +197,12 @@ bool Emitter::emitInlineListAdd(const ListOpDescriptor &op, const AbsValue &item
     const uint16_t endianProbe = 1;
     const bool little = *reinterpret_cast<const uint8_t *>(&endianProbe) == 1;
     if (isBoolean) {
-        loadW(SLJIT_R2, valueSlot(op.itemPosition));
+        if (wide) {
+            loadW(SLJIT_R2, valueSlot(op.itemPosition));
+        } else {
+            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), highWord(slotOffset(valueSlot(op.itemPosition))));
+            sljit_emit_op2(c_, SLJIT_OR, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), lowWord(slotOffset(valueSlot(op.itemPosition))));
+        }
         sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R2, 0, SLJIT_IMM, 0);
         sljit_emit_op_flags(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_NOT_EQUAL);
         if (layout.flags == layout.tag + 1) {
