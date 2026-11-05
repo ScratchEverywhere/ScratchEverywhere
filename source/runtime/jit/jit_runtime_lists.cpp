@@ -89,17 +89,52 @@ void SLJIT_FUNC jitSetNaN(Context *ctx, sljit_sw k) {
     ctx->dirty[k] = 3;
 }
 
+static const Value *entryValue(Context *ctx, const ValueEntry &entry, uint32_t position) {
+    switch (entry.kind) {
+    case ValueEntry::Constant:
+        return &ctx->chunk->constants[entry.constant];
+    case ValueEntry::Temp:
+        return tempLazy[position] == 0 ? &temps[position] : nullptr;
+    case ValueEntry::VarValue: {
+        const uint32_t k = entry.constant;
+        const int64_t kind = ctx->dirty[k];
+        if (kind == 3) return &shadowValues[k];
+        if (kind >= 5) return &ctx->chunk->constants[kind - 5];
+        if (kind != 0) return nullptr;
+        const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[k]);
+        return var != nullptr ? std::get_if<Value>(&var->value) : nullptr;
+    }
+    case ValueEntry::Argument: {
+        const BytecodeThread &thread = *ctx->thread;
+        size_t index;
+        if (ctx->lazyDepth > 0) {
+            const NativeFrame &frame = frames[ctx->nativeDepth - 1];
+            const ExitDescriptor &callState = *frame.call->state;
+            const uint32_t argc = frame.call->argCount;
+            if (entry.constant >= argc || callState.values.size() < argc) return nullptr;
+            const uint32_t at = static_cast<uint32_t>(callState.values.size()) - argc + entry.constant;
+            const ValueEntry &arg = callState.values[at];
+            if (arg.kind == ValueEntry::Constant) return &ctx->chunk->constants[arg.constant];
+            if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) return nullptr;
+            index = static_cast<size_t>(frame.stringAndValueBase >> 32) + at;
+        } else {
+            if (thread.callStack.empty()) return nullptr;
+            const BytecodeCallFrame &frame = thread.callStack.back();
+            if (frame.stackBase < frame.argCount || entry.constant >= frame.argCount) return nullptr;
+            index = static_cast<size_t>(frame.stackBase - frame.argCount) + entry.constant;
+        }
+        return index < thread.valueStack.size() ? &thread.valueStack[index] : nullptr;
+    }
+    default:
+        return nullptr;
+    }
+}
+
 static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position, double &out) {
     switch (entry.kind) {
     case ValueEntry::Number:
         out = ctx->slots[ctx->code->slotValues + position];
         return true;
-    case ValueEntry::Constant: {
-        const Value &constant = ctx->chunk->constants[entry.constant];
-        if (!constant.isDouble()) return false;
-        out = constant.numberRaw();
-        return true;
-    }
     case ValueEntry::VarValue: {
         const uint32_t k = entry.constant;
         const int64_t kind = ctx->dirty[k];
@@ -111,38 +146,42 @@ static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position
             out = ctx->slots[ctx->code->slotVariables + k];
             return true;
         }
-        return false;
+        break;
     }
-    case ValueEntry::Argument: {
-        if (ctx->lazyDepth == 0) return false;
-        const NativeFrame &frame = frames[ctx->nativeDepth - 1];
-        const ExitDescriptor &callState = *frame.call->state;
-        const uint32_t argc = frame.call->argCount;
-        if (entry.constant >= argc || callState.values.size() < argc) return false;
-        const ValueEntry &arg = callState.values[callState.values.size() - argc + entry.constant];
-        if (arg.kind == ValueEntry::Constant) {
-            const Value &constant = ctx->chunk->constants[arg.constant];
-            if (!constant.isDouble()) return false;
-            out = constant.numberRaw();
-            return true;
+    case ValueEntry::Argument:
+        if (ctx->lazyDepth > 0) {
+            const NativeFrame &frame = frames[ctx->nativeDepth - 1];
+            const ExitDescriptor &callState = *frame.call->state;
+            const uint32_t argc = frame.call->argCount;
+            if (entry.constant < argc && callState.values.size() >= argc) {
+                const ValueEntry::Kind kind = callState.values[callState.values.size() - argc + entry.constant].kind;
+                if (kind == ValueEntry::Number || kind == ValueEntry::Temp || kind == ValueEntry::Argument || kind == ValueEntry::VarValue) {
+                    out = ctx->slots[ctx->code->slotValues + entry.constant];
+                    return true;
+                }
+            }
         }
-        if (arg.kind != ValueEntry::Number && arg.kind != ValueEntry::Temp && arg.kind != ValueEntry::Argument && arg.kind != ValueEntry::VarValue) return false;
-        if (((frameTyped(frame) >> entry.constant) & 1) != 0) return false;
-        out = ctx->slots[ctx->code->slotValues + entry.constant];
-        return true;
-    }
-    case ValueEntry::Temp: {
+        break;
+    case ValueEntry::Temp:
         if (tempLazy[position] == 1 || tempLazy[position] == 2) {
             out = ctx->slots[ctx->code->slotValues + position];
             return true;
         }
-        if (!temps[position].isDouble()) return false;
-        out = temps[position].numberRaw();
-        return true;
-    }
+        break;
     default:
-        return false;
+        break;
     }
+    if (const Value *value = entryValue(ctx, entry, position)) return value->plainNumber(out);
+    if (entry.kind == ValueEntry::VarValue && ctx->dirty[entry.constant] == 0) {
+        const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[entry.constant]);
+        if (var != nullptr) {
+            if (const double *number = std::get_if<double>(&var->value)) {
+                out = *number;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
