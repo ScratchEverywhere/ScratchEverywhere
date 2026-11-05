@@ -155,7 +155,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
                 e.valueIsNumber.push_back(0);
             } else {
                 e.valueKinds.push_back(ValueEntry::Opaque);
-                e.valueIsNumber.push_back(0);
+                e.valueIsNumber.push_back(1);
             }
         }
         e.strings = s.strings;
