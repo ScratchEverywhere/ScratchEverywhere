@@ -3,6 +3,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
 #include "collision.hpp"
+#include "discord.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -171,6 +172,7 @@ bool Scratch::startScratchProject() {
 
     std::pair<bool, bool> code;
     initializeScratchProject();
+    Discord::setPlaying(Unzip::filePath);
     ScriptThread monitorDisplayThread;
     toggleDebugVars(debugVars);
     while (true) {

@@ -116,6 +116,13 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
+
+cmake_dependent_option(SE_DISCORD_RPC "Enable Discord Rich Presence." OFF "SE_ALLOW_DISCORD_RPC;NOT SE_LIBRARY" OFF)
+set(SE_DISCORD_APP_ID "" CACHE STRING "Discord application ID used for Rich Presence (required when SE_DISCORD_RPC is ON).")
+if(SE_DISCORD_RPC AND SE_DISCORD_APP_ID STREQUAL "")
+    message(FATAL_ERROR "SE_DISCORD_RPC is ON but SE_DISCORD_APP_ID is not set. Create an application at https://discord.com/developers/applications and pass -DSE_DISCORD_APP_ID=<id>.")
+endif()
+
 if(SE_LIBRARY)
     set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
 endif()
@@ -486,7 +493,6 @@ if(SE_BUNDLE)
         endif()
 
         _bundle_ensure_catalog()
-        cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
         add_library(bundle_runtime STATIC "${_BUNDLE_ROOT_DIR}/src/bundle_runtime.c")
         target_include_directories(bundle_runtime PUBLIC "${_BUNDLE_ROOT_DIR}/src")
@@ -552,9 +558,6 @@ if(SE_BUNDLE)
 
     target_link_libraries(se-interface INTERFACE se_assets se_project)
     target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
-
-    # Undo bundle.cmake's repo override
-    cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 endif()
 
 if(SE_WINDOWING STREQUAL "all")
@@ -631,6 +634,11 @@ endif()
 if(SE_DECTALK)
     target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
     cl_add_dep(se-interface dtc)
+endif()
+
+if(SE_DISCORD_RPC)
+    target_compile_definitions(se-interface INTERFACE ENABLE_DISCORD_RPC "SE_DISCORD_APP_ID=\"${SE_DISCORD_APP_ID}\"")
+    cl_add_dep(se-interface gh:gradylink/drpc)
 endif()
 
 if(SE_DECTALK_DEFAULT)

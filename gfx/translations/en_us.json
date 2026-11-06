@@ -25,6 +25,7 @@
   "ui.settings.cache": "Clear Cache",
   "ui.settings.language": "Language",
   "ui.settings.dectalk": "Use DECtalk",
+  "ui.settings.discord": "Discord Presence",
   "ui.settings.renderer": "Renderer",
   "ui.settings.windowing": "Window Backend",
   "ui.settings.audioEngine": "Audio Backend",

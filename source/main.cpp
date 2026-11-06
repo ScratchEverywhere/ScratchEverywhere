@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #endif
 
+#include <discord.hpp>
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
@@ -45,6 +46,7 @@
 #endif
 
 static void exitApp() {
+    Discord::shutdown();
 #ifdef ENABLE_AUDIO
     SoundPlayer::deinit();
 #endif
@@ -59,6 +61,7 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+    Discord::setInMenu();
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -269,6 +272,8 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+
+    Discord::init();
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
