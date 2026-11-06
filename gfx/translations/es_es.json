@@ -1,7 +1,7 @@
 {
   "ui.controls.apply": "Aplicar (Y)",
   "ui.headless.projectPrompt": "Por favor escribe el proyecto que deseas abrir.",
-  "ui.projects.noProjects": "¡No se han encontrado proyectos!",
+  "ui.projects.noProjects": "¡No se encontraron proyectos de Scratch!",
   "ui.projects.path": "Pon los proyectos en  ",
   "ui.settings.controls": "Cambiar Controles",
   "ui.settings.unpack": "Descomprimir Proyecto",
@@ -48,5 +48,6 @@
   "version.prefix.dev": "Versión de desarrollo",
   "ui.settings.runtime": "Tiempo de ejecución",
   "ui.popup.bytecodeCacheTooNew": "Este proyecto descomprimido es de una versión más reciente de Scratch Everywhere!, por favor descomprímelo de nuevo o usa la versión sin descomprimir.",
-  "ui.loading.caching": "Guardando imágenes en caché"
+  "ui.loading.caching": "Guardando imágenes en caché",
+  "ui.settings.discord": "Presencia en Discord"
 }
