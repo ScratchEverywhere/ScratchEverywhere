@@ -153,7 +153,10 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
     if (indexD < 0) return BlockResult::CONTINUE;
     const size_t index = static_cast<size_t>(indexD);
 
-    if (indexD < static_cast<double>(strValue.utf16Length())) *outValue = strValue.utf16CharAt(index);
+    if (indexD < static_cast<double>(strValue.utf16Length())) {
+        const Value charValue = strValue.utf16CharAtValue(index);
+        *outValue = charValue.get<std::string>();
+    }
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(operator, letter_of, {"LETTER", BytecodeStackKind::Number}, {"STRING", BytecodeStackKind::String});

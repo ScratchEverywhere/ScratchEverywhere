@@ -1442,7 +1442,10 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.numberStack.pop_back();
 
                 std::string result;
-                if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) result = strValue.utf16CharAt(static_cast<size_t>(indexD));
+                if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) {
+                    const Value charValue = strValue.utf16CharAtValue(static_cast<size_t>(indexD));
+                    if (charValue.isString()) result = charValue.get<std::string>();
+                }
                 thread.stringStack.push_back(std::move(result));
                 thread.pc++;
                 SE_NEXT();
@@ -1466,12 +1469,14 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 if (var != nullptr) {
                     if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
                         if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) {
-                            result = Math::utf16CharAt(*str, static_cast<size_t>(indexD));
+                            const Value charValue = Value(*str).utf16CharAtValue(static_cast<size_t>(indexD));
+                            if (charValue.isString()) result = charValue.get<std::string>();
                         }
                     } else {
                         const Value strValue = BlockExecutor::getVariableValueAs<Value>(var);
                         if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) {
-                            result = strValue.utf16CharAt(static_cast<size_t>(indexD));
+                            const Value charValue = strValue.utf16CharAtValue(static_cast<size_t>(indexD));
+                            if (charValue.isString()) result = charValue.get<std::string>();
                         }
                     }
                 }

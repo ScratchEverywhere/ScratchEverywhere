@@ -37,8 +37,39 @@ std::vector<uint32_t> &StringPool::freeListRef() {
     return f;
 }
 
+std::array<uint32_t, 128> &StringPool::asciiIdsRef() {
+    static std::array<uint32_t, 128> ids = [] {
+        std::array<uint32_t, 128> arr{};
+        auto &pool = storageRef();
+        auto &lookup = lookupRef();
+        
+        for (unsigned int c = 0; c < 128; ++c) {
+            std::string text(1, static_cast<char>(c));
+            const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+            const uint32_t id = static_cast<uint32_t>(pool.size());
+            
+            Entry e;
+            e.data = std::move(text);
+            e.refCount = 1;
+            e.pinned = true;
+            e.utf16State = Entry::Utf16State::ASCII;
+            e.deduped = true;
+            e.hash = hash;
+            
+            pool.push_back(std::move(e));
+            arr[c] = id;
+            lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+        }
+        return arr;
+    }();
+    return ids;
+}
+
 uint32_t StringPool::getOrInsert(std::string_view str) {
     if (str.empty()) return 0u;
+    if (str.size() == 1 && static_cast<unsigned char>(str[0]) < 0x80) {
+        return asciiIdsRef()[static_cast<unsigned char>(str[0])];
+    }
 
     auto &pool = storageRef();
     auto &freeSlots = freeListRef();
@@ -52,7 +83,7 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         auto it = lookup.find(Key{str, hash});
         if (it != lookup.end()) {
             uint32_t id = it->second;
-            pool[id].refCount++;
+            if (!pool[id].pinned) pool[id].refCount++;
             return id;
         }
     }
@@ -63,9 +94,10 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         freeSlots.pop_back();
         pool[id].data.assign(str.data(), str.size());
         pool[id].refCount = 1;
+        pool[id].pinned = false;
     } else {
         id = static_cast<uint32_t>(pool.size());
-        pool.push_back({std::string(str), 1});
+        pool.push_back({std::string(str), 1, false});
     }
 
     pool[id].deduped = tryDedup;
@@ -79,7 +111,7 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
 void StringPool::addRef(uint32_t id) {
     if (id == 0) return;
     auto &pool = storageRef();
-    if (id < pool.size()) pool[id].refCount++;
+    if (id < pool.size() && !pool[id].pinned) pool[id].refCount++;
 }
 
 void StringPool::release(uint32_t id) {
@@ -89,7 +121,7 @@ void StringPool::release(uint32_t id) {
 
     if (id >= pool.size()) return;
     Entry &e = pool[id];
-    if (e.refCount == 0) return;
+    if (e.pinned || e.refCount == 0) return;
 
     if (--e.refCount == 0) {
         if (e.deduped) lookupRef().erase(Key{std::string_view(e.data), e.hash});
@@ -153,6 +185,18 @@ std::string StringPool::utf16CharAt(uint32_t id, size_t index) {
     return e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]);
 }
 
+uint32_t StringPool::utf16CharId(uint32_t id, size_t index) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) {
+        if (index >= e.data.size()) return 0u;
+        return asciiIdsRef()[static_cast<unsigned char>(e.data[index])];
+    }
+    if (index + 1 >= e.utf16Offsets.size()) return 0u;
+    return StringPool::getOrInsert(e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]));
+}
+
 const std::string &StringPool::get(uint32_t id) {
     auto &pool = storageRef();
     if (id >= pool.size()) return pool[0].data;
@@ -163,12 +207,29 @@ void StringPool::resetAll() {
     auto &pool = storageRef();
     auto &lookup = lookupRef();
     auto &freeSlots = freeListRef();
+    auto &ascii = asciiIdsRef();
 
     pool.clear();
     pool.push_back({"", 1});
     lookup.clear();
     lookup.emplace(Key{std::string_view(pool[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
     freeSlots.clear();
+
+    for (size_t c = 0; c < ascii.size(); ++c) {
+        const std::string text(1, static_cast<char>(c));
+        const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+        const uint32_t id = static_cast<uint32_t>(pool.size());
+        Entry e;
+        e.data = text;
+        e.refCount = 1;
+        e.pinned = true;
+        e.utf16State = Entry::Utf16State::ASCII;
+        e.deduped = true;
+        e.hash = hash;
+        pool.push_back(std::move(e));
+        ascii[c] = id;
+        lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+    }
 }
 
 Value::Value(int val) : tag(Tag::NUMBER), flags(0) { storage.d = static_cast<double>(val); }
@@ -270,6 +331,17 @@ std::string_view Value::asStringView(std::string &scratch) const {
     return scratch;
 }
 
+Value Value::utf16CharAtValue(size_t index) const {
+    if (!isString()) return Value(utf16CharAt(index));
+    const uint32_t charId = StringPool::utf16CharId(storage.stringId, index);
+    if (charId == 0u) return Value();
+    Value out;
+    out.tag = Tag::STRING_ID;
+    out.storage.stringId = charId;
+    StringPool::addRef(charId);
+    return out;
+}
+
 bool Value::plainNumber(double &out) const {
     if (isDouble()) {
         if (isNaN()) return false;
@@ -277,8 +349,6 @@ bool Value::plainNumber(double &out) const {
         return true;
     }
     if (!isString() || !isNumeric()) return false;
-    const std::string &text = StringPool::get(storage.stringId);
-    if (std::all_of(text.begin(), text.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) return false;
     out = asDouble();
     return true;
 }
