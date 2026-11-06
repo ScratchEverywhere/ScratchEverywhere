@@ -73,6 +73,7 @@ void InputDevice_GLFW::getInput() {
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = (int)coords.first;
     Input::mousePointer.y = (int)coords.second;
+    Input::clampMouseToStage();
 
     // Handle keyboard keys
     auto checkKey = [&](int glfwKey, std::string scratchName) {
