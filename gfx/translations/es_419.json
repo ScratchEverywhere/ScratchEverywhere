@@ -47,6 +47,6 @@
   "version.prefix.nightly": "Nightly",
   "version.prefix.dev": "Versión de desarrollo",
   "ui.settings.runtime": "",
-  "ui.loading.caching": "",
-  "ui.popup.bytecodeCacheTooNew": ""
+  "ui.loading.caching": "Haciendo caché de imágenes",
+  "ui.popup.bytecodeCacheTooNew": "Este proyecto descomprimido es de una versión más nueva de Scratch Everywhere!, por favor vuelve a descomprimirlo o usa la versión no descomprimida."
 }
