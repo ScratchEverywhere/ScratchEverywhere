@@ -24,6 +24,7 @@ struct SE_EXPORT CollisionMask {
 
     std::vector<uint8_t> alphaPixels;
     std::shared_ptr<Image> image;
+    const Image *cachedImagePtr = nullptr;
     unsigned int imgScaleFactor = 1;
 
     bool getPixel(int x, int y) const {
