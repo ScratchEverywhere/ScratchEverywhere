@@ -10,6 +10,14 @@ namespace BytecodeJitLir {
 
 Builder *createCompiler() { return new Builder(); }
 
+Mark mark(const Builder *b) { return {b->code.size(), b->jumps.size(), b->labels.size()}; }
+
+void rewind(Builder *b, const Mark &to) {
+    b->code.resize(to.code);
+    b->jumps.resize(to.jumps);
+    b->labels.resize(to.labels);
+}
+
 void freeCompiler(Builder *b) {
     if (b == nullptr) return;
     releaseSljit(*b);

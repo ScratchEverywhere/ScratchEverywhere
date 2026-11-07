@@ -160,6 +160,127 @@ std::string inlineCandidates(const Function &f, const BytecodeChunk &chunk) {
         }
         i.seen = true;
     }
+    std::vector<uint8_t> straight(info.size(), 0);
+    for (const EntryPoint &entry : f.entries) {
+        if (!entry.isProcedure || entry.index >= info.size() || !chunk.procedures[entry.index].runWithoutScreenRefresh) continue;
+        const Block &block = f.blocks[entry.block];
+        bool ok = (block.term == Terminator::Ret || block.term == Terminator::Halt) && block.instrs.size() <= 24 && info[entry.index].leaf;
+        for (const Instr &instr : block.instrs)
+            if (instr.op == Op::Effect || (instr.op == Op::Native && !(instr.effects == NoEffect))) ok = false;
+        straight[entry.index] = ok ? 1 : 0;
+    }
+    std::vector<uint8_t> argsOnly(info.size(), 0);
+    for (const EntryPoint &entry : f.entries) {
+        if (!entry.isProcedure || entry.index >= info.size() || !chunk.procedures[entry.index].runWithoutScreenRefresh || !info[entry.index].leaf || info[entry.index].size > 40) continue;
+        const uint32_t argc = chunk.procedures[entry.index].argCount;
+        bool ok = true, cycle = false;
+        std::vector<uint8_t> state(f.blocks.size(), 0);
+        std::vector<std::pair<BlockId, int>> stack = {{entry.block, 0}};
+        state[entry.block] = 1;
+        while (!stack.empty() && ok && !cycle) {
+            auto &[id, next] = stack.back();
+            const Block &block = f.blocks[id];
+            if (block.params.size() != argc) ok = false;
+            for (const ValueId param : block.params)
+                if (f.values[param].type != Type::Val) ok = false;
+            for (const Instr &instr : block.instrs)
+                if (instr.op == Op::Effect || (instr.op == Op::Native && instr.effects != NoEffect)) ok = false;
+            const int edges = block.term == Terminator::Br ? 1 : block.term == Terminator::CondBr ? 2
+                                                                                                  : 0;
+            if (next < edges) {
+                const BlockId target = block.edges[next++].target;
+                if (state[target] == 1) cycle = true;
+                else if (state[target] == 0) {
+                    state[target] = 1;
+                    stack.push_back({target, 0});
+                }
+            } else {
+                state[id] = 2;
+                stack.pop_back();
+            }
+        }
+        argsOnly[entry.index] = ok && !cycle ? 1 : 0;
+    }
+    std::vector<std::vector<uint32_t>> callees(info.size());
+    std::vector<uint8_t> shapeOk(info.size(), 0);
+    std::vector<uint32_t> ownSize(info.size(), 0);
+    for (const EntryPoint &entry : f.entries) {
+        if (!entry.isProcedure || entry.index >= info.size() || !chunk.procedures[entry.index].runWithoutScreenRefresh) continue;
+        const uint32_t argc = chunk.procedures[entry.index].argCount;
+        bool ok = true, cycle = false;
+        std::vector<uint8_t> state(f.blocks.size(), 0);
+        std::vector<std::pair<BlockId, int>> stack = {{entry.block, 0}};
+        state[entry.block] = 1;
+        while (!stack.empty() && ok && !cycle) {
+            auto &[id, next] = stack.back();
+            const Block &block = f.blocks[id];
+            if (next == 0) {
+                ownSize[entry.index] += static_cast<uint32_t>(block.instrs.size());
+                if (block.params.size() != argc) ok = false;
+                for (const ValueId param : block.params)
+                    if (f.values[param].type != Type::Val) ok = false;
+                for (const Instr &instr : block.instrs) {
+                    if (instr.op == Op::Effect || instr.op == Op::Legacy || instr.op == Op::Yield || (instr.op == Op::Native && instr.effects != NoEffect)) ok = false;
+                    if (instr.op == Op::Call && instr.a < info.size()) callees[entry.index].push_back(instr.a);
+                }
+            }
+            const int edges = block.term == Terminator::Br ? 1 : block.term == Terminator::CondBr ? 2
+                                                                                                  : 0;
+            if (next < edges) {
+                const BlockId target = block.edges[next++].target;
+                if (state[target] == 1) cycle = true;
+                else if (state[target] == 0) {
+                    state[target] = 1;
+                    stack.push_back({target, 0});
+                }
+            } else {
+                state[id] = 2;
+                stack.pop_back();
+            }
+        }
+        shapeOk[entry.index] = ok && !cycle ? 1 : 0;
+    }
+    std::vector<uint32_t> expanded(info.size(), 0);
+    std::vector<uint8_t> inlinable(info.size(), 0);
+    for (int round = 0; round < 12; round++) {
+        bool changed = false;
+        for (size_t proc = 0; proc < info.size(); proc++) {
+            if (inlinable[proc] || !shapeOk[proc]) continue;
+            uint32_t size = ownSize[proc];
+            bool ok = true;
+            for (const uint32_t callee : callees[proc]) {
+                if (!inlinable[callee]) {
+                    ok = false;
+                    break;
+                }
+                size += expanded[callee];
+            }
+            if (ok && size <= 120) {
+                inlinable[proc] = 1;
+                expanded[proc] = size;
+                changed = true;
+            }
+        }
+        if (!changed) break;
+    }
+    uint32_t closureProcs = 0, callsToClosure = 0;
+    for (const uint8_t flag : inlinable)
+        closureProcs += flag;
+    for (const Block &block : f.blocks)
+        for (const Instr &instr : block.instrs)
+            if (instr.op == Op::Call && instr.a < inlinable.size() && inlinable[instr.a]) callsToClosure++;
+    uint32_t argsOnlyProcs = 0, callsToArgsOnly = 0;
+    for (const uint8_t flag : argsOnly)
+        argsOnlyProcs += flag;
+    for (const Block &block : f.blocks)
+        for (const Instr &instr : block.instrs)
+            if (instr.op == Op::Call && instr.a < argsOnly.size() && argsOnly[instr.a]) callsToArgsOnly++;
+    uint32_t straightProcs = 0, callsToStraight = 0;
+    for (const uint8_t flag : straight)
+        straightProcs += flag;
+    for (const Block &block : f.blocks)
+        for (const Instr &instr : block.instrs)
+            if (instr.op == Op::Call && instr.a < straight.size() && straight[instr.a]) callsToStraight++;
     uint32_t calls = 0, toSmallLeaf = 0, toSmall = 0, procs = 0, smallLeafProcs = 0;
     for (const Info &i : info) {
         if (!i.seen) continue;
@@ -173,7 +294,7 @@ std::string inlineCandidates(const Function &f, const BytecodeChunk &chunk) {
             if (info[instr.a].size <= 40) toSmall++;
             if (info[instr.a].leaf && info[instr.a].size <= 40) toSmallLeaf++;
         }
-    return "procedures " + std::to_string(procs) + " (small leaf " + std::to_string(smallLeafProcs) + "); call sites " + std::to_string(calls) + ", to small bodies " + std::to_string(toSmall) + ", to small leaf bodies " + std::to_string(toSmallLeaf);
+    return "procedures " + std::to_string(procs) + " (small leaf " + std::to_string(smallLeafProcs) + "); call sites " + std::to_string(calls) + ", to small bodies " + std::to_string(toSmall) + ", to small leaf bodies " + std::to_string(toSmallLeaf) + "; straight-line warp leaf procedures " + std::to_string(straightProcs) + ", call sites to them " + std::to_string(callsToStraight) + "; acyclic args-only leaf procedures " + std::to_string(argsOnlyProcs) + ", call sites to them " + std::to_string(callsToArgsOnly) + "; bottom-up inlinable (budget 120) " + std::to_string(closureProcs) + ", call sites to them " + std::to_string(callsToClosure);
 }
 
 PassStats runPasses(Function &function, std::vector<std::string> &errors) {

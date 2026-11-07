@@ -348,6 +348,21 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
 
     case BytecodeOp::PushArg: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        if (inline_ != nullptr) {
+            const AbsValue &argument = inline_->arguments[instr.a];
+            AbsValue pushed;
+            if (argument.kind == ValueEntry::Constant) {
+                storeImmF(valueSlot(depth), chunk_.constants[argument.constant].numberRaw());
+                pushed = argument;
+            } else {
+                loadF(lir::FR0, valueSlot(inline_->argBase + instr.a));
+                storeF(valueSlot(depth), lir::FR0);
+                pushed.kind = argument.kind == ValueEntry::Boolean ? ValueEntry::Boolean : ValueEntry::Number;
+            }
+            state_.values.push_back(pushed);
+            maxValues_ = std::max(maxValues_, depth + 1);
+            return;
+        }
         loadF(lir::FR0, valueSlot(instr.a));
         storeF(valueSlot(depth), lir::FR0);
         AbsValue v;
@@ -405,6 +420,28 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 }
             }
         }
+        const AbsState beforeCall = state_;
+        std::vector<lir::Jump *> inlineSlow;
+        bool inlined = false;
+        if (emitInlineCall(pc, instr, call, inlineSlow)) {
+            if (inline_ != nullptr) {
+                addCold([this, inlineSlow, pc, beforeCall]() {
+                    lir::Label *here = lir::emitLabel(c_);
+                    for (lir::Jump *jump : inlineSlow)
+                        lir::setLabel(jump, here);
+                    emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), beforeCall);
+                });
+                return;
+            }
+            pending_.push_back({lir::emitJump(c_, lir::JUMP), labelFor(pc + 1)});
+            lir::Label *slowHere = lir::emitLabel(c_);
+            for (lir::Jump *jump : inlineSlow)
+                lir::setLabel(jump, slowHere);
+            inlined = true;
+        } else if (inline_ != nullptr) {
+            inlineAbort_ = true;
+            return;
+        }
         std::vector<lir::Jump *> slowCall;
         if (call.nativeChecks) {
             emitNativeCall(call, proc.entryInstruction, slowCall);
@@ -418,12 +455,16 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         lir::Jump *native = lir::emitCmp(c_, lir::EQUAL, lir::R0, 0, lir::IMM, 0);
         leaveJumps_.push_back(lir::emitJump(c_, lir::JUMP));
         lir::setLabel(native, lir::emitLabel(c_));
-        pending_.push_back({lir::emitJump(c_, lir::JUMP), blockStartingAt(proc.entryInstruction)});
+        pending_.push_back({lir::emitJump(c_, lir::JUMP), labelFor(proc.entryInstruction)});
         return;
     }
 
     case BytecodeOp::Return:
     case BytecodeOp::Halt: {
+        if (inline_ != nullptr) {
+            emitInlineReturn(pc, instr.op == BytecodeOp::Return);
+            return;
+        }
         ReturnDescriptor &ret = code_.returns.emplace_back();
         ret.state = &makeExit(pc, 0, state_);
         ret.pc = pc;

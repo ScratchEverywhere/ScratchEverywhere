@@ -130,7 +130,16 @@ struct ListOpDescriptor {
     uint32_t itemPosition = 0;
 };
 
+struct InlineFrame {
+    uint32_t procedure = 0;
+    uint32_t callPc = 0;
+    uint32_t argCount = 0;
+    uint32_t valueStart = 0;
+    bool wantsValue = false;
+};
+
 struct ExitDescriptor {
+    std::vector<InlineFrame> frames;
     uint32_t pc = 0;
     uint32_t result = 0;
     uint32_t numbers = 0;

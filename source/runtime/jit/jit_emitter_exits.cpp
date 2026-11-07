@@ -52,6 +52,7 @@ void Emitter::resetState(BytecodeIndex pc) {
 ExitDescriptor &Emitter::makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state) {
     ExitDescriptor &d = code_.exits.emplace_back();
     d.strings = state.strings;
+    d.frames = state.frames;
     d.pc = pc;
     d.result = result;
     d.numbers = state.numbers;

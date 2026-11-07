@@ -42,6 +42,25 @@ struct AbsState {
     uint32_t booleans = 0;
     std::vector<AbsValue> values;
     std::vector<StrEntry> strings;
+    std::vector<InlineFrame> frames;
+};
+
+struct InlineInfo {
+    bool ok = false;
+    std::vector<BytecodeJitIR::BlockId> blocks;
+    uint32_t expanded = 0;
+    uint32_t reserveNumbers = 0, reserveBooleans = 0, reserveValues = 0;
+    bool returnsNumber = false;
+    bool hasHalt = false;
+};
+
+struct InlineInstance {
+    std::unordered_map<BytecodeIndex, BytecodeJitIR::BlockId> labels;
+    uint32_t argBase = 0, argCount = 0;
+    std::vector<AbsValue> arguments;
+    AbsState prefix;
+    std::vector<lir::Jump *> returns;
+    bool wantsValue = false;
 };
 
 class Emitter {
@@ -275,12 +294,12 @@ class Emitter {
             addCold([this, jump, target]() {
                 lir::setLabel(jump, lir::emitLabel(c_));
                 emitSpill(liveNumbersAt(target));
-                pending_.push_back({lir::emitJump(c_, lir::JUMP), blockStartingAt(target)});
+                pending_.push_back({lir::emitJump(c_, lir::JUMP), labelFor(target)});
             });
         } else if (active_ != nullptr && target == active_->head) {
             pendingBody_.push_back({jump, active_});
         } else {
-            pending_.push_back({jump, blockStartingAt(target)});
+            pending_.push_back({jump, labelFor(target)});
         }
     }
     void pendUnconditional(BytecodeIndex target) {
@@ -359,6 +378,16 @@ class Emitter {
     BytecodeJitIR::BuildResult hir_;
     std::vector<std::pair<uint32_t, uint32_t>> instructionAt_;
     void prepareHir();
+    std::vector<InlineInfo> inlineInfo_;
+    InlineInstance *inline_ = nullptr;
+    bool inlineAbort_ = false;
+    uint32_t inlineReserveNumbers_ = 0, inlineReserveBooleans_ = 0, inlineReserveValues_ = 0;
+    void computeInlinable();
+    bool inlineSite(BytecodeIndex pc, const BytecodeInstruction &instr, const CallDescriptor &call) const;
+    bool emitInlineCall(BytecodeIndex pc, const BytecodeInstruction &instr, const CallDescriptor &call, std::vector<lir::Jump *> &slow);
+    bool inlineEntryState(BytecodeIndex pc, AbsState &out) const;
+    void emitInlineReturn(BytecodeIndex pc, bool isReturn);
+    BytecodeJitIR::BlockId labelFor(BytecodeIndex pc) const;
     std::vector<BytecodeJitIR::BlockId> blockAt_;
     BytecodeJitIR::BlockId blockStartingAt(BytecodeIndex pc) const {
         if (pc >= blockAt_.size() || blockAt_[pc] == BytecodeJitIR::noBlock || hir_.function.blocks[blockAt_[pc]].startPc != pc) return BytecodeJitIR::noBlock;

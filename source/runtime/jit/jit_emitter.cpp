@@ -57,6 +57,14 @@ void Emitter::prepareHir() {
     }
 }
 
+BytecodeJitIR::BlockId Emitter::labelFor(BytecodeIndex pc) const {
+    if (inline_ != nullptr) {
+        const auto found = inline_->labels.find(pc);
+        return found == inline_->labels.end() ? BytecodeJitIR::noBlock : found->second;
+    }
+    return blockStartingAt(pc);
+}
+
 const BytecodeJitIR::Instr *Emitter::irInstruction(BytecodeIndex pc) const {
     if (pc >= instructionAt_.size() || instructionAt_[pc].first == BytecodeJitIR::noBlock) return nullptr;
     return &hir_.function.blocks[instructionAt_[pc].first].instrs[instructionAt_[pc].second];
@@ -84,6 +92,7 @@ bool Emitter::boxedNumberNonNan(BytecodeIndex pc) const {
 bool Emitter::emit() {
     const size_t count = chunk_.instructions.size();
     prepareHir();
+    computeInlinable();
 
     promotedIndex_.assign(chunk_.variableSlots.size(), -1);
     stringWritten_.assign(chunk_.variableSlots.size(), false);
@@ -123,6 +132,16 @@ bool Emitter::emit() {
         maxBooleans_ = std::max(maxBooleans_, s.booleans + 2);
         maxValues_ = std::max(maxValues_, static_cast<uint32_t>(s.values.size()) + 2);
         maxStrings_ = std::max(maxStrings_, s.strings + 2);
+    }
+    if (inlineReserveValues_ != 0 || inlineReserveNumbers_ != 0 || inlineReserveBooleans_ != 0) {
+        const uint32_t numbers = maxNumbers_ + inlineReserveNumbers_, booleans = maxBooleans_ + inlineReserveBooleans_, values = maxValues_ + inlineReserveValues_;
+        if (values + 2 > Runtime::maxTemps || numbers + booleans + values + code_.promoted.size() > maxSlots) {
+            inlineInfo_.assign(chunk_.procedures.size(), InlineInfo{});
+        } else {
+            maxNumbers_ = numbers;
+            maxBooleans_ = booleans;
+            maxValues_ = values;
+        }
     }
     if (maxStrings_ > Runtime::maxStrs) return giveUp("string stack too deep for the temporaries: " + std::to_string(maxStrings_));
     if (maxValues_ + 2 > Runtime::maxTemps) return giveUp("value stack too deep for the temporaries: " + std::to_string(maxValues_));
@@ -232,7 +251,7 @@ bool Emitter::emit() {
     lir::emitReturn(c_, lir::MOV, lir::R0, 0);
 
     for (auto &[jump, target] : pending_) {
-        if (target == BytecodeJitIR::noBlock || blockLabels_[target] == nullptr) {
+        if (target == BytecodeJitIR::noBlock || target >= blockLabels_.size() || blockLabels_[target] == nullptr) {
             lir::freeCompiler(c_);
             c_ = nullptr;
             return false;

@@ -327,9 +327,27 @@ void materializeLazyFrames(Context *ctx) {
     refreshDepthLimit(ctx);
 }
 
+void materializeInlineFrames(Context *ctx, const ExitDescriptor *exit) {
+    if (exit->frames.empty()) return;
+    BytecodeThread &thread = *ctx->thread;
+    bool previousWarp = ctx->warp != 0;
+    for (const InlineFrame &inlined : exit->frames) {
+        BytecodeCallFrame &real = thread.callStack.emplace_back();
+        real.procedureIndex = inlined.procedure;
+        real.returnInstruction = inlined.callPc + 1;
+        real.stackBase = ctx->valueBase + inlined.valueStart;
+        real.argCount = inlined.argCount;
+        real.wantsValue = inlined.wantsValue;
+        real.previousWarp = previousWarp;
+        previousWarp = true;
+    }
+    thread.withoutScreenRefresh = true;
+}
+
 sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
     materializeLazyFrames(ctx);
     syncStacks(ctx, exit);
+    materializeInlineFrames(ctx, exit);
     commitVariables(ctx);
     ctx->thread->pc = exit->pc;
     return static_cast<sljit_sw>(exit->result);

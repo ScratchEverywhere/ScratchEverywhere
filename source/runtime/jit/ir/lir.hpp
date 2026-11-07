@@ -63,6 +63,12 @@ class Builder {
     void *backend = nullptr;
 };
 
+struct Mark {
+    size_t code = 0, jumps = 0, labels = 0;
+};
+Mark mark(const Builder *b);
+void rewind(Builder *b, const Mark &to);
+
 Builder *createCompiler();
 void freeCompiler(Builder *b);
 void *generateCode(Builder *b);
