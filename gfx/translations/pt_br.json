@@ -41,12 +41,12 @@
   "version.prefix.releaseCanidate": "Candidato de Lancamento/Acceso antecipado",
   "version.prefix.nightly": "Nightly/Versão antecipada ( PROVAVEL A CONTER BUGS! )",
   "ui.settings.runtime": "",
-  "ui.settings.dectalk": "",
-  "ui.settings.renderer": "",
-  "ui.settings.windowing": "",
-  "ui.settings.audioEngine": "",
-  "ui.loading.caching": "",
-  "ui.popup.bytecodeCacheTooNew": "",
-  "version.prefix.alpha": "",
-  "version.prefix.dev": ""
+  "ui.settings.dectalk": "Use o DECtalk",
+  "ui.settings.renderer": "Renderizador",
+  "ui.settings.windowing": "Backend de Janela",
+  "ui.settings.audioEngine": "Backend de Áudio",
+  "ui.loading.caching": "Fazendo cache de imagens",
+  "ui.popup.bytecodeCacheTooNew": "Este projeto extraído é de uma versão mais nova do Scratch Everywhere!, por favor extraia-o novamente ou use a versão não extraída.",
+  "version.prefix.alpha": "Build Alfa/Versão Alfa",
+  "version.prefix.dev": "Build de Desenvolvimento"
 }
