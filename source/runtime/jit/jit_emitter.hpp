@@ -411,7 +411,9 @@ class Emitter {
     }
     void findRegions();
 
-    void resetStateFromAnalysis(BytecodeIndex pc);
+    void resetState(BytecodeIndex pc);
+    bool stateUnknown_ = false;
+    bool stateFromBlockParameters(BytecodeIndex pc, AbsState &out) const;
     AbsState stateAfterPop(const AbsState &s) const { return s; }
     void emitExitAt(BytecodeIndex pc, uint32_t result, const AbsState &state);
     void emitJumpTo(lir::Jump *jump, BytecodeIndex target, const AbsState &stateAtTarget, bool backEdge);

@@ -23,7 +23,12 @@
 namespace BytecodeJitInternal {
 
 void Emitter::prepareHir() {
-    hir_ = BytecodeJitIR::build(chunk_, link_, analysis_, plan_.entryPcs);
+    std::vector<BytecodeIndex> blockStarts = plan_.entryPcs;
+    for (BytecodeIndex pc = 0; pc + 1 < chunk_.instructions.size(); pc++) {
+        const BytecodeOp op = chunk_.instructions[pc].op;
+        if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue) blockStarts.push_back(pc + 1);
+    }
+    hir_ = BytecodeJitIR::build(chunk_, link_, analysis_, blockStarts);
     BytecodeJitIR::computeFacts(hir_.function, chunk_);
     if (const char *check = std::getenv("SE_JIT_IR"); check != nullptr && std::string(check) != "0") {
         const std::vector<std::string> problems = BytecodeJitIR::verify(hir_.function);
@@ -179,7 +184,7 @@ bool Emitter::emit() {
                 regions_[regionOf_[pc]].body = lir::emitLabel(c_);
             }
 
-            if (!(havePrevious && previous + 1 == pc && !analysis_.isBlockStart(pc))) resetStateFromAnalysis(pc);
+            if (!(havePrevious && previous + 1 == pc && !analysis_.isBlockStart(pc))) resetState(pc);
             havePrevious = true;
             previous = pc;
 
@@ -196,6 +201,12 @@ bool Emitter::emit() {
                 havePrevious = false;
             }
         }
+    }
+
+    if (stateUnknown_) {
+        lir::freeCompiler(c_);
+        c_ = nullptr;
+        return giveUp("the stack at an instruction does not match a block start");
     }
 
     active_ = nullptr;

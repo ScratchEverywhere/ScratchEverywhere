@@ -13,21 +13,40 @@
 
 namespace BytecodeJitInternal {
 
-void Emitter::resetStateFromAnalysis(BytecodeIndex pc) {
-    BytecodeAbstractState s;
-    analysis_.stateBefore(pc, s);
-    state_.numbers = s.numbers;
-    state_.booleans = s.booleans;
-    state_.strings.assign(s.strings, StrEntry{});
-    state_.values.clear();
-    for (BytecodeValueType type : s.values) {
-        AbsValue v;
-        if (type == BytecodeValueType::Number) v.kind = ValueEntry::Number;
-        else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) v.kind = ValueEntry::Like;
-        else if (type == BytecodeValueType::Boolean) v.kind = ValueEntry::Boolean;
-        else v.kind = ValueEntry::Opaque;
-        state_.values.push_back(v);
+bool Emitter::stateFromBlockParameters(BytecodeIndex pc, AbsState &out) const {
+    const BytecodeJitIR::BlockId id = blockStartingAt(pc);
+    if (id == BytecodeJitIR::noBlock) return false;
+    out = AbsState{};
+    for (const BytecodeJitIR::ValueId param : hir_.function.blocks[id].params) {
+        const BytecodeJitIR::ValueInfo &info = hir_.function.values[param];
+        switch (info.type) {
+        case BytecodeJitIR::Type::F64:
+            out.numbers++;
+            break;
+        case BytecodeJitIR::Type::Bool:
+            out.booleans++;
+            break;
+        case BytecodeJitIR::Type::Str:
+            out.strings.push_back(StrEntry{});
+            break;
+        case BytecodeJitIR::Type::Val: {
+            AbsValue v;
+            if (info.kind == BytecodeValueType::Number) v.kind = ValueEntry::Number;
+            else if (info.kind == BytecodeValueType::NumericString || info.kind == BytecodeValueType::NumberLike) v.kind = ValueEntry::Like;
+            else if (info.kind == BytecodeValueType::Boolean) v.kind = ValueEntry::Boolean;
+            else v.kind = ValueEntry::Opaque;
+            out.values.push_back(v);
+            break;
+        }
+        default:
+            break;
+        }
     }
+    return true;
+}
+
+void Emitter::resetState(BytecodeIndex pc) {
+    if (!stateFromBlockParameters(pc, state_)) stateUnknown_ = true;
 }
 
 ExitDescriptor &Emitter::makeExit(BytecodeIndex pc, uint32_t result, const AbsState &state) {
