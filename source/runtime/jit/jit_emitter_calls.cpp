@@ -168,7 +168,7 @@ void Emitter::emitNativeCall(const CallDescriptor &call, BytecodeIndex target, s
             storeF(valueSlot(i), lir::FR0);
         }
     }
-    pending_.push_back({lir::emitJump(c_, lir::JUMP), target});
+    pending_.push_back({lir::emitJump(c_, lir::JUMP), blockStartingAt(target)});
 }
 
 void Emitter::emitNativeReturn(const ReturnDescriptor &ret, std::vector<lir::Jump *> &slow) {

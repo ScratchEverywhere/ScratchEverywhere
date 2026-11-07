@@ -418,7 +418,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         lir::Jump *native = lir::emitCmp(c_, lir::EQUAL, lir::R0, 0, lir::IMM, 0);
         leaveJumps_.push_back(lir::emitJump(c_, lir::JUMP));
         lir::setLabel(native, lir::emitLabel(c_));
-        pending_.push_back({lir::emitJump(c_, lir::JUMP), proc.entryInstruction});
+        pending_.push_back({lir::emitJump(c_, lir::JUMP), blockStartingAt(proc.entryInstruction)});
         return;
     }
 

@@ -64,8 +64,8 @@ class Emitter {
     Code &code_;
 
     lir::Builder *c_ = nullptr;
-    std::vector<lir::Label *> labels_;
-    std::vector<std::pair<lir::Jump *, BytecodeIndex>> pending_;
+    std::vector<lir::Label *> blockLabels_;
+    std::vector<std::pair<lir::Jump *, BytecodeJitIR::BlockId>> pending_;
 
     struct Region {
         BytecodeIndex head = 0, tail = 0;
@@ -275,12 +275,12 @@ class Emitter {
             addCold([this, jump, target]() {
                 lir::setLabel(jump, lir::emitLabel(c_));
                 emitSpill(liveNumbersAt(target));
-                pending_.push_back({lir::emitJump(c_, lir::JUMP), target});
+                pending_.push_back({lir::emitJump(c_, lir::JUMP), blockStartingAt(target)});
             });
         } else if (active_ != nullptr && target == active_->head) {
             pendingBody_.push_back({jump, active_});
         } else {
-            pending_.push_back({jump, target});
+            pending_.push_back({jump, blockStartingAt(target)});
         }
     }
     void pendUnconditional(BytecodeIndex target) {
@@ -359,6 +359,11 @@ class Emitter {
     BytecodeJitIR::BuildResult hir_;
     std::vector<std::pair<uint32_t, uint32_t>> instructionAt_;
     void prepareHir();
+    std::vector<BytecodeJitIR::BlockId> blockAt_;
+    BytecodeJitIR::BlockId blockStartingAt(BytecodeIndex pc) const {
+        if (pc >= blockAt_.size() || blockAt_[pc] == BytecodeJitIR::noBlock || hir_.function.blocks[blockAt_[pc]].startPc != pc) return BytecodeJitIR::noBlock;
+        return blockAt_[pc];
+    }
     const BytecodeJitIR::Instr *irInstruction(BytecodeIndex pc) const;
     bool valueNonNan(BytecodeJitIR::ValueId v) const { return v < hir_.function.values.size() && hir_.function.values[v].nonNaN; }
     bool topNumberNonNan(BytecodeIndex pc) const;

@@ -37,6 +37,13 @@ void Emitter::prepareHir() {
         for (size_t i = 0; i < problems.size() && i < 3; i++)
             Log::log("[ir emit]   " + problems[i]);
     }
+    blockAt_.assign(chunk_.instructions.size() + 1, BytecodeJitIR::noBlock);
+    for (BytecodeJitIR::BlockId id = 0; id < hir_.function.blocks.size(); id++) {
+        const BytecodeJitIR::Block &block = hir_.function.blocks[id];
+        if (!block.reachable) continue;
+        for (BytecodeIndex at = block.startPc; at < block.endPc && at < blockAt_.size(); at++)
+            blockAt_[at] = id;
+    }
     instructionAt_.assign(chunk_.instructions.size(), {BytecodeJitIR::noBlock, 0});
     for (BytecodeJitIR::BlockId id = 0; id < hir_.function.blocks.size(); id++) {
         const BytecodeJitIR::Block &block = hir_.function.blocks[id];
@@ -150,19 +157,20 @@ bool Emitter::emit() {
 
     findRegions();
 
-    labels_.assign(count, nullptr);
+    blockLabels_.assign(hir_.function.blocks.size(), nullptr);
     fused_.assign(count, false);
     condLeaf_.assign(count, 0);
     buildConditions();
     bool havePrevious = false;
     BytecodeIndex previous = 0;
-    for (const BytecodeJitIR::Block &block : hir_.function.blocks) {
+    for (BytecodeJitIR::BlockId blockId = 0; blockId < hir_.function.blocks.size(); blockId++) {
+        const BytecodeJitIR::Block &block = hir_.function.blocks[blockId];
         if (!block.reachable) continue;
         for (BytecodeIndex pc = block.startPc; pc < block.endPc && pc < count; pc++) {
             const bool compiled = plan_.supported[pc] != 0;
             if (!compiled && !plan_.needsExit[pc]) continue;
 
-            labels_[pc] = lir::emitLabel(c_);
+            if (pc == block.startPc) blockLabels_[blockId] = lir::emitLabel(c_);
 
             active_ = regionOf_[pc] >= 0 ? &regions_[regionOf_[pc]] : nullptr;
             if (active_ != nullptr && pc == active_->head) {
@@ -213,16 +221,25 @@ bool Emitter::emit() {
     lir::emitReturn(c_, lir::MOV, lir::R0, 0);
 
     for (auto &[jump, target] : pending_) {
-        if (target >= count || labels_[target] == nullptr) {
+        if (target == BytecodeJitIR::noBlock || blockLabels_[target] == nullptr) {
             lir::freeCompiler(c_);
             c_ = nullptr;
             return false;
         }
-        lir::setLabel(jump, labels_[target]);
+        lir::setLabel(jump, blockLabels_[target]);
     }
 
     for (auto &[jump, region] : pendingBody_)
         lir::setLabel(jump, region->body);
+
+    for (const BytecodeIndex pc : plan_.entryPcs) {
+        const BytecodeJitIR::BlockId block = blockStartingAt(pc);
+        if (block == BytecodeJitIR::noBlock || blockLabels_[block] == nullptr) {
+            lir::freeCompiler(c_);
+            c_ = nullptr;
+            return false;
+        }
+    }
 
     std::vector<lir::Label *> entryLabels(plan_.entryPcs.size(), nullptr);
     for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
@@ -232,7 +249,7 @@ bool Emitter::emit() {
         entryLabels[i] = lir::emitLabel(c_);
         emitReload();
         emitHoistLoad();
-        lir::setLabel(lir::emitJump(c_, lir::JUMP), labels_[pc]);
+        lir::setLabel(lir::emitJump(c_, lir::JUMP), blockLabels_[blockStartingAt(pc)]);
     }
     active_ = nullptr;
     if (pinViolation_) {
@@ -249,7 +266,7 @@ bool Emitter::emit() {
     }
     code_.fn = reinterpret_cast<lir::Word (*)(Context *, lir::Word)>(code_.machine);
     for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
-        code_.entryTable[i] = reinterpret_cast<void *>(lir::labelAddress(entryLabels[i] != nullptr ? entryLabels[i] : labels_[plan_.entryPcs[i]]));
+        code_.entryTable[i] = reinterpret_cast<void *>(lir::labelAddress(entryLabels[i] != nullptr ? entryLabels[i] : blockLabels_[blockStartingAt(plan_.entryPcs[i])]));
     }
     lir::freeCompiler(c_);
     c_ = nullptr;
