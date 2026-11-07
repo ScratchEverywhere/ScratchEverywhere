@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
-#include <sljitLir.h>
 
 namespace BytecodeJitInternal {
 
@@ -50,29 +49,29 @@ ExitDescriptor &Emitter::makeExit(BytecodeIndex pc, uint32_t result, const AbsSt
 void Emitter::emitExitAt(BytecodeIndex pc, uint32_t result, const AbsState &state) {
     ExitDescriptor &d = makeExit(pc, result, state);
     emitSpill();
-    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(&d));
-    exitJumps_.push_back(sljit_emit_jump(c_, SLJIT_JUMP));
+    lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(&d));
+    exitJumps_.push_back(lir::emitJump(c_, lir::JUMP));
 }
 
 void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAtTarget) {
-    sljit_emit_op2(c_, SLJIT_SUB32 | SLJIT_SET_Z, SLJIT_S2, 0, SLJIT_S2, 0, SLJIT_IMM, 1);
-    pendJump(sljit_emit_jump(c_, SLJIT_NOT_ZERO), target);
-    sljit_emit_op1(c_, SLJIT_MOV32, SLJIT_S2, 0, SLJIT_IMM, pollInterval());
-    sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
-    callHelper(reinterpret_cast<void *>(&Runtime::jitPreempt), SLJIT_ARGS1(W, P));
-    sljit_jump *keepGoing = sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+    lir::emitOp2(c_, lir::SUB32 | lir::SET_Z, lir::S2, 0, lir::S2, 0, lir::IMM, 1);
+    pendJump(lir::emitJump(c_, lir::NOT_ZERO), target);
+    lir::emitOp1(c_, lir::MOV32, lir::S2, 0, lir::IMM, pollInterval());
+    lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+    callHelper(reinterpret_cast<void *>(&Runtime::jitPreempt), LIR_ARGS1(W, P));
+    lir::Jump *keepGoing = lir::emitCmp(c_, lir::EQUAL, lir::R0, 0, lir::IMM, 0);
     emitExitAt(target, static_cast<uint32_t>(BytecodeJit::Result::Yield), stateAtTarget);
-    sljit_set_label(keepGoing, sljit_emit_label(c_));
+    lir::setLabel(keepGoing, lir::emitLabel(c_));
     pendUnconditional(target);
 }
 
-void Emitter::emitJumpTo(sljit_jump *jump, BytecodeIndex target, const AbsState &stateAtTarget, bool backEdge) {
+void Emitter::emitJumpTo(lir::Jump *jump, BytecodeIndex target, const AbsState &stateAtTarget, bool backEdge) {
     if (!backEdge) {
         pendJump(jump, target);
         return;
     }
     addCold([this, jump, target, stateAtTarget]() {
-        sljit_set_label(jump, sljit_emit_label(c_));
+        lir::setLabel(jump, lir::emitLabel(c_));
         emitBackEdgeThenJump(target, stateAtTarget);
     });
 }

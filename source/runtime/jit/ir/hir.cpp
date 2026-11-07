@@ -37,8 +37,57 @@ const char *opName(Op op) {
         return "numcmp";
     case Op::RepeatStep:
         return "repeat_step";
-    default:
+    case Op::ForEachStep:
         return "foreach_step";
+    case Op::Var:
+        return "var";
+    case Op::Arg:
+        return "arg";
+    case Op::Convert:
+        return "convert";
+    case Op::Arith:
+        return "arith";
+    case Op::MathFn:
+        return "math";
+    case Op::Compare:
+        return "compare";
+    case Op::List:
+        return "list";
+    case Op::Call:
+        return "call";
+    case Op::Native:
+        return "native";
+    case Op::Legacy:
+        return "legacy";
+    case Op::Yield:
+        return "yield";
+    case Op::Discard:
+        return "discard";
+    default:
+        return "effect";
+    }
+}
+
+const char *arithName(uint8_t sub) {
+    switch (static_cast<ArithKind>(sub)) {
+    case ArithKind::Add:
+        return "add";
+    case ArithKind::Subtract:
+        return "sub";
+    case ArithKind::Multiply:
+        return "mul";
+    case ArithKind::Divide:
+        return "div";
+    case ArithKind::Mod:
+        return "mod";
+    case ArithKind::And:
+        return "and";
+    case ArithKind::Or:
+        return "or";
+    case ArithKind::Not:
+        return "not";
+    default:
+        return "";
     }
 }
 
@@ -85,7 +134,8 @@ std::string print(const Function &f, const BytecodeChunk *chunk) {
             }
             if (!instr.results.empty()) out << " = ";
             out << opName(instr.op);
-            if (instr.op == Op::Bytecode || instr.op == Op::Const) out << " " << BytecodeDisassembler::opMnemonic(instr.bc);
+            if (instr.op == Op::Arith) out << "." << arithName(instr.sub);
+            out << " " << BytecodeDisassembler::opMnemonic(instr.bc);
             if (instr.a != 0 || instr.b != 0) out << " a=" << instr.a << " b=" << instr.b;
             for (size_t i = 0; i < instr.args.size(); i++)
                 out << (i == 0 ? " (" : ", ") << "%" << instr.args[i];
@@ -307,6 +357,15 @@ std::string summary(const BuildResult &result, const std::vector<std::string> &v
         << s.structured << " structured, " << s.generic << " generic ("
         << (s.instructions != 0 ? 100.0 * s.structured / s.instructions : 0.0) << "% structured)";
     out << "; builder errors " << result.errors.size() << ", verifier errors " << verifyErrors.size();
+    {
+        std::vector<uint32_t> byOp(32, 0);
+        for (const Block &block : result.function.blocks)
+            for (const Instr &instr : block.instrs)
+                byOp[static_cast<size_t>(instr.op)]++;
+        out << "\n[ir]   categories:";
+        for (size_t op = 0; op < byOp.size(); op++)
+            if (byOp[op] != 0) out << " " << opName(static_cast<Op>(op)) << "=" << byOp[op];
+    }
     std::vector<std::pair<uint32_t, size_t>> top;
     for (size_t op = 0; op < s.byBytecode.size(); op++)
         if (s.byBytecode[op] != 0) top.push_back({s.byBytecode[op], op});

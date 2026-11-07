@@ -45,6 +45,7 @@ struct ValueInfo {
     BlockId block = noBlock;
     uint32_t index = 0;
     bool isParameter = false;
+    bool nonNaN = false;
 };
 
 enum class Op : uint8_t {
@@ -53,6 +54,38 @@ enum class Op : uint8_t {
     NumCompare,
     RepeatStep,
     ForEachStep,
+    Var,
+    Arg,
+    Convert,
+    Arith,
+    MathFn,
+    Compare,
+    List,
+    Call,
+    Native,
+    Legacy,
+    Yield,
+    Discard,
+    Effect,
+};
+
+enum class ArithKind : uint8_t { None,
+                                 Add,
+                                 Subtract,
+                                 Multiply,
+                                 Divide,
+                                 Mod,
+                                 And,
+                                 Or,
+                                 Not };
+
+enum Effect : uint8_t {
+    NoEffect = 0,
+    ReadsVariable = 1,
+    ReadsList = 2,
+    Writes = 4,
+    Yields = 8,
+    Opaque = 16,
 };
 
 enum class Terminator : uint8_t { None,
@@ -67,6 +100,8 @@ struct Instr {
     Op op = Op::Bytecode;
     BytecodeOp bc = BytecodeOp::Nop;
     uint32_t a = 0, b = 0;
+    uint8_t sub = 0;
+    uint8_t effects = Opaque;
     BytecodeIndex pc = 0;
     std::vector<ValueId> args;
     std::vector<ValueId> results;
@@ -122,9 +157,22 @@ struct BuildResult {
     std::vector<std::string> errors;
 };
 
-BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &link, const BytecodeAnalysis &analysis);
+BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &link, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts = {});
 
 std::vector<std::string> verify(const Function &function);
+
+inline bool removable(const Instr &instr) { return (instr.effects & (Writes | Yields | Opaque)) == 0; }
+
+struct PassStats {
+    uint32_t removedInstructions = 0;
+    uint32_t rounds = 0;
+};
+
+void computeFacts(Function &function, const BytecodeChunk &chunk);
+
+std::string inlineCandidates(const Function &function, const BytecodeChunk &chunk);
+
+PassStats runPasses(Function &function, std::vector<std::string> &errors);
 
 std::string print(const Function &function, const BytecodeChunk *chunk = nullptr);
 std::string summary(const BuildResult &result, const std::vector<std::string> &verifyErrors);

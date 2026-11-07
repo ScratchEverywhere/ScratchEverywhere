@@ -109,6 +109,12 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         BytecodeJitIR::BuildResult built = BytecodeJitIR::build(chunk, link, analysis);
         const std::vector<std::string> problems = BytecodeJitIR::verify(built.function);
         Log::log(BytecodeJitIR::summary(built, problems) + "; " + std::to_string(irTimer.getTimeMsDouble()) + " ms");
+        BytecodeJitIR::PassStats passes = BytecodeJitIR::runPasses(built.function, built.errors);
+        const std::vector<std::string> afterPasses = BytecodeJitIR::verify(built.function);
+        Log::log("[ir]   passes: removed " + std::to_string(passes.removedInstructions) + " instructions in " + std::to_string(passes.rounds) + " round(s); verifier errors after passes " + std::to_string(afterPasses.size()) + "; " + std::to_string(irTimer.getTimeMsDouble()) + " ms total");
+        for (size_t i = 0; i < afterPasses.size() && i < 5; i++)
+            Log::log("[ir]   verify(after passes): " + afterPasses[i]);
+        Log::log("[ir]   inlining survey: " + BytecodeJitIR::inlineCandidates(built.function, chunk));
         if (std::string(ir) == "dump") Log::log(BytecodeJitIR::print(built.function, &chunk));
     }
 

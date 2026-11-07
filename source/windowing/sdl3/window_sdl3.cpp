@@ -11,12 +11,12 @@
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <algorithm>
-#include <vector>
 #include <cstdlib>
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
 #include <renderer.hpp>
+#include <vector>
 #if defined(RENDERER_SDL3)
 #include <renderers/sdl3/renderer_sdl3.hpp>
 #endif
@@ -70,7 +70,8 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 #if defined(__XBOX__) && defined(SE_XBOX_TRACE_RENDERER)
     SDL_SetLogOutputFunction([](void *, int, SDL_LogPriority, const char *message) {
         Log::log(std::string("SDL: ") + message);
-    }, nullptr);
+    },
+                             nullptr);
 #endif
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
         error = "Failed to initialize SDL3: " + std::string(SDL_GetError());
@@ -146,7 +147,8 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
     int numGamepads;
     SDL_JoystickID *gamepads = SDL_GetGamepads(&numGamepads);
 #ifdef __XBOX__
-    for (int i = 0; i < numGamepads; ++i) openXboxController(gamepads[i]);
+    for (int i = 0; i < numGamepads; ++i)
+        openXboxController(gamepads[i]);
 #else
     if (numGamepads > 0) {
         controller = SDL_OpenGamepad(gamepads[0]);
@@ -175,7 +177,8 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 void WindowSDL3::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
 #ifdef __XBOX__
-    for (auto *pad : xboxControllers) SDL_CloseGamepad(pad);
+    for (auto *pad : xboxControllers)
+        SDL_CloseGamepad(pad);
     xboxControllers.clear();
     controller = nullptr;
 #else
@@ -236,8 +239,7 @@ void WindowSDL3::pollEvents() {
         case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
             // Ignore neutral reports and stick drift from other connected pads.
             const bool trigger = event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-            const int threshold = trigger ? 24575 :
-                ((event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY) ? 18000 : 10000);
+            const int threshold = trigger ? 24575 : ((event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY) ? 18000 : 10000);
             if ((trigger && event.gaxis.value > threshold) ||
                 (!trigger && (event.gaxis.value > threshold || event.gaxis.value < -threshold))) {
                 selectXboxController(event.gaxis.which);
@@ -275,10 +277,10 @@ void WindowSDL3::pollEvents() {
     static bool resetHeld = false;
     static Uint64 resetHeldSince = 0;
     const bool resetChord = controller &&
-        SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_START) &&
-        SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_BACK) &&
-        SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 24575 &&
-        SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 24575;
+                            SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_START) &&
+                            SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_BACK) &&
+                            SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 24575 &&
+                            SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 24575;
     if (!resetChord) {
         resetHeld = false;
     } else if (!resetHeld) {

@@ -245,17 +245,160 @@ BytecodeValueType resultKind(const BytecodeChunk &chunk, const BytecodeInstructi
     }
 }
 
+const std::string &opcodeName(const BytecodeChunk &chunk, BytecodeIndex slot) {
+    static const std::string empty;
+    if (slot >= chunk.opcodeSlots.size() || chunk.opcodeSlots[slot] >= chunk.strings.size()) return empty;
+    return chunk.strings[chunk.opcodeSlots[slot]];
+}
+
+Op classify(const BytecodeChunk &chunk, const BytecodeInstruction &instr, uint8_t &sub, uint8_t &effects) {
+    sub = 0;
+    effects = Opaque;
+    switch (instr.op) {
+    case BytecodeOp::PushVarNumber:
+    case BytecodeOp::PushVarString:
+    case BytecodeOp::PushVarBoolean:
+    case BytecodeOp::PushVarColor:
+    case BytecodeOp::PushVarValue:
+    case BytecodeOp::LetterOfVar:
+    case BytecodeOp::LengthOfVar:
+        effects = ReadsVariable;
+        return Op::Var;
+    case BytecodeOp::StoreVarNumber:
+    case BytecodeOp::StoreVarString:
+    case BytecodeOp::StoreVarBoolean:
+    case BytecodeOp::StoreVarColor:
+    case BytecodeOp::StoreVarValue:
+    case BytecodeOp::AppendVarString:
+    case BytecodeOp::ChangeVarNumber:
+        effects = Writes;
+        return Op::Var;
+    case BytecodeOp::PushArg:
+        effects = NoEffect;
+        return Op::Arg;
+    case BytecodeOp::ConvertNumberToValue:
+    case BytecodeOp::ConvertStringToValue:
+    case BytecodeOp::ConvertBooleanToValue:
+    case BytecodeOp::ConvertColorToValue:
+    case BytecodeOp::ConvertValueToNumber:
+    case BytecodeOp::ConvertValueToString:
+    case BytecodeOp::ConvertValueToBoolean:
+    case BytecodeOp::ConvertValueToColor:
+        effects = NoEffect;
+        return Op::Convert;
+    case BytecodeOp::MathOp:
+        effects = NoEffect;
+        return Op::MathFn;
+    case BytecodeOp::NumEquals:
+    case BytecodeOp::NumLess:
+    case BytecodeOp::NumGreater:
+    case BytecodeOp::StrEquals:
+    case BytecodeOp::StrLess:
+    case BytecodeOp::StrGreater:
+    case BytecodeOp::ValueEquals:
+    case BytecodeOp::ValueLess:
+    case BytecodeOp::ValueGreater:
+        effects = NoEffect;
+        return Op::Compare;
+    case BytecodeOp::PushList:
+    case BytecodeOp::ItemOfList:
+    case BytecodeOp::ItemNumOfList:
+    case BytecodeOp::LengthOfList:
+    case BytecodeOp::ListContainsItem:
+        effects = ReadsList;
+        return Op::List;
+    case BytecodeOp::AddToList:
+    case BytecodeOp::DeleteFromList:
+    case BytecodeOp::DeleteAllOfList:
+    case BytecodeOp::InsertInList:
+    case BytecodeOp::ReplaceInList:
+        effects = Writes;
+        return Op::List;
+    case BytecodeOp::CallProcedure:
+    case BytecodeOp::CallProcedureValue:
+        return Op::Call;
+    case BytecodeOp::CallLegacyStatement:
+    case BytecodeOp::CallLegacyReporter:
+        return Op::Legacy;
+    case BytecodeOp::Yield:
+        effects = Yields;
+        return Op::Yield;
+    case BytecodeOp::PopNumber:
+    case BytecodeOp::PopString:
+    case BytecodeOp::PopBoolean:
+    case BytecodeOp::PopColor:
+    case BytecodeOp::PopValue:
+        effects = NoEffect;
+        return Op::Discard;
+    case BytecodeOp::LetterOf:
+    case BytecodeOp::LengthOf:
+        effects = NoEffect;
+        return Op::Native;
+    case BytecodeOp::CallNative:
+    case BytecodeOp::CallNativeNumber:
+    case BytecodeOp::CallNativeString:
+    case BytecodeOp::CallNativeBoolean:
+    case BytecodeOp::CallNativeColor:
+    case BytecodeOp::CallNativeValue: {
+        const std::string &name = opcodeName(chunk, instr.a);
+        const uint32_t args = instr.a < chunk.paramKindsCount.size() ? chunk.paramKindsCount[instr.a] : 0;
+        if (instr.op == BytecodeOp::CallNativeNumber && args == 2) {
+            if (name == "operator_add") sub = static_cast<uint8_t>(ArithKind::Add);
+            else if (name == "operator_subtract") sub = static_cast<uint8_t>(ArithKind::Subtract);
+            else if (name == "operator_multiply") sub = static_cast<uint8_t>(ArithKind::Multiply);
+            else if (name == "operator_divide") sub = static_cast<uint8_t>(ArithKind::Divide);
+            else if (name == "operator_mod") sub = static_cast<uint8_t>(ArithKind::Mod);
+        } else if (instr.op == BytecodeOp::CallNativeBoolean) {
+            if (name == "operator_and" && args == 2) sub = static_cast<uint8_t>(ArithKind::And);
+            else if (name == "operator_or" && args == 2) sub = static_cast<uint8_t>(ArithKind::Or);
+            else if (name == "operator_not" && args == 1) sub = static_cast<uint8_t>(ArithKind::Not);
+        }
+        if (sub != 0) {
+            effects = NoEffect;
+            return Op::Arith;
+        }
+        if (name == "operator_join" || name == "operator_contains") effects = NoEffect;
+        return Op::Native;
+    }
+    case BytecodeOp::CallNativeBlocking:
+    case BytecodeOp::CallNativeBlockingValue:
+    case BytecodeOp::Wait:
+    case BytecodeOp::BroadcastAndWait:
+    case BytecodeOp::PlaySoundUntilDone:
+    case BytecodeOp::RandomInt:
+    case BytecodeOp::Random:
+    case BytecodeOp::CurrentDateTime:
+    case BytecodeOp::SetEffectTo:
+    case BytecodeOp::ChangeEffectBy:
+    case BytecodeOp::GoToFrontBack:
+    case BytecodeOp::GoForwardBackwardLayers:
+    case BytecodeOp::SetRotationStyle:
+    case BytecodeOp::SetDragMode:
+    case BytecodeOp::ShowListMonitor:
+    case BytecodeOp::HideListMonitor:
+    case BytecodeOp::ShowVariableMonitor:
+    case BytecodeOp::HideVariableMonitor:
+    case BytecodeOp::CostumeNumberName:
+    case BytecodeOp::BackdropNumberName:
+        return Op::Effect;
+    default:
+        return Op::Bytecode;
+    }
+}
+
 class Builder {
   public:
-    Builder(const BytecodeChunk &chunk, const BytecodeAnalysis &analysis, BuildResult &out) : chunk_(chunk), analysis_(analysis), out_(out), f_(out.function) {
+    Builder(const BytecodeChunk &chunk, const BytecodeAnalysis &analysis, BuildResult &out, const std::vector<BytecodeIndex> &extraStarts) : chunk_(chunk), analysis_(analysis), out_(out), f_(out.function), extraStart_(chunk.instructions.size() + 1, 0) {
         out_.stats.byBytecode.assign(static_cast<size_t>(BytecodeOp::Halt) + 1, 0);
+        for (const BytecodeIndex pc : extraStarts)
+            if (pc < extraStart_.size()) extraStart_[pc] = 1;
     }
 
     void run() {
         const size_t count = chunk_.instructions.size();
         blockOf_.assign(count + 1, noBlock);
         for (BytecodeIndex pc = 0; pc < count; pc++) {
-            if (!analysis_.isBlockStart(pc)) continue;
+            if (!analysis_.isBlockStart(pc) && !extraStart_[pc]) continue;
             BytecodeAbstractState state;
             Block block;
             block.startPc = pc;
@@ -302,6 +445,7 @@ class Builder {
     BuildResult &out_;
     Function &f_;
     std::vector<BlockId> blockOf_;
+    std::vector<uint8_t> extraStart_;
     BlockId current_ = 0;
 
     void error(const std::string &message) { out_.errors.push_back(message); }
@@ -380,6 +524,7 @@ class Builder {
             if (instr.op == BytecodeOp::PushConstNumber || instr.op == BytecodeOp::PushConstString || instr.op == BytecodeOp::PushConstBoolean ||
                 instr.op == BytecodeOp::PushConstColor || instr.op == BytecodeOp::PushConstValue) {
                 ir.op = Op::Const;
+                ir.effects = NoEffect;
                 const K kind = instr.op == BytecodeOp::PushConstNumber ? K::Number : instr.op == BytecodeOp::PushConstString ? K::String
                                                                                  : instr.op == BytecodeOp::PushConstBoolean  ? K::Boolean
                                                                                  : instr.op == BytecodeOp::PushConstColor    ? K::Color
@@ -422,8 +567,13 @@ class Builder {
                     stacks.of(kind).push_back(value);
                 }
             }
-            out_.stats.generic++;
-            out_.stats.byBytecode[static_cast<size_t>(instr.op)]++;
+            ir.op = classify(chunk_, instr, ir.sub, ir.effects);
+            if (ir.op == Op::Bytecode) {
+                out_.stats.generic++;
+                out_.stats.byBytecode[static_cast<size_t>(instr.op)]++;
+            } else {
+                out_.stats.structured++;
+            }
             block.instrs.push_back(std::move(ir));
             if (last) endWithFallthrough(block, stacks);
         }
@@ -442,6 +592,7 @@ class Builder {
         const auto instrFor = [&](Op op) {
             Instr ir;
             ir.op = op;
+            ir.effects = op == Op::ForEachStep ? Writes : NoEffect;
             ir.bc = instr.op;
             ir.a = instr.a == invalidBytecodeIndex ? 0 : instr.a;
             ir.b = instr.b == invalidBytecodeIndex ? 0 : instr.b;
@@ -551,9 +702,9 @@ class Builder {
 
 } // namespace
 
-BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &, const BytecodeAnalysis &analysis) {
+BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts) {
     BuildResult result;
-    Builder builder(chunk, analysis, result);
+    Builder builder(chunk, analysis, result, extraBlockStarts);
     builder.run();
     return result;
 }
