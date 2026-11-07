@@ -2,7 +2,7 @@
   "ui.controls.apply": "Aplicar (Y)",
   "ui.headless.projectPrompt": "Por favor escribe el proyecto que deseas abrir.",
   "ui.projects.noProjects": "¡No se encontraron proyectos de Scratch!",
-  "ui.projects.path": "Pon los proyectos en  ",
+  "ui.projects.path": "Pon los proyectos en ",
   "ui.settings.controls": "Cambiar Controles",
   "ui.settings.unpack": "Descomprimir Proyecto",
   "ui.settings.deleteUnpacked": "Eliminar Proyecto Descomprimido",
