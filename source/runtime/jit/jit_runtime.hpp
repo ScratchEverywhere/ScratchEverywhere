@@ -152,6 +152,7 @@ sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret);
 sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret);
 void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call);
 double SLJIT_FUNC jitRepeatRemaining(double counter);
+double SLJIT_FUNC jitRepeatRound(double counter);
 sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind);
 double SLJIT_FUNC jitMathOp(double value, sljit_sw op);
 double SLJIT_FUNC jitRandomInt(double a, double b);

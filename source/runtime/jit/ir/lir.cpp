@@ -34,6 +34,10 @@ void *generateCode(Builder *b) {
             std::fwrite(machine, 1, b->machineSize, out);
             std::fclose(out);
         }
+        if (FILE *base = std::fopen((std::string(dump) + "." + std::to_string(index - 1) + ".base").c_str(), "w")) {
+            std::fprintf(base, "%lu\n", static_cast<unsigned long>(reinterpret_cast<uintptr_t>(machine)));
+            std::fclose(base);
+        }
     }
     return machine;
 }

@@ -657,6 +657,11 @@ void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) 
     call->fn(static_cast<Sprite *>(ctx->sprite), value);
 }
 
+double SLJIT_FUNC jitRepeatRound(double counter) {
+    if (std::isnan(counter)) return 0.0;
+    return std::round(counter);
+}
+
 double SLJIT_FUNC jitRepeatRemaining(double counter) {
     if (std::isnan(counter)) counter = 0.0;
     return std::round(counter) - 1.0;

@@ -172,6 +172,15 @@ class Emitter {
         return true;
     }
 
+    bool entryOnlyRepeatAt(BytecodeIndex pc) const {
+        static const bool disabled = std::getenv("SE_JIT_NOREPEATNORM") != nullptr;
+        if (disabled || !wide || pc < 1 || pc >= chunk_.instructions.size() || chunk_.instructions[pc].op != BytecodeOp::RepeatCheck || chunk_.instructions[pc - 1].op != BytecodeOp::ConvertNumberToValue || !plan_.supported[pc - 1] || analysis_.isBlockStart(pc - 1)) return false;
+        for (BytecodeIndex q = 0; q < pc; q++) {
+            if (plan_.supported[q] && isJump(chunk_.instructions[q].op) && chunk_.instructions[q].a == pc) return false;
+        }
+        return true;
+    }
+
     int poolIndex(double value) {
         uint64_t bits;
         std::memcpy(&bits, &value, sizeof bits);

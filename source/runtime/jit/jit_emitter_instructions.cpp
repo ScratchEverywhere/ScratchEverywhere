@@ -109,7 +109,19 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
     }
     case BytecodeOp::ConvertNumberToValue: {
         const uint32_t depth = static_cast<uint32_t>(state_.values.size());
-        if (!convertFeedsStore(pc) && !feedsIndex(pc) && !feedsCompare(pc)) {
+        if (entryOnlyRepeatAt(pc + 1)) {
+            loadF(lir::FR0, numberSlot(state_.numbers - 1));
+            lir::emitFOp1(c_, lir::CONV_SW_FROM_F64, lir::R0, 0, lir::FR0, 0);
+            lir::emitFOp1(c_, lir::CONV_F64_FROM_SW, lir::FR1, 0, lir::R0, 0);
+            lir::Jump *fractional = lir::emitFCmp(c_, lir::UNORDERED_OR_NOT_EQUAL, lir::FR0, 0, lir::FR1, 0);
+            lir::Label *whole = lir::emitLabel(c_);
+            addCold([this, fractional, whole]() {
+                lir::setLabel(fractional, lir::emitLabel(c_));
+                callHelper(reinterpret_cast<void *>(&Runtime::jitRepeatRound), LIR_ARGS1(F64, F64));
+                lir::setLabel(lir::emitJump(c_, lir::JUMP), whole);
+            });
+            storeF(valueSlot(depth), lir::FR0);
+        } else if (!convertFeedsStore(pc) && !feedsIndex(pc) && !feedsCompare(pc)) {
             loadF(lir::FR0, numberSlot(state_.numbers - 1));
             storeF(valueSlot(depth), lir::FR0);
         }
@@ -666,7 +678,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         }
         loadF(lir::FR0, counter);
 
-        const bool wholeCounter = wholeCounterAt(pc);
+        const bool wholeCounter = wholeCounterAt(pc) || entryOnlyRepeatAt(pc);
         if (wholeCounter) {
             lir::emitFSet64(c_, lir::FR1, 1.0);
             lir::emitFOp2(c_, lir::SUB_F64, lir::FR0, 0, lir::FR0, 0, lir::FR1, 0);
