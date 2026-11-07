@@ -40,7 +40,7 @@
   "version.prefix.release": "Release",
   "version.prefix.releaseCanidate": "Release Candidat",
   "version.prefix.nightly": "Nightly",
-  "ui.settings.runtime": "",
+  "ui.settings.runtime": "Runtime",
   "ui.settings.dectalk": "Verwende DECtalk",
   "ui.settings.renderer": "Renderer",
   "ui.settings.windowing": "Grafik-Backend",
@@ -48,6 +48,6 @@
   "ui.loading.caching": "Bilder cachen",
   "ui.popup.bytecodeCacheTooNew": "Dieses entpackte Projekt stammt aus einer neueren Version von Scratch Everywhere! Bitte entpacke es erneut oder verwende die nicht-entpackte Version.",
   "version.prefix.alpha": "Alpha-Build",
-  "version.prefix.dev": "",
+  "version.prefix.dev": "Dev-Build",
   "ui.settings.discord": "Discord-Aktivitätsstatus"
 }
