@@ -87,6 +87,7 @@ struct Planner {
     BytecodeAnalysis &analysis;
     size_t count;
 
+    BytecodeIndex regionHead = invalidBytecodeIndex, regionTail = invalidBytecodeIndex;
     std::vector<uint8_t> supported;
     std::vector<uint8_t> needsExit;
     std::vector<int32_t> entryOf;
@@ -432,6 +433,7 @@ struct Planner {
 
         for (BytecodeIndex pc = 0; pc < count; pc++) {
             if (analysis.isReachable(pc)) supported[pc] = opSupported(pc) ? 1 : 0;
+            if (regionHead != invalidBytecodeIndex && (pc < regionHead || pc > regionTail)) supported[pc] = 0;
         }
         limitPromotedVariables();
 

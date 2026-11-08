@@ -77,6 +77,82 @@ BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk) {
     return it != cache.byChunk.end() ? it->second : nullptr;
 }
 
+std::shared_ptr<BytecodeJitCode> assembleCode(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, Planner &planner) {
+    auto code = std::make_shared<BytecodeJitCode>();
+    for (BytecodeIndex pc : planner.entryPcs) {
+        BytecodeAbstractState s;
+        analysis.stateBefore(pc, s);
+        EntryDescriptor e;
+        e.numbers = s.numbers;
+        e.booleans = s.booleans;
+        e.valueIsNumber.clear();
+        for (BytecodeValueType type : s.values) {
+            if (type == BytecodeValueType::Number) {
+                e.valueKinds.push_back(ValueEntry::Number);
+                e.valueIsNumber.push_back(1);
+            } else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) {
+                e.valueKinds.push_back(ValueEntry::Like);
+                e.valueIsNumber.push_back(1);
+            } else if (type == BytecodeValueType::Boolean) {
+                e.valueKinds.push_back(ValueEntry::Boolean);
+                e.valueIsNumber.push_back(0);
+            } else {
+                e.valueKinds.push_back(ValueEntry::Opaque);
+                e.valueIsNumber.push_back(1);
+            }
+        }
+        e.strings = s.strings;
+        code->entries.push_back(std::move(e));
+    }
+
+    Emitter emitter(chunk, link, analysis, planner, *code);
+    if (!emitter.emit()) return nullptr;
+
+    for (size_t i = 0; i < code->entries.size(); i++) {
+        for (BytecodeIndex variable : planner.entryReads[i]) {
+            const auto it = std::find(code->promoted.begin(), code->promoted.end(), variable);
+            if (it != code->promoted.end()) code->entries[i].loadVariables.push_back(static_cast<uint32_t>(it - code->promoted.begin()));
+        }
+    }
+    code->entryIdAt = planner.entryOf;
+    return code;
+}
+
+void compileRegions(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis) {
+    std::vector<std::pair<BytecodeIndex, BytecodeIndex>> loops;
+    for (BytecodeIndex pc = 0; pc < chunk.instructions.size(); pc++) {
+        const BytecodeInstruction &instr = chunk.instructions[pc];
+        if (isJump(instr.op) && instr.a <= pc && instr.a < chunk.instructions.size() && analysis.isReachable(pc)) loops.push_back({instr.a, pc});
+    }
+    std::sort(loops.begin(), loops.end(), [](const auto &x, const auto &y) { return x.second - x.first > y.second - y.first; });
+    std::vector<std::pair<BytecodeIndex, BytecodeIndex>> compiled;
+    for (const auto &[head, tail] : loops) {
+        if (chunk.jitRegions.size() >= 100) break;
+        bool covered = false;
+        for (const auto &[h, t] : compiled)
+            if (head >= h && tail <= t) covered = true;
+        if (covered) continue;
+        Planner regionPlanner(chunk, link, analysis);
+        regionPlanner.regionHead = head;
+        regionPlanner.regionTail = tail;
+        regionPlanner.plan({});
+        if (regionPlanner.entryPcs.empty()) continue;
+        auto code = assembleCode(chunk, link, analysis, regionPlanner);
+        if (code == nullptr) continue;
+        const int32_t index = static_cast<int32_t>(chunk.jitRegions.size()) + 1;
+        bool any = false;
+        for (size_t i = 0; i < regionPlanner.entryPcs.size(); i++) {
+            if (!regionPlanner.visible[i]) continue;
+            chunk.jitEntryAt[regionPlanner.entryPcs[i]] = (index << 24) | static_cast<int32_t>(i);
+            any = true;
+        }
+        if (!any) continue;
+        chunk.jitRegions.push_back(code);
+        compiled.push_back({head, tail});
+        if (std::getenv("SE_JIT_LOG") != nullptr) Log::log("[jit region code] " + std::to_string(head) + ".." + std::to_string(tail) + " as code " + std::to_string(index) + " with " + std::to_string(code->entries.size()) + " entries");
+    }
+}
+
 } // namespace
 
 namespace BytecodeJit {
@@ -193,49 +269,13 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         return;
     }
 
-    auto code = std::make_shared<BytecodeJitCode>();
-    for (BytecodeIndex pc : planner.entryPcs) {
-        BytecodeAbstractState s;
-        analysis.stateBefore(pc, s);
-        EntryDescriptor e;
-        e.numbers = s.numbers;
-        e.booleans = s.booleans;
-        e.valueIsNumber.clear();
-        for (BytecodeValueType type : s.values) {
-            if (type == BytecodeValueType::Number) {
-                e.valueKinds.push_back(ValueEntry::Number);
-                e.valueIsNumber.push_back(1);
-            } else if (type == BytecodeValueType::NumericString || type == BytecodeValueType::NumberLike) {
-                e.valueKinds.push_back(ValueEntry::Like);
-                e.valueIsNumber.push_back(1);
-            } else if (type == BytecodeValueType::Boolean) {
-                e.valueKinds.push_back(ValueEntry::Boolean);
-                e.valueIsNumber.push_back(0);
-            } else {
-                e.valueKinds.push_back(ValueEntry::Opaque);
-                e.valueIsNumber.push_back(1);
-            }
-        }
-        e.strings = s.strings;
-        code->entries.push_back(std::move(e));
-    }
-
-    Emitter emitter(chunk, link, analysis, planner, *code);
-    if (!emitter.emit()) {
+    auto code = assembleCode(chunk, link, analysis, planner);
+    if (code == nullptr) {
 #if defined(__XBOX__)
         Log::log("[jit compile] sprite '" + spriteName + "' REJECTED by emitter");
 #endif
         return;
     }
-
-    for (size_t i = 0; i < code->entries.size(); i++) {
-        for (BytecodeIndex variable : planner.entryReads[i]) {
-            const auto it = std::find(code->promoted.begin(), code->promoted.end(), variable);
-            if (it != code->promoted.end()) code->entries[i].loadVariables.push_back(static_cast<uint32_t>(it - code->promoted.begin()));
-        }
-    }
-
-    code->entryIdAt = planner.entryOf;
     chunk.jitEntryAt.assign(chunk.instructions.size(), -1);
     bool anyVisible = false;
     for (size_t i = 0; i < planner.entryPcs.size(); i++) {
@@ -259,6 +299,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         return;
     }
     chunk.jit = code;
+    if (const char *regions = std::getenv("SE_JIT_REGIONS"); regions != nullptr && std::string(regions) != "0") compileRegions(chunk, link, analysis);
 #if defined(__XBOX__)
     {
         size_t compiled = 0, reachable = 0;
@@ -314,12 +355,15 @@ Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId,
     Context ctx;
     ctx.thread = &thread;
     ctx.chunk = &chunk;
-    ctx.code = chunk.jit.get();
+    const uint32_t codeIndex = entryId >> 24;
+    const BytecodeJitCode *selected = codeIndex == 0 ? chunk.jit.get() : chunk.jitRegions[codeIndex - 1].get();
+    entryId &= 0xffffff;
+    ctx.code = selected;
     ctx.sprite = thread.sprite;
     ctx.timer = &sliceTimer;
     ctx.timerStarted = &sliceTimerStarted;
     if (thread.link != nullptr && thread.link->lists.size() >= chunk.listSlots.size()) ctx.lists = thread.link->lists.data();
-    const Code &code = *chunk.jit;
+    const Code &code = *selected;
     if (!code.pool.empty()) std::memcpy(ctx.pool, code.pool.data(), code.pool.size() * sizeof(double));
     const Result result = static_cast<Result>(code.fn(&ctx, entryId));
 
