@@ -10,6 +10,7 @@
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/IR/LLVMContext.h>
@@ -22,6 +23,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace BytecodeJitLir {
@@ -112,6 +114,7 @@ class Translator {
     llvm::AllocaInst *fpr_[40] = {};
     std::unordered_map<const Label *, llvm::BasicBlock *> blocks_;
     std::unordered_map<const Jump *, const Label *> targets_;
+    std::unordered_set<const Label *> cold_;
     llvm::Value *flagZero_ = nullptr, *flagOverflow_ = nullptr, *flagLess_ = nullptr;
     llvm::Value *floatLeft_ = nullptr, *floatRight_ = nullptr;
     unsigned deadBlocks_ = 0;
@@ -123,8 +126,13 @@ class Translator {
     }
 
     void collectLabels() {
+        bool cold = false;
         for (const Instr &i : b_.code) {
             if (i.kind == Kind::SetLabel) targets_[i.jump] = i.label;
+            if (i.kind == Kind::LabelOp) {
+                if (i.label == b_.coldLabel) cold = true;
+                if (cold) cold_.insert(i.label);
+            }
         }
     }
 
@@ -365,7 +373,9 @@ class Translator {
             return;
         }
         llvm::BasicBlock *next = llvm::BasicBlock::Create(module_.getContext(), "c" + std::to_string(deadBlocks_++), function_);
-        ir_.CreateCondBr(condition, blockFor(target->second), next);
+        llvm::MDNode *weights = nullptr;
+        if (cold_.count(target->second) != 0) weights = llvm::MDBuilder(module_.getContext()).createBranchWeights(1, 4000);
+        ir_.CreateCondBr(condition, blockFor(target->second), next, weights);
         ir_.SetInsertPoint(next);
     }
 

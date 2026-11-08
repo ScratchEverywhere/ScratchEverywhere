@@ -491,7 +491,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     code->analysisOwner = analysisOwner;
     chunk.jit = code;
 #if defined(JIT_BACKGROUND_COMPILE)
-    if (std::getenv("SE_JIT_TIERUP") != nullptr) background().start();
+    if (tierUpPolls() > 0) background().start();
 #endif
     if (const char *regions = std::getenv("SE_JIT_REGIONS"); regions != nullptr && std::string(regions) != "0") compileRegions(chunk, link, analysis);
 #if defined(__XBOX__)
@@ -561,6 +561,17 @@ bool tierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeI
         if (compileRegion(chunk, link, *analysis, h, t, tierOps())) return true;
     }
     return false;
+}
+
+long tierUpPolls() {
+    static const long polls = [] {
+        if (const char *value = std::getenv("SE_JIT_TIERUP"); value != nullptr) return std::atol(value);
+#if defined(JIT_BACKGROUND_COMPILE)
+        if (BytecodeJitLir::optimizingOps() != nullptr) return 4L;
+#endif
+        return 0L;
+    }();
+    return polls;
 }
 
 void requestTierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeIndex head) {

@@ -691,10 +691,7 @@ double LIR_FUNC jitRandomInt(double a, double b) {
 }
 
 BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx, BytecodeJitLir::Word target) {
-    static const long hotPolls = [] {
-        const char *value = std::getenv("SE_JIT_TIERUP");
-        return value != nullptr ? std::atol(value) : 0L;
-    }();
+    static const long hotPolls = BytecodeJit::tierUpPolls();
     bool switchCode = false;
     if (hotPolls > 0) BytecodeJit::installFinished();
     if (hotPolls > 0 && ctx->chunk != nullptr && ctx->code == ctx->chunk->jit.get() && target >= 0 && static_cast<size_t>(target) < ctx->chunk->instructions.size()) {

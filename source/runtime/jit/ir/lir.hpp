@@ -63,6 +63,7 @@ class Builder {
     size_t machineSize = 0;
     void *backend = nullptr;
     std::vector<Label *> entryLabels;
+    Label *coldLabel = nullptr;
     const BackendOps *ops = nullptr;
 };
 

@@ -245,6 +245,7 @@ bool Emitter::emit() {
     }
 
     active_ = nullptr;
+    c_->coldLabel = lir::emitLabel(c_);
     for (size_t i = 0; i < cold_.size(); i++) {
         auto emitCold = cold_[i];
         emitCold();

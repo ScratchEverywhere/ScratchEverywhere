@@ -178,25 +178,28 @@ void LIR_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
     std::string &letter = strs[op->outPosition];
     ctx->strHigh = std::max(ctx->strHigh, op->outPosition + 1);
     letter.clear();
-    const int64_t kind = ctx->dirty[op->variable];
+    int64_t kind = ctx->dirty[op->variable];
     if (kind == 0) {
         const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
         if (var != nullptr) {
             if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
+                // A region entered from the VM starts with its string variables untouched; adopting one lets the inline fast path take over.
+                setStringVariable(ctx, op->variable, std::string(**text));
+                kind = 4;
             } else {
                 const Value value = materializeVariable(ctx, op->variable);
                 if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
             }
         }
-    } else if (kind == 4) {
+    }
+    if (kind == 4) {
         const std::string &text = stringVariables[op->variable];
         if (stringVariableIsAscii(op->variable)) {
             if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
         } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
             letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
         }
-    } else {
+    } else if (kind != 0) {
         const Value value = materializeVariable(ctx, op->variable);
         if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
     }
