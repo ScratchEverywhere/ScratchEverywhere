@@ -137,7 +137,8 @@ bool Image::loadFont(const std::string &family) {
     const std::string &path = Render::currentRenderer == Renderers::Headless ? std::string("gfx/ingame/fonts/Grand9KPixel") : it->second.path; // font doesn't matter for headless and Grand9KPixel is smallest on memory
 
 #ifdef USE_BUNDLE
-    auto entry = Bundle::assets().find(OS::getRomFSLocation() + path + ".ttf");
+    const auto assets = Bundle::assets();
+    auto entry = assets.find(OS::getRomFSLocation() + path + ".ttf");
     if (!entry) return false;
     size_t fontSize = 0;
     void *fontData = bundle_load(&entry->raw(), &fontSize);
