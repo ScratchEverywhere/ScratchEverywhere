@@ -115,9 +115,13 @@ void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAt
     pendJump(lir::emitJump(c_, lir::NOT_ZERO), target);
     lir::emitOp1(c_, lir::MOV32, lir::S2, 0, lir::IMM, pollInterval());
     lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
-    callHelper(reinterpret_cast<void *>(&Runtime::jitPreempt), LIR_ARGS1(W, P));
+    lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, static_cast<lir::Word>(target));
+    callHelper(reinterpret_cast<void *>(&Runtime::jitPreempt), LIR_ARGS2(W, P, W));
     lir::Jump *keepGoing = lir::emitCmp(c_, lir::EQUAL, lir::R0, 0, lir::IMM, 0);
+    lir::Jump *switchCode = lir::emitCmp(c_, lir::EQUAL, lir::R0, 0, lir::IMM, 2);
     emitExitAt(target, static_cast<uint32_t>(BytecodeJit::Result::Yield), stateAtTarget);
+    lir::setLabel(switchCode, lir::emitLabel(c_));
+    emitExitAt(target, static_cast<uint32_t>(BytecodeJit::Result::Interpret), stateAtTarget);
     lir::setLabel(keepGoing, lir::emitLabel(c_));
     pendUnconditional(target);
 }

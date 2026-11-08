@@ -8,14 +8,16 @@
 #include "jit/ir/hir.hpp"
 #include "jit/jit_emitter.hpp"
 #include "jit/jit_planner.hpp"
-#include "jit/jit_probe.hpp"
 #include "jit/jit_runtime.hpp"
 #include "jit/jit_types.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
 #include "runtime/data/blueprint.hpp"
 #include "timer.hpp"
+#include <thread.hpp>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -35,7 +37,7 @@ using namespace BytecodeJitInternal;
 namespace {
 
 struct ProgramCache {
-    std::unique_ptr<BytecodeProgramAnalysis> program;
+    std::shared_ptr<BytecodeProgramAnalysis> program;
     std::vector<BytecodeProgramAnalysis::Input> inputs;
     std::unordered_map<const BytecodeChunk *, BytecodeAnalysis *> byChunk;
 };
@@ -48,7 +50,7 @@ std::vector<BytecodeProgramAnalysis::Input> currentInputs() {
     return inputs;
 }
 
-BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk) {
+BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk, std::shared_ptr<BytecodeProgramAnalysis> *owner = nullptr) {
     static ProgramCache cache;
 
     const std::vector<BytecodeProgramAnalysis::Input> now = currentInputs();
@@ -67,17 +69,18 @@ BytecodeAnalysis *programAnalysisFor(const BytecodeChunk &chunk) {
         }
         cache.byChunk.clear();
         cache.inputs = now;
-        cache.program = std::make_unique<BytecodeProgramAnalysis>(now, std::move(environment));
+        cache.program = std::make_shared<BytecodeProgramAnalysis>(now, std::move(environment));
         cache.program->run();
         for (size_t i = 0; i < now.size(); i++)
             cache.byChunk[now[i].chunk] = cache.program->chunks()[i].get();
     }
 
     const auto it = cache.byChunk.find(&chunk);
+    if (owner != nullptr) *owner = cache.program;
     return it != cache.byChunk.end() ? it->second : nullptr;
 }
 
-std::shared_ptr<BytecodeJitCode> assembleCode(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, Planner &planner) {
+std::shared_ptr<BytecodeJitCode> assembleCode(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, Planner &planner, const BytecodeJitLir::BackendOps &ops) {
     auto code = std::make_shared<BytecodeJitCode>();
     for (BytecodeIndex pc : planner.entryPcs) {
         BytecodeAbstractState s;
@@ -105,7 +108,7 @@ std::shared_ptr<BytecodeJitCode> assembleCode(const BytecodeChunk &chunk, const 
         code->entries.push_back(std::move(e));
     }
 
-    Emitter emitter(chunk, link, analysis, planner, *code);
+    Emitter emitter(chunk, link, analysis, planner, *code, ops);
     if (!emitter.emit()) return nullptr;
 
     for (size_t i = 0; i < code->entries.size(); i++) {
@@ -118,40 +121,213 @@ std::shared_ptr<BytecodeJitCode> assembleCode(const BytecodeChunk &chunk, const 
     return code;
 }
 
-void compileRegions(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis) {
+struct BuiltRegion {
+    BytecodeIndex head = 0, tail = 0;
+    std::shared_ptr<BytecodeJitCode> code;
+    std::vector<std::pair<BytecodeIndex, int32_t>> entries;
+};
+
+bool buildRegion(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, BytecodeIndex head, BytecodeIndex tail, const BytecodeJitLir::BackendOps &ops, BuiltRegion &out) {
+    Planner regionPlanner(chunk, link, analysis);
+    regionPlanner.regionHead = head;
+    regionPlanner.regionTail = tail;
+    regionPlanner.plan({});
+    if (regionPlanner.entryPcs.empty()) return false;
+    auto code = assembleCode(chunk, link, analysis, regionPlanner, ops);
+    if (code == nullptr) return false;
+    out.head = head;
+    out.tail = tail;
+    out.entries.clear();
+    for (size_t i = 0; i < regionPlanner.entryPcs.size(); i++) {
+        if (regionPlanner.visible[i]) out.entries.push_back({regionPlanner.entryPcs[i], static_cast<int32_t>(i)});
+    }
+    if (out.entries.empty()) return false;
+    out.code = std::move(code);
+    return true;
+}
+
+bool installRegion(const BytecodeChunk &chunk, const BuiltRegion &built) {
+    if (chunk.jitRegions.size() >= 100 || chunk.jit == nullptr || chunk.jitEntryAt.size() != chunk.instructions.size()) return false;
+    const int32_t index = static_cast<int32_t>(chunk.jitRegions.size()) + 1;
+    for (const auto &[pc, entry] : built.entries)
+        chunk.jitEntryAt[pc] = (index << 24) | entry;
+    chunk.jitRegions.push_back(built.code);
+    if (std::getenv("SE_JIT_LOG") != nullptr) Log::log("[jit region code] " + std::to_string(built.head) + ".." + std::to_string(built.tail) + " as code " + std::to_string(index) + " with " + std::to_string(built.code->entries.size()) + " entries");
+    return true;
+}
+
+const BytecodeJitLir::BackendOps &tierOps() {
+    const BytecodeJitLir::BackendOps *optimizing = BytecodeJitLir::optimizingOps();
+    return optimizing != nullptr ? *optimizing : BytecodeJitLir::baselineOps();
+}
+
+bool compileRegion(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, BytecodeIndex head, BytecodeIndex tail, const BytecodeJitLir::BackendOps &ops) {
+    BuiltRegion built;
+    return buildRegion(chunk, link, analysis, head, tail, ops, built) && installRegion(chunk, built);
+}
+
+std::vector<std::pair<BytecodeIndex, BytecodeIndex>> loopsOf(const BytecodeChunk &chunk, BytecodeAnalysis &analysis) {
     std::vector<std::pair<BytecodeIndex, BytecodeIndex>> loops;
     for (BytecodeIndex pc = 0; pc < chunk.instructions.size(); pc++) {
         const BytecodeInstruction &instr = chunk.instructions[pc];
         if (isJump(instr.op) && instr.a <= pc && instr.a < chunk.instructions.size() && analysis.isReachable(pc)) loops.push_back({instr.a, pc});
     }
     std::sort(loops.begin(), loops.end(), [](const auto &x, const auto &y) { return x.second - x.first > y.second - y.first; });
+    return loops;
+}
+
+void compileRegions(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis) {
     std::vector<std::pair<BytecodeIndex, BytecodeIndex>> compiled;
-    for (const auto &[head, tail] : loops) {
-        if (chunk.jitRegions.size() >= 100) break;
+    for (const auto &[head, tail] : loopsOf(chunk, analysis)) {
         bool covered = false;
         for (const auto &[h, t] : compiled)
             if (head >= h && tail <= t) covered = true;
         if (covered) continue;
-        Planner regionPlanner(chunk, link, analysis);
-        regionPlanner.regionHead = head;
-        regionPlanner.regionTail = tail;
-        regionPlanner.plan({});
-        if (regionPlanner.entryPcs.empty()) continue;
-        auto code = assembleCode(chunk, link, analysis, regionPlanner);
-        if (code == nullptr) continue;
-        const int32_t index = static_cast<int32_t>(chunk.jitRegions.size()) + 1;
-        bool any = false;
-        for (size_t i = 0; i < regionPlanner.entryPcs.size(); i++) {
-            if (!regionPlanner.visible[i]) continue;
-            chunk.jitEntryAt[regionPlanner.entryPcs[i]] = (index << 24) | static_cast<int32_t>(i);
-            any = true;
-        }
-        if (!any) continue;
-        chunk.jitRegions.push_back(code);
-        compiled.push_back({head, tail});
-        if (std::getenv("SE_JIT_LOG") != nullptr) Log::log("[jit region code] " + std::to_string(head) + ".." + std::to_string(tail) + " as code " + std::to_string(index) + " with " + std::to_string(code->entries.size()) + " entries");
+        if (compileRegion(chunk, link, analysis, head, tail, BytecodeJitLir::baselineOps())) compiled.push_back({head, tail});
     }
 }
+
+#if defined(JIT_BACKGROUND_COMPILE)
+struct Lock {
+    explicit Lock(SE_Mutex &mutex) : mutex_(mutex) { mutex_.lock(); }
+    ~Lock() { mutex_.unlock(); }
+    Lock(const Lock &) = delete;
+    Lock &operator=(const Lock &) = delete;
+    SE_Mutex &mutex_;
+};
+
+class Background {
+  public:
+    struct Job {
+        const BytecodeChunk *chunk;
+        const BytecodeLinkTable *link;
+        BytecodeIndex head;
+        std::shared_ptr<void> owner;
+        BytecodeAnalysis *analysis;
+    };
+    struct Finished {
+        const BytecodeChunk *chunk;
+        BuiltRegion region;
+    };
+
+    ~Background() { stop(); }
+
+    void start() {
+        Lock lock(mutex_);
+        startLocked();
+    }
+
+    void submit(Job job) {
+        Lock lock(mutex_);
+        startLocked();
+        jobs_.push_back(std::move(job));
+    }
+
+    void install() {
+        if (!ready_.load(std::memory_order_acquire)) return;
+        std::vector<Finished> take;
+        {
+            Lock lock(mutex_);
+            take.swap(done_);
+            ready_.store(false, std::memory_order_release);
+        }
+        for (const Finished &finished : take)
+            installRegion(*finished.chunk, finished.region);
+    }
+
+    void stop() {
+        std::unique_ptr<SE_Thread> worker;
+        {
+            Lock lock(mutex_);
+            stopping_.store(true);
+            jobs_.clear();
+            worker = std::move(worker_);
+        }
+        if (worker != nullptr) worker->join();
+        Lock lock(mutex_);
+        done_.clear();
+        attempts_.clear();
+        ready_.store(false, std::memory_order_release);
+    }
+
+  private:
+#if defined(JIT_BACKEND_LLVM)
+    static constexpr size_t stackSize = 16u << 20;
+#else
+    static constexpr size_t stackSize = 2u << 20;
+#endif
+    SE_Mutex mutex_;
+    std::unique_ptr<SE_Thread> worker_;
+    std::deque<Job> jobs_;
+    struct Attempt {
+        const BytecodeChunk *chunk;
+        BytecodeIndex head, tail;
+        bool built;
+    };
+    std::vector<Attempt> attempts_;
+    std::vector<Finished> done_;
+    std::atomic<bool> ready_{false};
+    std::atomic<bool> stopping_{false};
+
+    void startLocked() {
+        if (worker_ != nullptr) return;
+        stopping_.store(false);
+        auto thread = std::make_unique<SE_Thread>();
+        if (thread->create(&Background::entry, this, stackSize, 1, -2, "jit")) worker_ = std::move(thread);
+    }
+
+    static void entry(void *self) { static_cast<Background *>(self)->loop(); }
+
+    void loop() {
+        for (;;) {
+            Job job;
+            bool have = false;
+            {
+                Lock lock(mutex_);
+                if (stopping_.load()) return;
+                if (!jobs_.empty()) {
+                    job = std::move(jobs_.front());
+                    jobs_.pop_front();
+                    have = true;
+                }
+            }
+            if (!have) {
+                SE_Thread::sleep(10);
+                continue;
+            }
+            BuiltRegion built;
+            bool ok = false;
+            for (const auto &[head, tail] : loopsOf(*job.chunk, *job.analysis)) {
+                if (!(head <= job.head && job.head <= tail)) continue;
+                const Attempt *earlier = nullptr;
+                for (const Attempt &attempt : attempts_) {
+                    if (attempt.chunk == job.chunk && attempt.head == head && attempt.tail == tail) earlier = &attempt;
+                }
+                if (earlier != nullptr) {
+                    if (earlier->built) break;
+                    continue;
+                }
+                const bool succeeded = buildRegion(*job.chunk, *job.link, *job.analysis, head, tail, tierOps(), built);
+                attempts_.push_back({job.chunk, head, tail, succeeded});
+                if (succeeded) {
+                    ok = true;
+                    break;
+                }
+            }
+            if (!ok) continue;
+            Lock lock(mutex_);
+            if (stopping_.load()) return;
+            done_.push_back({job.chunk, std::move(built)});
+            ready_.store(true, std::memory_order_release);
+        }
+    }
+};
+
+Background &background() {
+    static Background instance;
+    return instance;
+}
+#endif
 
 } // namespace
 
@@ -160,7 +336,16 @@ namespace BytecodeJit {
 bool enabled() {
     static const char *env = std::getenv("SE_JIT");
     const bool requested = env != nullptr ? std::string(env) != "0" : Scratch::useJit;
-    return requested && BytecodeJitInternal::backendUsable();
+    const bool usable = requested && BytecodeJitLir::baselineOps().usable();
+    if (usable) {
+        static const bool logged = [] {
+            const BytecodeJitLir::BackendOps *optimizing = BytecodeJitLir::optimizingOps();
+            Log::log(std::string("[jit] backend ") + BytecodeJitLir::baselineOps().name + (optimizing != nullptr ? std::string(", tier-up ") + optimizing->name : std::string()));
+            return true;
+        }();
+        (void)logged;
+    }
+    return usable;
 }
 
 void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
@@ -169,12 +354,16 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     if (chunk.instructions.empty()) return;
     Timer compileTimer;
 
-    std::unique_ptr<BytecodeAnalysis> standalone;
-    BytecodeAnalysis *analysisPtr = programAnalysisFor(chunk);
-    if (analysisPtr == nullptr) {
-        standalone = std::make_unique<BytecodeAnalysis>(chunk, link);
+    std::shared_ptr<void> analysisOwner;
+    std::shared_ptr<BytecodeProgramAnalysis> programOwner;
+    BytecodeAnalysis *analysisPtr = programAnalysisFor(chunk, &programOwner);
+    if (analysisPtr != nullptr) {
+        analysisOwner = programOwner;
+    } else {
+        auto standalone = std::make_shared<BytecodeAnalysis>(chunk, link);
         standalone->run();
         analysisPtr = standalone.get();
+        analysisOwner = standalone;
     }
     BytecodeAnalysis &analysis = *analysisPtr;
     for (const BytecodeEntryResult &entry : analysis.entries()) {
@@ -269,7 +458,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         return;
     }
 
-    auto code = assembleCode(chunk, link, analysis, planner);
+    auto code = assembleCode(chunk, link, analysis, planner, BytecodeJitLir::baselineOps());
     if (code == nullptr) {
 #if defined(__XBOX__)
         Log::log("[jit compile] sprite '" + spriteName + "' REJECTED by emitter");
@@ -298,7 +487,12 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
 #endif
         return;
     }
+    code->analysis = analysisPtr;
+    code->analysisOwner = analysisOwner;
     chunk.jit = code;
+#if defined(JIT_BACKGROUND_COMPILE)
+    if (std::getenv("SE_JIT_TIERUP") != nullptr) background().start();
+#endif
     if (const char *regions = std::getenv("SE_JIT_REGIONS"); regions != nullptr && std::string(regions) != "0") compileRegions(chunk, link, analysis);
 #if defined(__XBOX__)
     {
@@ -351,10 +545,52 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
     }
 }
 
+bool tierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeIndex head) {
+    if (chunk.jit == nullptr || chunk.jitEntryAt.size() != chunk.instructions.size()) return false;
+    std::unique_ptr<BytecodeAnalysis> standalone;
+    BytecodeAnalysis *analysis = programAnalysisFor(chunk);
+    if (analysis == nullptr) {
+        standalone = std::make_unique<BytecodeAnalysis>(chunk, link);
+        standalone->run();
+        analysis = standalone.get();
+    }
+    std::vector<std::pair<BytecodeIndex, BytecodeIndex>> around;
+    for (const auto &[h, t] : loopsOf(chunk, *analysis))
+        if (h <= head && head <= t) around.push_back({h, t});
+    for (const auto &[h, t] : around) {
+        if (compileRegion(chunk, link, *analysis, h, t, tierOps())) return true;
+    }
+    return false;
+}
+
+void requestTierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeIndex head) {
+#if defined(JIT_BACKGROUND_COMPILE)
+    static const bool synchronous = std::getenv("SE_JIT_TIERUP_SYNC") != nullptr;
+    if (!synchronous && chunk.jit != nullptr && chunk.jit->analysis != nullptr && chunk.jitEntryAt.size() == chunk.instructions.size()) {
+        background().submit({&chunk, &link, head, chunk.jit->analysisOwner, chunk.jit->analysis});
+        return;
+    }
+#endif
+    tierUp(chunk, link, head);
+}
+
+void installFinished() {
+#if defined(JIT_BACKGROUND_COMPILE)
+    background().install();
+#endif
+}
+
+void shutdownBackground() {
+#if defined(JIT_BACKGROUND_COMPILE)
+    background().stop();
+#endif
+}
+
 Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId, Timer &sliceTimer, bool &sliceTimerStarted) {
     Context ctx;
     ctx.thread = &thread;
     ctx.chunk = &chunk;
+    installFinished();
     const uint32_t codeIndex = entryId >> 24;
     const BytecodeJitCode *selected = codeIndex == 0 ? chunk.jit.get() : chunk.jitRegions[codeIndex - 1].get();
     entryId &= 0xffffff;

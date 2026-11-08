@@ -150,7 +150,7 @@ bool Emitter::emit() {
     code_.slotVariables = code_.slotValues + maxValues_;
     if (code_.slotVariables + code_.promoted.size() > maxSlots) return giveUp("frame too large: " + std::to_string(code_.slotVariables + code_.promoted.size()) + " slots");
 
-    c_ = lir::createCompiler();
+    c_ = lir::createCompiler(ops_);
     if (c_ == nullptr) return false;
 
     lir::emitEnter(c_, LIR_ARGS2(W, P, W), 5, 6, firstPin + maxPins + 1, 0);
@@ -323,9 +323,10 @@ bool Emitter::emit() {
         c_ = nullptr;
         return false;
     }
+    code_.ops = &ops_;
     code_.fn = reinterpret_cast<lir::Word (*)(Context *, lir::Word)>(code_.machine);
     for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
-        code_.entryTable[i] = reinterpret_cast<void *>(lir::labelAddress(c_->entryLabels[i]));
+        code_.entryTable[i] = ops_.labelAddress != nullptr ? reinterpret_cast<void *>(ops_.labelAddress(c_->entryLabels[i])) : nullptr;
     }
     lir::freeCompiler(c_);
     c_ = nullptr;

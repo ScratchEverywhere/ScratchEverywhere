@@ -162,7 +162,7 @@ double LIR_FUNC jitRepeatRound(double counter);
 BytecodeJitLir::Word LIR_FUNC jitCompareUnordered(double a, double b, BytecodeJitLir::Word kind);
 double LIR_FUNC jitMathOp(double value, BytecodeJitLir::Word op);
 double LIR_FUNC jitRandomInt(double a, double b);
-BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx);
+BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx, BytecodeJitLir::Word target);
 
 void LIR_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op);
 void LIR_FUNC jitListReplaceAny(Context *ctx, const ListOpDescriptor *op);

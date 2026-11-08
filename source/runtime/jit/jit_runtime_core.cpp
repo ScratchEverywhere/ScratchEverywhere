@@ -690,7 +690,32 @@ double LIR_FUNC jitRandomInt(double a, double b) {
     return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1.0 - from)));
 }
 
-BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx) {
+BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx, BytecodeJitLir::Word target) {
+    static const long hotPolls = [] {
+        const char *value = std::getenv("SE_JIT_TIERUP");
+        return value != nullptr ? std::atol(value) : 0L;
+    }();
+    bool switchCode = false;
+    if (hotPolls > 0) BytecodeJit::installFinished();
+    if (hotPolls > 0 && ctx->chunk != nullptr && ctx->code == ctx->chunk->jit.get() && target >= 0 && static_cast<size_t>(target) < ctx->chunk->instructions.size()) {
+        const BytecodeIndex head = static_cast<BytecodeIndex>(target);
+        const auto ready = [&] { return head < ctx->chunk->jitEntryAt.size() && (ctx->chunk->jitEntryAt[head] >> 24) != 0; };
+        if (ready()) {
+            switchCode = true;
+        } else {
+            const Code &baseline = *ctx->code;
+            if (baseline.loopHeat.size() != ctx->chunk->instructions.size()) {
+                baseline.loopHeat.assign(ctx->chunk->instructions.size(), 0);
+                baseline.loopTried.assign(ctx->chunk->instructions.size(), 0);
+            }
+            if (baseline.loopHeat[head] < 0xffff) baseline.loopHeat[head]++;
+            if (baseline.loopHeat[head] >= hotPolls && !baseline.loopTried[head] && ctx->thread->link != nullptr) {
+                baseline.loopTried[head] = 1;
+                BytecodeJit::requestTierUp(*ctx->chunk, *ctx->thread->link, head);
+                switchCode = ready();
+            }
+        }
+    }
     static const bool checkNaN = std::getenv("SE_JIT_CHECKNAN") != nullptr;
     if (checkNaN) {
         for (uint32_t k = 0; k < ctx->code->promoted.size(); k++) {
@@ -706,13 +731,15 @@ BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx) {
         static long polls = 0;
         if (++polls % every == 0) return 1;
     }
-    if (!(Scratch::warpTimer && ctx->thread->withoutScreenRefresh)) return 0;
-    if (!*ctx->timerStarted) {
-        ctx->timer->start();
-        *ctx->timerStarted = true;
-        return 0;
+    if (Scratch::warpTimer && ctx->thread->withoutScreenRefresh) {
+        if (!*ctx->timerStarted) {
+            ctx->timer->start();
+            *ctx->timerStarted = true;
+        } else if (ctx->timer->getTimeMs() > 500) {
+            return 1;
+        }
     }
-    return ctx->timer->getTimeMs() > 500 ? 1 : 0;
+    return switchCode ? 2 : 0;
 }
 
 } // namespace BytecodeJitInternal::Runtime

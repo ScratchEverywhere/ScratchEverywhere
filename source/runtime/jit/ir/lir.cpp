@@ -5,10 +5,68 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <thread.hpp>
 
 namespace BytecodeJitLir {
 
-Builder *createCompiler() { return new Builder(); }
+namespace {
+
+SE_Mutex &codegenMutex() {
+    static SE_Mutex mutex;
+    return mutex;
+}
+
+struct CodegenLock {
+    CodegenLock() { codegenMutex().lock(); }
+    ~CodegenLock() { codegenMutex().unlock(); }
+};
+
+} // namespace
+
+void freeMachine(const BackendOps &ops, void *machine) {
+    if (ops.needsLock) {
+        CodegenLock lock;
+        ops.freeMachine(machine);
+    } else {
+        ops.freeMachine(machine);
+    }
+}
+
+const BackendOps &baselineOps() {
+#if defined(JIT_BACKEND_SLJIT)
+    return sljitOps;
+#elif defined(JIT_BACKEND_ASMJIT)
+    return asmjitOps;
+#else
+    return llvmOps;
+#endif
+}
+
+const BackendOps *optimizingOps() {
+#if defined(JIT_OPT_BACKEND_SLJIT) || defined(JIT_OPT_BACKEND_ASMJIT) || defined(JIT_OPT_BACKEND_LLVM)
+    static const BackendOps *ops = [] () -> const BackendOps * {
+        const char *off = std::getenv("SE_JIT_OPT");
+        if (off != nullptr && std::string(off) == "0") return nullptr;
+#if defined(JIT_OPT_BACKEND_SLJIT)
+        const BackendOps &candidate = sljitOps;
+#elif defined(JIT_OPT_BACKEND_ASMJIT)
+        const BackendOps &candidate = asmjitOps;
+#else
+        const BackendOps &candidate = llvmOps;
+#endif
+        return candidate.usable() ? &candidate : nullptr;
+    }();
+    return ops;
+#else
+    return nullptr;
+#endif
+}
+
+Builder *createCompiler(const BackendOps &ops) {
+    Builder *b = new Builder();
+    b->ops = &ops;
+    return b;
+}
 
 Mark mark(const Builder *b) { return {b->code.size(), b->jumps.size(), b->labels.size()}; }
 
@@ -20,13 +78,19 @@ void rewind(Builder *b, const Mark &to) {
 
 void freeCompiler(Builder *b) {
     if (b == nullptr) return;
-    backendRelease(*b);
+    b->ops->release(*b);
     delete b;
 }
 
 void *generateCode(Builder *b) {
     optimize(*b);
-    void *machine = backendGenerate(*b);
+    void *machine;
+    if (b->ops->needsLock) {
+        CodegenLock lock;
+        machine = b->ops->generate(*b);
+    } else {
+        machine = b->ops->generate(*b);
+    }
     b->machine = machine;
     if (const char *dump = std::getenv("SE_LIR_DUMP"); dump != nullptr && machine != nullptr) {
         static int index = 0;

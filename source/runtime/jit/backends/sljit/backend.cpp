@@ -4,6 +4,10 @@
 
 #include <sljitLir.h>
 
+namespace BytecodeJitInternal {
+bool sljitProbe();
+}
+
 namespace BytecodeJitLir {
 
 namespace {
@@ -173,7 +177,7 @@ sljit_s32 signature(Sig s) {
 
 } // namespace
 
-void *backendGenerate(Builder &b) {
+void *sljitGenerate(Builder &b) {
     sljit_compiler *c = sljit_create_compiler(nullptr);
     if (c == nullptr) return nullptr;
     b.backend = c;
@@ -237,14 +241,18 @@ void *backendGenerate(Builder &b) {
     return machine;
 }
 
-void freeMachine(void *machine) { sljit_free_code(machine, nullptr); }
+void sljitFreeMachine(void *machine) { sljit_free_code(machine, nullptr); }
 
-void backendRelease(Builder &b) {
+void sljitRelease(Builder &b) {
     if (b.backend != nullptr) sljit_free_compiler(static_cast<sljit_compiler *>(b.backend));
     b.backend = nullptr;
 }
 
-UWord labelAddress(Label *label) { return sljit_get_label_addr(static_cast<sljit_label *>(label->real)); }
+UWord sljitLabelAddress(Label *label) { return sljit_get_label_addr(static_cast<sljit_label *>(label->real)); }
+
+bool sljitUsable() { return BytecodeJitInternal::sljitProbe(); }
+
+const BackendOps sljitOps = {"sljit", &sljitUsable, &sljitGenerate, &sljitRelease, &sljitFreeMachine, &sljitLabelAddress, true};
 
 } // namespace BytecodeJitLir
 

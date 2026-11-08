@@ -77,8 +77,8 @@ struct InlineInstance {
 
 class Emitter {
   public:
-    Emitter(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, Planner &planner, Code &code)
-        : chunk_(chunk), link_(link), analysis_(analysis), plan_(planner), code_(code) {}
+    Emitter(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysis &analysis, Planner &planner, Code &code, const lir::BackendOps &ops)
+        : chunk_(chunk), link_(link), analysis_(analysis), plan_(planner), code_(code), ops_(ops) {}
 
     bool emit();
 
@@ -93,6 +93,7 @@ class Emitter {
     BytecodeAnalysis &analysis_;
     Planner &plan_;
     Code &code_;
+    const lir::BackendOps &ops_;
 
     lir::Builder *c_ = nullptr;
     std::vector<lir::Label *> blockLabels_;

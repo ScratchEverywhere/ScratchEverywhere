@@ -4,6 +4,7 @@
 
 #include "lir.hpp"
 #include <cstdio>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
@@ -30,7 +31,7 @@ namespace {
 struct Engine {
     std::unique_ptr<llvm::orc::LLJIT> jit;
     std::unique_ptr<llvm::TargetMachine> machine;
-    unsigned counter = 0;
+    std::atomic<unsigned> counter{0};
 };
 
 Engine *engine() {
@@ -684,7 +685,7 @@ class Translator {
 
 } // namespace
 
-void *backendGenerate(Builder &b) {
+void *llvmGenerate(Builder &b) {
     Engine *e = engine();
     if (e == nullptr) return nullptr;
     static const size_t maxInstructions = [] {
@@ -751,11 +752,13 @@ void *backendGenerate(Builder &b) {
     return symbol->toPtr<void *>();
 }
 
-void backendRelease(Builder &) {}
+void llvmRelease(Builder &) {}
 
-void freeMachine(void *) {}
+void llvmFreeMachine(void *) {}
 
-UWord labelAddress(Label *) { return 0; }
+bool llvmUsable() { return engine() != nullptr; }
+
+const BackendOps llvmOps = {"llvm", &llvmUsable, &llvmGenerate, &llvmRelease, &llvmFreeMachine, nullptr, false};
 
 } // namespace BytecodeJitLir
 

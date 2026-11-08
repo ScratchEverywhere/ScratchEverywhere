@@ -791,7 +791,7 @@ struct Result {
 
 } // namespace
 
-void *backendGenerate(Builder &b) {
+void *asmjitGenerate(Builder &b) {
     asmjit::CodeHolder code;
     code.init(runtime().environment(), runtime().cpu_features());
     asmjit::x86::Assembler a(&code);
@@ -807,11 +807,15 @@ void *backendGenerate(Builder &b) {
     return fn;
 }
 
-void backendRelease(Builder &) {}
+void asmjitRelease(Builder &) {}
 
-void freeMachine(void *machine) { runtime().release(machine); }
+void asmjitFreeMachine(void *machine) { runtime().release(machine); }
 
-UWord labelAddress(Label *label) { return reinterpret_cast<UWord>(label->real); }
+UWord asmjitLabelAddress(Label *label) { return reinterpret_cast<UWord>(label->real); }
+
+bool asmjitUsable() { return true; }
+
+const BackendOps asmjitOps = {"asmjit", &asmjitUsable, &asmjitGenerate, &asmjitRelease, &asmjitFreeMachine, &asmjitLabelAddress, false};
 
 } // namespace BytecodeJitLir
 

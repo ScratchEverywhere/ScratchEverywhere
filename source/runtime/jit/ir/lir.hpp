@@ -11,6 +11,7 @@
 namespace BytecodeJitLir {
 
 class Builder;
+struct BackendOps;
 
 struct Jump {
     void *real = nullptr;
@@ -62,6 +63,7 @@ class Builder {
     size_t machineSize = 0;
     void *backend = nullptr;
     std::vector<Label *> entryLabels;
+    const BackendOps *ops = nullptr;
 };
 
 struct Mark {
@@ -70,10 +72,24 @@ struct Mark {
 Mark mark(const Builder *b);
 void rewind(Builder *b, const Mark &to);
 
-Builder *createCompiler();
+struct BackendOps {
+    const char *name;
+    bool (*usable)();
+    void *(*generate)(Builder &b);
+    void (*release)(Builder &b);
+    void (*freeMachine)(void *machine);
+    UWord (*labelAddress)(Label *label);
+    bool needsLock;
+};
+extern const BackendOps sljitOps, asmjitOps, llvmOps;
+
+const BackendOps &baselineOps();
+const BackendOps *optimizingOps();
+
+Builder *createCompiler(const BackendOps &ops);
 void freeCompiler(Builder *b);
 void *generateCode(Builder *b);
-UWord labelAddress(Label *label);
+void freeMachine(const BackendOps &ops, void *machine);
 
 Int emitEnter(Builder *b, Sig sig, Int scratchRegisters, Int savedRegisters, Int floatRegisters, Int localSize);
 Int emitReturn(Builder *b, Op op, Opnd src, Word srcw);
@@ -94,9 +110,6 @@ Label *emitLabel(Builder *b);
 void setLabel(Jump *jump, Label *label);
 
 void optimize(Builder &b);
-void *backendGenerate(Builder &b);
-void backendRelease(Builder &b);
-void freeMachine(void *machine);
 
 } // namespace BytecodeJitLir
 

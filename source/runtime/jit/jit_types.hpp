@@ -224,6 +224,11 @@ struct alignas(64) Context {
 
 struct Code {
     void *machine = nullptr;
+    const BytecodeJitLir::BackendOps *ops = nullptr;
+    BytecodeAnalysis *analysis = nullptr;
+    std::shared_ptr<void> analysisOwner;
+    mutable std::vector<uint16_t> loopHeat;
+    mutable std::vector<uint8_t> loopTried;
     BytecodeJitLir::Word (*fn)(Context *, BytecodeJitLir::Word) = nullptr;
 
     std::vector<EntryDescriptor> entries;
@@ -247,7 +252,7 @@ struct Code {
     uint32_t slotVariables = 0;
 
     ~Code() {
-        if (machine != nullptr) BytecodeJitLir::freeMachine(machine);
+        if (machine != nullptr && ops != nullptr) BytecodeJitLir::freeMachine(*ops, machine);
     }
 };
 
