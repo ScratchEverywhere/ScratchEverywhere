@@ -103,7 +103,10 @@ Value typedNumberValue(double number) { return Value::stringTypedNumber(number);
 Value materializeVariableSlow(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
-    if (kind == 0) return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
+    if (kind == 0) {
+        if (ctx->numericTagged[k]) return typedNumberValue(ctx->slots[code.slotVariables + k]);
+        return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
+    }
     if (kind == 3) return shadowValues[k];
     if (kind == 4) return Value(stringVariables[k]);
     return ctx->chunk->constants[kind - 5];
