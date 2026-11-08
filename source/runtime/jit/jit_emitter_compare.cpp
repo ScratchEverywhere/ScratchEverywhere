@@ -419,6 +419,8 @@ bool Emitter::guardable(const AbsValue &entry, const Code &code, const BytecodeC
         return true;
     case ValueEntry::VarValue:
         return entry.constant < code.promoted.size();
+    case ValueEntry::Argument:
+        return entry.constant < Runtime::maxTypedArguments;
     case ValueEntry::Constant: {
         if (entry.constant >= chunk.constants.size()) return false;
         const Value &constant = chunk.constants[entry.constant];
@@ -567,6 +569,23 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
         lir::Label *usable = lir::emitLabel(c_);
         lir::setLabel(plain, usable);
         lir::setLabel(tagged, usable);
+        return true;
+    }
+    case ValueEntry::Argument: {
+        if (entry.constant >= Runtime::maxTypedArguments) return false;
+        const auto field = [](size_t offset) { return static_cast<lir::Word>(offset); };
+        const auto load32 = [&](lir::Int reg, size_t offset) { lir::emitOp1(c_, lir::MOV_U32, reg, 0, lir::MEM1(lir::S0), field(offset)); };
+        load32(lir::R2, offsetof(Context, lazyDepth));
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
+        load32(lir::R0, offsetof(Context, nativeDepth));
+        lir::emitOp2(c_, lir::SUB, lir::R0, 0, lir::R0, 0, lir::IMM, 1);
+        lir::emitOp2(c_, lir::SHL, lir::R0, 0, lir::R0, 0, lir::IMM, 5);
+        lir::emitOp2(c_, lir::ADD, lir::R0, 0, lir::R0, 0, lir::IMM, reinterpret_cast<lir::Word>(Runtime::frames));
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::MEM1(lir::R0), field(offsetof(Runtime::NativeFrame, call)));
+        lir::emitOp1(c_, lir::MOV_U32, lir::R2, 0, lir::MEM1(lir::R1), field(offsetof(CallDescriptor, argNumbers)));
+        lir::emitOp2(c_, lir::LSHR, lir::R2, 0, lir::R2, 0, lir::IMM, entry.constant);
+        lir::emitOp2(c_, lir::AND, lir::R2, 0, lir::R2, 0, lir::IMM, 1);
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
         return true;
     }
     default:

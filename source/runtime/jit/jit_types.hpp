@@ -172,7 +172,7 @@ struct CallDescriptor {
     mutable bool resultNumber = true;
     mutable uint8_t fast = 0;
     bool nativeChecks = false;
-    uint32_t argInvalid = 0, argFromFrame = 0, argConstTyped = 0;
+    uint32_t argInvalid = 0, argFromFrame = 0, argConstTyped = 0, argNumbers = 0;
 };
 
 struct ReturnDescriptor {
