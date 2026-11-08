@@ -28,7 +28,7 @@ void Emitter::prepareHir() {
         const BytecodeOp op = chunk_.instructions[pc].op;
         if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue) blockStarts.push_back(pc + 1);
     }
-    hir_ = BytecodeJitIR::build(chunk_, link_, analysis_, blockStarts);
+    hir_ = BytecodeJitIR::build(chunk_, link_, analysis_, blockStarts, std::getenv("SE_JIT_FRAMEEXIT") != nullptr);
     BytecodeJitIR::computeFacts(hir_.function, chunk_);
     if (const char *check = std::getenv("SE_JIT_IR"); check != nullptr && std::string(check) != "0") {
         const std::vector<std::string> problems = BytecodeJitIR::verify(hir_.function);
@@ -180,16 +180,31 @@ bool Emitter::emit() {
     lir::emitIJump(c_, lir::JUMP, lir::MEM2(lir::R1, lir::S1), lir::WORD_SHIFT);
 
     findRegions();
+    surveyLowering();
 
     blockLabels_.assign(hir_.function.blocks.size(), nullptr);
     fused_.assign(count, false);
     condLeaf_.assign(count, 0);
     buildConditions();
+    static const bool forceFrameExits = [] {
+        const char *value = std::getenv("SE_JIT_FRAMEEXIT");
+        return value != nullptr && std::atol(value) >= 3;
+    }();
+    static const long onlyFrameExitPc = [] {
+        const char *value = std::getenv("SE_JIT_FRAMEEXIT_ONLY");
+        return value != nullptr ? std::atol(value) : -1L;
+    }();
     bool havePrevious = false;
     BytecodeIndex previous = 0;
     for (BytecodeJitIR::BlockId blockId = 0; blockId < hir_.function.blocks.size(); blockId++) {
         const BytecodeJitIR::Block &block = hir_.function.blocks[blockId];
         if (!block.reachable) continue;
+        if (blockId < lowerSkip_.size() && lowerSkip_[blockId]) continue;
+        if (lowerBlock(blockId)) {
+            lowered_++;
+            havePrevious = false;
+            continue;
+        }
         for (BytecodeIndex pc = block.startPc; pc < block.endPc && pc < count; pc++) {
             const bool compiled = plan_.supported[pc] != 0;
             if (!compiled && !plan_.needsExit[pc]) continue;
@@ -208,6 +223,7 @@ bool Emitter::emit() {
             previous = pc;
 
             if (compiled) {
+                if (forceFrameExits && !fused_[pc] && pc == block.startPc && conditions_.find(pc) == conditions_.end() && (onlyFrameExitPc < 0 || onlyFrameExitPc == static_cast<long>(pc))) testFrameExit(pc, true);
                 if (!fused_[pc]) {
                     if (const auto found = conditions_.find(pc); found != conditions_.end()) emitCondition(found->second, pc);
                     else emitInstruction(pc);
@@ -216,7 +232,7 @@ bool Emitter::emit() {
                 if (op == BytecodeOp::CallProcedure || op == BytecodeOp::CallProcedureValue || op == BytecodeOp::Return || op == BytecodeOp::Halt) havePrevious = false;
                 if (active_ != nullptr && pc == active_->tail && op != BytecodeOp::Jump) emitSpill(liveNumbersAt(pc + 1));
             } else {
-                emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), state_);
+                if (!testFrameExit(pc)) emitExitAt(pc, static_cast<uint32_t>(BytecodeJit::Result::Interpret), state_);
                 havePrevious = false;
             }
         }
@@ -277,11 +293,21 @@ bool Emitter::emit() {
         if (pc >= count || regionOf_[pc] < 0 || pc == regions_[regionOf_[pc]].head) continue;
         active_ = &regions_[regionOf_[pc]];
         entryLabels[i] = lir::emitLabel(c_);
+        active_ = nullptr;
+        emitEntryCounterNormalization(pc);
+        active_ = &regions_[regionOf_[pc]];
         emitReload();
         emitHoistLoad();
         lir::setLabel(lir::emitJump(c_, lir::JUMP), blockLabels_[blockStartingAt(pc)]);
     }
     active_ = nullptr;
+    for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
+        const BytecodeIndex pc = plan_.entryPcs[i];
+        if (entryLabels[i] != nullptr || pc >= count || !entryOnlyRepeatAt(pc)) continue;
+        entryLabels[i] = lir::emitLabel(c_);
+        emitEntryCounterNormalization(pc);
+        lir::setLabel(lir::emitJump(c_, lir::JUMP), blockLabels_[blockStartingAt(pc)]);
+    }
     if (pinViolation_) {
         lir::freeCompiler(c_);
         c_ = nullptr;

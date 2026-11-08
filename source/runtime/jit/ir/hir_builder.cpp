@@ -388,7 +388,7 @@ Op classify(const BytecodeChunk &chunk, const BytecodeInstruction &instr, uint8_
 
 class Builder {
   public:
-    Builder(const BytecodeChunk &chunk, const BytecodeAnalysis &analysis, BuildResult &out, const std::vector<BytecodeIndex> &extraStarts) : chunk_(chunk), analysis_(analysis), out_(out), f_(out.function), extraStart_(chunk.instructions.size() + 1, 0) {
+    Builder(const BytecodeChunk &chunk, const BytecodeAnalysis &analysis, BuildResult &out, const std::vector<BytecodeIndex> &extraStarts, bool recordFrames) : chunk_(chunk), analysis_(analysis), out_(out), f_(out.function), extraStart_(chunk.instructions.size() + 1, 0), recordFrames_(recordFrames) {
         out_.stats.byBytecode.assign(static_cast<size_t>(BytecodeOp::Halt) + 1, 0);
         for (const BytecodeIndex pc : extraStarts)
             if (pc < extraStart_.size()) extraStart_[pc] = 1;
@@ -446,6 +446,7 @@ class Builder {
     Function &f_;
     std::vector<BlockId> blockOf_;
     std::vector<uint8_t> extraStart_;
+    bool recordFrames_ = false;
     BlockId current_ = 0;
 
     void error(const std::string &message) { out_.errors.push_back(message); }
@@ -480,6 +481,14 @@ class Builder {
         return edge;
     }
 
+    static std::vector<ValueId> snapshot(Stacks &stacks) {
+        std::vector<ValueId> frame;
+        for (const K kind : parameterOrder)
+            for (const ValueId value : stacks.of(kind))
+                frame.push_back(value);
+        return frame;
+    }
+
     bool pop(Stacks &stacks, K kind, ValueId &out) {
         std::vector<ValueId> &stack = stacks.of(kind);
         if (stack.empty()) return false;
@@ -511,11 +520,16 @@ class Builder {
             const BytecodeInstruction &instr = chunk_.instructions[pc];
             out_.stats.instructions++;
             const bool last = pc + 1 == block.endPc;
+            std::vector<ValueId> frame;
+            if (recordFrames_) frame = snapshot(stacks);
             if (lowerStructural(block, stacks, instr, pc)) {
+                if (!block.instrs.empty() && block.instrs.back().pc == pc && block.instrs.back().frame.empty()) block.instrs.back().frame = frame;
+                block.termFrame = std::move(frame);
                 out_.stats.structured++;
                 return;
             }
             Instr ir;
+            ir.frame = std::move(frame);
             ir.bc = instr.op;
             ir.a = instr.a == invalidBytecodeIndex ? 0 : instr.a;
             ir.b = instr.b == invalidBytecodeIndex ? 0 : instr.b;
@@ -702,9 +716,9 @@ class Builder {
 
 } // namespace
 
-BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts) {
+BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts, bool recordFrames) {
     BuildResult result;
-    Builder builder(chunk, analysis, result, extraBlockStarts);
+    Builder builder(chunk, analysis, result, extraBlockStarts, recordFrames);
     builder.run();
     return result;
 }

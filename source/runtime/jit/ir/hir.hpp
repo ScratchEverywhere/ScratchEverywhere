@@ -105,6 +105,7 @@ struct Instr {
     BytecodeIndex pc = 0;
     std::vector<ValueId> args;
     std::vector<ValueId> results;
+    std::vector<ValueId> frame;
 };
 
 struct Edge {
@@ -119,6 +120,7 @@ struct Block {
     Terminator term = Terminator::None;
     ValueId cond = noValue;
     Edge edges[2];
+    std::vector<ValueId> termFrame;
     bool reachable = false;
 };
 
@@ -157,7 +159,7 @@ struct BuildResult {
     std::vector<std::string> errors;
 };
 
-BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &link, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts = {});
+BuildResult build(const BytecodeChunk &chunk, const BytecodeLinkTable &link, const BytecodeAnalysis &analysis, const std::vector<BytecodeIndex> &extraBlockStarts = {}, bool recordFrames = false);
 
 std::vector<std::string> verify(const Function &function);
 

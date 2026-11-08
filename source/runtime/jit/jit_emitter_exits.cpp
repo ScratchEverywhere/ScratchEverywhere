@@ -73,6 +73,43 @@ void Emitter::emitExitAt(BytecodeIndex pc, uint32_t result, const AbsState &stat
     exitJumps_.push_back(lir::emitJump(c_, lir::JUMP));
 }
 
+bool Emitter::emitFrameExit(BytecodeIndex pc, uint32_t result, const std::vector<BytecodeJitIR::ValueId> &frame, const std::function<FrameLocation(BytecodeJitIR::ValueId)> &locate) {
+    AbsState state;
+    for (const BytecodeJitIR::ValueId id : frame) {
+        const BytecodeJitIR::Type type = hir_.function.values[id].type;
+        if (type == BytecodeJitIR::Type::Str || type == BytecodeJitIR::Type::Color) return false;
+    }
+    for (const BytecodeJitIR::ValueId id : frame) {
+        const FrameLocation where = locate(id);
+        switch (hir_.function.values[id].type) {
+        case BytecodeJitIR::Type::F64: {
+            const uint32_t slot = numberSlot(state.numbers++);
+            if (where.where == FrameLocation::FloatReg) storeF(slot, where.reg);
+            else if (where.where == FrameLocation::Immediate) storeImmF(slot, where.immediate);
+            break;
+        }
+        case BytecodeJitIR::Type::Bool: {
+            const uint32_t slot = booleanSlot(state.booleans++);
+            if (where.where == FrameLocation::WordReg) storeW(slot, where.reg);
+            else if (where.where == FrameLocation::Immediate) storeImmW(slot, where.immediate != 0.0 ? 1 : 0);
+            break;
+        }
+        default: {
+            const uint32_t slot = valueSlot(static_cast<uint32_t>(state.values.size()));
+            if (where.where == FrameLocation::FloatReg) storeF(slot, where.reg);
+            else if (where.where == FrameLocation::Immediate) storeImmF(slot, where.immediate);
+            AbsValue value;
+            value.kind = where.kind;
+            value.constant = where.reference;
+            state.values.push_back(value);
+            break;
+        }
+        }
+    }
+    emitExitAt(pc, result, state);
+    return true;
+}
+
 void Emitter::emitBackEdgeThenJump(BytecodeIndex target, const AbsState &stateAtTarget) {
     lir::emitOp2(c_, lir::SUB32 | lir::SET_Z, lir::S2, 0, lir::S2, 0, lir::IMM, 1);
     pendJump(lir::emitJump(c_, lir::NOT_ZERO), target);

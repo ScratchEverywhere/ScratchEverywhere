@@ -1,4 +1,5 @@
 #include "bytecode_jit.hpp"
+#include "bytecode_disassembler.hpp"
 
 #ifdef SE_JIT
 
@@ -106,7 +107,7 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
 
     if (const char *ir = std::getenv("SE_JIT_IR"); ir != nullptr && std::string(ir) != "0") {
         Timer irTimer;
-        BytecodeJitIR::BuildResult built = BytecodeJitIR::build(chunk, link, analysis);
+        BytecodeJitIR::BuildResult built = BytecodeJitIR::build(chunk, link, analysis, {}, true);
         const std::vector<std::string> problems = BytecodeJitIR::verify(built.function);
         Log::log(BytecodeJitIR::summary(built, problems) + "; " + std::to_string(irTimer.getTimeMsDouble()) + " ms");
         BytecodeJitIR::PassStats passes = BytecodeJitIR::runPasses(built.function, built.errors);
@@ -114,6 +115,48 @@ void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link) {
         Log::log("[ir]   passes: removed " + std::to_string(passes.removedInstructions) + " instructions in " + std::to_string(passes.rounds) + " round(s); verifier errors after passes " + std::to_string(afterPasses.size()) + "; " + std::to_string(irTimer.getTimeMsDouble()) + " ms total");
         for (size_t i = 0; i < afterPasses.size() && i < 5; i++)
             Log::log("[ir]   verify(after passes): " + afterPasses[i]);
+        {
+            uint32_t checked = 0, mismatched = 0;
+            const auto matches = [&](BytecodeIndex pc, const std::vector<BytecodeJitIR::ValueId> &frame) {
+                BytecodeAbstractState state;
+                if (!analysis.stateBefore(pc, state)) return true;
+                uint32_t counts[5] = {};
+                for (const BytecodeJitIR::ValueId value : frame) {
+                    switch (built.function.values[value].type) {
+                    case BytecodeJitIR::Type::F64:
+                        counts[0]++;
+                        break;
+                    case BytecodeJitIR::Type::Bool:
+                        counts[1]++;
+                        break;
+                    case BytecodeJitIR::Type::Str:
+                        counts[2]++;
+                        break;
+                    case BytecodeJitIR::Type::Color:
+                        counts[3]++;
+                        break;
+                    default:
+                        counts[4]++;
+                        break;
+                    }
+                }
+                return counts[0] == state.numbers && counts[1] == state.booleans && counts[2] == state.strings && counts[3] == state.colors && counts[4] == state.values.size();
+            };
+            for (const BytecodeJitIR::Block &block : built.function.blocks) {
+                if (!block.reachable) continue;
+                for (const BytecodeJitIR::Instr &instr : block.instrs) {
+                    checked++;
+                    if (!matches(instr.pc, instr.frame)) {
+                        if (mismatched++ < 6) Log::log("[ir]   frame mismatch at #" + std::to_string(instr.pc) + " op " + BytecodeDisassembler::opMnemonic(instr.bc) + " frame size " + std::to_string(instr.frame.size()));
+                    }
+                }
+                if (block.endPc > block.startPc && (block.instrs.empty() || block.instrs.back().pc + 1 != block.endPc)) {
+                    checked++;
+                    if (!matches(block.endPc - 1, block.termFrame)) mismatched++;
+                }
+            }
+            Log::log("[ir]   frame states: " + std::to_string(checked) + " checked, " + std::to_string(mismatched) + " disagree with the bytecode analysis");
+        }
         Log::log("[ir]   inlining survey: " + BytecodeJitIR::inlineCandidates(built.function, chunk));
         if (std::string(ir) == "dump") Log::log(BytecodeJitIR::print(built.function, &chunk));
     }

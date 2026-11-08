@@ -338,8 +338,12 @@ std::vector<std::string> verify(const Function &f) {
             const Instr &instr = block.instrs[i];
             for (ValueId arg : instr.args)
                 use(arg, id, static_cast<int>(i), "instruction");
+            for (ValueId value : instr.frame)
+                use(value, id, static_cast<int>(i), "frame state");
         }
         const int end = static_cast<int>(block.instrs.size());
+        for (ValueId value : block.termFrame)
+            use(value, id, end, "terminator frame state");
         if (block.term == Terminator::CondBr || block.term == Terminator::Ret) use(block.cond, id, end, "terminator");
         const int edges = block.term == Terminator::Br ? 1 : block.term == Terminator::CondBr ? 2
                                                                                               : 0;

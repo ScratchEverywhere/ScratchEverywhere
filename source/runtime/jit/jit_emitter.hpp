@@ -37,6 +37,18 @@ struct AbsValue {
     uint32_t constant = 0;
 };
 
+struct FrameLocation {
+    enum Where : uint8_t { Slot,
+                           FloatReg,
+                           WordReg,
+                           Immediate };
+    Where where = Slot;
+    lir::Int reg = 0;
+    double immediate = 0.0;
+    ValueEntry::Kind kind = ValueEntry::Number;
+    uint32_t reference = 0;
+};
+
 struct AbsState {
     uint32_t numbers = 0;
     uint32_t booleans = 0;
@@ -171,6 +183,22 @@ class Emitter {
         }
         return true;
     }
+
+    bool emitFrameExit(BytecodeIndex pc, uint32_t result, const std::vector<BytecodeJitIR::ValueId> &frame, const std::function<FrameLocation(BytecodeJitIR::ValueId)> &locate);
+    static long lowerLimit() {
+        static const long limit = [] {
+            const char *value = std::getenv("SE_JIT_LOWER");
+            return value != nullptr ? std::atol(value) : 1000000L;
+        }();
+        return limit;
+    }
+    bool lowerBlock(BytecodeJitIR::BlockId blockId);
+    void surveyLowering() const;
+    bool testFrameExit(BytecodeIndex pc, bool conditional = false);
+    uint32_t lowered_ = 0;
+    std::vector<uint8_t> lowerSkip_;
+
+    void emitEntryCounterNormalization(BytecodeIndex pc);
 
     bool entryOnlyRepeatAt(BytecodeIndex pc) const {
         static const bool disabled = std::getenv("SE_JIT_NOREPEATNORM") != nullptr;

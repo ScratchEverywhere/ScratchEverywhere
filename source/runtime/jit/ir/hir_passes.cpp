@@ -20,6 +20,11 @@ uint32_t eliminateDeadCode(Function &f) {
         for (const Instr &instr : block.instrs)
             for (const ValueId arg : instr.args)
                 use(arg);
+        for (const Instr &instr : block.instrs)
+            for (const ValueId value : instr.frame)
+                use(value);
+        for (const ValueId value : block.termFrame)
+            use(value);
         if (block.term == Terminator::CondBr || block.term == Terminator::Ret) use(block.cond);
         const int edges = block.term == Terminator::Br ? 1 : block.term == Terminator::CondBr ? 2
                                                                                               : 0;
@@ -41,6 +46,8 @@ uint32_t eliminateDeadCode(Function &f) {
             if (!dead) continue;
             for (const ValueId arg : instr.args)
                 uses[arg]--;
+            for (const ValueId value : instr.frame)
+                uses[value]--;
             block.instrs.erase(block.instrs.begin() + static_cast<std::ptrdiff_t>(i));
             removed++;
         }
