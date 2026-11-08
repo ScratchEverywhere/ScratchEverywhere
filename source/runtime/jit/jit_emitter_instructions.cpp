@@ -880,7 +880,6 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         const uint32_t counter = valueSlot(depth - 1), bound = valueSlot(depth - 2);
         const uint32_t k = promoted(instr.b);
         const lir::Int counterReg = readF(counter, lir::FR0);
-        nanToZero(counterReg);
         const lir::Int boundReg = readF(bound, lir::FR1);
         nanToZero(boundReg);
         AbsState exited = state_;
