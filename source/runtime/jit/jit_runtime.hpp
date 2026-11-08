@@ -91,6 +91,12 @@ inline double fromBits(int64_t bits) {
 Variable *resolveOrCreateVariable(BytecodeThread &thread, BytecodeIndex slot);
 double rawVariableNumber(const Variable *var);
 const ListLayout &listLayout();
+
+struct StringLayout {
+    bool ok = false;
+    BytecodeJitLir::Word pointer = 0, size = 0, capacity = 0, buffer = 0, smallCapacity = 0;
+};
+const StringLayout &stringLayout();
 Value materializeVariableSlow(Context *ctx, uint32_t k);
 Value materializeEntrySlow(Context *ctx, const ValueEntry &entry, uint32_t position);
 

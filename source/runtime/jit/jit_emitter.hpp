@@ -500,6 +500,8 @@ class Emitter {
         return op;
     }
 
+    bool emitInlineAppend(StringOp &op);
+
     void callStringOp(StringOp &op) {
         lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
         lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(&op));

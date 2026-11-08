@@ -736,6 +736,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         op.aPosition = static_cast<uint32_t>(state_.strings.size()) - 1;
         op.a = state_.strings.back();
         state_.strings.pop_back();
+        if (op.kind == StringOp::AppendVariable && emitInlineAppend(op)) return;
         callStringOp(op);
         return;
     }

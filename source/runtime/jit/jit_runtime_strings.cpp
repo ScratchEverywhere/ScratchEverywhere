@@ -5,6 +5,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode.hpp"
 #include "conversions.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "math.hpp"
@@ -18,13 +19,39 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include "ir/lir_caps.hpp"
 #include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
 
 namespace BytecodeJitInternal::Runtime {
+
+const StringLayout &stringLayout() {
+    static const StringLayout layout = [] {
+        StringLayout found;
+        if (sizeof(std::string) != 32 || sizeof(void *) != 8) return found;
+        const std::string small("abc");
+        std::string large(100, 'x');
+        large.reserve(200);
+        const auto word = [](const void *object, size_t offset) {
+            size_t value;
+            std::memcpy(&value, static_cast<const char *>(object) + offset, sizeof value);
+            return value;
+        };
+        const char *base = reinterpret_cast<const char *>(&small);
+        const bool smallOk = word(&small, 0) == reinterpret_cast<size_t>(small.data()) && reinterpret_cast<const char *>(word(&small, 0)) == base + 16 && word(&small, 8) == small.size() && small.capacity() == 15;
+        const bool largeOk = word(&large, 0) == reinterpret_cast<size_t>(large.data()) && word(&large, 8) == large.size() && word(&large, 16) == large.capacity() && large.capacity() > 15;
+        if (!smallOk || !largeOk) return found;
+        found.pointer = 0;
+        found.size = 8;
+        found.capacity = 16;
+        found.buffer = 16;
+        found.smallCapacity = 15;
+        found.ok = true;
+        return found;
+    }();
+    return layout;
+}
 
 void refreshStringChar(uint32_t k) {
     const std::string &text = stringVariables[k];
