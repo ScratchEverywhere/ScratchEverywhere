@@ -501,6 +501,7 @@ class Emitter {
     }
 
     bool emitInlineAppend(StringOp &op);
+    bool emitInlineLetterEquals(StringOp &letter, BytecodeIndex pc);
 
     void callStringOp(StringOp &op) {
         lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);

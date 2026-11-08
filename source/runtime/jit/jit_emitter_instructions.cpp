@@ -803,6 +803,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         op.numberIn = numberSlot(state_.numbers - 1);
         op.outPosition = static_cast<uint32_t>(state_.strings.size());
         state_.numbers--;
+        if (emitInlineLetterEquals(op, pc)) return;
         callStringOp(op);
         StrEntry entry;
         entry.kind = StrEntry::Temp;

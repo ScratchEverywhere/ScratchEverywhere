@@ -60,6 +60,66 @@ bool Emitter::emitInlineAppend(StringOp &op) {
     return true;
 }
 
+bool Emitter::emitInlineLetterEquals(StringOp &letter, BytecodeIndex pc) {
+    const Runtime::StringLayout &layout = Runtime::stringLayout();
+    if (!wide || !layout.ok || pc + 2 >= chunk_.instructions.size() || letter.variable >= maxPromoted) return false;
+    const BytecodeInstruction &push = chunk_.instructions[pc + 1];
+    const BytecodeInstruction &compare = chunk_.instructions[pc + 2];
+    if (push.op != BytecodeOp::PushConstString || compare.op != BytecodeOp::StrEquals || fused_[pc + 1] || fused_[pc + 2]) return false;
+    if (!plan_.supported[pc + 1] || !plan_.supported[pc + 2] || analysis_.isBlockStart(pc + 1) || analysis_.isBlockStart(pc + 2) || plan_.entryOf[pc + 1] >= 0 || plan_.entryOf[pc + 2] >= 0) return false;
+    if (push.a >= chunk_.stringConstants.size()) return false;
+    const std::string &text = chunk_.stringConstants[push.a];
+    if (text.size() != 1) return false;
+    const unsigned char c = static_cast<unsigned char>(text[0]);
+    if (c <= 0x20 || c >= 0x7F || (c >= '0' && c <= '9') || c == '.') return false;
+    const bool isLetter = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+    const lir::Word literal = isLetter ? (c | 0x20) : c;
+
+    const uint32_t k = letter.variable;
+    const uint32_t out = booleanSlot(state_.booleans);
+    StringOp &replay = newStringOp(StringOp::Compare);
+    replay.compare = BytecodeCompareKind::Equals;
+    replay.a.kind = StrEntry::Temp;
+    replay.aPosition = letter.outPosition;
+    replay.b.kind = StrEntry::Const;
+    replay.b.constant = push.a;
+    replay.bPosition = letter.outPosition + 1;
+    replay.numberOut = out;
+
+    std::vector<lir::Jump *> slow;
+    slow.push_back(lir::emitCmp(c_, lir::NOT_EQUAL, lir::MEM1(lir::S0), dirtyOffset(k), lir::IMM, 4));
+    lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, reinterpret_cast<lir::Word>(&Runtime::stringAscii[k]));
+    lir::emitOp1(c_, lir::MOV_U8, lir::R1, 0, lir::MEM1(lir::R0), 0);
+    slow.push_back(lir::emitCmp(c_, lir::NOT_EQUAL, lir::R1, 0, lir::IMM, 1));
+    lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, reinterpret_cast<lir::Word>(&Runtime::stringVariables[k]));
+    lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::MEM1(lir::R0), layout.size);
+    lir::emitOp1(c_, lir::MOV, lir::R2, 0, lir::MEM1(lir::R0), layout.pointer);
+    loadF(lir::FR0, letter.numberIn);
+    lir::emitFOp1(c_, lir::CONV_SW_FROM_F64, lir::R3, 0, lir::FR0, 0);
+    lir::emitOp2(c_, lir::SUB, lir::R3, 0, lir::R3, 0, lir::IMM, 1);
+    slow.push_back(lir::emitCmp(c_, lir::GREATER_EQUAL, lir::R3, 0, lir::R1, 0));
+    lir::emitOp1(c_, lir::MOV_U8, lir::R4, 0, lir::MEM2(lir::R2, lir::R3), 0);
+    if (isLetter) lir::emitOp2(c_, lir::OR, lir::R4, 0, lir::R4, 0, lir::IMM, 0x20);
+    lir::emitOp2U(c_, lir::SUB | lir::SET_Z, lir::R4, 0, lir::IMM, literal);
+    storeFlag(out, lir::EQUAL);
+    lir::Label *done = lir::emitLabel(c_);
+
+    addCold([this, slow, done, &letter, &replay]() {
+        lir::Label *here = lir::emitLabel(c_);
+        for (lir::Jump *jump : slow)
+            lir::setLabel(jump, here);
+        callStringOp(letter);
+        callStringOp(replay);
+        lir::setLabel(lir::emitJump(c_, lir::JUMP), done);
+    });
+
+    fused_[pc + 1] = true;
+    fused_[pc + 2] = true;
+    state_.booleans++;
+    maxBooleans_ = std::max(maxBooleans_, state_.booleans);
+    return true;
+}
+
 } // namespace BytecodeJitInternal
 
 #endif
