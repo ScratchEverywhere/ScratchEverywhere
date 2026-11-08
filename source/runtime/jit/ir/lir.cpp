@@ -25,6 +25,7 @@ void freeCompiler(Builder *b) {
 }
 
 void *generateCode(Builder *b) {
+    optimize(*b);
     void *machine = backendGenerate(*b);
     b->machine = machine;
     if (const char *dump = std::getenv("SE_LIR_DUMP"); dump != nullptr && machine != nullptr) {

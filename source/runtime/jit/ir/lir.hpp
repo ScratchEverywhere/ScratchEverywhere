@@ -93,6 +93,7 @@ Jump *emitFCmp(Builder *b, Cond type, Opnd src1, Word src1w, Opnd src2, Word src
 Label *emitLabel(Builder *b);
 void setLabel(Jump *jump, Label *label);
 
+void optimize(Builder &b);
 void *backendGenerate(Builder &b);
 void backendRelease(Builder &b);
 void freeMachine(void *machine);
