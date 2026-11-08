@@ -215,6 +215,7 @@ void InputDevice_SDL3::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
+        Input::clampMouseToStage();
         Input::mousePointer.isPressed = touchActive;
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
 
@@ -233,6 +234,7 @@ void InputDevice_SDL3::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     Input::mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;

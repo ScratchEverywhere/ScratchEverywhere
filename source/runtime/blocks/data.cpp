@@ -47,12 +47,25 @@ bool isSideEffectFreeStringExpr(const ParsedInput *input) {
         if (inner == nullptr) return true;
         const std::string &opcode = inner->opcode;
         if (opcode == "argument_reporter_string_number" || opcode == "argument_reporter_boolean") return true;
+        if (opcode == "data_variable" || opcode == "data_itemoflist" || opcode == "data_itemnumoflist" || opcode == "data_listcontents") return true;
         if (opcode == "operator_join") {
             return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING1")) &&
                    isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING2"));
         }
-        if (opcode == "operator_length") {
+        if (opcode == "operator_length" || opcode == "operator_letter_of") {
             return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING"));
+        }
+        if (opcode == "operator_random") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "FROM")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "TO"));
+        }
+        if (opcode == "operator_add" || opcode == "operator_subtract" || opcode == "operator_multiply" || opcode == "operator_divide" ||
+            opcode == "operator_mod" || opcode == "operator_mathop") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM1")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM2"));
+        }
+        if (opcode == "operator_round") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM"));
         }
         return false;
     }
@@ -500,17 +513,25 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
         int i = 0;
 
         for (const auto &item : *items) {
-            if (!(item.isStringTyped() && Math::utf16Length(item.get<std::string>()) == 1)) {
+            if (!(item.isStringTyped() && item.utf16Length() == 1)) {
                 allSingle = false;
             }
         }
 
         for (const auto &item : *items) {
             if (allSingle) {
-                ret += item.asString();
+                if (const auto *ref = item.tryGetStringRef()) {
+                    ret += *ref;
+                } else {
+                    ret += item.asString();
+                }
             } else {
                 if (i > 0) ret += " ";
-                ret += item.asString();
+                if (const auto *ref = item.tryGetStringRef()) {
+                    ret += *ref;
+                } else {
+                    ret += item.asString();
+                }
             }
 
             i++;

@@ -472,7 +472,8 @@ void Mixer::initMusic() {
     size_t size;
 
 #ifdef USE_BUNDLE
-    if (auto entry = Bundle::assets().find(path)) {
+    const auto assets = Bundle::assets();
+    if (auto entry = assets.find(path)) {
         size = entry->size();
         Mixer::sf2_buffer = malloc(size);
         bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);

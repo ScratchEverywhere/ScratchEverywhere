@@ -49,6 +49,7 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
         mask->scaleFactor = (float)scaleFactor / srcScale;
         mask->sourceScale = srcScale;
         mask->image = image;
+        mask->cachedImagePtr = image.get();
         mask->imgScaleFactor = scaleFactor;
 
         const float centerX = costume.rotationCenterX / mask->scaleFactor;
@@ -77,6 +78,7 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     mask->height = (imgData.height + scaleFactor - 1) / scaleFactor;
     mask->scaleFactor = (float)scaleFactor / imgData.scale;
     mask->sourceScale = imgData.scale;
+    mask->cachedImagePtr = imgFind->second.get();
 
     const float centerX = costume.rotationCenterX / mask->scaleFactor;
     const float centerY = costume.rotationCenterY / mask->scaleFactor;
@@ -138,10 +140,11 @@ static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite, bool
     std::shared_ptr<CollisionMask> mask = costume.collisionMask;
 
     bool stale = false;
-    if (mask != nullptr) {
-        auto imgFind = Scratch::costumeImages.find(costume.fullName);
-        if (imgFind != Scratch::costumeImages.end() && imgFind->second->getScale() != mask->sourceScale) {
-            stale = true;
+    if (mask) {
+        const auto it = Scratch::costumeImages.find(costume.fullName);
+        if (it != Scratch::costumeImages.end()) {
+            if (it->second.get() != mask->cachedImagePtr) stale = true;
+            else if (it->second->getScale() != mask->sourceScale) stale = true;
         }
     }
 
@@ -283,9 +286,10 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
+    const float invSpriteScale = 100.0f / spriteSize;
 
-    float localX = (dx * s_cos - (-dy) * s_sin) / (spriteSize / 100.0f);
-    const float localY = (dx * s_sin + (-dy) * s_cos) / (spriteSize / 100.0f);
+    float localX = (dx * s_cos + dy * s_sin) * invSpriteScale;
+    const float localY = (dx * s_sin - dy * s_cos) * invSpriteScale;
 
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
@@ -335,60 +339,85 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
     if (overlapMinX > overlapMaxX || overlapMinY > overlapMaxY) return false;
 
-    const float radA = a->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(a->rotation - 90)) : 0;
+    const float radA = a->rotationStyle == Sprite::RotationStyle::ALL_AROUND
+                           ? Math::degreesToRadians(-(a->rotation - 90))
+                           : 0;
     const float sinA = std::sin(radA);
     const float cosA = std::cos(radA);
     const float spriteScaleA = aSize / 100.0f;
-    const float invScaleA = (1.0f / maskA->scaleFactor);
+    const float invScaleA = 1.0f / maskA->scaleFactor;
+    const float flipA = (a->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && a->rotation < 0) ? -1.0f : 1.0f;
 
-    const float radB = b->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(b->rotation - 90)) : 0;
+    const float radB = b->rotationStyle == Sprite::RotationStyle::ALL_AROUND
+                           ? Math::degreesToRadians(-(b->rotation - 90))
+                           : 0;
     const float sinB = std::sin(radB);
     const float cosB = std::cos(radB);
     const float spriteScaleB = bSize / 100.0f;
-    const float invScaleB = (1.0f / maskB->scaleFactor);
+    const float invScaleB = 1.0f / maskB->scaleFactor;
+    const float flipB = (b->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && b->rotation < 0) ? -1.0f : 1.0f;
 
-    const float firstX = std::floor(overlapMinX), lastX = std::ceil(overlapMaxX);
-    const float firstY = std::floor(overlapMinY), lastY = std::ceil(overlapMaxY);
-    for (float y = firstY; y <= lastY; y++) {
-        for (float x = firstX; x <= lastX; x++) {
-            const float dxA = x - a->xPosition;
-            const float dyA = y - a->yPosition;
+    // per-x increments for local coords
+    const float stepXA = (cosA / spriteScaleA) * flipA;
+    const float stepYA = (sinA / spriteScaleA);
+    const float stepXB = (cosB / spriteScaleB) * flipB;
+    const float stepYB = (sinB / spriteScaleB);
 
-            if ((dxA * dxA + dyA * dyA) > (radiusA * radiusA)) continue;
+    const float radiusASq = radiusA * radiusA;
+    const float radiusBSq = radiusB * radiusB;
+    const float aX = a->xPosition;
+    const float aY = a->yPosition;
+    const float bX = b->xPosition;
+    const float bY = b->yPosition;
+    const float rcAX = costumeA.rotationCenterX;
+    const float rcAY = costumeA.rotationCenterY;
+    const float rcBX = costumeB.rotationCenterX;
+    const float rcBY = costumeB.rotationCenterY;
 
-            float localXA = (dxA * cosA - (-dyA) * sinA) / spriteScaleA;
-            const float localYA = (dxA * sinA + (-dyA) * cosA) / spriteScaleA;
+    const float firstX = std::floor(overlapMinX);
+    const float lastX = std::ceil(overlapMaxX);
+    const float firstY = std::floor(overlapMinY);
+    const float lastY = std::ceil(overlapMaxY);
 
-            if (a->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && a->rotation < 0)
-                localXA = -localXA;
+    for (float y = firstY; y <= lastY; y += 1.0f) {
+        const float dyA = y - aY;
+        const float dyB = y - bY;
+        const float dyASq = dyA * dyA;
+        const float dyBSq = dyB * dyB;
 
-            float warpedYA = localYA;
-            applyShapeEffects(a, localXA, warpedYA);
-            float finalXA, finalYA;
-            if (!silhouettePixel(*maskA, a, localXA, warpedYA, finalXA, finalYA)) continue;
+        const float dxA0 = firstX - aX;
+        const float dxB0 = firstX - bX;
 
-            if (!maskA->getPixel(finalXA, finalYA)) continue;
+        float localXA = ((dxA0 * cosA) - (-dyA) * sinA) / spriteScaleA * flipA;
+        float localYA = (dxA0 * sinA + (-dyA) * cosA) / spriteScaleA;
+        float localXB = ((dxB0 * cosB) - (-dyB) * sinB) / spriteScaleB * flipB;
+        float localYB = (dxB0 * sinB + (-dyB) * cosB) / spriteScaleB;
 
-            const float dxB = x - b->xPosition;
-            const float dyB = y - b->yPosition;
-
-            if ((dxB * dxB + dyB * dyB) > (radiusB * radiusB)) continue;
-
-            float localXB = (dxB * cosB - (-dyB) * sinB) / spriteScaleB;
-            const float localYB = (dxB * sinB + (-dyB) * cosB) / spriteScaleB;
-
-            if (b->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && b->rotation < 0)
-                localXB = -localXB;
-
-            float warpedYB = localYB;
-            applyShapeEffects(b, localXB, warpedYB);
-            float finalXB, finalYB;
-            if (!silhouettePixel(*maskB, b, localXB, warpedYB, finalXB, finalYB)) continue;
-
-            if (maskB->getPixel(finalXB, finalYB)) return true;
+        for (float x = firstX; x <= lastX; x += 1.0f) {
+            const float dxA = x - aX;
+            if ((dxA * dxA + dyASq) <= radiusASq) {
+                float wXA = localXA;
+                float wYA = localYA;
+                applyShapeEffects(a, wXA, wYA);
+                float fxA, fyA;
+                if (silhouettePixel(*maskA, a, wXA, wYA, fxA, fyA) && maskA->getPixel(fxA, fyA)) {
+                    const float dxB = x - bX;
+                    if ((dxB * dxB + dyBSq) <= radiusBSq) {
+                        float wXB = localXB;
+                        float wYB = localYB;
+                        applyShapeEffects(b, wXB, wYB);
+                        float fxB, fyB;
+                        if (silhouettePixel(*maskB, b, wXB, wYB, fxB, fyB) && maskB->getPixel(fxB, fyB))
+                            return true;
+                    }
+                }
+            }
+            localXA += stepXA;
+            localYA += stepYA;
+            localXB += stepXB;
+            localYB += stepYB;
         }
     }
-
     return false;
 }
 
@@ -412,9 +441,10 @@ static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &ou
     const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
+    const float invSpriteScale = 100.0f / spriteSize;
 
-    float localX = (dx * s_cos - (-dy) * s_sin) / (spriteSize / 100.0f);
-    float localY = (dx * s_sin + (-dy) * s_cos) / (spriteSize / 100.0f);
+    float localX = (dx * s_cos + dy * s_sin) * invSpriteScale;
+    float localY = (dx * s_sin - dy * s_cos) * invSpriteScale;
 
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
@@ -517,18 +547,134 @@ static bool scratchMaskMatches(uint8_t ar, uint8_t ag, uint8_t ab, uint8_t br, u
     return (ar & 0xFC) == (br & 0xFC) && (ag & 0xFC) == (bg & 0xFC) && (ab & 0xFC) == (bb & 0xFC);
 }
 
+struct ColorQuery {
+    Sprite *sprite;
+    CollisionMask *mask;
+    float invSpriteScale;
+    float radiusWorld;
+    float sinR;
+    float cosR;
+    float rcX;
+    float rcY;
+    float width;
+    float height;
+    bool flipLR;
+    bool hasShapeEffects;
+};
+
+static ColorQuery prepareColorQuery(Sprite *s, std::shared_ptr<CollisionMask> mask) {
+    ColorQuery q;
+    q.sprite = s;
+    q.mask = mask.get();
+    const auto &c = s->costumes[s->currentCostume];
+#ifdef __XBOX__
+    const float spriteSize = getEffectiveSpriteSize(s, c);
+#else
+    const float spriteSize = !c.isSVG && !Scratch::bitmapHalfQuality ? s->size * 0.5f : s->size;
+#endif
+    q.invSpriteScale = 100.0f / spriteSize;
+    q.radiusWorld = hitRadius(s, *mask) * (spriteSize / 100.0f);
+    const float rad = s->rotationStyle == Sprite::RotationStyle::ALL_AROUND
+                          ? Math::degreesToRadians(-(s->rotation - 90))
+                          : 0.0f;
+    q.sinR = std::sin(rad);
+    q.cosR = std::cos(rad);
+    q.flipLR = (s->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && s->rotation < 0);
+    q.hasShapeEffects = (s->mosaicEffect != 0.0f || s->pixelateEffect != 0.0f ||
+                         s->whirlEffect != 0.0f || s->fisheyeEffect != 0.0f);
+    q.width = s->spriteWidthExact > 0.0f ? s->spriteWidthExact : (float)s->spriteWidth;
+    q.height = s->spriteHeightExact > 0.0f ? s->spriteHeightExact : (float)s->spriteHeight;
+    q.rcX = (float)c.rotationCenterX;
+    q.rcY = (float)c.rotationCenterY;
+    return q;
+}
+
+static inline bool queryHit(const ColorQuery &q, float x, float y) {
+    const float dx = x - q.sprite->xPosition;
+    const float dy = y - q.sprite->yPosition;
+    if (dx * dx + dy * dy > q.radiusWorld * q.radiusWorld) return false;
+    float localX = (dx * q.cosR + dy * q.sinR) * q.invSpriteScale;
+    const float localY = (dx * q.sinR - dy * q.cosR) * q.invSpriteScale;
+    if (q.flipLR) localX = -localX;
+    if (q.mask->width == 0 || q.mask->height == 0) return false;
+    const float u = (localX + q.rcX) / q.width;
+    const float v = (localY + q.rcY) / q.height;
+    if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f) return false;
+    const int fx = (int)std::floor(u * (float)(q.mask->width - 1));
+    const int fy = (int)std::floor(v * (float)(q.mask->height - 1));
+    return q.mask->getPixel(fx, fy);
+}
+
+static inline bool queryColorAt(const ColorQuery &q, float x, float y, uint8_t &r, uint8_t &g, uint8_t &b) {
+    const float dx = x - q.sprite->xPosition;
+    const float dy = y - q.sprite->yPosition;
+    if (dx * dx + dy * dy > q.radiusWorld * q.radiusWorld) return false;
+    float localX = (dx * q.cosR + dy * q.sinR) * q.invSpriteScale;
+    float localY = (dx * q.sinR - dy * q.cosR) * q.invSpriteScale;
+    if (q.flipLR) localX = -localX;
+    if (q.hasShapeEffects) applyShapeEffects(q.sprite, localX, localY);
+    if (q.mask->width == 0 || q.mask->height == 0) return false;
+    const float u = (localX + q.rcX) / q.width;
+    const float v = (localY + q.rcY) / q.height;
+    if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f) return false;
+    const int fx = (int)std::floor(u * (float)(q.mask->width - 1));
+    const int fy = (int)std::floor(v * (float)(q.mask->height - 1));
+    if (!q.mask->getColor(fx, fy, r, g, b)) return false;
+    ScratchColorTransform(q.sprite->colorEffect, q.sprite->brightnessEffect).apply(r, g, b);
+    return true;
+}
+
+static bool environmentColorAtPrepared(const std::vector<ColorQuery> &env, float x, float y,
+                                       uint8_t &r, uint8_t &g, uint8_t &b) {
+    float accR = 255, accG = 255, accB = 255, accAlpha = 1;
+    bool penApplied = false;
+    auto compositePen = [&]() {
+        penApplied = true;
+        uint8_t pr, pg, pb, pa;
+        if (!globalRenderer || !globalRenderer->samplePenColor(x, y, pr, pg, pb, pa)) return;
+        const float alpha = pa / 255.0f;
+        accR = pr + accR * (1 - alpha);
+        accG = pg + accG * (1 - alpha);
+        accB = pb + accB * (1 - alpha);
+        accAlpha = alpha + accAlpha * (1 - alpha);
+    };
+    for (const ColorQuery &q : env) {
+        if (!q.sprite->isStage && !penApplied) compositePen();
+        uint8_t cr, cg, cb;
+        if (queryColorAt(q, x, y, cr, cg, cb)) {
+            const float ghostAlpha = 1.0f - std::clamp(q.sprite->ghostEffect, 0.0f, 100.0f) / 100.0f;
+            accR = cr * ghostAlpha + accR * (1 - ghostAlpha);
+            accG = cg * ghostAlpha + accG * (1 - ghostAlpha);
+            accB = cb * ghostAlpha + accB * (1 - ghostAlpha);
+            accAlpha = ghostAlpha + accAlpha * (1 - ghostAlpha);
+        }
+        if (q.sprite->isStage && !penApplied) compositePen();
+    }
+    if (!penApplied) compositePen();
+
+    if (accAlpha <= 0.0f) return false;
+
+    r = static_cast<uint8_t>(std::clamp(std::round(accR), 0.0f, 255.0f));
+    g = static_cast<uint8_t>(std::clamp(std::round(accG), 0.0f, 255.0f));
+    b = static_cast<uint8_t>(std::clamp(std::round(accB), 0.0f, 255.0f));
+    return true;
+}
+
 bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b) {
     auto &costume = sprite->costumes[sprite->currentCostume];
     std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
-#ifdef __XBOX__
-    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
-#else
-    const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
-#endif
-    const float scaledRadius = hitRadius(sprite, *mask) * (spriteSize / 100.0f);
+    const ColorQuery outer = prepareColorQuery(sprite, mask);
+    const float scaledRadius = outer.radiusWorld;
     const auto environment = colorEnvironment(sprite, scaledRadius);
+    std::vector<ColorQuery> envQ;
+    envQ.reserve(environment.size());
+    for (Sprite *c : environment) {
+        auto cm = getValidCollisionMask(c, true);
+        if (!cm) continue;
+        envQ.push_back(prepareColorQuery(c, cm));
+    }
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
@@ -538,10 +684,10 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
     if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
 
     uint8_t er, eg, eb;
-    for (float y = minY; y <= maxY; y++) {
-        for (float x = minX; x <= maxX; x++) {
-            if (!pointInSprite(sprite, x, y)) continue;
-            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
+    for (float y = minY; y <= maxY; y += 1.0f) {
+        for (float x = minX; x <= maxX; x += 1.0f) {
+            if (!queryHit(outer, x, y)) continue;
+            if (environmentColorAtPrepared(envQ, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, r, g, b)) {
                 return true;
             }
         }
@@ -555,13 +701,16 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
     std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite, true);
     if (mask == nullptr) return false;
 
-#ifdef __XBOX__
-    const float spriteSize = getEffectiveSpriteSize(sprite, costume);
-#else
-    const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
-#endif
-    const float scaledRadius = hitRadius(sprite, *mask) * (spriteSize / 100.0f);
+    const ColorQuery outer = prepareColorQuery(sprite, mask);
+    const float scaledRadius = outer.radiusWorld;
     const auto environment = colorEnvironment(sprite, scaledRadius);
+    std::vector<ColorQuery> envQ;
+    envQ.reserve(environment.size());
+    for (Sprite *c : environment) {
+        auto cm = getValidCollisionMask(c, true);
+        if (!cm) continue;
+        envQ.push_back(prepareColorQuery(c, cm));
+    }
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
@@ -571,11 +720,11 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
     if (globalRenderer) globalRenderer->preparePenColorQuery(minX, minY, maxX, maxY);
 
     uint8_t sr, sg, sb, er, eg, eb;
-    for (float y = minY; y <= maxY; y++) {
-        for (float x = minX; x <= maxX; x++) {
-            if (!colorAt(sprite, x, y, sr, sg, sb)) continue;
+    for (float y = minY; y <= maxY; y += 1.0f) {
+        for (float x = minX; x <= maxX; x += 1.0f) {
+            if (!queryColorAt(outer, x, y, sr, sg, sb)) continue;
             if (!scratchMaskMatches(sr, sg, sb, maskR, maskG, maskB)) continue;
-            if (environmentColorAt(environment, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
+            if (environmentColorAtPrepared(envQ, x, y, er, eg, eb) && scratchColorMatches(er, eg, eb, targetR, targetG, targetB)) {
                 return true;
             }
         }
@@ -605,41 +754,54 @@ bool collision::spriteOnEdge(Sprite *sprite) {
         return false;
     }
 
-    const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
+    const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND
+                          ? Math::degreesToRadians(-(sprite->rotation - 90))
+                          : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
     const float spriteScale = spriteSize / 100.0f;
     const float invScale = 1.0f / mask->scaleFactor;
+    const float flip = (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0) ? -1.0f : 1.0f;
 
-    const float minX = std::floor(sprite->xPosition - scaledRadius);
-    const float maxX = std::ceil(sprite->xPosition + scaledRadius);
-    const float minY = std::floor(sprite->yPosition - scaledRadius);
-    const float maxY = std::ceil(sprite->yPosition + scaledRadius);
+    const float stepXLocalX = (s_cos / spriteScale) * flip;
+    const float stepXLocalY = s_sin / spriteScale;
 
-    for (float y = minY; y <= maxY; y++) {
-        for (float x = minX; x <= maxX; x++) {
-            if (x > -halfWidth && x < halfWidth && y > -halfHeight && y < halfHeight) continue;
+    const float rSq = scaledRadius * scaledRadius;
+    const float sX = sprite->xPosition;
+    const float sY = sprite->yPosition;
+    const float rcX = costume.rotationCenterX;
+    const float rcY = costume.rotationCenterY;
 
-            const float dx = x - sprite->xPosition;
-            const float dy = y - sprite->yPosition;
+    const float minXF = std::floor(sX - scaledRadius);
+    const float maxXF = std::ceil(sX + scaledRadius);
+    const float minYF = std::floor(sY - scaledRadius);
+    const float maxYF = std::ceil(sY + scaledRadius);
 
-            if ((dx * dx + dy * dy) > (scaledRadius * scaledRadius)) continue;
+    for (int y = (int)minYF; y <= (int)maxYF; ++y) {
+        const float fy = (float)y;
+        const float dy = fy - sY;
+        const float dySq = dy * dy;
+        if (dySq > rSq) continue;
+        const float maxDx = std::sqrt(rSq - dySq);
+        const int rowMinX = std::max((int)minXF, (int)std::ceil(sX - maxDx));
+        const int rowMaxX = std::min((int)maxXF, (int)std::floor(sX + maxDx));
+        if (rowMinX > rowMaxX) continue;
 
-            float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
-            const float localY = (dx * s_sin + dy * s_cos) / spriteScale;
+        const float dx0 = (float)rowMinX - sX;
+        float localX = ((dx0 * s_cos) - (-dy) * s_sin) / spriteScale * flip;
+        float localY = (dx0 * s_sin + dy * s_cos) / spriteScale;
 
-            if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
-                localX = -localX;
-
-            const float finalX = std::round((localX + costume.rotationCenterX) * invScale);
-            const float finalY = std::round((localY + costume.rotationCenterY) * invScale);
-
-            if (mask->getPixel(finalX, finalY)) {
-                return true;
+        for (int x = rowMinX; x <= rowMaxX; ++x) {
+            const bool inside = ((float)x > -halfWidth) && ((float)x < halfWidth) && (fy > -halfHeight) && (fy < halfHeight);
+            if (!inside) {
+                const int finalX = (int)std::round((localX + rcX) * invScale);
+                const int finalY = (int)std::round((localY + rcY) * invScale);
+                if (mask->getPixel(finalX, finalY)) return true;
             }
+            localX += stepXLocalX;
+            localY += stepXLocalY;
         }
     }
-
     return false;
 }
 

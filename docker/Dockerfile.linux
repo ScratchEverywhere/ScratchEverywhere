@@ -9,7 +9,7 @@ ARG AUDIO_ENGINE=libpulse
 ARG LIBRARY_MODE=FALSE
 ARG EXT_ARGS=
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libdbus-1-dev libpulse-dev
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libdbus-1-dev libpulse-dev libxrandr-dev
 
 RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ] || [ $RENDERER = "all" ]; then \
         apt-get install -y --no-install-recommends libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev; \
@@ -33,7 +33,12 @@ RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ] || [ $RENDERE
 
 COPY . .
 
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} -DSE_LIBRARY=${LIBRARY_MODE} ${EXT_ARGS} && cmake --build . -j 2 && \
+RUN --mount=type=secret,id=discord_app_id \
+    DISCORD_ARGS=""; \
+    if [ "$LIBRARY_MODE" != "TRUE" ] && [ -s /run/secrets/discord_app_id ]; then \
+        DISCORD_ARGS="-DSE_DISCORD_RPC=ON -DSE_DISCORD_APP_ID=$(tr -d '[:space:]' < /run/secrets/discord_app_id)"; \
+    fi; \
+    mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} -DSE_LIBRARY=${LIBRARY_MODE} ${DISCORD_ARGS} ${EXT_ARGS} && cmake --build . -j 2 && \
     if [ "$LIBRARY_MODE" = "TRUE" ]; then \
         cp libscratch-pc.a scratch-pc; \
     fi

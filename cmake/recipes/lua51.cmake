@@ -51,9 +51,10 @@ function(_recipe_lua51_source)
 	endif()
 
 	set(_lua_version "5.1.5")
-	set(_lua_sha256 "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333")
-	set(_lua_archive "${CMAKE_BINARY_DIR}/_deps_cache/lua-${_lua_version}.tar.gz")
-	set(_lua_extract "${CMAKE_BINARY_DIR}/_deps_cache/lua-${_lua_version}")
+	set(_lua_cache "${CMAKE_BINARY_DIR}/_deps_cache")
+	set(_lua_archive "${_lua_cache}/lua-${_lua_version}.tar.gz")
+	set(_lua_extract "${_lua_cache}/lua-${_lua_version}")
+	set(_lua_src_dir "${_lua_extract}/lua-${_lua_version}")
 
 	# Needed since lua.org is unstable
 	set(_lua_mirrors
@@ -63,45 +64,51 @@ function(_recipe_lua51_source)
 		"https://fossies.org/linux/misc/lua-${_lua_version}.tar.gz"
 	)
 
-	if(NOT EXISTS "${_lua_extract}/lua-${_lua_version}/src/lapi.c")
-		file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps_cache")
+	if(NOT EXISTS "${_lua_src_dir}/src/lua.h")
+		file(MAKE_DIRECTORY "${_lua_cache}")
 
 		set(_lua_ok FALSE)
-		if(EXISTS "${_lua_archive}")
-			file(SHA256 "${_lua_archive}" _existing_hash)
-			if(_existing_hash STREQUAL _lua_sha256)
-				set(_lua_ok TRUE)
-			endif()
-		endif()
-
-		if(NOT _lua_ok)
-			foreach(_attempt RANGE 1 2)
-				foreach(_url IN LISTS _lua_mirrors)
-					if(NOT _url)
-						continue()
-					endif()
-					message(STATUS "[lua51] Downloading ${_url} (attempt ${_attempt})")
-					file(DOWNLOAD "${_url}" "${_lua_archive}"
-						EXPECTED_HASH SHA256=${_lua_sha256}
-						TIMEOUT 60
-						INACTIVITY_TIMEOUT 20
-						TLS_VERIFY ON
-						STATUS _dl_status
-					)
-					list(GET _dl_status 0 _dl_code)
-					if(_dl_code EQUAL 0)
-						set(_lua_ok TRUE)
-						break()
-					endif()
-					list(GET _dl_status 1 _dl_msg)
-					message(WARNING "[lua51] Mirror failed: ${_url}: ${_dl_msg}")
-					file(REMOVE "${_lua_archive}")
-				endforeach()
-				if(_lua_ok)
-					break()
+		foreach(_attempt RANGE 1 2)
+			foreach(_url IN LISTS _lua_mirrors)
+				if(NOT _url)
+					continue()
 				endif()
+
+				message(STATUS "[lua51] Downloading ${_url} (attempt ${_attempt})")
+				file(REMOVE "${_lua_archive}")
+				file(REMOVE_RECURSE "${_lua_extract}")
+
+				file(DOWNLOAD "${_url}" "${_lua_archive}"
+					TIMEOUT 60
+					INACTIVITY_TIMEOUT 20
+					TLS_VERIFY ON
+					STATUS _dl_status
+				)
+				list(GET _dl_status 0 _dl_code)
+				list(GET _dl_status 1 _dl_msg)
+				if(NOT _dl_code EQUAL 0)
+					message(STATUS "[lua51] Mirror failed: ${_url}: ${_dl_msg}")
+					continue()
+				endif()
+
+				file(ARCHIVE_EXTRACT INPUT "${_lua_archive}" DESTINATION "${_lua_extract}")
+				if(NOT EXISTS "${_lua_src_dir}/src/lua.h" OR NOT EXISTS "${_lua_src_dir}/src/lapi.c")
+					message(STATUS "[lua51] Unexpected archive layout from: ${_url}")
+					continue()
+				endif()
+				file(STRINGS "${_lua_src_dir}/src/lua.h" _lua_ver_line REGEX "#define[ \t]+LUA_VERSION[ \t]+\"Lua 5\\.1\"")
+				if(NOT _lua_ver_line)
+					message(STATUS "[lua51] Archive doesn't look like Lua 5.1: ${_url}")
+					continue()
+				endif()
+
+				set(_lua_ok TRUE)
+				break()
 			endforeach()
-		endif()
+			if(_lua_ok)
+				break()
+			endif()
+		endforeach()
 
 		if(NOT _lua_ok)
 			message(FATAL_ERROR
@@ -109,12 +116,7 @@ function(_recipe_lua51_source)
 				"Install the system package (liblua5.1-0-dev / lua51 pkg-config) "
 				"or pass -DSE_LUA51_URL=<url or local path to lua-${_lua_version}.tar.gz>.")
 		endif()
-
-		file(REMOVE_RECURSE "${_lua_extract}")
-		file(ARCHIVE_EXTRACT INPUT "${_lua_archive}" DESTINATION "${_lua_extract}")
 	endif()
-
-	set(_lua_src_dir "${_lua_extract}/lua-${_lua_version}")
 
 	file(GLOB lua_sources "${_lua_src_dir}/src/*.c")
 	list(REMOVE_ITEM lua_sources "${_lua_src_dir}/src/lua.c" "${_lua_src_dir}/src/luac.c") # We only need the lib

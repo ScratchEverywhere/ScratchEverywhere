@@ -1,5 +1,6 @@
 #include "settingsMenu.hpp"
 #include "audio.hpp"
+#include "discord.hpp"
 #include "hasdeps.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
@@ -30,6 +31,12 @@ SettingsMenu::~SettingsMenu() {
 std::string SettingsMenu::getDectalkString() {
     return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
 }
+
+#ifdef ENABLE_DISCORD_RPC
+std::string SettingsMenu::getDiscordString() {
+    return TranslationManager::getTranslation("ui.settings.discord") + ": " + TranslationManager::getTranslation(UseDiscord ? "ui.settings.on" : "ui.settings.off");
+}
+#endif
 
 void SettingsMenu::init() {
     settingsControl = new ControlObject();
@@ -80,6 +87,12 @@ void SettingsMenu::init() {
     AudioEngineButton->textScale = 1.0;
     validAudioBackends = SoundPlayer::getAvailableAudioBackends();
 
+#ifdef ENABLE_DISCORD_RPC
+    discordButton = new ButtonObject(getDiscordString(), "gfx/menu/projectBox.svg", 200, 570, "gfx/menu/Ubuntu-Bold", true);
+    discordButton->text->setColor(Math::color(0, 0, 0, 255));
+    discordButton->textScale = 1.0;
+#endif
+
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
     EnableUsername->isSelected = true;
@@ -119,6 +132,9 @@ void SettingsMenu::init() {
     if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
         menuMusic = json["MenuMusic"].get<bool>();
     }
+#ifdef ENABLE_DISCORD_RPC
+    UseDiscord = Discord::isEnabled();
+#endif
 
     auto getBackendOption = [](std::string_view currentName, const auto &validOptions, auto &outIdx, std::string &outOption) {
         auto it = std::find_if(validOptions.begin(), validOptions.end(),
@@ -155,6 +171,9 @@ void SettingsMenu::init() {
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
+#ifdef ENABLE_DISCORD_RPC
+    settingsControl->buttonObjects.push_back(discordButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -185,7 +204,15 @@ void SettingsMenu::updateButtonStates() {
     dectalkButton->buttonDown = RendererButton;
     RendererButton->buttonUp = dectalkButton;
 #endif
+#ifdef ENABLE_DISCORD_RPC
+    AudioEngineButton->buttonDown = discordButton;
+    discordButton->buttonUp = AudioEngineButton;
+    discordButton->buttonDown = EnableUsername;
+    EnableUsername->buttonUp = discordButton;
+    discordButton->text->setText(getDiscordString());
+#else
     AudioEngineButton->buttonDown = EnableUsername;
+#endif
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -338,6 +365,15 @@ void SettingsMenu::render() {
     }
 #endif
 
+#ifdef ENABLE_DISCORD_RPC
+    if (discordButton->isPressed({"a"})) {
+        UseDiscord = !UseDiscord;
+        Discord::setEnabled(UseDiscord);
+        updateButtonStates();
+        return;
+    }
+#endif
+
     if (RendererButton->isPressed({"a"})) {
         rendererIdx = (rendererIdx + 1) % validRenderers.size();
         rendererOption = validRenderers[rendererIdx].name;
@@ -406,6 +442,10 @@ void SettingsMenu::cleanup() {
         delete dectalkButton;
         dectalkButton = nullptr;
     }
+    if (discordButton != nullptr) {
+        delete discordButton;
+        discordButton = nullptr;
+    }
     if (RendererButton != nullptr) {
         delete RendererButton;
         RendererButton = nullptr;
@@ -428,6 +468,9 @@ void SettingsMenu::cleanup() {
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;
+#ifdef ENABLE_DISCORD_RPC
+    json["DiscordPresence"] = UseDiscord;
+#endif
     json["Renderer"] = rendererOption;
     json["Windowing"] = windowingOption;
     json["AudioEngine"] = audioOption;

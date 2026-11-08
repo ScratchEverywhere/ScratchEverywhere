@@ -45,6 +45,7 @@ void InputDevice_Libretro::getInput() {
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], window->getWidth(), window->getHeight());
     Input::mousePointer.x = (int)coords.first;
     Input::mousePointer.y = (int)coords.second;
+    Input::clampMouseToStage();
 
     /* nishi sez... back / LeftStick* / RightStick* / LT / RT might be not true... */
 

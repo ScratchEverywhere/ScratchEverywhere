@@ -93,6 +93,11 @@ void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int rend
     y = std::clamp(y, 0, renderHeight);
 }
 
+void Input::clampMouseToStage() {
+    mousePointer.x = std::clamp(static_cast<float>(mousePointer.x), -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    mousePointer.y = std::clamp(static_cast<float>(mousePointer.y), -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+}
+
 void *Input::inputWindowHandleOverride = nullptr;
 
 void Input::setInputWindowHandle(void *handle) {

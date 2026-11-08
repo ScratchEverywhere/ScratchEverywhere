@@ -81,6 +81,7 @@ void InputDevice_Win32::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     int l = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
     int m = GetAsyncKeyState(VK_MBUTTON) & 0x8000;

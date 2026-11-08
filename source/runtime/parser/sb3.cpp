@@ -5,6 +5,7 @@
 #include "types.hpp"
 #include "zip_project_loader.hpp"
 #include <algorithm>
+#include <image.hpp>
 #include <input.hpp>
 #include <limits>
 #include <log.hpp>
@@ -126,6 +127,14 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
     Scratch::sprites.reserve(spriteAmount);
+
+    Image::clearProjectFonts();
+    if (json.contains("customFonts") && json["customFonts"].is_array()) {
+        for (const auto &font : json["customFonts"]) {
+            if (font.value("system", false) || !font.contains("md5ext") || !font.contains("family")) continue;
+            Image::registerProjectFont(font["family"].get<std::string>(), font["md5ext"].get<std::string>());
+        }
+    }
 
     BytecodeCache::beginLoadSession();
 

@@ -3,6 +3,7 @@
 #include "compiler_hints.hpp"
 #include "conversions.hpp"
 #include "math.hpp"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +25,7 @@ class SE_EXPORT StringPool {
     struct Entry {
         std::string data;
         uint32_t refCount = 0;
+        bool pinned = false;
 
         enum class Utf16State : uint8_t { NOT_BUILT,
                                           ASCII,
@@ -64,6 +66,7 @@ class SE_EXPORT StringPool {
     static std::deque<Entry> &storageRef();
     static std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> &lookupRef();
     static std::vector<uint32_t> &freeListRef();
+    static std::array<uint32_t, 128> &asciiIdsRef();
 
   public:
     static uint32_t getOrInsert(std::string_view str);
@@ -73,6 +76,7 @@ class SE_EXPORT StringPool {
 
     static size_t utf16Length(uint32_t id);
     static std::string utf16CharAt(uint32_t id, size_t index);
+    static uint32_t utf16CharId(uint32_t id, size_t index);
 
     static bool isNumeric(uint32_t id, bool &hasDot);
     static double toNumber(uint32_t id);
@@ -374,6 +378,7 @@ class SE_EXPORT Value {
 
     size_t utf16Length() const;
     std::string utf16CharAt(size_t index) const;
+    Value utf16CharAtValue(size_t index) const;
 
     SE_FORCEINLINE const std::string *tryGetStringRef() const {
         if (isString()) return &StringPool::get(storage.stringId);
