@@ -81,6 +81,12 @@ class SE_EXPORT StringPool {
 
 struct SE_EXPORT Undefined {};
 
+class SE_EXPORT ColorPool {
+  public:
+    static uint32_t intern(const Color &color);
+    static const Color &get(uint32_t id);
+};
+
 class SE_EXPORT Value {
   public:
     enum class ValueType : uint8_t {
@@ -106,7 +112,7 @@ class SE_EXPORT Value {
         double d;
         uint32_t stringId;
         bool b;
-        ::Color c;
+        uint32_t colorId;
 
         Storage() {}
         ~Storage() {}
@@ -131,7 +137,7 @@ class SE_EXPORT Value {
             storage.b = other.storage.b;
             break;
         case Tag::COLOR:
-            storage.c = other.storage.c;
+            storage.colorId = other.storage.colorId;
             break;
         case Tag::UNDEFINED:
             break;
@@ -151,7 +157,7 @@ class SE_EXPORT Value {
             storage.b = other.storage.b;
             break;
         case Tag::COLOR:
-            storage.c = other.storage.c;
+            storage.colorId = other.storage.colorId;
             break;
         case Tag::UNDEFINED:
             break;
@@ -269,7 +275,7 @@ class SE_EXPORT Value {
         case Tag::STRING_ID:
             return StringPool::toNumber(storage.stringId);
         case Tag::COLOR:
-            return Conversions::colorToNumber(storage.c);
+            return Conversions::colorToNumber(ColorPool::get(storage.colorId));
         case Tag::BOOLEAN:
             return Conversions::boolToNumber(storage.b);
         case Tag::UNDEFINED:
@@ -289,7 +295,7 @@ class SE_EXPORT Value {
         case Tag::UNDEFINED:
             return "undefined";
         case Tag::COLOR:
-            return Conversions::colorToString(storage.c);
+            return Conversions::colorToString(ColorPool::get(storage.colorId));
         }
         return "";
     }
@@ -303,7 +309,7 @@ class SE_EXPORT Value {
         case Tag::STRING_ID:
             return Conversions::stringToBool(StringPool::get(storage.stringId));
         case Tag::COLOR:
-            return Conversions::colorToBool(storage.c);
+            return Conversions::colorToBool(ColorPool::get(storage.colorId));
         case Tag::UNDEFINED:
             break;
         }
@@ -417,7 +423,7 @@ class SE_EXPORT Value {
         case Tag::BOOLEAN:
             return storage.b == other.storage.b;
         case Tag::COLOR:
-            return storage.c == other.storage.c;
+            return storage.colorId == other.storage.colorId || ColorPool::get(storage.colorId) == ColorPool::get(other.storage.colorId);
         case Tag::UNDEFINED:
             return true;
         }
