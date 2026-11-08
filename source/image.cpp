@@ -106,6 +106,34 @@ bool Image::loadFont(const std::string &family) {
     }
     if (it->second.isLoaded) return true;
 
+    if (it->second.fromProject) {
+        void *fontData = nullptr;
+        size_t fontSize = 0;
+        if (Scratch::projectType == ProjectType::UNZIPPED) {
+            auto buffer = readFileToBuffer(Unzip::UnpackedInSD ? Unzip::filePath + it->second.path : OS::getRomFSLocation() + "project/" + it->second.path, true);
+            if (!buffer.has_value() || buffer->size() < 2) return false;
+            fontSize = buffer->size() - 1;
+            fontData = malloc(fontSize);
+            if (fontData) memcpy(fontData, buffer->data(), fontSize);
+        } else if (Scratch::sb3InRam && Unzip::zipArchive) {
+            void *raw = Unzip::zipArchive->extractToHeap(it->second.path, &fontSize);
+            if (raw && fontSize > 0) {
+                fontData = malloc(fontSize);
+                if (fontData) memcpy(fontData, raw, fontSize);
+            }
+            if (raw) Unzip::zipArchive->freeHeap(raw);
+        } else {
+            fontData = Unzip::getFileInSB3(it->second.path, &fontSize);
+        }
+        if (!fontData || fontSize == 0) {
+            free(fontData);
+            return false;
+        }
+        if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) return false;
+        it->second.isLoaded = true;
+        return true;
+    }
+
     const std::string &path = Render::currentRenderer == Renderers::Headless ? std::string("gfx/ingame/fonts/Grand9KPixel") : it->second.path; // font doesn't matter for headless and Grand9KPixel is smallest on memory
 
 #ifdef USE_BUNDLE
@@ -122,6 +150,21 @@ bool Image::loadFont(const std::string &family) {
     return true;
 #endif
     return false;
+}
+
+void Image::registerProjectFont(const std::string &family, const std::string &fileName) {
+#ifdef ENABLE_SVG
+    loadedFonts[family] = SVGFont{fileName, false, true};
+#endif
+}
+
+void Image::clearProjectFonts() {
+#ifdef ENABLE_SVG
+    for (auto it = loadedFonts.begin(); it != loadedFonts.end();) {
+        if (it->second.fromProject) it = loadedFonts.erase(it);
+        else ++it;
+    }
+#endif
 }
 
 nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {

@@ -57,6 +57,7 @@ struct SE_EXPORT ImageData {
 struct SE_EXPORT SVGFont {
     std::string path;
     bool isLoaded = false;
+    bool fromProject = false;
 };
 #endif
 
@@ -99,6 +100,8 @@ class SE_EXPORT Image {
     std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
   public:
+    static void registerProjectFont(const std::string &family, const std::string &fileName);
+    static void clearProjectFonts();
     bool isOpaque = false;
 
     static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH, const Image *keep = nullptr);
