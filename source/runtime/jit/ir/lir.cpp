@@ -20,12 +20,12 @@ void rewind(Builder *b, const Mark &to) {
 
 void freeCompiler(Builder *b) {
     if (b == nullptr) return;
-    releaseSljit(*b);
+    backendRelease(*b);
     delete b;
 }
 
 void *generateCode(Builder *b) {
-    void *machine = generateWithSljit(*b);
+    void *machine = backendGenerate(*b);
     b->machine = machine;
     if (const char *dump = std::getenv("SE_LIR_DUMP"); dump != nullptr && machine != nullptr) {
         static int index = 0;

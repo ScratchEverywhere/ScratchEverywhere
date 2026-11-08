@@ -173,7 +173,7 @@ sljit_s32 signature(Sig s) {
 
 } // namespace
 
-void *generateWithSljit(Builder &b) {
+void *backendGenerate(Builder &b) {
     sljit_compiler *c = sljit_create_compiler(nullptr);
     if (c == nullptr) return nullptr;
     b.backend = c;
@@ -237,7 +237,9 @@ void *generateWithSljit(Builder &b) {
     return machine;
 }
 
-void releaseSljit(Builder &b) {
+void freeMachine(void *machine) { sljit_free_code(machine, nullptr); }
+
+void backendRelease(Builder &b) {
     if (b.backend != nullptr) sljit_free_compiler(static_cast<sljit_compiler *>(b.backend));
     b.backend = nullptr;
 }

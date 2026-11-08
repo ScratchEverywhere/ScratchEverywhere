@@ -18,7 +18,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <sljitLir.h>
+#include "ir/lir_caps.hpp"
 #include <string>
 #include <string_view>
 #include <utility>
@@ -29,7 +29,7 @@ namespace BytecodeJitInternal::Runtime {
 void refreshStringChar(uint32_t k) {
     const std::string &text = stringVariables[k];
     const unsigned char c = text.size() == 1 ? static_cast<unsigned char>(text[0]) : 0x80;
-    stringChar[k] = c < 0x80 ? static_cast<sljit_sw>(c >= 'A' && c <= 'Z' ? c + 32 : c) : -1;
+    stringChar[k] = c < 0x80 ? static_cast<BytecodeJitLir::Word>(c >= 'A' && c <= 'Z' ? c + 32 : c) : -1;
 }
 
 bool stringVariableIsAscii(uint32_t k) {
@@ -103,12 +103,12 @@ void setStringVariable(Context *ctx, uint32_t k, std::string &&value) {
     ctx->dirty[k] = 4;
 }
 
-void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
+void LIR_FUNC jitEnsureStringNumber(Context *ctx, BytecodeJitLir::Word k) {
     const double number = Conversions::stringToNumber(stringVariables[k]);
     ctx->slots[ctx->code->slotVariables + k] = number == number ? number : 0.0;
 }
 
-void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     const auto setBoolean = [&](bool b) { ctx->slots[op->numberOut] = fromBits(b ? 1 : 0); };
     const std::string &x = stringOf(ctx, op->a, op->aPosition);
     const std::string &y = stringOf(ctx, op->b, op->bPosition);
@@ -124,7 +124,7 @@ void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     return;
 }
 
-void SLJIT_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
     const uint32_t k = op->variable;
     if (ctx->dirty[k] == 4) {
         const std::string &suffix = stringOf(ctx, op->a, op->aPosition);
@@ -144,7 +144,7 @@ void SLJIT_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
     setStringVariable(ctx, k, std::move(joined));
 }
 
-void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
     const double index = std::floor(number(op->numberIn)) - 1;
@@ -176,7 +176,7 @@ void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
     return;
 }
 
-void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringOp(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     Sprite *sprite = static_cast<Sprite *>(ctx->sprite);
     const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };

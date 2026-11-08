@@ -314,6 +314,9 @@ bool Emitter::emit() {
         return giveUp("a slot kept in a register was accessed behind its back");
     }
 
+    c_->entryLabels.assign(plan_.entryPcs.size(), nullptr);
+    for (size_t i = 0; i < plan_.entryPcs.size(); i++)
+        c_->entryLabels[i] = entryLabels[i] != nullptr ? entryLabels[i] : blockLabels_[blockStartingAt(plan_.entryPcs[i])];
     code_.machine = lir::generateCode(c_);
     if (code_.machine == nullptr) {
         lir::freeCompiler(c_);
@@ -322,7 +325,7 @@ bool Emitter::emit() {
     }
     code_.fn = reinterpret_cast<lir::Word (*)(Context *, lir::Word)>(code_.machine);
     for (size_t i = 0; i < plan_.entryPcs.size(); i++) {
-        code_.entryTable[i] = reinterpret_cast<void *>(lir::labelAddress(entryLabels[i] != nullptr ? entryLabels[i] : blockLabels_[blockStartingAt(plan_.entryPcs[i])]));
+        code_.entryTable[i] = reinterpret_cast<void *>(lir::labelAddress(c_->entryLabels[i]));
     }
     lir::freeCompiler(c_);
     c_ = nullptr;

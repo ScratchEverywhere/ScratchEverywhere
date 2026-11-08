@@ -5,6 +5,7 @@
 
 #include "blockExecutor.hpp"
 #include "bytecode_analysis.hpp"
+#include "ir/lir.hpp"
 #include "jit_word.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
@@ -21,7 +22,7 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sljitLir.h>
+#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 
@@ -223,7 +224,7 @@ struct alignas(64) Context {
 
 struct Code {
     void *machine = nullptr;
-    sljit_sw (*fn)(Context *, sljit_sw) = nullptr;
+    BytecodeJitLir::Word (*fn)(Context *, BytecodeJitLir::Word) = nullptr;
 
     std::vector<EntryDescriptor> entries;
     std::deque<ExitDescriptor> exits;
@@ -246,7 +247,7 @@ struct Code {
     uint32_t slotVariables = 0;
 
     ~Code() {
-        if (machine != nullptr) sljit_free_code(machine, nullptr);
+        if (machine != nullptr) BytecodeJitLir::freeMachine(machine);
     }
 };
 

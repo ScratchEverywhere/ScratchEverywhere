@@ -22,7 +22,7 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sljitLir.h>
+#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 

@@ -3,7 +3,7 @@
 #ifdef SE_JIT
 
 #include "jit_probe.hpp"
-#include "jit_probe_core.hpp"
+#include "probe_core.hpp"
 #include <log.hpp>
 #include <string>
 

@@ -18,7 +18,7 @@
 #include <cstring>
 #include <log.hpp>
 #include <memory>
-#include <sljitLir.h>
+#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -63,11 +63,11 @@ const ListLayout &listLayout() {
     static const ListLayout layout = [] {
         ListLayout l;
         const Value::Layout v = Value::layout();
-        l.items = static_cast<sljit_sw>(offsetof(List, items));
-        l.valueSize = static_cast<sljit_sw>(v.size);
-        l.tag = static_cast<sljit_sw>(v.tag);
-        l.flags = static_cast<sljit_sw>(v.flags);
-        l.number = static_cast<sljit_sw>(v.number);
+        l.items = static_cast<BytecodeJitLir::Word>(offsetof(List, items));
+        l.valueSize = static_cast<BytecodeJitLir::Word>(v.size);
+        l.tag = static_cast<BytecodeJitLir::Word>(v.tag);
+        l.flags = static_cast<BytecodeJitLir::Word>(v.flags);
+        l.number = static_cast<BytecodeJitLir::Word>(v.number);
         l.numberTag = v.numberTag;
         l.stringTag = v.stringTag;
         l.booleanTag = v.booleanTag;
@@ -189,7 +189,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
 }
 
-sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
+BytecodeJitLir::Word LIR_FUNC jitEnter(Context *ctx, BytecodeJitLir::Word entryId) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
     const EntryDescriptor &entry = code.entries[entryId];
@@ -344,16 +344,16 @@ void materializeInlineFrames(Context *ctx, const ExitDescriptor *exit) {
     thread.withoutScreenRefresh = true;
 }
 
-sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
+BytecodeJitLir::Word LIR_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
     materializeLazyFrames(ctx);
     syncStacks(ctx, exit);
     materializeInlineFrames(ctx, exit);
     commitVariables(ctx);
     ctx->thread->pc = exit->pc;
-    return static_cast<sljit_sw>(exit->result);
+    return static_cast<BytecodeJitLir::Word>(exit->result);
 }
 
-sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
+BytecodeJitLir::Word LIR_FUNC jitLeave(Context *ctx, BytecodeJitLir::Word result) {
     commitVariables(ctx);
     return result;
 }
@@ -503,7 +503,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     return true;
 }
 
-sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
+BytecodeJitLir::Word LIR_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
@@ -514,7 +514,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
 
     if (thread.callStack.size() >= MAX_CALL_DEPTH) {
         thread.pc = call->callPc + 1;
-        return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Interpret);
+        return 1 + static_cast<BytecodeJitLir::Word>(BytecodeJit::Result::Interpret);
     }
 
     const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
@@ -523,7 +523,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
         if (bytecodeIsRecursiveCall(*ctx->chunk, thread.callStack, call->procedure, call->callPc)) {
             thread.pendingRecursiveCallPc = call->callPc;
             thread.pc = call->callPc;
-            return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Yield);
+            return 1 + static_cast<BytecodeJitLir::Word>(BytecodeJit::Result::Yield);
         }
     }
     thread.pendingRecursiveCallPc = invalidBytecodeIndex;
@@ -546,7 +546,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     return 0;
 }
 
-sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
+BytecodeJitLir::Word lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
     const ExitDescriptor *state = ret->state;
@@ -614,7 +614,7 @@ sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     return entryId;
 }
 
-sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
+BytecodeJitLir::Word LIR_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
@@ -652,22 +652,22 @@ sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     return entry;
 }
 
-void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
+void LIR_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
     const Value value = materializeEntry(ctx, call->item, call->itemPosition);
     call->fn(static_cast<Sprite *>(ctx->sprite), value);
 }
 
-double SLJIT_FUNC jitRepeatRound(double counter) {
+double LIR_FUNC jitRepeatRound(double counter) {
     if (std::isnan(counter)) return 0.0;
     return std::round(counter);
 }
 
-double SLJIT_FUNC jitRepeatRemaining(double counter) {
+double LIR_FUNC jitRepeatRemaining(double counter) {
     if (std::isnan(counter)) counter = 0.0;
     return std::round(counter) - 1.0;
 }
 
-sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind) {
+BytecodeJitLir::Word LIR_FUNC jitCompareUnordered(double a, double b, BytecodeJitLir::Word kind) {
     const bool nan1 = std::isnan(a), nan2 = std::isnan(b);
     switch (static_cast<BytecodeCompareKind>(kind)) {
     case BytecodeCompareKind::Equals:
@@ -679,18 +679,18 @@ sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind) {
     }
 }
 
-double SLJIT_FUNC jitMathOp(double value, sljit_sw op) {
+double LIR_FUNC jitMathOp(double value, BytecodeJitLir::Word op) {
     return bytecodeMathOpApply(static_cast<BytecodeMathOp>(op), value);
 }
 
-double SLJIT_FUNC jitRandomInt(double a, double b) {
+double LIR_FUNC jitRandomInt(double a, double b) {
     if (a == b) return a;
     const double from = std::min(a, b);
     const double to = std::max(a, b);
     return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1.0 - from)));
 }
 
-sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {
+BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx) {
     static const bool checkNaN = std::getenv("SE_JIT_CHECKNAN") != nullptr;
     if (checkNaN) {
         for (uint32_t k = 0; k < ctx->code->promoted.size(); k++) {
