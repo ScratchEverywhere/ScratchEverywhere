@@ -5,6 +5,7 @@
 
 #include "blockExecutor.hpp"
 #include "bytecode_analysis.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_types.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
@@ -21,7 +22,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 
@@ -40,6 +40,8 @@ inline constexpr uint32_t maxTemps = 64;
 alignas(64) inline Value temps[maxTemps];
 inline uint8_t tempLazy[maxTemps];
 alignas(64) inline Value shadowValues[maxPromoted];
+inline std::shared_ptr<const std::string> untouchedText[maxPromoted];
+inline Value untouchedValue[maxPromoted];
 inline std::vector<double> saveStack;
 struct NativeFrame {
     const CallDescriptor *call;

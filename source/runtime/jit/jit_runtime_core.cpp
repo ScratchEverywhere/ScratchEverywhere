@@ -105,7 +105,17 @@ Value materializeVariableSlow(Context *ctx, uint32_t k) {
     const int64_t kind = ctx->dirty[k];
     if (kind == 0) {
         if (ctx->numericTagged[k]) return typedNumberValue(ctx->slots[code.slotVariables + k]);
-        return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
+        const Variable *var = variableAt(*ctx->thread, code.promoted[k]);
+        if (var != nullptr) {
+            if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                if (untouchedText[k] != *text) {
+                    untouchedText[k] = *text;
+                    untouchedValue[k] = Value(*text);
+                }
+                return untouchedValue[k];
+            }
+        }
+        return BlockExecutor::getVariableValueAs<Value>(const_cast<Variable *>(var));
     }
     if (kind == 3) return shadowValues[k];
     if (kind == 4) return Value(stringVariables[k]);
