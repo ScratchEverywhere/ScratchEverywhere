@@ -6,6 +6,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode_analysis.hpp"
 #include "ir/lir.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_word.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
@@ -22,7 +23,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 
@@ -115,6 +115,8 @@ struct CompareDescriptor {
     BytecodeCompareKind kind = BytecodeCompareKind::Equals;
     ValueEntry a, b;
     uint32_t aPosition = 0, bPosition = 0;
+    mutable Value memoA, memoB;
+    mutable bool memoValid = false, memoResult = false;
 };
 
 struct ValueCallDescriptor {

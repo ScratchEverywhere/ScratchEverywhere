@@ -100,22 +100,25 @@ const ListLayout &listLayout() {
 
 Value typedNumberValue(double number) { return Value::stringTypedNumber(number); }
 
+const Value *untouchedTextValue(Context *ctx, uint32_t k) {
+    const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[k]);
+    if (var == nullptr) return nullptr;
+    const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value);
+    if (text == nullptr) return nullptr;
+    if (untouchedText[k] != *text) {
+        untouchedText[k] = *text;
+        untouchedValue[k] = Value(*text);
+    }
+    return &untouchedValue[k];
+}
+
 Value materializeVariableSlow(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
     if (kind == 0) {
         if (ctx->numericTagged[k]) return typedNumberValue(ctx->slots[code.slotVariables + k]);
-        const Variable *var = variableAt(*ctx->thread, code.promoted[k]);
-        if (var != nullptr) {
-            if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                if (untouchedText[k] != *text) {
-                    untouchedText[k] = *text;
-                    untouchedValue[k] = Value(*text);
-                }
-                return untouchedValue[k];
-            }
-        }
-        return BlockExecutor::getVariableValueAs<Value>(const_cast<Variable *>(var));
+        if (const Value *text = untouchedTextValue(ctx, k)) return *text;
+        return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
     }
     if (kind == 3) return shadowValues[k];
     if (kind == 4) return Value(stringVariables[k]);

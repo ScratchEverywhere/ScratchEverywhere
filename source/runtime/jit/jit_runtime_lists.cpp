@@ -3,6 +3,7 @@
 #ifdef SE_JIT
 
 #include "bytecode.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "runtime/data/blueprint.hpp"
@@ -15,7 +16,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include "ir/lir_caps.hpp"
 #include <utility>
 
 namespace BytecodeJitInternal::Runtime {
@@ -184,6 +184,14 @@ static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position
     return false;
 }
 
+static const Value &compareOperand(Context *ctx, const ValueEntry &entry, uint32_t position, Value &scratch) {
+    if (const Value *stored = entryValue(ctx, entry, position)) return *stored;
+    if (entry.kind == ValueEntry::VarValue && ctx->dirty[entry.constant] == 0 && !ctx->numericTagged[entry.constant]) {
+        if (const Value *text = untouchedTextValue(ctx, entry.constant)) return *text;
+    }
+    return peekEntry(ctx, entry, position, scratch);
+}
+
 BytecodeJitLir::Word LIR_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
     if (double x, y; entryNumber(ctx, compare->a, compare->aPosition, x) && entryNumber(ctx, compare->b, compare->bPosition, y) && x == x && y == y) {
         switch (compare->kind) {
@@ -196,16 +204,28 @@ BytecodeJitLir::Word LIR_FUNC jitCompareValues(Context *ctx, const CompareDescri
         }
     }
     Value scratchA, scratchB;
-    const Value &a = peekEntry(ctx, compare->a, compare->aPosition, scratchA);
-    const Value &b = peekEntry(ctx, compare->b, compare->bPosition, scratchB);
-    switch (compare->kind) {
-    case BytecodeCompareKind::Equals:
-        return a == b;
-    case BytecodeCompareKind::Less:
-        return a < b;
-    default:
-        return a > b;
+    const Value &a = compareOperand(ctx, compare->a, compare->aPosition, scratchA);
+    const Value &b = compareOperand(ctx, compare->b, compare->bPosition, scratchB);
+    const auto compute = [&] {
+        switch (compare->kind) {
+        case BytecodeCompareKind::Equals:
+            return a == b;
+        case BytecodeCompareKind::Less:
+            return a < b;
+        default:
+            return a > b;
+        }
+    };
+    if (a.isString() && b.isString()) {
+        if (compare->memoValid && compare->memoA.stringId() == a.stringId() && compare->memoB.stringId() == b.stringId()) return compare->memoResult;
+        const bool result = compute();
+        compare->memoA = a;
+        compare->memoB = b;
+        compare->memoResult = result;
+        compare->memoValid = true;
+        return result;
     }
+    return compute();
 }
 
 void LIR_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op) {

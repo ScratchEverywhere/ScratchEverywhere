@@ -100,6 +100,7 @@ struct StringLayout {
 };
 const StringLayout &stringLayout();
 Value materializeVariableSlow(Context *ctx, uint32_t k);
+const Value *untouchedTextValue(Context *ctx, uint32_t k);
 Value materializeEntrySlow(Context *ctx, const ValueEntry &entry, uint32_t position);
 
 inline Value materializeVariable(Context *ctx, uint32_t k) {
