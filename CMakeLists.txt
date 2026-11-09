@@ -382,6 +382,10 @@ else()
     list(APPEND SOURCES "source/audio/${SE_AUDIO_ENGINE}")
 endif()
 
+if(SE_DOWNLOAD OR SE_CLOUDVARS)
+    list(APPEND SOURCES "source/net")
+endif()
+
 if(SE_CUSTOM_EXTENSIONS)
     list(APPEND SOURCES "source/runtime/extensions")
 endif()
