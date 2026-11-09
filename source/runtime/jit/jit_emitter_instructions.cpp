@@ -423,6 +423,7 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
                 for (uint32_t j = 0; j < call.argCount; j++) {
                     const AbsValue &arg = values[values.size() - call.argCount + j];
                     if (arg.kind == ValueEntry::Number || arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) call.argNumbers |= 1u << j;
+                    else if (double constantNumber; arg.kind == ValueEntry::Constant && arg.constant < chunk_.constants.size() && chunk_.constants[arg.constant].plainNumber(constantNumber)) call.argNumbers |= 1u << j;
                     if (arg.kind == ValueEntry::Number) continue;
                     if (arg.kind == ValueEntry::Temp || arg.kind == ValueEntry::Argument || arg.kind == ValueEntry::VarValue) call.argFromFrame |= 1u << j;
                     else if (arg.kind == ValueEntry::Constant) {

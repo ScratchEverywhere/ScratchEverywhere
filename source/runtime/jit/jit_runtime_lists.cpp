@@ -186,7 +186,7 @@ static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position
 
 static const Value &compareOperand(Context *ctx, const ValueEntry &entry, uint32_t position, Value &scratch) {
     if (const Value *stored = entryValue(ctx, entry, position)) return *stored;
-    if (entry.kind == ValueEntry::VarValue && ctx->dirty[entry.constant] == 0 && !ctx->numericTagged[entry.constant]) {
+    if (entry.kind == ValueEntry::VarValue && ctx->dirty[entry.constant] == 0 && ctx->numericTagged[entry.constant] != 1) {
         if (const Value *text = untouchedTextValue(ctx, entry.constant)) return *text;
     }
     return peekEntry(ctx, entry, position, scratch);

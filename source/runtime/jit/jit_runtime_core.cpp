@@ -5,6 +5,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode.hpp"
 #include "conversions.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "runtime.hpp"
@@ -18,7 +19,6 @@
 #include <cstring>
 #include <log.hpp>
 #include <memory>
-#include "ir/lir_caps.hpp"
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -116,7 +116,7 @@ Value materializeVariableSlow(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
     if (kind == 0) {
-        if (ctx->numericTagged[k]) return typedNumberValue(ctx->slots[code.slotVariables + k]);
+        if (ctx->numericTagged[k] == 1) return typedNumberValue(ctx->slots[code.slotVariables + k]);
         if (const Value *text = untouchedTextValue(ctx, k)) return *text;
         return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
     }
@@ -250,6 +250,13 @@ BytecodeJitLir::Word LIR_FUNC jitEnter(Context *ctx, BytecodeJitLir::Word entryI
             continue;
         }
         ctx->slots[code.slotVariables + k] = number;
+        if (var != nullptr && var->value.index() == 2) {
+            double text;
+            if (const Value *value = untouchedTextValue(ctx, k); value != nullptr && value->plainNumber(text) && text == text) {
+                ctx->slots[code.slotVariables + k] = text;
+                ctx->numericTagged[k] = 2;
+            }
+        }
         if (var != nullptr && (var->value.index() == 1 || (var->value.index() == 0 && std::get<Value>(var->value).isDouble()))) {
             ctx->numericTagged[k] = 1;
             if (var->value.index() == 1 || std::get<Value>(var->value).isRealNumber()) {
