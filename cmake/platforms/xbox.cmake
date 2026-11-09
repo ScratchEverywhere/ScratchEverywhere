@@ -209,6 +209,11 @@ include_directories(
     ${NXDK_DIR}/lib/net/nvnetdrv
 )
 
+set(HAVE_ARPA_INET_H 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_NETINET_IN_H 1 CACHE INTERNAL "Forced for NXDK")
+
+add_compile_options(-Wno-error -Wno-pedantic)
+
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
     $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox/xbox_iostream_injector.hpp>
@@ -246,7 +251,6 @@ add_compile_options(
     # Aligning loops and functions to the CPU's cache line boundary
     -falign-functions=16
     -falign-loops=16
-    -falign-jumps=16
 )
 
 # These will run with -O3 optimizations.
