@@ -1,3 +1,5 @@
+#ifdef ENABLE_CLOUDVARS
+
 #include <net/encoding.hpp>
 
 #include <cstring>
@@ -13,7 +15,8 @@ void sha1Block(uint32_t h[5], const uint8_t *p) {
     for (int i = 0; i < 16; i++) {
         w[i] = ((uint32_t)p[i * 4] << 24) | ((uint32_t)p[i * 4 + 1] << 16) | ((uint32_t)p[i * 4 + 2] << 8) | (uint32_t)p[i * 4 + 3];
     }
-    for (int i = 16; i < 80; i++) w[i] = rotl(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+    for (int i = 16; i < 80; i++)
+        w[i] = rotl(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
 
     uint32_t a = h[0], b = h[1], c = h[2], d = h[3], e = h[4];
     for (int i = 0; i < 80; i++) {
@@ -52,7 +55,8 @@ std::array<uint8_t, 20> NetEncoding::sha1(const void *data, size_t len) {
     const uint8_t *p = static_cast<const uint8_t *>(data);
 
     size_t full = len / 64;
-    for (size_t i = 0; i < full; i++) sha1Block(h, p + i * 64);
+    for (size_t i = 0; i < full; i++)
+        sha1Block(h, p + i * 64);
 
     uint8_t tail[128] = {0};
     size_t rem = len - full * 64;
@@ -60,7 +64,8 @@ std::array<uint8_t, 20> NetEncoding::sha1(const void *data, size_t len) {
     tail[rem] = 0x80;
     size_t tailLen = rem < 56 ? 64 : 128;
     uint64_t bits = (uint64_t)len * 8;
-    for (int i = 0; i < 8; i++) tail[tailLen - 1 - i] = (uint8_t)(bits >> (8 * i));
+    for (int i = 0; i < 8; i++)
+        tail[tailLen - 1 - i] = (uint8_t)(bits >> (8 * i));
     sha1Block(h, tail);
     if (tailLen == 128) sha1Block(h, tail + 64);
 
@@ -90,3 +95,5 @@ std::string NetEncoding::base64Encode(const void *data, size_t len) {
     }
     return out;
 }
+
+#endif

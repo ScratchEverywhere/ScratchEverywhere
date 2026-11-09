@@ -7,7 +7,7 @@
 #include <timer.hpp>
 #include <vector>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__XBOX__) && !defined(NXDK)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 typedef SOCKET se_sock_t;

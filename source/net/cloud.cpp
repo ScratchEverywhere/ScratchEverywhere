@@ -1,3 +1,5 @@
+#ifdef ENABLE_CLOUDVARS
+
 #include <net/cloud.hpp>
 
 #include <atomic>
@@ -256,3 +258,5 @@ void CloudProvider::drainUpdates() {
 bool CloudProvider::isConnected() const {
     return state->connected.load();
 }
+
+#endif

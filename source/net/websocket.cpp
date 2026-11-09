@@ -1,3 +1,5 @@
+#ifdef ENABLE_CLOUDVARS
+
 #include <net/websocket.hpp>
 
 #include <net/encoding.hpp>
@@ -264,3 +266,5 @@ void WebSocket::close(uint16_t code) {
     state->sendQueue.clear();
     state->sendMutex.unlock();
 }
+
+#endif
