@@ -122,6 +122,25 @@ Value materializeVariableSlow(Context *ctx, uint32_t k) {
     return ctx->chunk->constants[kind - 5];
 }
 
+void LIR_FUNC jitPushColorConst(Context *ctx, BytecodeJitLir::Word index) {
+    ctx->thread->colorStack.push_back(ctx->chunk->colorConstants[index]);
+}
+
+void LIR_FUNC jitPushColorVariable(Context *ctx, BytecodeJitLir::Word variable) {
+    ctx->thread->colorStack.push_back(BlockExecutor::getVariableValueAs<Color>(variableAt(*ctx->thread, static_cast<uint32_t>(variable))));
+}
+
+void LIR_FUNC jitPushColorPromoted(Context *ctx, BytecodeJitLir::Word k) {
+    ctx->thread->colorStack.push_back(materializeVariable(ctx, static_cast<uint32_t>(k)).asColor());
+}
+
+void LIR_FUNC jitCallColorVoid(Context *ctx, void (*fn)(Sprite *, Color)) {
+    BytecodeThread &thread = *ctx->thread;
+    const Color color = thread.colorStack.back();
+    thread.colorStack.pop_back();
+    fn(static_cast<Sprite *>(ctx->sprite), color);
+}
+
 Value materializeEntrySlow(Context *ctx, const ValueEntry &entry, uint32_t position) {
     switch (entry.kind) {
     case ValueEntry::Boolean: {

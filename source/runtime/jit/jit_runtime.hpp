@@ -142,6 +142,11 @@ inline const Value &peekEntry(Context *ctx, const ValueEntry &entry, uint32_t po
     return scratch;
 }
 
+void LIR_FUNC jitPushColorConst(Context *ctx, BytecodeJitLir::Word index);
+void LIR_FUNC jitPushColorVariable(Context *ctx, BytecodeJitLir::Word variable);
+void LIR_FUNC jitPushColorPromoted(Context *ctx, BytecodeJitLir::Word k);
+void LIR_FUNC jitCallColorVoid(Context *ctx, void (*fn)(Sprite *, Color));
+
 void refreshDepthLimit(Context *ctx);
 void refreshSave(Context *ctx);
 void loadFrame(Context *ctx, const EntryDescriptor &entry);

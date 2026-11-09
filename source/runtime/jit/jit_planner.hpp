@@ -69,6 +69,7 @@ enum class NativeShape {
     VoidNone,
     VoidNumber,
     VoidNumberNumber,
+    VoidColor,
     VoidValue,
     StringStringString,
     StringStringBool,
@@ -154,6 +155,7 @@ struct Planner {
             if (args == 1 && kind(0) == K::Number && fn.n_void) return NativeShape::VoidNumber;
             if (args == 2 && kind(0) == K::Number && kind(1) == K::Number && fn.nn_void) return NativeShape::VoidNumberNumber;
             if (args == 1 && kind(0) == K::Value && fn.v_void) return NativeShape::VoidValue;
+            if (args == 1 && kind(0) == K::Color && fn.c_void) return NativeShape::VoidColor;
         }
         return NativeShape::None;
     }
@@ -399,6 +401,10 @@ struct Planner {
             return !leavesString(shape) || stringConsumedInBlock(pc, -stringArguments(shape));
         }
 
+        case BytecodeOp::PushConstColor:
+            return instr.a < chunk.colorConstants.size();
+        case BytecodeOp::PushVarColor:
+            return instr.a < chunk.variableSlots.size();
         case BytecodeOp::PushConstString:
             return instr.a < chunk.stringConstants.size() && stringConsumedInBlock(pc, 0);
         case BytecodeOp::PushVarString:

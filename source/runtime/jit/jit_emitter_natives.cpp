@@ -114,6 +114,11 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
         lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::MEM1(lir::S0), offsetof(Context, sprite));
         callHelper(reinterpret_cast<void *>(fn.voidFn), LIR_ARGS1V(P));
         break;
+    case NativeShape::VoidColor:
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(fn.c_void));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCallColorVoid), LIR_ARGS2V(P, P));
+        break;
     case NativeShape::VoidNumber:
         if (emitInlineMotion(instr, shape)) {
             state_.numbers -= 1;

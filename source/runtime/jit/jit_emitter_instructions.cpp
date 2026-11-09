@@ -933,6 +933,20 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::PushConstColor:
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, static_cast<lir::Word>(instr.a));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitPushColorConst), LIR_ARGS2V(P, W));
+        return;
+
+    case BytecodeOp::PushVarColor: {
+        const int32_t k = instr.a < promotedIndex_.size() ? promotedIndex_[instr.a] : -1;
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, static_cast<lir::Word>(k >= 0 ? k : instr.a));
+        callHelper(reinterpret_cast<void *>(k >= 0 ? &Runtime::jitPushColorPromoted : &Runtime::jitPushColorVariable), LIR_ARGS2V(P, W));
+        return;
+    }
+
     case BytecodeOp::CallNative:
     case BytecodeOp::CallNativeNumber:
     case BytecodeOp::CallNativeString:
