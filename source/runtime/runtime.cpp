@@ -210,7 +210,7 @@ void Scratch::cleanupScratchProject() {
     Render::cleanupPen();
 
 #ifdef ENABLE_CLOUDVARS
-    Parser::cleanupMist();
+    Parser::cleanupCloud();
 #endif
 
     // Clean up ZIP archive and loader unconditionally

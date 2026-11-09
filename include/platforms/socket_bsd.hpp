@@ -1,8 +1,9 @@
 #pragma once
-#include <chrono>
 #include <cstring>
+#include <ctime>
 #include <os.hpp>
 #include <socket.hpp>
+#include <timer.hpp>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -93,20 +94,27 @@ struct SE_Socket::Impl {
 
 static int se_refCount = 0;
 
-static int se_msLeft(std::chrono::steady_clock::time_point deadline) {
-    auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
-    return left < 0 ? 0 : (int)left;
-}
+struct SeDeadline {
+    Timer timer;
+    int totalMs;
+
+    explicit SeDeadline(int timeoutMs) : totalMs(timeoutMs) {}
+
+    int msLeft() {
+        uint64_t elapsed = timer.getTimeMs();
+        return elapsed >= (uint64_t)totalMs ? 0 : totalMs - (int)elapsed;
+    }
+};
 
 static int se_waitFor(se_sock_t fd, short events, int timeoutMs) {
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    SeDeadline deadline(timeoutMs);
     for (;;) {
         struct pollfd p;
         p.fd = fd;
         p.events = events;
         p.revents = 0;
-        int r = SE_NET_POLL(&p, 1, se_msLeft(deadline));
-        if (r < 0 && SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR()) && se_msLeft(deadline) > 0) continue;
+        int r = SE_NET_POLL(&p, 1, deadline.msLeft());
+        if (r < 0 && SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR()) && deadline.msLeft() > 0) continue;
         return r;
     }
 }
@@ -140,7 +148,8 @@ void SE_Socket::deinit() {
 
 void SE_Socket::randomBytes(void *buf, size_t len) {
     if (SE_NET_RANDOM(buf, len)) return;
-    static uint64_t state = (uint64_t)std::chrono::steady_clock::now().time_since_epoch().count() | 1;
+    int stackMarker;
+    static uint64_t state = ((uint64_t)time(nullptr) * 0x9E3779B97F4A7C15ULL ^ (uint64_t)(uintptr_t)&stackMarker ^ (uint64_t)(uintptr_t)&se_refCount) | 1;
     uint8_t *out = static_cast<uint8_t *>(buf);
     for (size_t i = 0; i < len; i++) {
         state ^= state << 13;
@@ -207,7 +216,7 @@ int SE_Socket::send(const void *buf, size_t len, int timeoutMs) {
     if (impl->fd == SE_SOCK_INVALID) return -1;
     impl->timedOut = false;
 
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    SeDeadline deadline(timeoutMs);
     const char *p = static_cast<const char *>(buf);
     size_t sent = 0;
     while (sent < len) {
@@ -217,7 +226,7 @@ int SE_Socket::send(const void *buf, size_t len, int timeoutMs) {
             continue;
         }
         if (r < 0 && SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) {
-            int w = se_waitFor(impl->fd, POLLOUT, se_msLeft(deadline));
+            int w = se_waitFor(impl->fd, POLLOUT, deadline.msLeft());
             if (w > 0) continue;
             impl->timedOut = w == 0;
         }
@@ -230,13 +239,13 @@ int SE_Socket::recv(void *buf, size_t len, int timeoutMs) {
     if (impl->fd == SE_SOCK_INVALID) return -1;
     impl->timedOut = false;
 
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    SeDeadline deadline(timeoutMs);
     for (;;) {
         int r = (int)::recv(impl->fd, static_cast<char *>(buf), (int)len, 0);
         if (r >= 0) return r;
         if (!SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) return -1;
 
-        int w = se_waitFor(impl->fd, POLLIN, se_msLeft(deadline));
+        int w = se_waitFor(impl->fd, POLLIN, deadline.msLeft());
         if (w > 0) continue;
         impl->timedOut = w == 0;
         return -1;

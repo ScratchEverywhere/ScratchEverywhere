@@ -28,8 +28,9 @@ struct SE_EXPORT Parser {
     static bool relinkBytecode(Sprite *sprite, BytecodeChunk &&chunk, uint32_t blockOrdinalBase, uint32_t blockOrdinalEnd);
 
 #ifdef ENABLE_CLOUDVARS
-    static void initMist();
-    static void cleanupMist();
+    static void initCloud();
+    static void updateCloud();
+    static void cleanupCloud();
 #endif
   private:
     static void log(const std::string &message);

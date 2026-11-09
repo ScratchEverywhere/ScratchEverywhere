@@ -18,12 +18,12 @@ keywords on a given `cl_add_dep` call) instead of anything SE-specific.
 
 Dependencies are loaded with `cl_add_dep(target dependency_name)` (or
 `cl_add_dep(dependency_name)` with no target for a dependency that only other
-dependencies compose on top of, e.g. `libcurl` inside `mistpp`'s recipe). All
-libraries are loaded to `deps::dependency_name`, which Catalog aliases
-automatically from whichever real target a recipe stage produces.
+dependencies compose on top of). All libraries are loaded to
+`deps::dependency_name`, which Catalog aliases automatically from whichever real
+target a recipe stage produces.
 
 Dependency **names must match the registry's `meta.cmake` casing exactly** (e.g.
-`GLAD`, `GLFW`, `SDL2`, `mistpp` - see `~/catalog-repo/meta.cmake` or wherever
+`GLAD`, `GLFW`, `SDL2`, `wslay` - see `~/catalog-repo/meta.cmake` or wherever
 that repo is checked out) - CMake function names are case-insensitive so a
 recipe's `_recipe_<name>_<stage>` functions still resolve either way, but the
 registry lookup by package name is case-sensitive.
@@ -31,13 +31,12 @@ registry lookup by package name is case-sensitive.
 ### Project-local recipe overrides
 
 A handful of dependencies need SE-specific behavior the shared registry recipe
-doesn't have (websocket-enabled cloud-vars libcurl, the `SE_LUA_BACKEND`
-luajit/lua5.1 fallback and the `sol2` binding built on top of it, libdlgmod's
-`SE_WINDOWING`-based event polling, the vendored `ryuJS` single-file dependency,
-and plutovg's single-threaded build flags). These live in
-`/cmake/recipes/*.cmake` as their own local Catalog repo (with its own
-`meta.cmake`), loaded with a second `cl_repo(cmake/recipes)` call right after
-the shared registry's `cl_repo()` in `CMakeLists.txt` - Catalog resolves a
+doesn't have (the `SE_LUA_BACKEND` luajit/lua5.1 fallback and the `sol2` binding
+built on top of it, libdlgmod's `SE_WINDOWING`-based event polling, the vendored
+`ryuJS` single-file dependency, and plutovg's single-threaded build flags).
+These live in `/cmake/recipes/*.cmake` as their own local Catalog repo (with its
+own `meta.cmake`), loaded with a second `cl_repo(cmake/recipes)` call right
+after the shared registry's `cl_repo()` in `CMakeLists.txt` - Catalog resolves a
 package name against the _last_ repo that defines it
 (`catalog-cmake/catalog@bd7112a`), so this repo's recipes transparently override
 the shared registry's ones of the same name without needing per-package
