@@ -183,7 +183,6 @@ void LIR_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
         const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
         if (var != nullptr) {
             if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                // A region entered from the VM starts with its string variables untouched; adopting one lets the inline fast path take over.
                 setStringVariable(ctx, op->variable, std::string(**text));
                 kind = 4;
             } else {
@@ -219,8 +218,13 @@ void LIR_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         return;
 
     case StringOp::StoreVariable:
-        if (op->a.kind == StrEntry::Temp) setStringVariable(ctx, op->variable, std::move(strs[op->aPosition]));
-        else setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
+        if (op->a.kind == StrEntry::Temp) {
+            setStringVariable(ctx, op->variable, std::move(strs[op->aPosition]));
+        } else {
+            const std::string &text = stringOf(ctx, op->a, op->aPosition);
+            if (ctx->dirty[op->variable] == 4 && stringVariables[op->variable] == text) return;
+            setStringVariable(ctx, op->variable, std::string(text));
+        }
         return;
 
     case StringOp::AppendVariable:

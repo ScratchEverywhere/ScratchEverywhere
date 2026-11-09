@@ -402,6 +402,15 @@ static void appendSolidCapsuleTris(std::vector<float> &out, float x1, float y1, 
         return;
     }
 
+    if (radius <= 0.75f) {
+        const float ux = dx / length * radius, uy = dy / length * radius;
+        const float ax = x1 - ux - uy, ay = y1 - uy + ux, bx = x1 - ux + uy, by = y1 - uy - ux;
+        const float cx = x2 + ux + uy, cy = y2 + uy - ux, ex = x2 + ux - uy, ey = y2 + uy + ux;
+        out.insert(out.end(), {ax, ay, r, g, b, a, bx, by, r, g, b, a, ex, ey, r, g, b, a,
+                               ax, ay, r, g, b, a, ex, ey, r, g, b, a, cx, cy, r, g, b, a});
+        return;
+    }
+
     float phi = std::atan2(dy, dx);
     std::vector<float> ring;
     ring.reserve(((capSegments + 1) * 2 + 1) * 2);
