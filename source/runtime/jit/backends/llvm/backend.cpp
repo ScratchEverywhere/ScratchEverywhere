@@ -3,17 +3,18 @@
 #ifdef SE_JIT
 
 #include "lir.hpp"
-#include <cstdio>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
+#include <llvm/Config/llvm-config.h>
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -30,6 +31,14 @@ namespace BytecodeJitLir {
 
 namespace {
 
+llvm::Function *intrinsicDeclaration(llvm::Module *module, llvm::Intrinsic::ID id) {
+#if LLVM_VERSION_MAJOR >= 20
+    return llvm::Intrinsic::getOrInsertDeclaration(module, id);
+#else
+    return llvm::Intrinsic::getDeclaration(module, id);
+#endif
+}
+
 struct Engine {
     std::unique_ptr<llvm::orc::LLJIT> jit;
     std::unique_ptr<llvm::TargetMachine> machine;
@@ -37,7 +46,7 @@ struct Engine {
 };
 
 Engine *engine() {
-    static Engine *instance = [] () -> Engine * {
+    static Engine *instance = []() -> Engine * {
         llvm::InitializeNativeTarget();
         llvm::InitializeNativeTargetAsmPrinter();
         auto builder = llvm::orc::JITTargetMachineBuilder::detectHost();
@@ -651,13 +660,13 @@ class Translator {
             writeFloat(i.dst, i.dstw, ir_.CreateSIToFP(readInt(i.src1, i.src1w, true), f64_));
             break;
         case CONV_SW_FROM_F64: {
-            llvm::Function *convert = llvm::Intrinsic::getOrInsertDeclaration(&module_, llvm::Intrinsic::x86_sse2_cvttsd2si64);
+            llvm::Function *convert = intrinsicDeclaration(&module_, llvm::Intrinsic::x86_sse2_cvttsd2si64);
             llvm::Value *value = ir_.CreateCall(convert, {vector2(readFloat(i.src1, i.src1w))});
             storeIntResult(i, value);
             break;
         }
         case CONV_S32_FROM_F64: {
-            llvm::Function *convert = llvm::Intrinsic::getOrInsertDeclaration(&module_, llvm::Intrinsic::x86_sse2_cvttsd2si);
+            llvm::Function *convert = intrinsicDeclaration(&module_, llvm::Intrinsic::x86_sse2_cvttsd2si);
             llvm::Value *value = ir_.CreateZExt(ir_.CreateCall(convert, {vector2(readFloat(i.src1, i.src1w))}), i64_);
             storeIntResult(i, value);
             break;
@@ -709,7 +718,11 @@ void *llvmGenerate(Builder &b) {
     auto context = std::make_unique<llvm::LLVMContext>();
     auto module = std::make_unique<llvm::Module>("se_jit", *context);
     module->setDataLayout(e->machine->createDataLayout());
+#if LLVM_VERSION_MAJOR >= 21
     module->setTargetTriple(e->machine->getTargetTriple());
+#else
+    module->setTargetTriple(e->machine->getTargetTriple().getTriple());
+#endif
     const std::string name = "se_jit_" + std::to_string(e->counter++);
     {
         Translator translator(b, *context, *module);
@@ -740,7 +753,7 @@ void *llvmGenerate(Builder &b) {
         passes.registerLoopAnalyses(loops);
         passes.crossRegisterProxies(loops, functions, components, modules);
         llvm::OptimizationLevel optimization = level == 1 ? llvm::OptimizationLevel::O1 : level == 3 ? llvm::OptimizationLevel::O3
-                                                                                                    : llvm::OptimizationLevel::O2;
+                                                                                                     : llvm::OptimizationLevel::O2;
         llvm::ModulePassManager pipeline = passes.buildPerModuleDefaultPipeline(optimization);
         const auto started = std::chrono::steady_clock::now();
         pipeline.run(*module, modules);
