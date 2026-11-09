@@ -14,7 +14,7 @@ set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
 set(SE_BUNDLE_DEFAULT ON) # DO NOT TOUCH; Xbox relies on using bundle entirely.
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS OFF) # TODO: Enable once the Xbox socket backend has been tested with cloud variables
+set(SE_ALLOW_CLOUDVARS ON)
 set(SE_ALLOW_DOWNLOAD ON)
 set(SE_TLS_BACKEND_VALID_OPTIONS "mbedtls")
 set(SE_TLS_BACKEND_PRIORITY "mbedtls")
