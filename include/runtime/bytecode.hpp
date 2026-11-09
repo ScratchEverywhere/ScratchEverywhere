@@ -416,3 +416,4 @@ struct SE_EXPORT BytecodeThread {
 };
 
 uint64_t fastRandomBelow(uint64_t bound);
+double fastRandomDouble();

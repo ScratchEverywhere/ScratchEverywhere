@@ -934,6 +934,58 @@ void Emitter::emitInstruction(BytecodeIndex pc) {
         return;
     }
 
+    case BytecodeOp::ConvertValueToColor:
+    case BytecodeOp::ConvertValueToBoolean: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ValueCallDescriptor &call = code_.valueCalls.emplace_back();
+        call.itemPosition = depth - 1;
+        call.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(&call));
+        if (instr.op == BytecodeOp::ConvertValueToColor) {
+            callHelper(reinterpret_cast<void *>(&Runtime::jitConvertValueToColor), LIR_ARGS2V(P, P));
+        } else {
+            callHelper(reinterpret_cast<void *>(&Runtime::jitConvertValueToBoolean), LIR_ARGS2(I32, P, P));
+            lir::emitOp1(c_, lir::MOV_U8, lir::R0, 0, lir::R0, 0);
+            storeW(booleanSlot(state_.booleans), lir::R0);
+            state_.booleans += 1;
+            maxBooleans_ = std::max(maxBooleans_, state_.booleans);
+        }
+        return;
+    }
+
+    case BytecodeOp::Random: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ValueCallDescriptor &call = code_.valueCalls.emplace_back();
+        call.itemPosition = depth - 2;
+        call.item = describe(state_.values[depth - 2]);
+        call.secondPosition = depth - 1;
+        call.second = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        state_.values.pop_back();
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(&call));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitRandomValues), LIR_ARGS2(F64, P, P));
+        storeF(numberSlot(state_.numbers), lir::FR0);
+        state_.numbers += 1;
+        maxNumbers_ = std::max(maxNumbers_, state_.numbers);
+        return;
+    }
+
+    case BytecodeOp::CostumeNumberName: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, static_cast<lir::Word>(depth));
+        lir::emitOp1(c_, lir::MOV, lir::R2, 0, lir::IMM, instr.b == 0 ? 0 : 1);
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCostumeNumberName), LIR_ARGS3V(P, W, W));
+        AbsValue v;
+        v.kind = ValueEntry::Temp;
+        state_.values.push_back(v);
+        maxValues_ = std::max(maxValues_, depth + 1);
+        return;
+    }
+
     case BytecodeOp::PushConstColor:
         lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
         lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, static_cast<lir::Word>(instr.a));

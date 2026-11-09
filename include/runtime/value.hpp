@@ -436,7 +436,7 @@ class SE_EXPORT Value {
     }
 
     // Used exclusively by the random block
-    bool isScratchInt();
+    bool isScratchInt() const;
 
     static Value fromJson(const nlohmann::json &jsonVal);
 };

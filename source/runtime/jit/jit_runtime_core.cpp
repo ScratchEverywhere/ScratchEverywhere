@@ -699,6 +699,43 @@ void LIR_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
     call->fn(static_cast<Sprite *>(ctx->sprite), value);
 }
 
+BytecodeJitLir::Word LIR_FUNC jitCallValueBool(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    return call->fnBool(peekEntry(ctx, call->item, call->itemPosition, scratch)) ? 1 : 0;
+}
+
+void LIR_FUNC jitConvertValueToColor(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    ctx->thread->colorStack.push_back(peekEntry(ctx, call->item, call->itemPosition, scratch).asColor());
+}
+
+BytecodeJitLir::Word LIR_FUNC jitConvertValueToBoolean(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    return peekEntry(ctx, call->item, call->itemPosition, scratch).get<bool>() ? 1 : 0;
+}
+
+double LIR_FUNC jitRandomValues(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratchFrom, scratchTo;
+    const Value &fromValue = peekEntry(ctx, call->item, call->itemPosition, scratchFrom);
+    const Value &toValue = peekEntry(ctx, call->second, call->secondPosition, scratchTo);
+    const double a = fromValue.get<double>();
+    const double b = toValue.get<double>();
+    if (a == b) return a;
+    const double from = std::min(a, b);
+    const double to = std::max(a, b);
+    if (fromValue.isScratchInt() && toValue.isScratchInt()) return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1 - from)));
+    return from + fastRandomDouble() * (to - from);
+}
+
+void LIR_FUNC jitCostumeNumberName(Context *ctx, BytecodeJitLir::Word position, BytecodeJitLir::Word byNumber) {
+    const Sprite *sprite = static_cast<const Sprite *>(ctx->sprite);
+    Value result = byNumber == 0 ? Value(sprite->costumes[sprite->currentCostume].name) : Value(sprite->currentCostume + 1);
+    ctx->slots[ctx->code->slotValues + position] = result.numberRaw();
+    temps[position] = std::move(result);
+    tempLazy[position] = 0;
+    ctx->tempHigh = std::max(ctx->tempHigh, static_cast<uint32_t>(position) + 1);
+}
+
 double LIR_FUNC jitRepeatRound(double counter) {
     if (std::isnan(counter)) return 0.0;
     return std::round(counter);

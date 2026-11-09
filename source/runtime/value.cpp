@@ -488,7 +488,7 @@ bool Value::operator>(const Value &other) const {
     return caseInsensitiveLess(svB, svA);
 }
 
-bool Value::isScratchInt() {
+bool Value::isScratchInt() const {
     if (isDouble()) {
         double val = asDouble();
         if (std::isnan(val)) return true;

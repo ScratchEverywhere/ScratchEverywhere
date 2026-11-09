@@ -121,6 +121,9 @@ struct CompareDescriptor {
 
 struct ValueCallDescriptor {
     void (*fn)(Sprite *, const Value &) = nullptr;
+    bool (*fnBool)(const Value &) = nullptr;
+    ValueEntry second;
+    uint32_t secondPosition = 0;
     ValueEntry item;
     uint32_t itemPosition = 0;
 };

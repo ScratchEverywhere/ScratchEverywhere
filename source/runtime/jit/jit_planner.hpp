@@ -70,6 +70,7 @@ enum class NativeShape {
     VoidNumber,
     VoidNumberNumber,
     VoidColor,
+    ValueBoolean,
     VoidValue,
     StringStringString,
     StringStringBool,
@@ -147,6 +148,7 @@ struct Planner {
             }
             if (args == 0 && fn.sprite_b) return NativeShape::SpriteBoolean;
             if (args == 2 && kind(0) == K::String && kind(1) == K::String && fn.ss_b) return NativeShape::StringStringBool;
+            if (args == 1 && kind(0) == K::Value && fn.v_b) return NativeShape::ValueBoolean;
             if (args == 1 && kind(0) == K::String && fn.spriteS_b) return NativeShape::SpriteStringBool;
         } else if (instr.op == BytecodeOp::CallNative && voidCallAllowed(opcodeName(slot))) {
             if (args == 1 && kind(0) == K::String && fn.s_void) return NativeShape::VoidString;
@@ -164,7 +166,7 @@ struct Planner {
         for (const char *prefix : {"motion_", "looks_", "pen_", "music_", "sound_"}) {
             if (opcode.rfind(prefix, 0) == 0) return true;
         }
-        return opcode == "control_incr_counter" || opcode == "control_clear_counter" || opcode == "sensing_resettimer";
+        return (opcode == "event_broadcast") || opcode == "control_incr_counter" || opcode == "control_clear_counter" || opcode == "sensing_resettimer";
     }
 
     bool followsConstant(BytecodeIndex pc) const {
@@ -387,6 +389,10 @@ struct Planner {
         case BytecodeOp::ValueLess:
         case BytecodeOp::ValueGreater:
         case BytecodeOp::ConvertValueToNumber:
+        case BytecodeOp::ConvertValueToColor:
+        case BytecodeOp::ConvertValueToBoolean:
+        case BytecodeOp::Random:
+        case BytecodeOp::CostumeNumberName:
             return true;
         case BytecodeOp::StoreVarBoolean:
             return instr.a < variableCount;

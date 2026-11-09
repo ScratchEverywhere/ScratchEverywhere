@@ -147,6 +147,11 @@ void LIR_FUNC jitPushColorConst(Context *ctx, BytecodeJitLir::Word index);
 void LIR_FUNC jitPushColorVariable(Context *ctx, BytecodeJitLir::Word variable);
 void LIR_FUNC jitPushColorPromoted(Context *ctx, BytecodeJitLir::Word k);
 void LIR_FUNC jitCallColorVoid(Context *ctx, void (*fn)(Sprite *, Color));
+BytecodeJitLir::Word LIR_FUNC jitCallValueBool(Context *ctx, const ValueCallDescriptor *call);
+void LIR_FUNC jitConvertValueToColor(Context *ctx, const ValueCallDescriptor *call);
+BytecodeJitLir::Word LIR_FUNC jitConvertValueToBoolean(Context *ctx, const ValueCallDescriptor *call);
+double LIR_FUNC jitRandomValues(Context *ctx, const ValueCallDescriptor *call);
+void LIR_FUNC jitCostumeNumberName(Context *ctx, BytecodeJitLir::Word position, BytecodeJitLir::Word byNumber);
 
 void refreshDepthLimit(Context *ctx);
 void refreshSave(Context *ctx);

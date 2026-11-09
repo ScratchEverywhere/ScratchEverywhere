@@ -152,6 +152,21 @@ void Emitter::emitNative(const BytecodeInstruction &instr, NativeShape shape) {
         callHelper(reinterpret_cast<void *>(&Runtime::jitCallValueVoid), LIR_ARGS2V(P, P));
         break;
     }
+    case NativeShape::ValueBoolean: {
+        const uint32_t depth = static_cast<uint32_t>(state_.values.size());
+        ValueCallDescriptor &call = code_.valueCalls.emplace_back();
+        call.fnBool = fn.v_b;
+        call.itemPosition = depth - 1;
+        call.item = describe(state_.values[depth - 1]);
+        state_.values.pop_back();
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(&call));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCallValueBool), LIR_ARGS2(I32, P, P));
+        lir::emitOp1(c_, lir::MOV_U8, lir::R0, 0, lir::R0, 0);
+        storeW(booleanSlot(state_.booleans), lir::R0);
+        state_.booleans += 1;
+        break;
+    }
     case NativeShape::StringStringString: {
         const uint32_t n = static_cast<uint32_t>(state_.strings.size());
         StringOp &op = newStringOp(StringOp::CallStringString);
