@@ -91,6 +91,18 @@ static bool se_readUrandom(void *buf, size_t len) {
 #endif
 #endif
 
+#ifndef SE_NET_SOCKET
+#define SE_NET_SOCKET(domain, type, protocol) ::socket(domain, type, protocol)
+#define SE_NET_CONNECT(fd, addr, len) ::connect(fd, addr, len)
+#define SE_NET_SEND(fd, buf, len, flags) ::send(fd, buf, len, flags)
+#define SE_NET_RECV(fd, buf, len, flags) ::recv(fd, buf, len, flags)
+#define SE_NET_GETSOCKOPT(fd, level, name, value, len) ::getsockopt(fd, level, name, value, len)
+#define SE_NET_SETSOCKOPT(fd, level, name, value, len) ::setsockopt(fd, level, name, value, len)
+#define SE_NET_GETADDRINFO(host, service, hints, res) ::getaddrinfo(host, service, hints, res)
+#define SE_NET_FREEADDRINFO(ai) ::freeaddrinfo(ai)
+#define SE_NET_GETHOSTBYNAME(host) ::gethostbyname(host)
+#endif
+
 struct SeAddress {
     int family = 0;
     int type = 0;
@@ -188,7 +200,7 @@ static bool se_resolve(const std::string &host, uint16_t port, std::vector<SeAdd
     return SE_NET_RESOLVE(host, port, out);
 #elif defined(SE_NET_USE_GETHOSTBYNAME)
     se_netMutex().lock();
-    struct hostent *he = gethostbyname(host.c_str());
+    struct hostent *he = SE_NET_GETHOSTBYNAME(host.c_str());
     if (he == nullptr || he->h_addrtype != AF_INET || he->h_addr_list == nullptr) {
         se_netMutex().unlock();
         return false;
@@ -218,7 +230,7 @@ static bool se_resolve(const std::string &host, uint16_t port, std::vector<SeAdd
 
     struct addrinfo *res = nullptr;
     std::string portStr = std::to_string(port);
-    if (getaddrinfo(host.c_str(), portStr.c_str(), &hints, &res) != 0 || res == nullptr) return false;
+    if (SE_NET_GETADDRINFO(host.c_str(), portStr.c_str(), &hints, &res) != 0 || res == nullptr) return false;
 
     for (struct addrinfo *ai = res; ai != nullptr; ai = ai->ai_next) {
         if (ai->ai_addrlen > sizeof(SeAddress::storage)) continue;
@@ -230,7 +242,7 @@ static bool se_resolve(const std::string &host, uint16_t port, std::vector<SeAdd
         memcpy(a.storage, ai->ai_addr, ai->ai_addrlen);
         out.push_back(a);
     }
-    freeaddrinfo(res);
+    SE_NET_FREEADDRINFO(res);
     return !out.empty();
 #endif
 }
@@ -243,20 +255,20 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
     if (!se_resolve(host, port, addresses)) return false;
 
     for (const SeAddress &address : addresses) {
-        se_sock_t fd = ::socket(address.family, address.type, address.protocol);
+        se_sock_t fd = SE_NET_SOCKET(address.family, address.type, address.protocol);
         if (fd == SE_SOCK_INVALID) continue;
 
         SE_NET_SET_NONBLOCK(fd);
 
         bool ok = false;
-        int r = ::connect(fd, reinterpret_cast<const struct sockaddr *>(address.storage), (int)address.length);
+        int r = SE_NET_CONNECT(fd, reinterpret_cast<const struct sockaddr *>(address.storage), (int)address.length);
         if (r == 0) {
             ok = true;
         } else if (SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) {
             if (se_waitFor(fd, POLLOUT, timeoutMs) > 0) {
                 int err = 0;
                 socklen_t errLen = sizeof(err);
-                ok = getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&err, &errLen) == 0 && err == 0;
+                ok = SE_NET_GETSOCKOPT(fd, SOL_SOCKET, SO_ERROR, (char *)&err, &errLen) == 0 && err == 0;
             }
         }
 
@@ -266,9 +278,9 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
         }
 
         int one = 1;
-        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
+        SE_NET_SETSOCKOPT(fd, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
 #ifdef SO_NOSIGPIPE
-        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (const char *)&one, sizeof(one));
+        SE_NET_SETSOCKOPT(fd, SOL_SOCKET, SO_NOSIGPIPE, (const char *)&one, sizeof(one));
 #endif
         impl->fd = fd;
         break;
@@ -289,7 +301,7 @@ int SE_Socket::send(const void *buf, size_t len, int timeoutMs) {
     const char *p = static_cast<const char *>(buf);
     size_t sent = 0;
     while (sent < len) {
-        int r = (int)::send(impl->fd, p + sent, (int)(len - sent), SE_NET_SEND_FLAGS);
+        int r = (int)SE_NET_SEND(impl->fd, p + sent, (int)(len - sent), SE_NET_SEND_FLAGS);
         if (r > 0) {
             sent += (size_t)r;
             continue;
@@ -310,7 +322,7 @@ int SE_Socket::recv(void *buf, size_t len, int timeoutMs) {
 
     SeDeadline deadline(timeoutMs);
     for (;;) {
-        int r = (int)::recv(impl->fd, static_cast<char *>(buf), (int)len, 0);
+        int r = (int)SE_NET_RECV(impl->fd, static_cast<char *>(buf), (int)len, 0);
         if (r >= 0) return r;
         if (!SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) return -1;
 
