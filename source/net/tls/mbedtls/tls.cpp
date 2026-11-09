@@ -3,6 +3,10 @@
 #include <mbedtls/ssl.h>
 #include <mbedtls/version.h>
 #include <net/tls.hpp>
+#include <timer.hpp>
+#if defined(SE_MBEDTLS_USER_CONFIG)
+#include <mbedtls/platform_time.h>
+#endif
 
 #if MBEDTLS_VERSION_MAJOR < 2 || MBEDTLS_VERSION_MAJOR > 3
 #error "The mbedTLS TLS backend supports mbedTLS 2.28 and 3.x"
@@ -58,6 +62,21 @@ static int bioRecv(void *ctx, unsigned char *buf, size_t len) {
     }
     return SE_TLS_ERR_RECV_FAILED;
 }
+
+#if defined(SE_MBEDTLS_USER_CONFIG)
+extern "C" mbedtls_ms_time_t mbedtls_ms_time(void) {
+    static Timer timer;
+    return (mbedtls_ms_time_t)timer.getTimeMs();
+}
+#endif
+
+#if defined(SE_MBEDTLS_USER_CONFIG)
+extern "C" int mbedtls_hardware_poll(void *, unsigned char *out, size_t len, size_t *olen) {
+    SE_Socket::randomBytes(out, len);
+    *olen = len;
+    return 0;
+}
+#endif
 
 static int entropySource(void *, unsigned char *out, size_t len, size_t *olen) {
     SE_Socket::randomBytes(out, len);

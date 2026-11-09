@@ -3,7 +3,9 @@
 #include <ctime>
 #include <os.hpp>
 #include <socket.hpp>
+#include <thread.hpp>
 #include <timer.hpp>
+#include <vector>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -45,7 +47,9 @@ static WSADATA se_wsaData;
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#ifndef SE_NET_NO_POLL_H
 #include <poll.h>
+#endif
 #include <sys/socket.h>
 #include <unistd.h>
 typedef int se_sock_t;
@@ -87,12 +91,27 @@ static bool se_readUrandom(void *buf, size_t len) {
 #endif
 #endif
 
+struct SeAddress {
+    int family = 0;
+    int type = 0;
+    int protocol = 0;
+    socklen_t length = 0;
+    alignas(8) unsigned char storage[128];
+};
+
 struct SE_Socket::Impl {
     se_sock_t fd = SE_SOCK_INVALID;
     bool timedOut = false;
 };
 
 static int se_refCount = 0;
+
+static SE_Mutex &se_netMutex() {
+    static SE_Mutex mutex;
+    static const bool initialised = (mutex.init(), true);
+    (void)initialised;
+    return mutex;
+}
 
 struct SeDeadline {
     Timer timer;
@@ -127,23 +146,28 @@ SE_Socket::~SE_Socket() {
 }
 
 bool SE_Socket::init() {
+    se_netMutex().lock();
+    bool ok = true;
     if (se_refCount == 0) {
-        if (!OS::initWifi()) return false;
-        if (!SE_NET_PLATFORM_INIT()) {
+        if (!OS::initWifi()) {
+            ok = false;
+        } else if (!SE_NET_PLATFORM_INIT()) {
             OS::deInitWifi();
-            return false;
+            ok = false;
         }
     }
-    se_refCount++;
-    return true;
+    if (ok) se_refCount++;
+    se_netMutex().unlock();
+    return ok;
 }
 
 void SE_Socket::deinit() {
-    if (se_refCount == 0) return;
-    if (--se_refCount == 0) {
+    se_netMutex().lock();
+    if (se_refCount > 0 && --se_refCount == 0) {
         SE_NET_PLATFORM_DEINIT();
         OS::deInitWifi();
     }
+    se_netMutex().unlock();
 }
 
 void SE_Socket::randomBytes(void *buf, size_t len) {
@@ -159,10 +183,34 @@ void SE_Socket::randomBytes(void *buf, size_t len) {
     }
 }
 
-bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
-    close();
-    impl->timedOut = false;
+static bool se_resolve(const std::string &host, uint16_t port, std::vector<SeAddress> &out) {
+#if defined(SE_NET_RESOLVE)
+    return SE_NET_RESOLVE(host, port, out);
+#elif defined(SE_NET_USE_GETHOSTBYNAME)
+    se_netMutex().lock();
+    struct hostent *he = gethostbyname(host.c_str());
+    if (he == nullptr || he->h_addrtype != AF_INET || he->h_addr_list == nullptr) {
+        se_netMutex().unlock();
+        return false;
+    }
+    for (char **addr = he->h_addr_list; *addr != nullptr; addr++) {
+        struct sockaddr_in sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(port);
+        memcpy(&sa.sin_addr, *addr, sizeof(sa.sin_addr));
 
+        SeAddress a;
+        a.family = AF_INET;
+        a.type = SOCK_STREAM;
+        a.protocol = 0;
+        a.length = sizeof(sa);
+        memcpy(a.storage, &sa, sizeof(sa));
+        out.push_back(a);
+    }
+    se_netMutex().unlock();
+    return !out.empty();
+#else
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -173,13 +221,35 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
     if (getaddrinfo(host.c_str(), portStr.c_str(), &hints, &res) != 0 || res == nullptr) return false;
 
     for (struct addrinfo *ai = res; ai != nullptr; ai = ai->ai_next) {
-        se_sock_t fd = ::socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+        if (ai->ai_addrlen > sizeof(SeAddress::storage)) continue;
+        SeAddress a;
+        a.family = ai->ai_family;
+        a.type = ai->ai_socktype;
+        a.protocol = ai->ai_protocol;
+        a.length = (socklen_t)ai->ai_addrlen;
+        memcpy(a.storage, ai->ai_addr, ai->ai_addrlen);
+        out.push_back(a);
+    }
+    freeaddrinfo(res);
+    return !out.empty();
+#endif
+}
+
+bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
+    close();
+    impl->timedOut = false;
+
+    std::vector<SeAddress> addresses;
+    if (!se_resolve(host, port, addresses)) return false;
+
+    for (const SeAddress &address : addresses) {
+        se_sock_t fd = ::socket(address.family, address.type, address.protocol);
         if (fd == SE_SOCK_INVALID) continue;
 
         SE_NET_SET_NONBLOCK(fd);
 
         bool ok = false;
-        int r = ::connect(fd, ai->ai_addr, (int)ai->ai_addrlen);
+        int r = ::connect(fd, reinterpret_cast<const struct sockaddr *>(address.storage), (int)address.length);
         if (r == 0) {
             ok = true;
         } else if (SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) {
@@ -204,7 +274,6 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
         break;
     }
 
-    freeaddrinfo(res);
     return impl->fd != SE_SOCK_INVALID;
 }
 
