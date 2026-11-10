@@ -208,7 +208,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     std::string inputText = "";
     bool inputActive = true;
@@ -224,7 +224,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
                     event.key.keysym.unicode >= ' ') {          // Only printable characters
                     inputText += event.key.keysym.unicode;
                     text->setText(inputText);
-                    text->setColor(Math::color(0, 0, 0, 255));
+                    text->setColor(Math::color(255, 255, 255, 255));
                 }
 
                 switch (event.key.keysym.sym) {

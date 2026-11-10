@@ -57,17 +57,17 @@ void PauseMenu::init() {
     pauseControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
 
-    exitProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.exit"), "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold", true);
-    exitProjectButton->text->setColor(Math::color(0, 0, 0, 255));
+    exitProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.exit"), "gfx/menu/upperButton.svg", 200, 60, "gfx/menu/Ubuntu-Bold", true);
+    exitProjectButton->text->setColor(Math::color(255, 255, 255, 255));
 
-    flagButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.flag"), "gfx/menu/projectBox.svg", 200, 60 + space, "gfx/menu/Ubuntu-Bold", true);
-    flagButton->text->setColor(Math::color(0, 0, 0, 255));
+    flagButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.flag"), "gfx/menu/flagButton.svg", 200, 60 + space, "gfx/menu/Ubuntu-Bold", true);
+    flagButton->text->setColor(Math::color(255, 255, 255, 255));
 
-    stopButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.stop"), "gfx/menu/projectBox.svg", 200, 60 + space * 2, "gfx/menu/Ubuntu-Bold", true);
-    stopButton->text->setColor(Math::color(0, 0, 0, 255));
+    stopButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.stop"), "gfx/menu/stopButton.svg", 200, 60 + space * 2, "gfx/menu/Ubuntu-Bold", true);
+    stopButton->text->setColor(Math::color(255, 255, 255, 255));
 
-    turboButton = new ButtonObject(getTurboString(), "gfx/menu/projectBox.svg", 200, 60 + space * 3, "gfx/menu/Ubuntu-Bold", true);
-    turboButton->text->setColor(Math::color(0, 0, 0, 255));
+    turboButton = new ButtonObject(getTurboString(), "gfx/menu/turboButton.svg", 200, 60 + space * 3, "gfx/menu/Ubuntu-Bold", true);
+    turboButton->text->setColor(Math::color(255, 255, 255, 255));
 
     backButton->needsToBeSelected = false;
 
@@ -154,8 +154,8 @@ void PauseMenu::render() {
         }
     }
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
 
     pauseControl->render();
     backButton->render();
