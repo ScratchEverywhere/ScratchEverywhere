@@ -961,6 +961,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             if (name == "is Scratch Everywhere!?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isScratchEverywhere"];
             if (name == "is New 3DS?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isNew3DS"];
             if (name == "is DSi?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isDSi"];
+            if (name == "is compiled?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isCompiled"];
         } else if (newBlock->opcode == "argument_reporter_string_number") {
             std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
             if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];
