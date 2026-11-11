@@ -17,6 +17,7 @@ extern std::array<std::string, 2> fontPaths;
 namespace Flag {
 constexpr uint8_t Visible = 1 << 0;
 constexpr uint8_t Focusable = 1 << 1;
+constexpr uint8_t ScrollY = 1 << 2;
 constexpr uint8_t Clip = 1 << 6;
 } // namespace Flag
 
@@ -120,6 +121,12 @@ struct ImageProps {
     AlignMode align = AlignMode::Left;
 };
 
+struct ScrollState {
+    uint16_t id = 0;
+    int16_t x = 0, y = 0;
+    int16_t extentW = 0, extentH = 0;
+};
+
 struct Element {
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
     ElementKind kind = ElementKind::Box;
@@ -133,10 +140,12 @@ struct Element {
     Padding padding;
     Color color;
 
-    uint8_t style, state;
+    uint8_t style;
+    uint8_t state = StateFlag::Normal;
     uint16_t id;
 
-    int scrollX = 0, scrollY = 0;
+    int16_t ox = 0, oy = 0;
+    uint16_t clipOwner = NONE;
 
     Rect rect;
 };
@@ -182,6 +191,9 @@ struct Pool {
 
     std::array<std::function<void()>, MAX_IMAGE_ELEMENTS> callbacks;
     uint16_t callbackCount = 0;
+
+    std::array<ScrollState, MAX_IMAGE_ELEMENTS> scrollContainers;
+    uint16_t scrollContainerCount = 0;
 };
 
 class Builder {
@@ -198,6 +210,12 @@ class Builder {
     void pop();
 
     void measure(const int windowWidth, const int windowHeight);
+    void resolveScroll();
+    void updateScrollBounds();
+    uint16_t scrollAncestor(uint16_t i);
+    uint16_t hitTest(int mx, int my, bool focusableOnly);
+    ScrollState *findScrollState(uint16_t id);
+    Element *findElement(uint16_t id);
 
   public:
     bool dirty = true;

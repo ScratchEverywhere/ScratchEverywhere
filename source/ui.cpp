@@ -11,6 +11,8 @@ namespace UI {
 std::array<std::string, 2> fontPaths;
 std::array<Style, 32> theme;
 
+static Rect windowRect;
+
 // TODO: move this somewhere else, and add ability to load theme from file
 // TODO: put font loading here too
 void loadTheme() {
@@ -29,6 +31,55 @@ void loadTheme() {
     };
 }
 
+static Rect screenRect(const Element &e) {
+    return {
+        static_cast<int16_t>(e.rect.x - e.ox),
+        static_cast<int16_t>(e.rect.y - e.oy),
+        e.rect.w,
+        e.rect.h};
+}
+
+// TODO: make these not static yawwwwnnnn
+static Rect intersect(const Rect &a, const Rect &b) {
+    const int x1 = std::max<int>(a.x, b.x);
+    const int y1 = std::max<int>(a.y, b.y);
+    const int x2 = std::min<int>(a.x + a.w, b.x + b.w);
+    const int y2 = std::min<int>(a.y + a.h, b.y + b.h);
+
+    Rect r;
+    r.x = (int16_t)x1;
+    r.y = (int16_t)y1;
+    r.w = (int16_t)std::max(0, x2 - x1);
+    r.h = (int16_t)std::max(0, y2 - y1);
+    return r;
+}
+
+static bool overlaps(const Rect &a, const Rect &b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w &&
+           a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+static bool contains(const Rect &r, int x, int y) {
+    return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
+static Rect effectiveClip(const Pool &pool, uint16_t owner, Rect r) {
+    for (; owner != NONE; owner = pool.elements[owner].clipOwner)
+        r = intersect(r, screenRect(pool.elements[owner]));
+    return r;
+}
+
+static void clampScroll(const Element &p, ScrollState &s) {
+    const int maxY = std::max(0, s.extentH - p.rect.h);
+    s.y = (int16_t)std::clamp<int>(s.y, 0, maxY);
+}
+
+uint16_t Builder::scrollAncestor(uint16_t i) {
+    for (; i != NONE; i = pool->elements[i].parent)
+        if (pool->elements[i].flags & Flag::ScrollY) return i;
+    return NONE;
+}
+
 void Builder::input() {
     // TODO: Input class changes
     Input::getInput();
@@ -40,38 +91,43 @@ void Builder::input() {
     static int oldMouseX = 0;
     static int oldMouseY = 0;
 
-    bool found = false;
-    for (int i = pool->count - 1; i >= 0; i--) {
+    for (uint16_t i = 0; i < pool->count; i++) {
         Element &e = pool->elements[i];
-
-        if (e.flags & Flag::Clip) {
-            e.scrollY -= Input::mouseScrollDelta;
-        }
-
         if (!(e.flags & Flag::Focusable)) continue;
-        // TODO: account for scroll containers
-        if (!found && mouseX >= e.rect.x && mouseX < e.rect.x + e.rect.w &&
-            mouseY >= e.rect.y && mouseY < e.rect.y + e.rect.h) {
-            found = true;
+        e.state = StateFlag::Normal;
+    }
 
-            if (Input::mousePointer.isPressed) {
-                e.state = StateFlag::Pressed;
+    uint16_t h = hitTest(mouseX, mouseY, true);
+    if (h != NONE) {
+        Element &e = pool->elements[h];
+        if (Input::mousePointer.isPressed) {
+            e.state = StateFlag::Pressed;
 
-                if (mouseHeldFrames == 1) {
-                    oldMouseX = mouseX;
-                    oldMouseY = mouseY;
-                }
-
-            } else if (mouseHeldFrames == 0 && oldHeldFrames != 0 &&
-                       std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
-                if (e.onClickId != NONE) {
-                    pool->callbacks[e.onClickId]();
-                }
-            } else {
-                e.state = StateFlag::Focused;
+            if (mouseHeldFrames == 1) {
+                oldMouseX = mouseX;
+                oldMouseY = mouseY;
             }
 
-        } else e.state = StateFlag::Normal;
+        } else if (mouseHeldFrames == 0 && oldHeldFrames != 0 &&
+                   std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
+            if (e.onClickId != NONE) {
+                pool->callbacks[e.onClickId]();
+            }
+        } else {
+            e.state = StateFlag::Focused;
+        }
+    }
+
+    if (Input::mouseScrollDelta != 0) {
+        uint16_t target = scrollAncestor(hitTest(mouseX, mouseY, false));
+        if (target != NONE) {
+            const Element &e = pool->elements[target];
+            if (ScrollState *s = findScrollState(e.id)) {
+                s->y -= Input::mouseScrollDelta * 3;
+                clampScroll(e, *s);
+                resolveScroll();
+            }
+        }
     }
 
     oldHeldFrames = mouseHeldFrames;
@@ -88,6 +144,7 @@ bool Builder::shouldRebuild() {
     if (oldWindowWidth != windowWidth || oldWindowHeight != windowHeight) {
         oldWindowWidth = windowWidth;
         oldWindowHeight = windowHeight;
+        windowRect = {0, 0, static_cast<int16_t>(windowWidth), static_cast<int16_t>(windowHeight)};
         return true;
     }
     return dirty;
@@ -404,31 +461,100 @@ void Builder::layout() {
             cursor += mainOf(e) + gap;
         }
     }
+
+    updateScrollBounds();
+    resolveScroll();
+}
+
+uint16_t Builder::hitTest(int mx, int my, bool focusableOnly) {
+    for (int i = pool->count - 1; i >= 0; i--) {
+        const Element &e = pool->elements[i];
+        if (!(e.flags & Flag::Visible)) continue;
+        if (focusableOnly && !(e.flags & Flag::Focusable)) continue;
+
+        if (!contains(screenRect(e), mx, my)) continue;
+        if (e.clipOwner != NONE && !contains(effectiveClip(*pool, e.clipOwner, windowRect), mx, my)) continue;
+
+        return i;
+    }
+    return NONE;
+}
+
+Element *Builder::findElement(uint16_t id) {
+    for (uint16_t i = 0; i < pool->count; i++) {
+        Element &e = pool->elements[i];
+        if (e.id == id) return &e;
+    }
+    return nullptr;
+}
+
+ScrollState *Builder::findScrollState(uint16_t id) {
+    for (uint16_t i = 0; i < pool->scrollContainerCount; i++) {
+        ScrollState &s = pool->scrollContainers[i];
+        if (s.id == id) return &s;
+    }
+    ScrollState &s = pool->scrollContainers[pool->scrollContainerCount++];
+    s.id = id;
+    return &s;
+}
+
+void Builder::resolveScroll() {
+    for (uint16_t i = 0; i < pool->count; i++) {
+        Element &e = pool->elements[i];
+        if (e.parent == NONE) {
+            e.ox = e.oy = 0;
+            e.clipOwner = NONE;
+            continue;
+        }
+
+        const Element &p = pool->elements[e.parent];
+        e.ox = p.ox;
+        e.oy = p.oy;
+        e.clipOwner = (p.flags & Flag::Clip) ? e.parent : p.clipOwner;
+
+        if (p.flags & Flag::ScrollY) {
+            const ScrollState *s = findScrollState(p.id);
+            if (s) {
+                e.ox += s->x;
+                e.oy += s->y;
+            }
+        }
+    }
+}
+
+void Builder::updateScrollBounds() {
+    for (uint16_t i = 0; i < pool->count; i++) {
+        const Element &p = pool->elements[i];
+        if (!(p.flags & Flag::Visible) || !(p.flags & Flag::ScrollY)) continue;
+
+        ScrollState *s = findScrollState(p.id);
+        if (!s) continue;
+
+        int bottom = 0;
+        for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
+            const Element &e = pool->elements[c];
+            if (!(e.flags & Flag::Visible)) continue;
+            bottom = std::max<int>(bottom, e.rect.y + e.rect.h - p.rect.y);
+        }
+        s->extentH = (int16_t)(bottom + p.padding.down);
+        clampScroll(p, *s);
+    }
 }
 
 void Painter::render(const Pool &pool) {
     Renderer *renderer = Render::getGlobalRenderer();
-    const int windowWidth = renderer->window->getWidth();
-    const int windowHeight = renderer->window->getHeight();
 
     for (uint16_t i = 0; i < pool.count; i++) {
         const Element &e = pool.elements[i];
-        int offsetX = 0;
-        int offsetY = 0;
-
         if (!(e.flags & Flag::Visible)) continue;
-        if (e.parent != NONE) {
-            const Element &p = pool.elements[e.parent];
-            if (p.flags & Flag::Clip) {
-                const int px = p.rect.x + p.scrollX;
-                const int py = p.rect.y + p.scrollY;
-                if (e.rect.x + e.rect.w < px || e.rect.x > px + p.rect.w || e.rect.y + e.rect.h < py || e.rect.y > py + p.rect.h) continue;
-                offsetX += p.scrollX;
-                offsetY += p.scrollY;
-            }
-        } else {
-            if (e.rect.x + e.rect.w < 0 || e.rect.y + e.rect.h < 0 || e.rect.x > windowWidth || e.rect.y > windowHeight) continue;
-        }
+
+        const Rect sr = screenRect(e);
+        const Rect clip = effectiveClip(pool, e.clipOwner, windowRect);
+        // TODO: renderer->setClipRect or sum
+
+        if (e.parent == NONE) {
+            if (sr.x + sr.w < 0 || sr.y + sr.h < 0 || sr.x > windowRect.w || sr.y > windowRect.h) continue;
+        } else if (!overlaps(sr, clip)) continue;
 
         switch (e.kind) {
         case UI::ElementKind::Box: {
@@ -438,14 +564,14 @@ void Painter::render(const Pool &pool) {
 
             // TODO: make drawbox not centered
             if (style.round == 0)
-                renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2) - offsetX, e.rect.y + (e.rect.h / 2) - offsetY, color.r, color.g, color.b, color.a);
+                renderer->drawBox(sr.w, sr.h, sr.x + (sr.w / 2), sr.y + (sr.h / 2), color.r, color.g, color.b, color.a);
             else
-                renderer->drawRoundedBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2) - offsetX, e.rect.y + (e.rect.h / 2) - offsetY, style.round, color.r, color.g, color.b, color.a);
+                renderer->drawRoundedBox(sr.w, sr.h, sr.x + (sr.w / 2), sr.y + (sr.h / 2), style.round, color.r, color.g, color.b, color.a);
             break;
         }
         case UI::ElementKind::Text: {
             const auto &txt = pool.texts[e.payloadId];
-            txt->render(e.rect.x - offsetX, e.rect.y - offsetY);
+            txt->render(sr.x, sr.y);
             break;
         }
         case UI::ElementKind::Image: {
@@ -454,12 +580,12 @@ void Painter::render(const Pool &pool) {
                 Log::logError("[UI] Image is null.");
                 break;
             }
-            float centerX = (float)e.rect.x + ((float)e.rect.w / 2.0f);
-            float centerY = (float)e.rect.y + ((float)e.rect.h / 2.0f);
+            float centerX = (float)sr.x + ((float)sr.w / 2.0f);
+            float centerY = (float)sr.y + ((float)sr.h / 2.0f);
 
             ImageRenderParams p = {
-                .x = centerX + offsetX,
-                .y = centerY + offsetY,
+                .x = centerX,
+                .y = centerY,
                 .scale = img.scale,
                 .centered = true,
             };

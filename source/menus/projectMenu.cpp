@@ -12,13 +12,14 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::build(UI::Builder &b) {
     b.element({
-                  .flags = UI::Flag::Visible | UI::Flag::Clip,
+                  .flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
                   .childDirection = UI::ChildDir::UpDown, // TODO: Grid
                   .childGap = 15,
                   .padding = UI::Padding::all(20),
                   .align = UI::AlignMode::Center,
+                  .id = 6767, // TODO: better way of doing ids
               },
               [&] {
                   b.text({
