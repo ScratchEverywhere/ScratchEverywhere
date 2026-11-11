@@ -380,7 +380,7 @@ struct SE_EXPORT BytecodeThread {
 
     std::vector<double> numberStack;
     std::vector<std::string> stringStack;
-    std::vector<bool> boolStack;
+    std::vector<uint8_t> boolStack;
     std::vector<Color> colorStack;
     std::vector<Value> valueStack;
 
