@@ -117,7 +117,8 @@ SCRATCH_BYTECODE_BLOCK(procedures, call) {
     }
 
     BytecodeIndex argCount = static_cast<BytecodeIndex>(block->argumentIDs.size());
-    compiler.emit(compiler.inStatementContext() ? BytecodeOp::CallProcedure : BytecodeOp::CallProcedureValue, procSlot, argCount);
+    const BytecodeIndex callPc = compiler.emit(compiler.inStatementContext() ? BytecodeOp::CallProcedure : BytecodeOp::CallProcedureValue, procSlot, argCount);
+    if (compiler.blockDepth() > 0) compiler.recordCallSite(callPc);
     return true;
 }
 

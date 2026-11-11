@@ -2,14 +2,15 @@
 #include "nonstd/expected.hpp"
 #include "renderer_d3d9.hpp"
 #include <algorithm>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
 void Image_D3D9::render(ImageRenderParams &params) {
     TEXVERTEX v[4];
     int i;
-    const float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
     const float opacity = params.opacity;
@@ -35,32 +36,44 @@ void Image_D3D9::render(ImageRenderParams &params) {
     ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_mosaic"), mosaicEffect);
     ID3DXConstantTable_SetFloatArray(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_tex_size"), size, 2);
 
-    v[0].x = params.x;
-    v[0].y = params.y;
+    float px = params.x;
+    float py = params.y;
+    if (PixelSnap::unrotated(params.rotation)) {
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(params.centered ? px - renderWidth / 2 : px, renderWidth, left, snappedW);
+        PixelSnap::span(params.centered ? py - renderHeight / 2 : py, renderHeight, top, snappedH, true);
+        renderWidth = snappedW;
+        renderHeight = snappedH;
+        px = params.centered ? left + snappedW / 2 : left;
+        py = params.centered ? top + snappedH / 2 : top;
+    }
+
+    v[0].x = px;
+    v[0].y = py;
     v[0].z = 0;
     v[0].rhw = 1;
     v[0].color = 0xffffffff;
     v[0].tu = 0;
     v[0].tv = 0;
 
-    v[1].x = params.x + renderWidth;
-    v[1].y = params.y;
+    v[1].x = px + renderWidth;
+    v[1].y = py;
     v[1].z = 0;
     v[1].rhw = 1;
     v[1].color = 0xffffffff;
     v[1].tu = 1;
     v[1].tv = 0;
 
-    v[2].x = params.x + renderWidth;
-    v[2].y = params.y + renderHeight;
+    v[2].x = px + renderWidth;
+    v[2].y = py + renderHeight;
     v[2].z = 0;
     v[2].rhw = 1;
     v[2].color = 0xffffffff;
     v[2].tu = 1;
     v[2].tv = 1;
 
-    v[3].x = params.x;
-    v[3].y = params.y + renderHeight;
+    v[3].x = px;
+    v[3].y = py + renderHeight;
     v[3].z = 0;
     v[3].rhw = 1;
     v[3].color = 0xffffffff;
@@ -68,8 +81,8 @@ void Image_D3D9::render(ImageRenderParams &params) {
     v[3].tv = 1;
 
     for (i = 0; i < 4; i++) {
-        float sx = params.x - 0.5;
-        float sy = params.y - 0.5;
+        float sx = px - 0.5;
+        float sy = py - 0.5;
         int x;
         int y;
 
@@ -203,6 +216,8 @@ void Image_D3D9::setInitialTexture() {
         b[i + 3] = src[3];
     }
     IDirect3DTexture9_UnlockRect(this->pTex, 0);
+
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_D3D9::refreshTexture() {

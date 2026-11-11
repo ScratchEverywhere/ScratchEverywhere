@@ -1,6 +1,10 @@
 #include "blockUtils.hpp"
+#ifdef SE_JIT
+#include "bytecode_jit.hpp"
+#endif
 #include "os.hpp"
 #include "renderer.hpp"
+#include "runtime.hpp"
 #include "types.hpp"
 
 #if defined(WINDOWING_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
@@ -22,6 +26,16 @@ SCRATCH_BLOCK(SE, isScratchEverywhere) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(SE, isScratchEverywhere);
+
+SCRATCH_BLOCK(SE, isCompiled) {
+#ifdef SE_JIT
+    *outValue = Value(Scratch::useBytecode && BytecodeJit::enabled());
+#else
+    *outValue = Value(false);
+#endif
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(SE, isCompiled);
 
 SCRATCH_BLOCK(SE, isNew3DS) {
     *outValue = Value(OS::getPlatform() == "3DS" && OS::isEnhancedPlatform());
@@ -66,6 +80,9 @@ SCRATCH_BLOCK(SE, controller) {
         if (controller != nullptr) *outValue = Value(std::string(SDL_GetGamepadName(controller)));
         break;
 #endif
+    case Renderers::NV2A:
+        *outValue = Value("Xbox Controller");
+        break;
     default:
         break;
     }

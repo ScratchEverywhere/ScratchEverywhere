@@ -26,49 +26,127 @@ static const std::string createSettingsText(std::string translationKey, bool con
     return TranslationManager::getTranslation(translationKey) + ": " + (type == SettingType::Boolean ? (condition ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")) : (condition ? TranslationManager::getTranslation("ui.settings.accurate") : TranslationManager::getTranslation("ui.settings.fast")));
 }
 
+namespace {
+
+enum class RuntimeMode { Interpreter,
+                         Bytecode,
+                         Jit };
+
+RuntimeMode runtimeModeOf(const nlohmann::json &projectSettings) {
+    if (projectSettings.is_object() && projectSettings.contains("settings") && projectSettings["settings"].is_object()) {
+        const nlohmann::json &values = projectSettings["settings"];
+        if (values.contains("runtime") && values["runtime"].is_string()) {
+            const std::string runtime = values["runtime"].get<std::string>();
+            if (runtime == "interpreter") return RuntimeMode::Interpreter;
+            if (runtime == "jit") return RuntimeMode::Jit;
+            return RuntimeMode::Bytecode;
+        }
+        if (values.contains("useBytecode") && values["useBytecode"].is_boolean()) {
+#ifdef SE_JIT
+            return values["useBytecode"].get<bool>() ? RuntimeMode::Jit : RuntimeMode::Interpreter;
+#else
+            return values["useBytecode"].get<bool>() ? RuntimeMode::Bytecode : RuntimeMode::Interpreter;
+#endif
+        }
+    }
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+    return RuntimeMode::Interpreter;
+#elif defined(SE_JIT)
+    return RuntimeMode::Jit;
+#else
+    return RuntimeMode::Bytecode;
+#endif
+}
+
+RuntimeMode nextRuntimeMode(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return RuntimeMode::Bytecode;
+    case RuntimeMode::Bytecode:
+#ifdef SE_JIT
+        return RuntimeMode::Jit;
+#else
+        return RuntimeMode::Interpreter;
+#endif
+    case RuntimeMode::Jit:
+        break;
+    }
+    return RuntimeMode::Interpreter;
+}
+
+const char *runtimeModeKey(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return "interpreter";
+    case RuntimeMode::Bytecode:
+        return "bytecode";
+    case RuntimeMode::Jit:
+        break;
+    }
+    return "jit";
+}
+
+const char *runtimeModeName(RuntimeMode mode) {
+    switch (mode) {
+    case RuntimeMode::Interpreter:
+        return "Interpreter";
+    case RuntimeMode::Bytecode:
+        return "Bytecode";
+    case RuntimeMode::Jit:
+        break;
+    }
+    return "JIT";
+}
+
+std::string runtimeText(RuntimeMode mode) {
+    return TranslationManager::getTranslation("ui.settings.runtime") + ": " + runtimeModeName(mode);
+}
+
+} // namespace
+
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.controls"), "gfx/menu/projectBox.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
-    changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
+    changeControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.controls"), "gfx/menu/submenuButton.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton->text->setColor(Math::color(255, 255, 255, 255));
     if (canUnpacked) {
-        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.unpack"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-        UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.unpack"), "gfx/menu/submenuButton.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton->text->setColor(Math::color(255, 255, 255, 255));
     } else {
-        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.deleteUnpacked"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.deleteUnpacked"), "gfx/menu/submenuButton.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
 #if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.bottom"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
-    bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
+    bottomScreenButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.bottom"), "gfx/menu/submenuButton.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton->text->setColor(Math::color(255, 255, 255, 255));
     bottomScreenButton->text->setScale(0.5);
 #endif
-    penModeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.penMode"), "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
-    penModeButton->text->setColor(Math::color(0, 0, 0, 255));
+    penModeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.penMode"), "gfx/menu/submenuButton.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+    penModeButton->text->setColor(Math::color(255, 255, 255, 255));
     penModeButton->text->setScale(0.5);
 
-    collisionButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.collisionMode"), "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
-    collisionButton->text->setColor(Math::color(0, 0, 0, 255));
+    collisionButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.collisionMode"), "gfx/menu/submenuButton.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    collisionButton->text->setColor(Math::color(255, 255, 255, 255));
     collisionButton->text->setScale(0.5);
     collisionButton->shouldNineslice = true;
 
-    debugVarsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.fps"), "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
-    debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
+    debugVarsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.fps"), "gfx/menu/submenuButton.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    debugVarsButton->text->setColor(Math::color(255, 255, 255, 255));
     debugVarsButton->text->setScale(0.5);
 
-    ramButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.keepProjectInRam"), "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
-    ramButton->text->setColor(Math::color(0, 0, 0, 255));
+    ramButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.keepProjectInRam"), "gfx/menu/submenuButton.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
+    ramButton->text->setColor(Math::color(255, 255, 255, 255));
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
-    refreshLimitButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.warp"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
-    refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
+    refreshLimitButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.warp"), "gfx/menu/submenuButton.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton->text->setColor(Math::color(255, 255, 255, 255));
     refreshLimitButton->text->setScale(0.5);
     refreshLimitButton->shouldNineslice = true;
 
-    runtimeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.runtime"), "gfx/menu/projectBox.svg", 200, 360, "gfx/menu/Ubuntu-Bold");
-    runtimeButton->text->setColor(Math::color(0, 0, 0, 255));
+    runtimeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.runtime"), "gfx/menu/submenuButton.svg", 200, 360, "gfx/menu/Ubuntu-Bold");
+    runtimeButton->text->setColor(Math::color(255, 255, 255, 255));
     runtimeButton->text->setScale(0.5);
     runtimeButton->shouldNineslice = true;
 
@@ -131,7 +209,7 @@ void ProjectSettings::init() {
         bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
     }
 
-    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) {
+    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
     } else {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
@@ -163,15 +241,7 @@ void ProjectSettings::init() {
         refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"].get<bool>()));
     } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
 
-    if (!settings["settings"]["useBytecode"].is_null()) {
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"].get<bool>()));
-    } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", false));
-#else
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", true));
-#endif
-    }
+    runtimeButton->text->setText(runtimeText(runtimeModeOf(settings)));
 
     isInitialized = true;
 }
@@ -233,13 +303,11 @@ void ProjectSettings::render() {
     }
     if (runtimeButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", false);
-#else
-        settings["settings"]["useBytecode"] = !settings["settings"].value("useBytecode", true);
-#endif
+        const RuntimeMode mode = nextRuntimeMode(runtimeModeOf(settings));
+        settings["settings"]["runtime"] = runtimeModeKey(mode);
+        settings["settings"]["useBytecode"] = mode != RuntimeMode::Interpreter; // for builds that only know the older setting
         SettingsManager::saveProjectSettings(settings, projectPath);
-        runtimeButton->text->setText(createSettingsText("ui.settings.runtime", settings["settings"]["useBytecode"]));
+        runtimeButton->text->setText(runtimeText(mode));
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -274,8 +342,8 @@ void ProjectSettings::render() {
         return;
     }
 
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
+    Render::beginFrame(0, 66, 44, 66);
+    Render::beginFrame(1, 66, 44, 66);
 
     // changeControlsButton->render();
     // if (canUnpacked) UnpackProjectButton->render();

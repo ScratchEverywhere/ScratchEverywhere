@@ -1,6 +1,7 @@
 #pragma once
 #include "color.hpp"
 #include "value.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -14,9 +15,10 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-inline constexpr uint16_t bytecodeCacheVersion = 1;
+inline constexpr uint16_t bytecodeCacheVersion = 6;
 
 inline constexpr std::size_t MAX_CALL_DEPTH = 10000;
+inline constexpr unsigned int BYTECODE_MAX_LIST_ITEMS = 200000;
 
 enum class BytecodeStackKind : uint8_t {
     Number,
@@ -53,6 +55,8 @@ enum class BytecodeOp : uint8_t {
     StoreVarBoolean,
     StoreVarColor,
     StoreVarValue,
+
+    AppendVarString,
 
     ChangeVarNumber,
 
@@ -108,6 +112,7 @@ enum class BytecodeOp : uint8_t {
 
     RepeatCheck,
     ForEachCheck,
+    SetForEachBound,
     Wait,
     BroadcastAndWait,
     PlaySoundUntilDone,
@@ -175,6 +180,8 @@ struct SE_EXPORT BytecodeScript {
     BytecodeIndex blockOrdinal = invalidBytecodeIndex;
 };
 
+struct BytecodeJitCode;
+
 struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeInstruction> instructions;
 
@@ -199,6 +206,23 @@ struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeScript> scripts;
 
     std::vector<BytecodeIndex> escapeBlockOrdinals;
+
+    std::vector<BytecodeIndex> callSitePcs;
+    std::vector<BytecodeIndex> callSiteDepths;
+    uint32_t callSiteDepth(BytecodeIndex pc) const {
+        auto it = std::lower_bound(callSitePcs.begin(), callSitePcs.end(), pc);
+        return (it != callSitePcs.end() && *it == pc) ? callSiteDepths[static_cast<size_t>(it - callSitePcs.begin())] : 0;
+    }
+
+    std::vector<BytecodeIndex> escapeWriteStart;
+    std::vector<BytecodeIndex> escapeWriteCount;
+    std::vector<BytecodeIndex> escapeWrittenVariables;
+
+#ifdef SE_JIT
+    mutable bool jitTried = false;
+    mutable std::shared_ptr<BytecodeJitCode> jit;
+    mutable std::vector<int32_t> jitEntryAt;
+#endif
 
     BytecodeIndex internString(const std::string &s) {
         for (BytecodeIndex i = 0; i < strings.size(); ++i) {
@@ -329,6 +353,17 @@ struct SE_EXPORT BytecodeCallFrame {
     bool previousWarp = false;
 };
 
+inline bool bytecodeIsRecursiveCall(const BytecodeChunk &chunk, const std::vector<BytecodeCallFrame> &callStack, BytecodeIndex procedure, BytecodeIndex callPc) {
+    uint32_t between = chunk.callSiteDepth(callPc);
+    for (size_t i = callStack.size(); i-- > 0;) {
+        if (between > 5) return false;
+        const BytecodeCallFrame &frame = callStack[i];
+        if (frame.procedureIndex == procedure) return true;
+        between += 1 + chunk.callSiteDepth(frame.returnInstruction - 1);
+    }
+    return false;
+}
+
 struct SE_EXPORT BytecodeThread {
     uint64_t id = 0;
     Sprite *sprite = nullptr;
@@ -341,6 +376,7 @@ struct SE_EXPORT BytecodeThread {
 
     int finished = true;
     bool withoutScreenRefresh = false;
+    bool jitSuppressOnce = false;
 
     std::vector<double> numberStack;
     std::vector<std::string> stringStack;
@@ -368,4 +404,14 @@ struct SE_EXPORT BytecodeThread {
     bool killed = false;
 
     ScriptThread *bridgeThread = nullptr;
+#if defined(__XBOX__)
+    uint64_t nativeEntries = 0;
+    uint64_t nativeYields = 0;
+    uint64_t nativeDeopts = 0;
+    uint64_t nativeHalts = 0;
+    uint64_t interpreterSteps = 0;
+    bool statsReported = false;
+#endif
 };
+
+uint64_t fastRandomBelow(uint64_t bound);

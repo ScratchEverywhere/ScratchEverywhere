@@ -2,13 +2,28 @@
 #include "audiostack.hpp"
 #include <SDL3/SDL.h>
 #include <log.hpp>
+#include <loudness.hpp>
 #include <os.hpp>
 #include <string>
 #include <vector>
 
 static SDL_AudioStream *sdl_stream;
+
+#ifdef ENABLE_AUDIO
+static constexpr int MIC_RATE = 44100;
+static LoudnessMeter micMeter(MIC_RATE);
+static SDL_AudioStream *micStream = nullptr;
+static bool micTried = false;
+
+extern "C" void SDLCALL sdl3MicCallback(void *userdata, SDL_AudioStream *astream, int additional_amount, int total_amount) {
+    int16_t samples[2048];
+    int bytes;
+    while ((bytes = SDL_GetAudioStreamData(astream, samples, sizeof(samples))) > 0) {
+        micMeter.feed(samples, bytes / sizeof(int16_t));
+    }
+}
+#endif
 #if defined(__XBOX__)
-// Audio buffer allocated on the heap instead of the stack
 static std::vector<short> audioBuffer;
 #endif
 
@@ -76,9 +91,33 @@ SoundDevice_SDL3::SoundDevice_SDL3() {
     error = "Audio is not enabled.";
 }
 
+int SoundDevice_SDL3::getLoudness() {
+#ifdef ENABLE_AUDIO
+    if (!micTried) {
+        micTried = true;
+
+        SDL_AudioSpec spec;
+        spec.freq = MIC_RATE;
+        spec.format = SDL_AUDIO_S16;
+        spec.channels = 1;
+
+        micStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_RECORDING, &spec, sdl3MicCallback, NULL);
+        if (micStream != NULL) SDL_ResumeAudioStreamDevice(micStream);
+        else Log::logWarning("Failed to open SDL3 microphone: " + std::string(SDL_GetError()));
+    }
+    if (micStream != nullptr) return micMeter.get();
+#endif
+    return -1;
+}
+
 SoundDevice_SDL3::~SoundDevice_SDL3() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
+    if (micStream != nullptr) {
+        SDL_DestroyAudioStream(micStream);
+        micStream = nullptr;
+    }
+    micTried = false;
     // TODO: figure out why this crashes
     //    SDL_PauseAudioStreamDevice(sdl_stream);
     //    SDL_DestroyAudioStream(sdl_stream);

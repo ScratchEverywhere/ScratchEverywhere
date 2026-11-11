@@ -18,6 +18,12 @@
 #ifdef AUDIO_NDS
 #include "audio_nds.hpp"
 #endif
+#ifdef AUDIO_WIIU
+#include "audio_wiiu.hpp"
+#endif
+#ifdef AUDIO_XBOX
+#include "audio_xbox.hpp"
+#endif
 #ifdef AUDIO_SDL3
 #include "audio_sdl3.hpp"
 #endif
@@ -57,6 +63,12 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
 #endif
 #ifdef AUDIO_NDS
     add(AudioBackends::NDS);
+#endif
+#ifdef AUDIO_WIIU
+    add(AudioBackends::WiiU);
+#endif
+#ifdef AUDIO_XBOX
+    add(AudioBackends::XboxAudio);
 #endif
 #ifdef AUDIO_SDL3
     add(AudioBackends::SDL3);
@@ -150,6 +162,24 @@ bool SoundPlayer::init() {
             continue;
 #endif
         }
+        case AudioBackends::WiiU: {
+#ifdef AUDIO_WIIU
+            currentSoundBackend = AudioBackends::WiiU;
+            globalSoundDevice = new SoundDevice_WiiU;
+            break;
+#else
+            continue;
+#endif
+        }
+        case AudioBackends::XboxAudio: {
+#ifdef AUDIO_XBOX
+            currentSoundBackend = AudioBackends::XboxAudio;
+            globalSoundDevice = new SoundDevice_XboxAudio;
+            break;
+#else
+            continue;
+#endif
+        }
         case AudioBackends::SDL3: {
 #ifdef AUDIO_SDL3
             currentSoundBackend = AudioBackends::SDL3;
@@ -210,6 +240,11 @@ bool SoundPlayer::init() {
     }
 
     return true;
+}
+
+int SoundPlayer::getLoudness() {
+    if (globalSoundDevice) return globalSoundDevice->getLoudness();
+    return -1;
 }
 
 void SoundPlayer::deinit() {

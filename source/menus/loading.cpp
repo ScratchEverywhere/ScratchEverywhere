@@ -20,6 +20,7 @@ void Loading::init() {
     block2 = loadBlock(2);
     block3 = loadBlock(3);
     loadingStateText = createTextObject("", 0, 0);
+    if (loadingStateText) loadingStateText->setCenterAligned(true);
     block1Y = Render::getHeight() * 2;
     block2Y = Render::getHeight() * 2;
     block3Y = Render::getHeight() * 2;
@@ -27,8 +28,9 @@ void Loading::init() {
 }
 void Loading::render() {
     float delta = deltaTime.getTimeMs() / 1000.0f;
+    if (delta <= 0.001f) delta = 1.0f / 60.0f;
     deltaTime.start();
-    const float lerpSpeed = 12.0f * delta;
+    const float lerpSpeed = std::min(1.0f, 12.0f * delta);
 
     float targetY1 = (Render::getHeight() * 0.3);
     float targetY2 = (Render::getHeight() * 0.3) + 30;
@@ -83,11 +85,7 @@ void Loading::render() {
         block3->render(p3);
     }
 
-#ifdef __XBOX__
     loadingStateText->setText(Unzip::getLoadingState());
-#else
-    loadingStateText->setText(Unzip::loadingState);
-#endif
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)

@@ -7,7 +7,7 @@ if(XBOX)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 endif()
 
-project(ScratchEverywhere VERSION 1.2.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.3.0 LANGUAGES CXX C)
 
 if(APPLE)
     enable_language(OBJC)
@@ -29,8 +29,16 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 include(CMakeDependentOption)
 
 if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
-    set(CATALOG_REQ_TYPE PREFER_STATIC)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+	if(NOT DEFINED CATALOG_REQ_TYPE)
+		if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+			set(CATALOG_REQ_TYPE PREFER_SHARED)
+		else()
+			set(CATALOG_REQ_TYPE PREFER_STATIC)
+		endif()
+	endif()
+	if(CATALOG_REQ_TYPE STREQUAL "PREFER_STATIC" OR CATALOG_REQ_TYPE STREQUAL "STATIC")
+		set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+	endif()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
@@ -101,6 +109,7 @@ option(SE_EXECUTABLE "Build the main executable." ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
+option(SE_JIT "Compile hot bytecode to machine code with SLJIT." ON)
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
 
 cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUDVARS" OFF)
@@ -108,22 +117,14 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
-if(NOT DEFINED SE_USE_LWMEM_DEFAULT)
-    set(SE_USE_LWMEM_DEFAULT OFF)
-endif()
-option(SE_USE_LWMEM "Route all memory management calls (malloc, free, etc.) through lwmem. Experimental, but helps reduce memory fragmentation." ${SE_USE_LWMEM_DEFAULT})
-
-if(SE_USE_LWMEM)
-    if(DEFINED SE_LWMEM_HEAP_SIZE_MB AND DEFINED SE_LWMEM_GPU_RESERVE_MB)
-        math(EXPR SE_LWMEM_HEAP_SIZE_BYTES "${SE_LWMEM_HEAP_SIZE_MB} * 1024 * 1024")
-        math(EXPR SE_LWMEM_GPU_RESERVE_BYTES "${SE_LWMEM_GPU_RESERVE_MB} * 1024 * 1024")
-    else()
-        message(STATUS "LwMEM disabled: SE_LWMEM_HEAP_SIZE_MB and SE_LWMEM_GPU_RESERVE_MB must both be defined.")
-        set(SE_USE_LWMEM OFF)
-    endif()
-endif()
-
 option(SE_MENU "Enables the SE! Main Menu." ON)
+
+cmake_dependent_option(SE_DISCORD_RPC "Enable Discord Rich Presence." OFF "SE_ALLOW_DISCORD_RPC;NOT SE_LIBRARY" OFF)
+set(SE_DISCORD_APP_ID "" CACHE STRING "Discord application ID used for Rich Presence (required when SE_DISCORD_RPC is ON).")
+if(SE_DISCORD_RPC AND SE_DISCORD_APP_ID STREQUAL "")
+    message(FATAL_ERROR "SE_DISCORD_RPC is ON but SE_DISCORD_APP_ID is not set. Create an application at https://discord.com/developers/applications and pass -DSE_DISCORD_APP_ID=<id>.")
+endif()
+
 if(SE_LIBRARY)
     set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
 endif()
@@ -181,9 +182,11 @@ endfunction()
 
 cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLATFORM STREQUAL pc" OFF)
 
-list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
+if(NOT LIBRETRO)
+    list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
+endif()
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "xbox" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "nv2a" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 
@@ -216,12 +219,11 @@ if(SE_WINDOWING_VALID_OPTIONS)
     list(REMOVE_DUPLICATES SE_WINDOWING_VALID_OPTIONS)
 endif()
 
-set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headless" "libretro")
+set(SE_WINDOWING_PRIORITY "all" "glfw" "nv2a" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "wiiu" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 
 add_library(windowing_interface INTERFACE)
 if(SE_WINDOWING STREQUAL "all")
-
     if("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS AND "sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
         list(REMOVE_ITEM SE_WINDOWING_VALID_OPTIONS "sdl3")
     endif()
@@ -300,11 +302,21 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
 if(SE_MENU)
-    file(GLOB_RECURSE GFXFILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-    )
+    if(NINTENDO_DS)
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/mm_ds.wav"
+        )
+    else()
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+        )
+    endif()
+
 else()
     if(NINTENDO_DS)
         file(GLOB_RECURSE GFXFILES
@@ -346,7 +358,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
+set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
 
 if(SE_RENDERER STREQUAL "all")
     foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)
@@ -486,7 +498,6 @@ if(SE_BUNDLE)
         endif()
 
         _bundle_ensure_catalog()
-        cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
         add_library(bundle_runtime STATIC "${_BUNDLE_ROOT_DIR}/src/bundle_runtime.c")
         target_include_directories(bundle_runtime PUBLIC "${_BUNDLE_ROOT_DIR}/src")
@@ -552,9 +563,6 @@ if(SE_BUNDLE)
 
     target_link_libraries(se-interface INTERFACE se_assets se_project)
     target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
-
-    # Undo bundle.cmake's repo override
-    cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 endif()
 
 if(SE_WINDOWING STREQUAL "all")
@@ -599,9 +607,9 @@ if(SE_AUDIO)
     target_link_libraries(se-interface INTERFACE audio_interface)
     if(NOT NINTENDO_DS)
         cl_add_dep(se-interface stb_vorbis)
+        cl_add_dep(se-interface tsf)
     endif()
     cl_add_dep(se-interface dr_libs)
-    cl_add_dep(se-interface tsf)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)
@@ -623,14 +631,6 @@ if(SE_DOWNLOAD)
     target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
     cl_add_dep(se-interface libcurl)
 endif()
-if(SE_USE_LWMEM AND DEFINED SE_LWMEM_HEAP_SIZE_MB AND DEFINED SE_LWMEM_GPU_RESERVE_MB)
-    target_compile_definitions(se-interface INTERFACE
-        SE_USE_LWMEM
-        SE_LWMEM_HEAP_SIZE=${SE_LWMEM_HEAP_SIZE_BYTES}u
-        SE_LWMEM_GPU_RESERVE_BYTES=${SE_LWMEM_GPU_RESERVE_BYTES}u
-    )
-    cl_add_dep(se-interface lwmem)
-endif()
 if(SE_CLOUDVARS)
     target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
     cl_add_dep(se-interface gh:ScratchEverywhere/mistpp)
@@ -639,6 +639,11 @@ endif()
 if(SE_DECTALK)
     target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
     cl_add_dep(se-interface dtc)
+endif()
+
+if(SE_DISCORD_RPC)
+    target_compile_definitions(se-interface INTERFACE ENABLE_DISCORD_RPC "SE_DISCORD_APP_ID=\"${SE_DISCORD_APP_ID}\"")
+    cl_add_dep(se-interface gh:gradylink/drpc)
 endif()
 
 if(SE_DECTALK_DEFAULT)
@@ -675,6 +680,38 @@ if(SE_HAS_CONTROLLER)
 endif()
 
 cl_add_dep(se-interface ryuJS)
+
+if(SE_JIT)
+    set(SE_JIT_SUPPORTED FALSE)
+    set(SE_JIT_REASON "${SE_PLATFORM} is not supported")
+    if(SE_PLATFORM STREQUAL "pc" OR SE_PLATFORM STREQUAL "libretro")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64|ARM64|i[3-6]86|x86|riscv64)$")
+            set(SE_JIT_SUPPORTED TRUE)
+        else()
+            set(SE_JIT_REASON "${CMAKE_SYSTEM_PROCESSOR} is not supported yet")
+        endif()
+    elseif(SE_PLATFORM STREQUAL "webos")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|armv7.*|aarch64|arm64)$")
+            set(SE_JIT_SUPPORTED TRUE)
+        else()
+            set(SE_JIT_REASON "${CMAKE_SYSTEM_PROCESSOR} is not supported yet")
+        endif()
+    elseif(SE_PLATFORM MATCHES "^(switch|wiiu|3ds|wii|gamecube|vita|ps4|xbox)$")
+        set(SE_JIT_SUPPORTED TRUE)
+    elseif(SE_PLATFORM STREQUAL "nds")
+        set(SE_JIT_REASON "the DS has no floating point unit")
+    elseif(SE_PLATFORM STREQUAL "psp")
+        set(SE_JIT_REASON "the PSP only has a single precision floating point unit")
+    elseif(SE_PLATFORM STREQUAL "wasm")
+        set(SE_JIT_REASON "WebAssembly cannot run generated machine code")
+    endif()
+    if(SE_JIT_SUPPORTED)
+        cl_add_dep(se-interface sljit)
+        target_compile_definitions(se-interface INTERFACE SE_JIT)
+    else()
+        message(STATUS "SE_JIT is on but ${SE_JIT_REASON}, building without the JIT")
+    endif()
+endif()
 
 cl_add_dep(se-interface nlohmann_json)
 if(SE_ZIP_BACKEND STREQUAL "minizip")

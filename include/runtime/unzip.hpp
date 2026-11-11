@@ -8,6 +8,7 @@
 #include <parser.hpp>
 #include <project_loader.hpp>
 #include <string>
+#include <thread.hpp>
 #include <vector>
 #include <zip_archive.hpp>
 
@@ -42,20 +43,39 @@ class DefaultInitAllocator : public A {
 };
 #endif
 
+SE_EXPORT SE_Mutex &unzipStateMutex();
+
+template <typename T>
+class UnzipShared {
+  public:
+    UnzipShared(T initial) : value(initial) {}
+
+    operator T() const {
+        unzipStateMutex().lock();
+        const T copy = value;
+        unzipStateMutex().unlock();
+        return copy;
+    }
+
+    UnzipShared &operator=(T next) {
+        unzipStateMutex().lock();
+        value = next;
+        unzipStateMutex().unlock();
+        return *this;
+    }
+
+  private:
+    T value;
+};
+
 class SE_EXPORT Unzip {
   public:
-    static volatile int projectOpened;
-    static std::string loadingState;
-#ifdef __XBOX__
+    static UnzipShared<int> projectOpened;
     static void setLoadingState(const std::string &state);
     static std::string getLoadingState();
-#else
-    static inline void setLoadingState(const std::string &state) { loadingState = state; }
-    static inline const std::string &getLoadingState() { return loadingState; }
-#endif
-    static volatile bool threadFinished;
+    static UnzipShared<bool> threadFinished;
     static std::string filePath;
-    static bool UnpackedInSD;
+    static UnzipShared<bool> UnpackedInSD;
     static std::unique_ptr<ZipArchive> zipArchive;
 #ifdef __XBOX__
     using ZipBuffer = std::vector<char, DefaultInitAllocator<char>>;
@@ -66,6 +86,7 @@ class SE_EXPORT Unzip {
     static std::unique_ptr<ProjectLoader> loader;
 
     static std::optional<ProjectFormat> unpackedFormatHint;
+    static ProjectFormat currentFormat;
 
     static void openScratchProject(void *arg);
     static std::vector<std::string> getProjectFiles(const std::string &directory);

@@ -5,6 +5,8 @@
 #include <cctype>
 #include <charconv>
 #include <cmath>
+#include <cstring>
+#include <optional>
 #include <os.hpp>
 #include <regex>
 #include <string_view>
@@ -35,8 +37,39 @@ std::vector<uint32_t> &StringPool::freeListRef() {
     return f;
 }
 
+std::array<uint32_t, 128> &StringPool::asciiIdsRef() {
+    static std::array<uint32_t, 128> ids = [] {
+        std::array<uint32_t, 128> arr{};
+        auto &pool = storageRef();
+        auto &lookup = lookupRef();
+        
+        for (unsigned int c = 0; c < 128; ++c) {
+            std::string text(1, static_cast<char>(c));
+            const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+            const uint32_t id = static_cast<uint32_t>(pool.size());
+            
+            Entry e;
+            e.data = std::move(text);
+            e.refCount = 1;
+            e.pinned = true;
+            e.utf16State = Entry::Utf16State::ASCII;
+            e.deduped = true;
+            e.hash = hash;
+            
+            pool.push_back(std::move(e));
+            arr[c] = id;
+            lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+        }
+        return arr;
+    }();
+    return ids;
+}
+
 uint32_t StringPool::getOrInsert(std::string_view str) {
     if (str.empty()) return 0u;
+    if (str.size() == 1 && static_cast<unsigned char>(str[0]) < 0x80) {
+        return asciiIdsRef()[static_cast<unsigned char>(str[0])];
+    }
 
     auto &pool = storageRef();
     auto &freeSlots = freeListRef();
@@ -50,7 +83,7 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         auto it = lookup.find(Key{str, hash});
         if (it != lookup.end()) {
             uint32_t id = it->second;
-            pool[id].refCount++;
+            if (!pool[id].pinned) pool[id].refCount++;
             return id;
         }
     }
@@ -61,9 +94,10 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
         freeSlots.pop_back();
         pool[id].data.assign(str.data(), str.size());
         pool[id].refCount = 1;
+        pool[id].pinned = false;
     } else {
         id = static_cast<uint32_t>(pool.size());
-        pool.push_back({std::string(str), 1});
+        pool.push_back({std::string(str), 1, false});
     }
 
     pool[id].deduped = tryDedup;
@@ -77,7 +111,7 @@ uint32_t StringPool::getOrInsert(std::string_view str) {
 void StringPool::addRef(uint32_t id) {
     if (id == 0) return;
     auto &pool = storageRef();
-    if (id < pool.size()) pool[id].refCount++;
+    if (id < pool.size() && !pool[id].pinned) pool[id].refCount++;
 }
 
 void StringPool::release(uint32_t id) {
@@ -87,7 +121,7 @@ void StringPool::release(uint32_t id) {
 
     if (id >= pool.size()) return;
     Entry &e = pool[id];
-    if (e.refCount == 0) return;
+    if (e.pinned || e.refCount == 0) return;
 
     if (--e.refCount == 0) {
         if (e.deduped) lookupRef().erase(Key{std::string_view(e.data), e.hash});
@@ -112,15 +146,26 @@ void StringPool::ensureUtf16(Entry &entry) {
     entry.utf16State = Entry::Utf16State::INDEXED;
 }
 
+void StringPool::computeNumeric(Entry &e) {
+    const auto parsed = Math::parseNumber(e.data);
+    e.numericState = parsed.has_value() ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
+    e.numericValue = parsed.has_value() ? *parsed : 0.0;
+    e.hasDot = e.data.find('.') != std::string::npos;
+}
+
 bool StringPool::isNumeric(uint32_t id, bool &hasDot) {
     auto &pool = storageRef();
     Entry &e = pool[id < pool.size() ? id : 0];
-    if (e.numericState == Entry::NumericState::NOT_COMPUTED) {
-        e.numericState = Math::isNumber(e.data) ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
-        e.hasDot = e.data.find('.') != std::string::npos;
-    }
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
     hasDot = e.hasDot;
     return e.numericState == Entry::NumericState::NUMERIC;
+}
+
+double StringPool::toNumber(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
+    return e.numericState == Entry::NumericState::NUMERIC ? e.numericValue : 0.0;
 }
 
 size_t StringPool::utf16Length(uint32_t id) {
@@ -140,6 +185,18 @@ std::string StringPool::utf16CharAt(uint32_t id, size_t index) {
     return e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]);
 }
 
+uint32_t StringPool::utf16CharId(uint32_t id, size_t index) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) {
+        if (index >= e.data.size()) return 0u;
+        return asciiIdsRef()[static_cast<unsigned char>(e.data[index])];
+    }
+    if (index + 1 >= e.utf16Offsets.size()) return 0u;
+    return StringPool::getOrInsert(e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]));
+}
+
 const std::string &StringPool::get(uint32_t id) {
     auto &pool = storageRef();
     if (id >= pool.size()) return pool[0].data;
@@ -150,12 +207,29 @@ void StringPool::resetAll() {
     auto &pool = storageRef();
     auto &lookup = lookupRef();
     auto &freeSlots = freeListRef();
+    auto &ascii = asciiIdsRef();
 
     pool.clear();
     pool.push_back({"", 1});
     lookup.clear();
     lookup.emplace(Key{std::string_view(pool[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
     freeSlots.clear();
+
+    for (size_t c = 0; c < ascii.size(); ++c) {
+        const std::string text(1, static_cast<char>(c));
+        const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+        const uint32_t id = static_cast<uint32_t>(pool.size());
+        Entry e;
+        e.data = text;
+        e.refCount = 1;
+        e.pinned = true;
+        e.utf16State = Entry::Utf16State::ASCII;
+        e.deduped = true;
+        e.hash = hash;
+        pool.push_back(std::move(e));
+        ascii[c] = id;
+        lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+    }
 }
 
 Value::Value(int val) : tag(Tag::NUMBER), flags(0) { storage.d = static_cast<double>(val); }
@@ -249,166 +323,6 @@ bool Value::isNumeric() const {
     return numeric;
 }
 
-double Value::asDouble() const {
-    if (isDouble()) {
-        if (isNaN()) return 0.0;
-        return storage.d;
-    } else if (isString()) {
-        return Math::parseNumber(StringPool::get(storage.stringId)).value_or(0);
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
-    } else if (isBoolean()) {
-        return storage.b ? 1 : 0;
-    }
-
-    return 0.0;
-}
-
-std::string Value::asString() const {
-    if (isDouble()) {
-        return Math::toString(storage.d);
-    } else if (isString()) {
-        return StringPool::get(storage.stringId);
-    } else if (isBoolean()) {
-        return storage.b ? "true" : "false";
-    } else if (isUndefined()) {
-        return "undefined";
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        const char hex_chars[] = "0123456789abcdef";
-        const unsigned char r = static_cast<unsigned char>(rgb.r);
-        const unsigned char g = static_cast<unsigned char>(rgb.g);
-        const unsigned char b = static_cast<unsigned char>(rgb.b);
-        std::string hex_str = "#";
-        hex_str += hex_chars[r >> 4];
-        hex_str += hex_chars[r & 0x0F];
-        hex_str += hex_chars[g >> 4];
-        hex_str += hex_chars[g & 0x0F];
-        hex_str += hex_chars[b >> 4];
-        hex_str += hex_chars[b & 0x0F];
-        return hex_str;
-    }
-
-    return "";
-}
-
-bool Value::asBoolean() const {
-    if (isBoolean()) {
-        return storage.b;
-    }
-    if (isDouble()) {
-        return storage.d != 0.0 && !isNaN();
-    }
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (sv.empty() || sv == "0") return false;
-        if (sv.size() == 5) {
-            char f0 = std::tolower(static_cast<unsigned char>(sv[0]));
-            char f1 = std::tolower(static_cast<unsigned char>(sv[1]));
-            char f2 = std::tolower(static_cast<unsigned char>(sv[2]));
-            char f3 = std::tolower(static_cast<unsigned char>(sv[3]));
-            char f4 = std::tolower(static_cast<unsigned char>(sv[4]));
-            if (f0 == 'f' && f1 == 'a' && f2 == 'l' && f3 == 's' && f4 == 'e') {
-                return false;
-            }
-        }
-        return true;
-    }
-    if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(storage.c);
-        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
-    }
-    return false;
-}
-
-namespace {
-inline int parseHexDigit(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
-inline bool parseHexByte(char c1, char c2, float &out) {
-    int d1 = parseHexDigit(c1);
-    int d2 = parseHexDigit(c2);
-    if (d1 < 0 || d2 < 0) return false;
-    out = static_cast<float>((d1 << 4) | d2);
-    return true;
-}
-} // namespace
-
-Color Value::asColor() const {
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (!sv.empty() && sv[0] == '#') {
-            if (sv.size() == 4) {
-                int r_digit = parseHexDigit(sv[1]);
-                int g_digit = parseHexDigit(sv[2]);
-                int b_digit = parseHexDigit(sv[3]);
-                if (r_digit >= 0 && g_digit >= 0 && b_digit >= 0) {
-                    float r = static_cast<float>((r_digit << 4) | r_digit);
-                    float g = static_cast<float>((g_digit << 4) | g_digit);
-                    float b = static_cast<float>((b_digit << 4) | b_digit);
-                    return RGBA2CSBO({r, g, b, 255.0f});
-                }
-                return {0, 0, 0, 0};
-            } else if (sv.size() == 7) {
-                float r, g, b;
-                if (parseHexByte(sv[1], sv[2], r) &&
-                    parseHexByte(sv[3], sv[4], g) &&
-                    parseHexByte(sv[5], sv[6], b)) {
-                    return RGBA2CSBO({r, g, b, 255.0f});
-                }
-                return {0, 0, 0, 0};
-            } else {
-                return {0, 0, 0, 0};
-            }
-        }
-    }
-    const double RGBA = asDouble();
-    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100),
-                      static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
-}
-
-ColorRGBA Value::asRGB() const {
-    if (isString()) {
-        std::string_view sv = StringPool::get(storage.stringId);
-        if (!sv.empty() && sv[0] == '#') {
-            if (sv.size() == 4) {
-                int r_digit = parseHexDigit(sv[1]);
-                int g_digit = parseHexDigit(sv[2]);
-                int b_digit = parseHexDigit(sv[3]);
-                if (r_digit >= 0 && g_digit >= 0 && b_digit >= 0) {
-                    float r = static_cast<float>((r_digit << 4) | r_digit);
-                    float g = static_cast<float>((g_digit << 4) | g_digit);
-                    float b = static_cast<float>((b_digit << 4) | b_digit);
-                    return {r, g, b, 255.0f};
-                }
-                return {0, 0, 0, 255.0f};
-            } else if (sv.size() == 7) {
-                float r, g, b;
-                if (parseHexByte(sv[1], sv[2], r) &&
-                    parseHexByte(sv[3], sv[4], g) &&
-                    parseHexByte(sv[5], sv[6], b)) {
-                    return {r, g, b, 255.0f};
-                }
-                return {0, 0, 0, 255.0f};
-            } else {
-                return {0, 0, 0, 255.0f};
-            }
-        }
-    }
-    const double RGBA = asDouble();
-    return {static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100),
-            static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)};
-}
-
 std::string_view Value::asStringView(std::string &scratch) const {
     if (isString()) {
         return StringPool::get(storage.stringId);
@@ -417,7 +331,76 @@ std::string_view Value::asStringView(std::string &scratch) const {
     return scratch;
 }
 
-bool Value::operator==(const Value &other) const {
+Value Value::utf16CharAtValue(size_t index) const {
+    if (!isString()) return Value(utf16CharAt(index));
+    const uint32_t charId = StringPool::utf16CharId(storage.stringId, index);
+    if (charId == 0u) return Value();
+    Value out;
+    out.tag = Tag::STRING_ID;
+    out.storage.stringId = charId;
+    StringPool::addRef(charId);
+    return out;
+}
+
+bool Value::plainNumber(double &out) const {
+    if (isDouble()) {
+        if (isNaN()) return false;
+        out = storage.d;
+        return true;
+    }
+    if (!isString() || !isNumeric()) return false;
+    out = asDouble();
+    return true;
+}
+
+namespace {
+bool sameText(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    const size_t n = a.size();
+    if (n > 24) return std::memcmp(a.data(), b.data(), n) == 0;
+    const volatile char *x = a.data();
+    const volatile char *y = b.data();
+    for (size_t i = 0; i < n; i++) {
+        if (x[i] != y[i]) return false;
+    }
+    return true;
+}
+} // namespace
+
+bool Value::compareStrings(int kind, std::string_view a, std::string_view b) {
+    const auto blank = [](std::string_view text) {
+        return std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isspace(c) && c != '\t'; });
+    };
+    const auto mayBeNumber = [](std::string_view text) {
+        if (text.empty()) return false;
+        const unsigned char c = static_cast<unsigned char>(text.front());
+        return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == 'I' || c >= 0x80 || c <= ' ';
+    };
+    const auto parse = [&mayBeNumber](std::string_view text) -> std::optional<double> {
+        if (!mayBeNumber(text)) return std::nullopt;
+        const auto parsed = Math::parseNumber(text);
+        if (!parsed.has_value()) return std::nullopt;
+        return *parsed;
+    };
+    if (kind == 0) {
+        if (sameText(a, b)) return true;
+        const auto na = parse(a);
+        if (na.has_value() && !blank(a)) {
+            const auto nb = parse(b);
+            if (nb.has_value() && !blank(b)) return *na == *nb;
+        }
+        return caseInsensitiveEqual(a, b);
+    }
+    const auto na = parse(a);
+    if (na.has_value()) {
+        const auto nb = parse(b);
+        if (nb.has_value()) return kind == 1 ? *na < *nb : *na > *nb;
+    }
+    if (sameText(a, b)) return false;
+    return kind == 1 ? caseInsensitiveLess(a, b) : caseInsensitiveLess(b, a);
+}
+
+bool Value::equalsSlow(const Value &other) const {
     if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN())
         return storage.d == other.storage.d;
     if (isBoolean() && other.isBoolean())
@@ -427,6 +410,10 @@ bool Value::operator==(const Value &other) const {
 
     if (isString() && other.isString() && storage.stringId == other.storage.stringId)
         return true;
+
+    double number;
+    if (isDouble() && !isNaN() && other.isString() && other.plainNumber(number)) return storage.d == number;
+    if (other.isDouble() && !other.isNaN() && isString() && plainNumber(number)) return number == other.storage.d;
 
     std::string scratchA, scratchB;
     std::string_view svA = asStringView(scratchA);

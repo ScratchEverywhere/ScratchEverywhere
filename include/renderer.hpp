@@ -15,7 +15,9 @@ enum class SE_EXPORT Renderers : uint8_t {
     D3D9,
     OpenGLCore,
     OpenGL,
+    NV2A,
     Xbox,
+    GX2,
     SDL3,
     SDL2,
     Citro2D,
@@ -30,7 +32,9 @@ constexpr std::array RendererNames = {
     "Direct3D 9",
     "OpenGL Core",
     "OpenGL Legacy",
+    "NV2A",
     "Xbox",
+    "GX2",
     "SDL3",
     "SDL2",
     "Citro2D",
@@ -103,6 +107,11 @@ class SE_EXPORT Renderer {
     virtual void penStamp(Sprite *sprite) = 0;
     virtual void penClear() = 0;
     virtual void cleanupPen() {}
+
+    // Optional color-sensing readback. RGB is premultiplied by alpha, as stored
+    // in the pen render target. Prepare once for a query, then sample its pixels.
+    virtual void preparePenColorQuery(float minX, float minY, float maxX, float maxY) {}
+    virtual bool samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) { return false; }
 };
 
 extern Renderer *globalRenderer;

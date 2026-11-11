@@ -12,6 +12,10 @@
 #include <string>
 #include <types.hpp>
 #include <vector>
+#include <xbox_menu_trace.hpp>
+#ifdef __XBOX__
+#include <log.hpp>
+#endif
 
 #ifdef __SWITCH__
 extern char nickname[0x21];
@@ -63,6 +67,12 @@ std::array<int, 2> InputDevice_SDL3::getTouchPosition() {
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos[0] = rawMouseX * Render::getPixelDensity();
     pos[1] = rawMouseY * Render::getPixelDensity();
+#elif !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
@@ -165,7 +175,23 @@ void InputDevice_SDL3::getInput() {
     if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
     if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
-    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) {
+        Input::buttonPress("RT");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+#endif
+    }
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
+        if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
+        if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
+        if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
+        if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::mousePointer.y += 3;
+    }
+    Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+#endif
 
     Input::leftJoystick.first = joyLeftX / 32767.0f;
     Input::leftJoystick.second = joyLeftY / 32767.0f;
@@ -174,8 +200,8 @@ void InputDevice_SDL3::getInput() {
 #endif
 
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
-
     BlockExecutor::executeKeyHats();
+    XboxMenuTrace::gameFrame();
 
 #ifdef PLATFORM_HAS_TOUCH
     int numDevices, numFingers;
@@ -189,6 +215,7 @@ void InputDevice_SDL3::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
+        Input::clampMouseToStage();
         Input::mousePointer.isPressed = touchActive;
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
 
@@ -207,6 +234,7 @@ void InputDevice_SDL3::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     Input::mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
@@ -234,7 +262,7 @@ std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
     SDL_StartTextInput(window);
@@ -250,7 +278,7 @@ std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
                 // Add text
                 inputText += event.text.text;
                 text->setText(inputText);
-                text->setColor(Math::color(0, 0, 0, 255));
+                text->setColor(Math::color(255, 255, 255, 255));
 
 #if defined(__SWITCH__) || defined(VITA)
                 inputActive = false;

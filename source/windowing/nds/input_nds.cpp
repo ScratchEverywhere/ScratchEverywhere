@@ -91,6 +91,7 @@ void InputDevice_NDS::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
+        Input::clampMouseToStage();
     }
 
 skipInputCheck:

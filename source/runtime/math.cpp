@@ -7,6 +7,7 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <limits>
 #include <math.h>
@@ -50,6 +51,8 @@ int Math::color(int r, int g, int b, int a) {
     case Renderers::SDL2:
     case Renderers::SDL3:
     case Renderers::Xbox:
+    case Renderers::GX2:
+    case Renderers::NV2A:
     case Renderers::OpenGL:
     case Renderers::OpenGLCore:
     case Renderers::GDI:
@@ -303,7 +306,27 @@ int lowerCaseCodepoint(uint32_t cp, uint32_t prevCp, uint32_t nextCp, uint32_t o
 }
 } // namespace
 
+namespace {
+bool isAsciiOnly(std::string_view s) {
+    unsigned char acc = 0;
+    for (unsigned char c : s)
+        acc |= c;
+    return (acc & 0x80) == 0;
+}
+
+constexpr unsigned char asciiLowerChar(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+} // namespace
+
 std::string Math::toLowerCaseJs(std::string_view str) {
+    if (isAsciiOnly(str)) {
+        std::string result(str);
+        for (char &c : result)
+            c = static_cast<char>(asciiLowerChar(static_cast<unsigned char>(c)));
+        return result;
+    }
+
     struct Unit {
         uint32_t cp;
         size_t pos;
@@ -389,7 +412,7 @@ bool isAscii(std::string_view s) {
     }
     return true;
 }
-}
+} // namespace
 
 bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
     if (a.size() == b.size()) {
@@ -518,21 +541,74 @@ std::string Math::utf16CharAt(const std::shared_ptr<const std::string> &str, siz
     return str->substr(offsets[utf16Index], offsets[utf16Index + 1] - offsets[utf16Index]);
 }
 
+namespace {
+char *writeUnsigned(char *out, uint64_t value) {
+    char digits[20];
+    int count = 0;
+    do {
+        digits[count++] = static_cast<char>('0' + value % 10);
+        value /= 10;
+    } while (value != 0);
+    while (count > 0)
+        *out++ = digits[--count];
+    return out;
+}
+
+bool formatShortDecimal(double number, char *out, size_t &length) {
+    const double magnitude = std::fabs(number);
+    if (!(magnitude >= 1e-4 && magnitude < 1e9)) return false;
+    static const double scale[5] = {1.0, 10.0, 100.0, 1000.0, 10000.0};
+    static const uint64_t integerScale[5] = {1, 10, 100, 1000, 10000};
+    for (int places = 1; places < 5; places++) {
+        const double scaled = std::nearbyint(magnitude * scale[places]);
+        if (scaled / scale[places] != magnitude) continue;
+        const uint64_t digits = static_cast<uint64_t>(scaled);
+        char *p = out;
+        if (number < 0) *p++ = '-';
+        p = writeUnsigned(p, digits / integerScale[places]);
+        *p++ = '.';
+        uint64_t fraction = digits % integerScale[places];
+        for (int i = places - 1; i >= 0; i--) {
+            p[i] = static_cast<char>('0' + fraction % 10);
+            fraction /= 10;
+        }
+        p += places;
+        length = static_cast<size_t>(p - out);
+        return true;
+    }
+    return false;
+}
+} // namespace
+
 std::string Math::toString(double number) {
     if (std::isnan(number)) return "NaN";
     if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
     if (number == 0) return "0";
     char buffer[32];
-    d2s_buffered(number, buffer);
-    return std::string(buffer);
+    if (number == std::trunc(number) && std::fabs(number) < 1e15) {
+        char *end = buffer;
+        if (number < 0) *end++ = '-';
+        end = writeUnsigned(end, static_cast<uint64_t>(std::fabs(number)));
+        return std::string(buffer, end);
+    }
+    size_t shortLength;
+    if (formatShortDecimal(number, buffer, shortLength)) return std::string(buffer, shortLength);
+    const int length = d2s_buffered_n(number, buffer);
+    return std::string(buffer, static_cast<size_t>(length));
+}
+
+double Math::jsRound(double value) {
+    if (!std::isfinite(value)) return value;
+    const double floored = std::floor(value);
+    return (value - floored >= 0.5) ? floored + 1 : floored;
 }
 
 double Math::degreesToRadians(double degrees) {
-    return degrees * (M_PI / 180.0);
+    return degrees * M_PI / 180.0;
 }
 
 double Math::radiansToDegrees(double radians) {
-    return radians * (180.0 / M_PI);
+    return radians * 180.0 / M_PI;
 }
 
 int16_t Math::radiansToAngle16(float radians) {
@@ -567,4 +643,34 @@ const uint32_t Math::next_pow2(uint32_t n) {
     n |= n >> 16;
     n++;
     return n;
+}
+
+bool Math::containsCaseInsensitive(std::string_view haystack, std::string_view needle) {
+    if (needle.empty()) return true;
+
+    if (isAsciiOnly(haystack) && isAsciiOnly(needle)) {
+        if (needle.size() > haystack.size()) return false;
+        const unsigned char first = asciiLowerChar(static_cast<unsigned char>(needle[0]));
+        const unsigned char firstUpper = (first >= 'a' && first <= 'z') ? static_cast<unsigned char>(first - ('a' - 'A')) : first;
+        const char *const begin = haystack.data();
+        const size_t last = haystack.size() - needle.size();
+        const char *nextLower = static_cast<const char *>(std::memchr(begin, first, last + 1));
+        const char *nextUpper = firstUpper != first ? static_cast<const char *>(std::memchr(begin, firstUpper, last + 1)) : nullptr;
+        for (;;) {
+            const char *candidate = nextLower;
+            if (nextUpper != nullptr && (candidate == nullptr || nextUpper < candidate)) candidate = nextUpper;
+            if (candidate == nullptr) return false;
+            size_t j = 1;
+            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(candidate[j])) == asciiLowerChar(static_cast<unsigned char>(needle[j])))
+                j++;
+            if (j == needle.size()) return true;
+            const size_t from = static_cast<size_t>(candidate - begin) + 1;
+            if (from > last) return false;
+            const size_t remaining = last + 1 - from;
+            if (candidate == nextLower) nextLower = static_cast<const char *>(std::memchr(begin + from, first, remaining));
+            else nextUpper = static_cast<const char *>(std::memchr(begin + from, firstUpper, remaining));
+        }
+    }
+
+    return toLowerCaseJs(haystack).find(toLowerCaseJs(needle)) != std::string::npos;
 }

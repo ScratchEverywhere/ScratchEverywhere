@@ -42,6 +42,12 @@ std::array<int, 2> InputDevice_SDL1::getTouchPosition() {
     pos[1] = rawMouseY;
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
+#elif !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
 
     return pos;
@@ -137,7 +143,23 @@ void InputDevice_SDL1::getInput() {
         if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
         if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
-        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) {
+            Input::buttonPress("RT");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+            if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.isPressed = true;
+#endif
+        }
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_JoystickGetButton(controller, 4)) {
+            if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
+            if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
+            if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
+            if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::mousePointer.y += 3;
+        }
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+#endif
 
         Input::leftJoystick.first = joyLeftX / 32767.0f;
         Input::leftJoystick.second = joyLeftY / 32767.0f;
@@ -158,6 +180,7 @@ void InputDevice_SDL1::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
@@ -185,7 +208,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     std::string inputText = "";
     bool inputActive = true;
@@ -201,7 +224,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
                     event.key.keysym.unicode >= ' ') {          // Only printable characters
                     inputText += event.key.keysym.unicode;
                     text->setText(inputText);
-                    text->setColor(Math::color(0, 0, 0, 255));
+                    text->setColor(Math::color(255, 255, 255, 255));
                 }
 
                 switch (event.key.keysym.sym) {

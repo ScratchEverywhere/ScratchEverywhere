@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #endif
 
+#include <discord.hpp>
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
@@ -34,6 +35,10 @@
 #include <switch.h>
 #endif
 
+#if defined(__PSP__) && defined(RENDERER_SDL3)
+#include <SDL3/SDL_main.h>
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
@@ -41,6 +46,7 @@
 #endif
 
 static void exitApp() {
+    Discord::shutdown();
 #ifdef ENABLE_AUDIO
     SoundPlayer::deinit();
 #endif
@@ -55,6 +61,7 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+    Discord::setInMenu();
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -245,6 +252,8 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::SDL3;
         } else if (arg == "--xbox") {
             Render::currentRenderer = Renderers::Xbox;
+        } else if (arg == "--nv2a") {
+            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {
@@ -264,6 +273,8 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+
+    Discord::init();
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
@@ -325,17 +336,20 @@ int main(int argc, char **argv) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3,.sb2,.sb", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
-                *(bool *)userdata = true;
                 if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
-                std::ofstream f(OS::getScratchFolderLocation() + filename);
-                f << buffer;
+                std::ofstream f(OS::getScratchFolderLocation() + filename, std::ios::binary);
+                f.write(buffer.data(), buffer.size());
                 f.close();
                 Unzip::filePath = OS::getScratchFolderLocation() + filename;
-                Unzip::load(); // TODO: Error handling
-            },
-                                            &uploadComplete);
+                *(bool *)userdata = true; }, &uploadComplete);
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
+
+            if (uploadComplete && !Unzip::load()) {
+                Log::logCritical("Failed to load uploaded project.", false);
+                exitApp();
+                return 0;
+            }
 #else
             if (!activateMainMenu()) {
                 exitApp();

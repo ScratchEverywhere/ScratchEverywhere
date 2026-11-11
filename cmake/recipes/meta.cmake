@@ -10,5 +10,7 @@ set(CATALOG_RECIPES
     SDL3:sdl3.cmake
     nxdk:nxdk.cmake
     mbedtls:mbedtls.cmake
-    lwmem:lwmem.cmake
+    cafeglsl:cafeglsl.cmake
+    nxaudio:nxaudio.cmake
+    sljit:sljit.cmake
 )

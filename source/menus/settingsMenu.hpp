@@ -9,6 +9,9 @@ class SE_EXPORT SettingsMenu : public Menu {
   private:
     void updateButtonStates();
     std::string getDectalkString();
+#ifdef ENABLE_DISCORD_RPC
+    std::string getDiscordString();
+#endif
 
   public:
     ControlObject *settingsControl = nullptr;
@@ -26,6 +29,7 @@ class SE_EXPORT SettingsMenu : public Menu {
     ButtonObject *ClearCache = nullptr;
     ButtonObject *Language = nullptr;
     ButtonObject *dectalkButton = nullptr;
+    ButtonObject *discordButton = nullptr;
 
     bool UseCostumeUsername = false;
     std::string username;
@@ -52,6 +56,10 @@ class SE_EXPORT SettingsMenu : public Menu {
     bool UseDectalk = true;
 #else
     bool UseDectalk = false;
+#endif
+
+#ifdef ENABLE_DISCORD_RPC
+    bool UseDiscord = true;
 #endif
 
     SettingsMenu();

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
+#include <cstring>
 #include <image.hpp>
 #include <input.hpp>
 #include <log.hpp>
@@ -141,6 +142,15 @@ ID3DXLine *pLine = nullptr;
 int penWidth = 480;
 int penHeight = 360;
 
+IDirect3DSurface9 *pPenReadback = nullptr;
+int penReadbackWidth = 0;
+int penReadbackHeight = 0;
+std::vector<uint8_t> penColorPixels;
+int penColorX = 0;
+int penColorY = 0;
+int penColorW = 0;
+int penColorH = 0;
+
 ID3DXBuffer *compileShader(std::string source, ID3DXConstantTable **table, bool vert) {
     ID3DXBuffer *code;
     ID3DXBuffer *errors = NULL;
@@ -165,6 +175,8 @@ void reset(int width, int height, WindowWin32 *win) {
 #ifdef USE_D3DXLINE
     if (pLine != nullptr) ID3DXLine_Release(pLine);
 #endif
+    if (pPenReadback != nullptr) IDirect3DSurface9_Release(pPenReadback);
+    pPenReadback = nullptr;
     if (pPenLayerMSSurface != nullptr) IDirect3DSurface9_Release(pPenLayerMSSurface);
     if (pPenLayerSurface != nullptr) IDirect3DSurface9_Release(pPenLayerSurface);
     if (pPenLayer != nullptr) IDirect3DTexture9_Release(pPenLayer);
@@ -173,7 +185,9 @@ void reset(int width, int height, WindowWin32 *win) {
     dpp->BackBufferWidth = width;
     dpp->BackBufferHeight = height;
     if (SUCCEEDED(pD3D->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_R8G8B8, FALSE, D3DMULTISAMPLE_4_SAMPLES, nullptr))) {
-        dpp->MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+        if (SUCCEEDED(pD3D->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, D3DFMT_R8G8B8, FALSE, D3DMULTISAMPLE_4_SAMPLES, nullptr))) {
+            dpp->MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+        }
     }
     IDirect3DDevice9_Reset(pDev, dpp);
 
@@ -607,6 +621,75 @@ void Renderer_D3D9::penClear() {
     beginPen();
     IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, 0, 1.0, 0);
     endPen();
+}
+
+static void penColorPixelOf(double x, double y, int &px, int &py) {
+    const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
+    px = static_cast<int>(std::floor((x + penWidth * scale / 2) / scale));
+    py = static_cast<int>(std::floor((-y + penHeight * scale / 2) / scale));
+}
+
+void Renderer_D3D9::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    penColorPixels.clear();
+    penColorW = penColorH = 0;
+    if (pPenLayerSurface == nullptr) return;
+
+    int left, top, right, bottom;
+    penColorPixelOf(minX, maxY, left, top);
+    penColorPixelOf(maxX, minY, right, bottom);
+    const int x0 = std::clamp(left - 1, 0, penWidth);
+    const int y0 = std::clamp(top - 1, 0, penHeight);
+    const int x1 = std::clamp(right + 2, 0, penWidth);
+    const int y1 = std::clamp(bottom + 2, 0, penHeight);
+    if (x1 <= x0 || y1 <= y0) return;
+
+    if (pPenReadback != nullptr && (penReadbackWidth != penWidth || penReadbackHeight != penHeight)) {
+        IDirect3DSurface9_Release(pPenReadback);
+        pPenReadback = nullptr;
+    }
+    if (pPenReadback == nullptr) {
+        if (FAILED(IDirect3DDevice9_CreateOffscreenPlainSurface(pDev, penWidth, penHeight, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pPenReadback, nullptr))) {
+            pPenReadback = nullptr;
+            return;
+        }
+        penReadbackWidth = penWidth;
+        penReadbackHeight = penHeight;
+    }
+
+    if (pPenLayerMSSurface != nullptr) {
+        IDirect3DDevice9_StretchRect(pDev, pPenLayerMSSurface, nullptr, pPenLayerSurface, nullptr, D3DTEXF_NONE);
+    }
+    if (FAILED(IDirect3DDevice9_GetRenderTargetData(pDev, pPenLayerSurface, pPenReadback))) return;
+
+    D3DLOCKED_RECT locked;
+    const RECT rect = {x0, y0, x1, y1};
+    if (FAILED(IDirect3DSurface9_LockRect(pPenReadback, &locked, &rect, D3DLOCK_READONLY))) return;
+
+    penColorX = x0;
+    penColorY = y0;
+    penColorW = x1 - x0;
+    penColorH = y1 - y0;
+    penColorPixels.resize(static_cast<size_t>(penColorW) * penColorH * 4);
+    for (int row = 0; row < penColorH; row++) {
+        std::memcpy(&penColorPixels[static_cast<size_t>(row) * penColorW * 4], static_cast<const uint8_t *>(locked.pBits) + static_cast<size_t>(row) * locked.Pitch, static_cast<size_t>(penColorW) * 4);
+    }
+    IDirect3DSurface9_UnlockRect(pPenReadback);
+}
+
+bool Renderer_D3D9::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (penColorPixels.empty()) return false;
+    int px, py;
+    penColorPixelOf(x, y, px, py);
+    px -= penColorX;
+    py -= penColorY;
+    if (px < 0 || py < 0 || px >= penColorW || py >= penColorH) return false;
+
+    const uint8_t *pixel = &penColorPixels[(static_cast<size_t>(py) * penColorW + px) * 4];
+    b = pixel[0];
+    g = pixel[1];
+    r = pixel[2];
+    a = static_cast<uint8_t>(std::lround(std::sqrt(pixel[3] / 255.0) * 255.0));
+    return a != 0;
 }
 
 void Renderer_D3D9::beginFrame(int screen, int colorR, int colorG, int colorB) {

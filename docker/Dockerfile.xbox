@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     flex \
     git \
     curl \
-    ca-certificates && \
+    ca-certificates \
+    python3 && \
     ln -sf /usr/bin/clang-19 /usr/bin/clang && \
     ln -sf /usr/bin/clang++-19 /usr/bin/clang++ && \
     ln -sf /usr/bin/lld-19 /usr/bin/lld && \

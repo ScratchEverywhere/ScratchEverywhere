@@ -1,4 +1,8 @@
+#include <cstdio>
 #include "bytecode_executor.hpp"
+#ifdef SE_JIT
+#include "bytecode_jit.hpp"
+#endif
 #include "blockExecutor.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
@@ -6,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <log.hpp>
 #include <random>
 #ifdef ENABLE_AUDIO
 #include <audiostack.hpp>
@@ -13,12 +18,99 @@
 
 std::vector<BytecodeThread *> BytecodeExecutor::threads;
 
+static BytecodeThread *runningThread = nullptr;
+
+#ifdef SE_BYTECODE_STATS
+std::unordered_map<const BytecodeChunk *, std::vector<BytecodeValueType>> BytecodeExecutor::factTables;
+
 namespace {
+uint64_t statsOpCounts[256] = {};
+uint64_t factChecks = 0;
+uint64_t factViolations = 0;
 
-uint64_t randState0 = 0;
-uint64_t randState1 = 0;
+BytecodeValueType concreteTypeOf(const Variable &var, std::string &text) {
+    switch (var.value.index()) {
+    case 1:
+        return BytecodeValueType::Number;
+    case 2: {
+        const auto &str = std::get<std::shared_ptr<const std::string>>(var.value);
+        text = str ? *str : std::string();
+        return BytecodeValueType::String;
+    }
+    case 3:
+        return BytecodeValueType::Boolean;
+    default:
+        break;
+    }
+    const Value &value = std::get<Value>(var.value);
+    if (value.isRealNumber()) return BytecodeValueType::Number;
+    if (value.isStringTyped()) {
+        text = value.asString();
+        return BytecodeValueType::String;
+    }
+    if (value.isBoolean()) return BytecodeValueType::Boolean;
+    if (value.isColor()) return BytecodeValueType::Color;
+    return BytecodeValueType::Unknown;
+}
 
-uint64_t fastRandomNext() {
+bool factHolds(BytecodeValueType claimed, const Variable &var, BytecodeValueType &actual) {
+    std::string text;
+    actual = concreteTypeOf(var, text);
+    switch (claimed) {
+    case BytecodeValueType::NumericString:
+        return actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text);
+    case BytecodeValueType::NumberLike:
+        return actual == BytecodeValueType::Number || (actual == BytecodeValueType::String && BytecodeAnalysis::isCanonicalNumericString(text));
+    default:
+        return actual == claimed;
+    }
+}
+
+const char *factName(BytecodeValueType t) {
+    switch (t) {
+    case BytecodeValueType::Number:
+        return "number";
+    case BytecodeValueType::String:
+        return "string";
+    case BytecodeValueType::Boolean:
+        return "boolean";
+    case BytecodeValueType::Color:
+        return "color";
+    case BytecodeValueType::NumericString:
+        return "numeric string";
+    case BytecodeValueType::NumberLike:
+        return "number-like";
+    default:
+        return "unknown";
+    }
+}
+} // namespace
+
+std::string BytecodeExecutor::takeStatsReport() {
+    uint64_t total = 0;
+    for (uint64_t c : statsOpCounts)
+        total += c;
+
+    std::vector<std::pair<uint64_t, unsigned>> ranked;
+    for (unsigned i = 0; i < 256; i++) {
+        if (statsOpCounts[i] != 0) ranked.emplace_back(statsOpCounts[i], i);
+    }
+    std::sort(ranked.rbegin(), ranked.rend());
+
+    std::string report = " instrs=" + std::to_string(total) + " factChecks=" + std::to_string(factChecks) + " factViolations=" + std::to_string(factViolations) + " top=";
+    for (size_t i = 0; i < ranked.size() && i < 6; i++) {
+        if (i != 0) report += ",";
+        report += std::to_string(ranked[i].second) + ":" + std::to_string(ranked[i].first);
+    }
+    std::fill(std::begin(statsOpCounts), std::end(statsOpCounts), 0);
+    return report;
+}
+#endif
+
+static uint64_t randState0 = 0;
+static uint64_t randState1 = 0;
+
+static uint64_t fastRandomNext() {
     if (randState0 == 0 && randState1 == 0) {
         std::random_device rd;
         randState0 = (static_cast<uint64_t>(rd()) << 32) ^ rd() ^ 0x9E3779B97F4A7C15ULL;
@@ -38,13 +130,15 @@ uint64_t fastRandomNext() {
     return randState0 + randState1;
 }
 
-double fastRandomDouble() {
+static double fastRandomDouble() {
     return static_cast<double>(fastRandomNext() >> 11) * (1.0 / 9007199254740992.0);
 }
 
 uint64_t fastRandomBelow(uint64_t bound) {
     return fastRandomNext() % bound;
 }
+
+namespace {
 
 #define SE_BYTECODE_COMPUTED_GOTO 0
 
@@ -56,7 +150,7 @@ uint64_t fastRandomBelow(uint64_t bound) {
         continue;                                                                                               \
     }
 
-constexpr unsigned int MAX_LIST_ITEMS = 200000;
+constexpr unsigned int MAX_LIST_ITEMS = BYTECODE_MAX_LIST_ITEMS;
 
 Value popValue(BytecodeThread &thread, BytecodeStackKind kind) {
     switch (kind) {
@@ -152,9 +246,18 @@ const std::string &variableIdAt(BytecodeThread &thread, BytecodeIndex varSlot) {
 
 size_t resolveListIndex(const Value &indexValue, size_t size) {
     if (size == 0) return size;
-    std::string indexStr = indexValue.asString();
-    if (indexStr == "last") return size - 1;
-    if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    SE_LIKELY_IF(indexValue.isDouble()) {
+        double d = indexValue.get<double>();
+        if (!std::isfinite(d)) return size;
+        double idx = std::floor(d) - 1;
+        if (idx < 0 || idx >= static_cast<double>(size)) return size;
+        return static_cast<size_t>(idx);
+    }
+    if (indexValue.isString()) {
+        std::string_view indexStr = indexValue.asStringView();
+        if (indexStr == "last") return size - 1;
+        if (indexStr == "random" || indexStr == "any") return static_cast<size_t>(fastRandomBelow(size));
+    }
 
     double d = indexValue.get<double>();
     if (!std::isfinite(d)) return size;
@@ -163,7 +266,80 @@ size_t resolveListIndex(const Value &indexValue, size_t size) {
     return static_cast<size_t>(idx);
 }
 
+void listInsert(List &list, const Value &index, Value item) {
+    size_t pos;
+    SE_LIKELY_IF(index.isDouble()) {
+        double d = index.get<double>();
+        if (!std::isfinite(d)) return;
+        double idx = std::floor(d) - 1;
+        if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
+        pos = static_cast<size_t>(idx);
+    }
+    else {
+        std::string_view indexStr = index.isString() ? index.asStringView() : std::string_view();
+        if (indexStr == "last") pos = list.items.size();
+        else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list.items.size() + 1));
+        else {
+            double d = index.get<double>();
+            if (!std::isfinite(d)) return;
+            double idx = std::floor(d) - 1;
+            if (idx < 0 || idx > static_cast<double>(list.items.size())) return;
+            pos = static_cast<size_t>(idx);
+        }
+    }
+    if (pos <= list.items.size()) {
+        insertValueAt(list.items, pos, std::move(item));
+        if (list.items.size() > BYTECODE_MAX_LIST_ITEMS) list.items.pop_back();
+    }
+}
+
+void listDelete(List &list, const Value &index) {
+    if (!index.isDouble() && index.isString()) {
+        std::string_view indexStr = index.asStringView();
+        if (indexStr == "all") {
+            list.items.clear();
+            return;
+        }
+        if (indexStr == "last") {
+            if (!list.items.empty()) list.items.pop_back();
+            return;
+        }
+        if (indexStr == "random" || indexStr == "any") {
+            if (!list.items.empty()) eraseValueAt(list.items, fastRandomBelow(list.items.size()));
+            return;
+        }
+    }
+    double d = index.get<double>();
+    if (std::isfinite(d)) {
+        double idx = std::floor(d) - 1;
+        if (idx >= 0 && idx < static_cast<double>(list.items.size())) {
+            eraseValueAt(list.items, static_cast<size_t>(idx));
+        }
+    }
+}
+
+void listReplace(List &list, const Value &index, const Value &item) {
+    if (list.items.empty()) return;
+    size_t pos = resolveListIndex(index, list.items.size());
+    if (pos < list.items.size()) list.items[pos] = item;
+}
+
 bool valuesEqual(const Value &a, const Value &b) { return a == b; }
+
+size_t findInList(const std::vector<Value> &items, const Value &target) {
+    double wanted;
+    if (target.plainNumber(wanted)) {
+        for (size_t i = 0; i < items.size(); i++) {
+            const Value &existing = items[i];
+            if (existing.isDouble() && !existing.isNaN() ? existing.numberRaw() == wanted : existing == target) return i;
+        }
+        return items.size();
+    }
+    for (size_t i = 0; i < items.size(); i++) {
+        if (items[i] == target) return i;
+    }
+    return items.size();
+}
 
 ScriptThread *acquireScriptThread() {
     ScriptThread *t;
@@ -473,12 +649,39 @@ double mathOpApply(BytecodeMathOp op, double value) {
 
 } // namespace
 
+double bytecodeMathOpApply(BytecodeMathOp op, double value) {
+    return mathOpApply(op, value);
+}
+
+void bytecodeListInsert(List &list, const Value &index, Value item) { listInsert(list, index, std::move(item)); }
+void bytecodeListDelete(List &list, const Value &index) { listDelete(list, index); }
+void bytecodeListReplace(List &list, const Value &index, const Value &item) { listReplace(list, index, item); }
+
+size_t bytecodeFindInList(const std::vector<Value> &items, const Value &target) {
+    return findInList(items, target);
+}
+
+size_t bytecodeResolveListIndex(const Value &index, size_t size) {
+    return resolveListIndex(index, size);
+}
+
 void BytecodeExecutor::runThread(BytecodeThread &thread) {
     if (thread.finished || thread.escapedToLegacy) return;
 
     Timer executionTimer(false);
     bool timerStarted = false;
     unsigned int blocksSinceTimeCheck = 0;
+#ifdef SE_JIT
+    const int32_t *jitEntries = nullptr;
+    if (BytecodeJit::enabled() && thread.chunk != nullptr && thread.link != nullptr) {
+        if (!thread.chunk->jitTried) BytecodeJit::compile(*thread.chunk, *thread.link);
+        if (thread.chunk->jit) jitEntries = thread.chunk->jitEntryAt.data();
+    }
+#endif
+#ifdef SE_BYTECODE_STATS
+    const std::vector<BytecodeValueType> *facts = nullptr;
+    if (const auto it = factTables.find(thread.chunk); it != factTables.end()) facts = &it->second;
+#endif
 
     for (;;) {
         if (thread.finished || thread.escapedToLegacy || Scratch::shouldStop) goto done;
@@ -487,7 +690,55 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             goto done;
         }
 
+#ifdef SE_JIT
+        if (jitEntries != nullptr) {
+            if (thread.jitSuppressOnce) {
+                thread.jitSuppressOnce = false;
+            } else {
+                const int32_t jitEntry = jitEntries[thread.pc];
+                if (jitEntry >= 0) {
+#if defined(__XBOX__)
+                    thread.nativeEntries++;
+                    const BytecodeJit::Result res = BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted);
+                    if (res == BytecodeJit::Result::Yield) {
+                        thread.nativeYields++;
+                        goto done;
+                    }
+                    if (thread.finished) {
+                        thread.nativeHalts++;
+                    } else {
+                        thread.nativeDeopts++;
+                    }
+                    continue;
+#else
+                    if (BytecodeJit::run(*thread.chunk, thread, static_cast<uint32_t>(jitEntry), executionTimer, timerStarted) == BytecodeJit::Result::Yield) goto done;
+                    continue;
+#endif
+                }
+            }
+        }
+#endif
+#if defined(__XBOX__)
+        thread.interpreterSteps++;
+#endif
+
         const BytecodeInstruction &instr = thread.chunk->instructions[thread.pc];
+#ifdef SE_BYTECODE_STATS
+        statsOpCounts[static_cast<uint8_t>(instr.op)]++;
+        if (facts != nullptr) {
+            const BytecodeValueType claimed = (*facts)[thread.pc];
+            if (claimed != BytecodeValueType::Unreached && claimed != BytecodeValueType::Unknown) {
+                if (const Variable *var = variableAt(thread, instr.a)) {
+                    factChecks++;
+                    BytecodeValueType actual;
+                    if (!factHolds(claimed, *var, actual) && factViolations++ < 20) {
+                        Log::logError(std::string("[fact check] instruction ") + std::to_string(thread.pc) + " (op " + std::to_string(static_cast<int>(instr.op)) + ") variable \"" +
+                                      variableIdAt(thread, instr.a) + "\": analysis said " + factName(claimed) + ", it is " + factName(actual));
+                    }
+                }
+            }
+        }
+#endif
 
         switch (instr.op) {
 
@@ -568,7 +819,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Variable *var = resolveOrCreateVariable(thread, instr.a);
                 std::string v = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
-                if (var) var->value = std::make_shared<const std::string>(std::move(v));
+                if (var) var->value = std::make_shared<std::string>(std::move(v));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -577,6 +828,23 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 bool v = thread.boolStack.back();
                 thread.boolStack.pop_back();
                 if (var) var->value = v;
+                thread.pc++;
+                SE_NEXT();
+            }
+            SE_CASE(AppendVarString) {
+                Variable *var = resolveOrCreateVariable(thread, instr.a);
+                std::string suffix = std::move(thread.stringStack.back());
+                thread.stringStack.pop_back();
+                if (var) {
+                    auto *current = std::get_if<std::shared_ptr<const std::string>>(&var->value);
+                    if (current != nullptr && *current && current->use_count() == 1) {
+                        const_cast<std::string &>(**current).append(suffix);
+                    } else {
+                        std::string joined = BlockExecutor::getVariableValueAs<std::string>(var);
+                        joined.append(suffix);
+                        var->value = std::make_shared<std::string>(std::move(joined));
+                    }
+                }
                 thread.pc++;
                 SE_NEXT();
             }
@@ -619,24 +887,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
             SE_CASE(DeleteFromList) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    if (indexStr == "all") {
-                        list->items.clear();
-                    } else if (indexStr == "last" && !list->items.empty()) {
-                        list->items.pop_back();
-                    } else if ((indexStr == "random" || indexStr == "any") && !list->items.empty()) {
-                        list->items.erase(list->items.begin() + fastRandomBelow(list->items.size()));
-                    } else {
-                        double d = index.get<double>();
-                        if (std::isfinite(d)) {
-                            double idx = std::floor(d) - 1;
-                            if (idx >= 0 && idx < static_cast<double>(list->items.size())) {
-                                list->items.erase(list->items.begin() + static_cast<size_t>(idx));
-                            }
-                        }
-                    }
-                }
+                if (list) listDelete(*list, index);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -650,29 +901,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list) {
-                    std::string indexStr = index.asString();
-                    size_t pos;
-                    if (indexStr == "last") pos = list->items.size();
-                    else if (indexStr == "random" || indexStr == "any") pos = static_cast<size_t>(fastRandomBelow(list->items.size() + 1));
-                    else {
-                        double d = index.get<double>();
-                        if (!std::isfinite(d)) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        double idx = std::floor(d) - 1;
-                        if (idx < 0 || idx > static_cast<double>(list->items.size())) {
-                            thread.pc++;
-                            SE_NEXT();
-                        }
-                        pos = static_cast<size_t>(idx);
-                    }
-                    if (pos <= list->items.size()) {
-                        list->items.insert(list->items.begin() + pos, item);
-                        if (list->items.size() > MAX_LIST_ITEMS) list->items.pop_back();
-                    }
-                }
+                if (list) listInsert(*list, index, std::move(item));
                 thread.pc++;
                 SE_NEXT();
             }
@@ -680,10 +909,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value index = popValue(thread, BytecodeStackKind::Value);
                 Value item = popValue(thread, BytecodeStackKind::Value);
-                if (list && !list->items.empty()) {
-                    size_t pos = resolveListIndex(index, list->items.size());
-                    if (pos < list->items.size()) list->items[pos] = item;
-                }
+                if (list) listReplace(*list, index, item);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -704,12 +930,8 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 double result = 0;
                 if (list) {
-                    for (size_t i = 0; i < list->items.size(); i++) {
-                        if (valuesEqual(list->items[i], item)) {
-                            result = static_cast<double>(i + 1);
-                            break;
-                        }
-                    }
+                    const size_t found = findInList(list->items, item);
+                    if (found < list->items.size()) result = static_cast<double>(found + 1);
                 }
                 thread.numberStack.push_back(result);
                 thread.pc++;
@@ -725,14 +947,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 List *list = listAt(thread, instr.a);
                 Value item = popValue(thread, BytecodeStackKind::Value);
                 bool found = false;
-                if (list) {
-                    for (const auto &existing : list->items) {
-                        if (valuesEqual(existing, item)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
+                if (list) found = findInList(list->items, item) < list->items.size();
                 thread.boolStack.push_back(found);
                 thread.pc++;
                 SE_NEXT();
@@ -837,14 +1052,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 const BytecodeProcedure &proc = thread.chunk->procedures[procIndex];
 
                 if (!thread.withoutScreenRefresh && !proc.runWithoutScreenRefresh && thread.pendingRecursiveCallPc != thread.pc) {
-                    bool isRecursiveCall = false;
-                    for (const BytecodeCallFrame &existing : thread.callStack) {
-                        if (existing.procedureIndex == procIndex) {
-                            isRecursiveCall = true;
-                            break;
-                        }
-                    }
-                    if (isRecursiveCall) {
+                    if (bytecodeIsRecursiveCall(*thread.chunk, thread.callStack, procIndex, thread.pc)) {
                         thread.pendingRecursiveCallPc = thread.pc;
                         goto done;
                     }
@@ -1009,6 +1217,16 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 SE_NEXT();
             }
             SE_CASE(ConvertStringToValue) {
+                if (thread.pc + 1 < static_cast<BytecodeIndex>(thread.chunk->instructions.size()) &&
+                    thread.chunk->instructions[thread.pc + 1].op == BytecodeOp::ConvertValueToNumber) {
+                    const std::string &str = thread.stringStack.back();
+                    const auto parsed = Math::parseNumber(str);
+                    const double num = parsed.has_value() ? *parsed : 0.0;
+                    thread.stringStack.pop_back();
+                    thread.numberStack.push_back(num);
+                    thread.pc += 2;
+                    SE_NEXT();
+                }
                 std::string v = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
                 thread.valueStack.push_back(Value(std::move(v)));
@@ -1140,6 +1358,13 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.pc++;
                 SE_NEXT();
             }
+            SE_CASE(SetForEachBound) {
+                const double bound = thread.numberStack.back();
+                thread.numberStack.pop_back();
+                if (thread.valueStack.size() >= 2) thread.valueStack[thread.valueStack.size() - 2] = Value(bound);
+                thread.pc++;
+                SE_NEXT();
+            }
             SE_CASE(Wait) {
                 if (!thread.isSleeping) {
                     double seconds = thread.numberStack.back();
@@ -1148,7 +1373,11 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                     thread.waitTimer.start();
                     thread.isSleeping = true;
                     Scratch::forceRedraw = true;
-                    goto done;
+                    if (!thread.withoutScreenRefresh) goto done;
+                    if (thread.sleepTimer > 0.0) {
+                        thread.sleepTimer = 0.0;
+                        goto done;
+                    }
                 }
                 if (thread.waitTimer.hasElapsed(static_cast<int>(thread.sleepTimer * 1000.0))) {
                     thread.isSleeping = false;
@@ -1213,7 +1442,10 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.numberStack.pop_back();
 
                 std::string result;
-                if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) result = strValue.utf16CharAt(static_cast<size_t>(indexD));
+                if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) {
+                    const Value charValue = strValue.utf16CharAtValue(static_cast<size_t>(indexD));
+                    if (charValue.isString()) result = charValue.get<std::string>();
+                }
                 thread.stringStack.push_back(std::move(result));
                 thread.pc++;
                 SE_NEXT();
@@ -1233,8 +1465,20 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.numberStack.pop_back();
 
                 std::string result;
-                if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) {
-                    if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) result = Math::utf16CharAt(*str, static_cast<size_t>(indexD));
+                Variable *var = variableAt(thread, instr.a);
+                if (var != nullptr) {
+                    if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                        if (indexD >= 0 && indexD < static_cast<double>(Math::utf16Length(*str))) {
+                            const Value charValue = Value(*str).utf16CharAtValue(static_cast<size_t>(indexD));
+                            if (charValue.isString()) result = charValue.get<std::string>();
+                        }
+                    } else {
+                        const Value strValue = BlockExecutor::getVariableValueAs<Value>(var);
+                        if (indexD >= 0 && indexD < static_cast<double>(strValue.utf16Length())) {
+                            const Value charValue = strValue.utf16CharAtValue(static_cast<size_t>(indexD));
+                            if (charValue.isString()) result = charValue.get<std::string>();
+                        }
+                    }
                 }
                 thread.stringStack.push_back(std::move(result));
                 thread.pc++;
@@ -1243,7 +1487,15 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
             SE_CASE(LengthOfVar) {
                 size_t units = 0;
-                if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&variableAt(thread, instr.a)->value)) units = Math::utf16Length(*str);
+                Variable *var = variableAt(thread, instr.a);
+                if (var != nullptr) {
+                    if (const auto *str = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
+                        units = Math::utf16Length(*str);
+                    } else {
+                        const Value strValue = BlockExecutor::getVariableValueAs<Value>(var);
+                        units = strValue.utf16Length();
+                    }
+                }
                 thread.numberStack.push_back(static_cast<double>(units));
                 thread.pc++;
                 SE_NEXT();
@@ -1341,10 +1593,9 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
                 thread.stringStack.pop_back();
                 std::string op1 = std::move(thread.stringStack.back());
                 thread.stringStack.pop_back();
-                Value v1(std::move(op1)), v2(std::move(op2));
-                bool result = instr.op == BytecodeOp::StrEquals ? v1 == v2
-                              : instr.op == BytecodeOp::StrLess ? v1 < v2
-                                                                : v1 > v2;
+                const bool result = Value::compareStrings(instr.op == BytecodeOp::StrEquals ? 0 : instr.op == BytecodeOp::StrLess ? 1
+                                                                                                                                  : 2,
+                                                          op1, op2);
                 thread.boolStack.push_back(result);
                 thread.pc++;
                 SE_NEXT();
@@ -1352,7 +1603,7 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
 
             SE_CASE(SetEffectTo) {
                 Value v = popValue(thread, BytecodeStackKind::Value);
-                if (v.isNumeric()) applyEffect(thread.sprite, static_cast<BytecodeEffect>(instr.b), v.get<double>(), true);
+                applyEffect(thread.sprite, static_cast<BytecodeEffect>(instr.b), v.get<double>(), true);
                 thread.pc++;
                 SE_NEXT();
             }
@@ -1526,6 +1777,18 @@ void BytecodeExecutor::runThread(BytecodeThread &thread) {
     }
 
 done:;
+#if defined(__XBOX__)
+    if (thread.finished && !thread.statsReported) {
+        thread.statsReported = true;
+        const std::string spriteName = thread.sprite ? thread.sprite->name : "<unknown>";
+        Log::log("[jit exec] sprite '" + spriteName + "' hat=" + std::to_string(thread.hatInstruction) +
+                 " nativeEntries=" + std::to_string(thread.nativeEntries) +
+                 " nativeYields=" + std::to_string(thread.nativeYields) +
+                 " nativeDeopts=" + std::to_string(thread.nativeDeopts) +
+                 " nativeHalts=" + std::to_string(thread.nativeHalts) +
+                 " interpreterSteps=" + std::to_string(thread.interpreterSteps));
+    }
+#endif
 }
 
 bool BytecodeExecutor::isRunning(Sprite *sprite, Block *hat) {
@@ -1637,13 +1900,35 @@ BytecodeThread *BytecodeExecutor::startThread(Sprite *sprite, Block *hat, bool s
 
     if (restartIndex != static_cast<size_t>(-1)) {
         BytecodeThread *old = threads[restartIndex];
-        old->finished = true;
-        old->killed = true;
         if (old->escapedToLegacy) killLegacyThread(old->legacyThreadId);
+        threads[restartIndex] = newThread;
+        if (old == runningThread) {
+            return newThread;
+        }
+        if (old->bridgeThread) releaseScriptThread(old->bridgeThread);
+        delete old;
+        return newThread;
     }
     threads.push_back(newThread);
 
     return newThread;
+}
+
+void BytecodeExecutor::dumpThreads() {
+    std::fprintf(stderr, "[diag] %zu bytecode threads, %zu legacy threads\n", threads.size(), BlockExecutor::threads.size());
+    for (const BytecodeThread *thread : threads) {
+        std::fprintf(stderr, "[diag]   thread %llu sprite=%s hat=%u pc=%u finished=%d warp=%d callDepth=%zu sleeping=%d waitingBroadcast=%d waitingSound=%d escapedToLegacy=%d killed=%d",
+                     static_cast<unsigned long long>(thread->id), thread->sprite != nullptr ? thread->sprite->name.c_str() : "?", static_cast<unsigned>(thread->hatInstruction), static_cast<unsigned>(thread->pc),
+                     thread->finished, thread->withoutScreenRefresh ? 1 : 0, thread->callStack.size(), thread->isSleeping ? 1 : 0, thread->isWaitingForBroadcast ? 1 : 0, thread->isWaitingForSound ? 1 : 0,
+                     thread->escapedToLegacy ? 1 : 0, thread->killed ? 1 : 0);
+        if (thread->isWaitingForBroadcast) {
+            std::fprintf(stderr, " waitingOn=[");
+            for (uint64_t id : thread->waitHandle)
+                std::fprintf(stderr, " %llu(%s)", static_cast<unsigned long long>(id), BlockExecutor::isThreadRunning(id) ? "running" : "gone");
+            std::fprintf(stderr, " ]");
+        }
+        std::fprintf(stderr, "\n");
+    }
 }
 
 void BytecodeExecutor::runThreads() {
@@ -1684,7 +1969,16 @@ void BytecodeExecutor::runThreads() {
             continue;
         }
 
-        if (!thread->escapedToLegacy) runThread(*thread);
+        if (!thread->escapedToLegacy) {
+            runningThread = thread;
+            runThread(*thread);
+            runningThread = nullptr;
+        }
+
+        if (i < threads.size() && threads[i] != thread && std::find(threads.begin(), threads.end(), thread) == threads.end()) {
+            if (thread->bridgeThread) releaseScriptThread(thread->bridgeThread);
+            delete thread;
+        }
 
         if (Scratch::shouldStop) return;
         i++;

@@ -20,8 +20,7 @@ void main() {
 )glsl";
 
 static const char *textFragSrc =
-    SE_GL_SHADER_VERSION
-    SE_GL_FRAG_PRECISION
+    SE_GL_SHADER_VERSION SE_GL_FRAG_PRECISION
     R"glsl(
 in  vec2 v_uv;
 out vec4 frag_color;

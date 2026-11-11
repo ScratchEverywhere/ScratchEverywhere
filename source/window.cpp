@@ -7,6 +7,9 @@
 #ifdef WINDOWING_SDL2
 #include <window_sdl2.hpp>
 #endif
+#ifdef WINDOWING_NV2A
+#include <window_nv2a.hpp>
+#endif
 #ifdef WINDOWING_SDL1
 #include <window_sdl1.hpp>
 #endif
@@ -18,6 +21,9 @@
 #endif
 #ifdef WINDOWING_NDS
 #include <window_nds.hpp>
+#endif
+#ifdef WINDOWING_WIIU
+#include <window_wiiu.hpp>
 #endif
 #ifdef WINDOWING_LIBRETRO
 #include <window_libretro.hpp>
@@ -67,6 +73,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         case Renderers::Xbox:
             b = WindowingBackends::SDL1;
             break;
+        case Renderers::NV2A:
+            b = WindowingBackends::NV2A;
+            break;
         case Renderers::Headless:
             b = WindowingBackends::Headless;
             break;
@@ -75,6 +84,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
             break;
         case Renderers::GL2D:
             b = WindowingBackends::NDS;
+            break;
+        case Renderers::GX2:
+            b = WindowingBackends::WiiU;
             break;
         case Renderers::D3D9:
         case Renderers::GDI:
@@ -133,6 +145,14 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #endif
         break;
     }
+    case WindowingBackends::NV2A: {
+#ifdef WINDOWING_NV2A
+        WindowSE::currentWindowingBackend = WindowingBackends::NV2A;
+        window = new WindowNV2A(width, height, title);
+        break;
+#endif
+        break;
+    }
     case WindowingBackends::SDL1: {
 #ifdef WINDOWING_SDL1
         WindowSE::currentWindowingBackend = WindowingBackends::SDL1;
@@ -161,6 +181,14 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #ifdef WINDOWING_NDS
         WindowSE::currentWindowingBackend = WindowingBackends::NDS;
         window = new WindowNDS(width, height, title);
+        break;
+#endif
+        break;
+    }
+    case WindowingBackends::WiiU: {
+#ifdef WINDOWING_WIIU
+        WindowSE::currentWindowingBackend = WindowingBackends::WiiU;
+        window = new WindowWiiU(width, height, title);
         break;
 #endif
         break;
@@ -213,6 +241,9 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #ifdef WINDOWING_SDL2
     add(WindowingBackends::SDL2);
 #endif
+#ifdef WINDOWING_NV2A
+    add(WindowingBackends::NV2A);
+#endif
 #ifdef WINDOWING_SDL1
     add(WindowingBackends::SDL1);
 #endif
@@ -224,6 +255,9 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #endif
 #ifdef WINDOWING_NDS
     add(WindowingBackends::NDS);
+#endif
+#ifdef WINDOWING_WIIU
+    add(WindowingBackends::WiiU);
 #endif
 #ifdef WINDOWING_WIN32
     add(WindowingBackends::Win32);

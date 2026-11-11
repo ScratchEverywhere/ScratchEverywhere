@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <math.hpp>
 #include <os.hpp>
+#include <pixel_snap.hpp>
 #include <string>
 #include <unordered_map>
 #include <unzip.hpp>
@@ -17,17 +18,30 @@ void Image_GL::render(ImageRenderParams &params) {
     float y = params.y;
     double rotation = Math::radiansToDegrees(params.rotation);
     float scaleX = params.scale;
-    const float scaleY = params.scale;
+    float scaleY = params.scale;
     const float opacity = params.opacity;
-    const bool centered = params.centered;
+    bool centered = params.centered;
     const bool flip = params.flip;
     const int brightness = params.brightness;
-    const int renderWidth = params.subrect ? params.subrect->w : getWidth();
-    const int renderHeight = params.subrect ? params.subrect->h : getHeight();
+    const float renderWidth = params.subrect ? static_cast<float>(params.subrect->w) : getExactWidth();
+    const float renderHeight = params.subrect ? static_cast<float>(params.subrect->h) : getExactHeight();
 
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     glColor4f(1.0f, 1.0f, 1.0f, opacity);
+
+    if (PixelSnap::unrotated(params.rotation) && renderWidth > 0 && renderHeight > 0) {
+        const float w = renderWidth * std::abs(scaleX);
+        const float h = renderHeight * std::abs(scaleY);
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(centered ? x - w / 2.0f : x, w, left, snappedW);
+        PixelSnap::span(centered ? y - h / 2.0f : y, h, top, snappedH, true);
+        x = left;
+        y = top;
+        scaleX = snappedW / renderWidth;
+        scaleY = snappedH / renderHeight;
+        centered = false;
+    }
 
     glPushMatrix();
     if (flip) x += renderWidth * std::abs(scaleX);
@@ -153,11 +167,7 @@ void Image_GL::setInitialTexture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgData.width, imgData.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData.pixels);
 
-    /** some platforms may need this to be freed due to RAM limits,
-     *  but they then wont be able to support Image::getPixels()
-     *  */
-    // free(imgData.pixels);
-    // imgData.pixels = nullptr;
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GL::refreshTexture() {

@@ -60,6 +60,7 @@ class SE_EXPORT Scratch {
     static const std::string &getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
+    static std::vector<Value> *getListItems(const std::string &name, Sprite *sprite);
 
     static bool resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName);
 
@@ -74,7 +75,7 @@ class SE_EXPORT Scratch {
     static void cleanupSprites();
 
     static void gotoXY(Sprite *sprite, double x, double y);
-    static void fenceSpriteWithinBounds(Sprite *sprite);
+    static void fenceSpriteWithinBounds(Sprite *sprite, double &x, double &y);
     static bool isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, const std::string &targetName = "");
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
@@ -85,7 +86,7 @@ class SE_EXPORT Scratch {
     static std::set<std::string> failedCostumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
     static void flushCostumeImages();
-    static void freeUnusedCostumeImages();
+    static void freeUnusedCostumeImages(const Image *keep = nullptr);
 
     static void createDebugMonitor(const std::string &name, int x, int y);
     static void toggleDebugVars(const bool enabled);
@@ -118,6 +119,7 @@ class SE_EXPORT Scratch {
     static bool debugVars;
     static bool sb3InRam;
     static bool useBytecode;
+    static bool useJit;
     static bool bytecodeCacheTooNew;
 
     static double counter;

@@ -19,8 +19,11 @@
 #include <sys/types.h>
 #include <vector>
 
-#ifdef __XBOX__
+#ifdef RENDERER_XBOX
 #include <renderers/xbox/image_xbox.hpp>
+#endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/image_nv2a.hpp>
 #endif
 
 #ifdef _WIN32
@@ -44,24 +47,28 @@
 extern AAssetManager *g_assetManager;
 #endif
 
-volatile int Unzip::projectOpened = 0;
-std::string Unzip::loadingState = "";
-#ifdef __XBOX__
-#include <mutex>
-static std::mutex s_loadingStateMutex;
+SE_Mutex &unzipStateMutex() {
+    static SE_Mutex mutex;
+    return mutex;
+}
+
+UnzipShared<int> Unzip::projectOpened = 0;
+static std::string s_loadingState;
 
 void Unzip::setLoadingState(const std::string &state) {
-    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
-    loadingState = state;
+    unzipStateMutex().lock();
+    s_loadingState = state;
+    unzipStateMutex().unlock();
 }
 
 std::string Unzip::getLoadingState() {
-    std::lock_guard<std::mutex> lock(s_loadingStateMutex);
-    return loadingState;
+    unzipStateMutex().lock();
+    const std::string copy = s_loadingState;
+    unzipStateMutex().unlock();
+    return copy;
 }
-#endif
 
-volatile bool Unzip::threadFinished = false;
+UnzipShared<bool> Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
 #ifdef __XBOX__
@@ -71,7 +78,8 @@ std::vector<char> Unzip::zipBuffer;
 #endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
-bool Unzip::UnpackedInSD = false;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
+UnzipShared<bool> Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
     if (Unzip::unpackedFormatHint.has_value()) {
@@ -236,7 +244,7 @@ void loadInitialImages() {
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
 #else
-    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
     for (auto &currentSprite : Scratch::sprites) {
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
@@ -250,7 +258,8 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
+	constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
@@ -280,11 +289,22 @@ bool Unzip::load() {
         loading.cleanup();
         return true;
     } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
         loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
         return true;
     }
 
@@ -300,11 +320,12 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
-    loadingState = TranslationManager::getTranslation("ui.loading.opening");
+    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
@@ -318,12 +339,9 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
-#ifdef __XBOX__
     setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
-#else
-    loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
-#endif
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
     file = nullptr;
@@ -334,8 +352,19 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
 
-#ifdef __XBOX__
-    Image_Xbox::precacheProjectTextures();
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Log::log("Precaching project textures...");
+		Image_Xbox::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
+#ifdef RENDERER_NV2A
+    if (Render::currentRenderer == Renderers::NV2A) {
+		Log::log("Precaching project textures...");
+        Image_NV2A::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
 #endif
 
     Unzip::projectOpened = 1;
@@ -452,7 +481,17 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
     std::string content;
 
-    if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+    if (UnpackedInSD) {
+        std::string folder = filePath;
+        while (!folder.empty() && folder.back() == '/')
+            folder.pop_back();
+        std::ifstream file(folder + ".sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folder + ".sb3.json");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    } else if (Scratch::projectType != ProjectType::UNEMBEDDED) {
 #ifdef USE_BUNDLE
         auto project = Bundle::project();
         auto entry = project.find(folderPath);

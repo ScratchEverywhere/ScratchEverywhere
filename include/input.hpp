@@ -76,6 +76,8 @@ class SE_EXPORT Input {
     static void setInputWindowHandle(void *handle);
     static void clearInputWindowHandle();
 
+    static void clampMouseToStage();
+
     static void buttonPress(std::string button);
     static std::string convertToKey(const Value keyName, const bool uppercaseKeys = false);
     static bool checkSequenceMatch(const std::vector<std::string> sequence);

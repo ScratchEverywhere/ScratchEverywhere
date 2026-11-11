@@ -1,9 +1,11 @@
 #include "blockExecutor.hpp"
 #include "bytecode_cache.hpp"
+#include "bytecode_compiler.hpp"
 #include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
 #include <algorithm>
+#include <image.hpp>
 #include <input.hpp>
 #include <limits>
 #include <log.hpp>
@@ -12,8 +14,112 @@
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <translation.hpp>
+#include <unordered_set>
 #include <unzip.hpp>
 #include <variant>
+
+#ifdef SE_BYTECODE_STATS
+#include "bytecode_analysis.hpp"
+#include "bytecode_disassembler.hpp"
+#include "bytecode_executor.hpp"
+#include <cstdlib>
+#include <fstream>
+#include <log.hpp>
+#include <map>
+
+namespace {
+std::string describe(const char *label, const BytecodeAnalysisStats &t, uint32_t entries, uint32_t failed) {
+    return std::string("[analysis total, ") + label + "] entries=" + std::to_string(entries) + " failed=" + std::to_string(failed) +
+           " instrs=" + std::to_string(t.reachable) +
+           " demotedAccesses=" + std::to_string(t.demotedAccessesKnown) + "/" + std::to_string(t.demotedAccesses) +
+           " pushVarValue=" + std::to_string(t.pushVarValueKnown) + "/" + std::to_string(t.pushVarValue) +
+           " storeVarValue=" + std::to_string(t.storeVarValueKnown) + "/" + std::to_string(t.storeVarValue) +
+           " convertValueTo*=" + std::to_string(t.convertValueToTypedKnown) + "/" + std::to_string(t.convertValueToTyped) +
+           " pushArg=" + std::to_string(t.pushArgKnown) + "/" + std::to_string(t.pushArg) +
+           " procCalls(keep facts)=" + std::to_string(t.procedureCallsKeepingFacts) + "/" + std::to_string(t.procedureCalls) +
+           " valueCalls(typed)=" + std::to_string(t.procedureValueCallsTyped) + "/" + std::to_string(t.procedureValueCalls);
+}
+
+void logBytecodeAnalysis() {
+    std::vector<BytecodeProgramAnalysis::Input> inputs;
+    for (Sprite *sprite : Scratch::sprites) {
+        if (!sprite->bytecode || !sprite->bytecodeLink) continue;
+        if (const char *dumpPath = std::getenv("SE_DUMP_BYTECODE")) {
+            std::ofstream(std::string(dumpPath) + "." + sprite->name + ".txt") << BytecodeDisassembler::disassemble(*sprite->bytecode, sprite->bytecodeLink.get());
+        }
+        inputs.push_back({sprite->name, sprite->bytecode.get(), sprite->bytecodeLink.get()});
+    }
+
+    for (int mode = 0; mode < 2; mode++) {
+        BytecodeAnalysisStats total;
+        uint32_t entries = 0, failed = 0;
+        for (const auto &input : inputs) {
+            BytecodeAnalysisPolicy policy;
+            policy.interprocedural = mode == 1;
+            BytecodeAnalysis analysis(*input.chunk, *input.link, policy);
+            analysis.run();
+            const BytecodeAnalysisStats &st = analysis.stats();
+            total.reachable += st.reachable;
+            total.demotedAccesses += st.demotedAccesses;
+            total.demotedAccessesKnown += st.demotedAccessesKnown;
+            total.pushVarValue += st.pushVarValue;
+            total.pushVarValueKnown += st.pushVarValueKnown;
+            total.storeVarValue += st.storeVarValue;
+            total.storeVarValueKnown += st.storeVarValueKnown;
+            total.convertValueToTyped += st.convertValueToTyped;
+            total.convertValueToTypedKnown += st.convertValueToTypedKnown;
+            total.pushArg += st.pushArg;
+            total.pushArgKnown += st.pushArgKnown;
+            total.procedureCalls += st.procedureCalls;
+            total.procedureCallsKeepingFacts += st.procedureCallsKeepingFacts;
+            total.procedureValueCalls += st.procedureValueCalls;
+            total.procedureValueCallsTyped += st.procedureValueCallsTyped;
+            entries += static_cast<uint32_t>(analysis.entries().size());
+            for (const BytecodeEntryResult &e : analysis.entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(mode == 0 ? "per chunk, no procedure summaries" : "per chunk, procedure summaries", total, entries, failed));
+    }
+
+    for (int warpKeeps = 0; warpKeeps < 2; warpKeeps++) {
+        BytecodeProgramAnalysis::Environment environment;
+        environment.customExtensions = !Scratch::extensions.empty();
+        for (const auto &[id, monitor] : Render::monitors) {
+            if (monitor.mode == "slider") environment.sliderVariables.insert(id);
+        }
+        BytecodeAnalysisPolicy policy;
+        policy.warpYieldForgets = warpKeeps != 1;
+        BytecodeProgramAnalysis program(inputs, environment, policy);
+        const bool ok = program.run();
+
+        uint32_t entries = 0, failed = 0;
+        for (const auto &analysis : program.chunks()) {
+            entries += static_cast<uint32_t>(analysis->entries().size());
+            for (const BytecodeEntryResult &e : analysis->entries()) {
+                if (!e.ok) failed++;
+            }
+        }
+        Log::log(describe(warpKeeps == 0 ? "whole program" : "whole program, warp yields keep facts",
+                          program.totalStats(), entries, failed) +
+                 (ok ? "" : " NOT VERIFIED"));
+        if (const char *check = std::getenv("SE_FACT_CHECK")) {
+            if (warpKeeps == (std::string(check) == "warp" ? 1 : 0)) {
+                for (size_t i = 0; i < program.inputs().size(); i++) {
+                    BytecodeExecutor::factTables[program.inputs()[i].chunk] = program.chunks()[i]->readFacts();
+                }
+            }
+        }
+        if (warpKeeps == 0) Log::log("[analysis variables] " + program.variableReport().substr(0, program.variableReport().find('\n')));
+    }
+}
+} // namespace
+#endif
+
+static std::string shadowFieldValue(Block &shadow, const std::string &fieldName) {
+    if (shadow.fieldMap.find(fieldName) == shadow.fieldMap.end() && shadow.fields.size() == 1) return shadow.fields.front().second.value;
+    return Scratch::getFieldValue(shadow, fieldName);
+}
 
 void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
@@ -22,7 +128,28 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
     int spriteAmount = spritesData.size();
     Scratch::sprites.reserve(spriteAmount);
 
+    Image::clearProjectFonts();
+    if (json.contains("customFonts") && json["customFonts"].is_array()) {
+        for (const auto &font : json["customFonts"]) {
+            if (font.value("system", false) || !font.contains("md5ext") || !font.contains("family")) continue;
+            Image::registerProjectFont(font["family"].get<std::string>(), font["md5ext"].get<std::string>());
+        }
+    }
+
     BytecodeCache::beginLoadSession();
+
+    if (Scratch::useBytecode) {
+        std::unordered_set<std::string> assetNames;
+        for (const auto &target : spritesData) {
+            for (const char *kind : {"costumes", "sounds"}) {
+                if (!target.contains(kind) || !target[kind].is_array()) continue;
+                for (const auto &asset : target[kind]) {
+                    if (asset.contains("name") && asset["name"].is_string()) assetNames.insert(asset["name"].get<std::string>());
+                }
+            }
+        }
+        BytecodeCompiler::setReservedLiterals(std::move(assetNames));
+    }
 
     for (const auto &target : spritesData) {
         Sprite *newSprite = new Sprite();
@@ -50,7 +177,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             newSprite->currentCostume = target["currentCostume"].get<int>();
         }
         if (target.contains("volume")) {
-            newSprite->volume = target["volume"].get<int>();
+            newSprite->volume = target["volume"].get<double>();
         }
         if (target.contains("x")) {
             newSprite->xPosition = target["x"].get<float>();
@@ -226,7 +353,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
 
                 newBlock->bytecodeOrdinal = static_cast<uint32_t>(Scratch::blocks.size());
                 Scratch::blocks.push_back(newBlock);
-                newSprite->hats[opcode].insert(newBlock);
+                newSprite->hats[opcode].push_back(newBlock);
 
                 if (!data.contains("next") || data["next"].is_null()) {
                     Parser::log("\t\t\t! No next block");
@@ -325,7 +452,12 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         if (newSprite->isStage) Scratch::stageSprite = newSprite;
     }
 
+    BytecodeCompiler::clearReservedLiterals();
     BytecodeCache::endLoadSession();
+
+#ifdef SE_BYTECODE_STATS
+    logBytecodeAnalysis();
+#endif
 
     Scratch::sortSprites();
 
@@ -393,7 +525,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
 #ifdef __XBOX__
         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.sprites"));
 #else
-        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.sprites");
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.sprites"));
 #endif
 
         Input::applyControls(Unzip::filePath + ".json");
@@ -477,7 +609,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
         }
     }
 
-    if (Render::currentRenderer == Renderers::Citro2D) {
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GX2) {
         if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
             Render::renderMode = Render::BOTH_SCREENS;
         else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -503,7 +635,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
     if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
     } else {
-        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) Scratch::accuratePen = true;
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
         else Scratch::accuratePen = false;
     }
 
@@ -569,7 +701,7 @@ void Parser::loadInputsSb3(Block &block, Sprite *newSprite, const std::string &b
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
-                        block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
+                        block.inputs.push_back({inputName, ParsedInput(Value(shadowFieldValue(*newBlock, it->second)))});
                         block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;
@@ -593,7 +725,7 @@ void Parser::loadInputsSb3(Block &block, Sprite *newSprite, const std::string &b
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
-                        block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
+                        block.inputs.push_back({inputName, ParsedInput(Value(shadowFieldValue(*newBlock, it->second)))});
                         block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;
@@ -829,6 +961,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
             if (name == "is Scratch Everywhere!?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isScratchEverywhere"];
             if (name == "is New 3DS?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isNew3DS"];
             if (name == "is DSi?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isDSi"];
+            if (name == "is compiled?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isCompiled"];
         } else if (newBlock->opcode == "argument_reporter_string_number") {
             std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
             if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];

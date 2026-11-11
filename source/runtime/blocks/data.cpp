@@ -7,6 +7,25 @@
 
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
+namespace {
+bool resolveListItems(Block *block, ScriptThread *thread, Sprite *sprite, std::vector<Value> *&items) {
+    if (Scratch::getInput(block, "LIST")) {
+        std::string name;
+        if (!Scratch::getInputValueAs(block, "LIST", thread, sprite, name)) return false;
+        items = Scratch::getListItems(name, sprite);
+    } else {
+        items = Scratch::getListItems(*block, sprite);
+    }
+    return true;
+}
+
+bool resolveListMonitorId(Block *block, ScriptThread *thread, Sprite *sprite, std::string &id) {
+    if (Scratch::getInput(block, "LIST")) return Scratch::getInputValueAs(block, "LIST", thread, sprite, id);
+    id = Scratch::getFieldId(*block, "LIST");
+    return true;
+}
+} // namespace
+
 SCRATCH_BLOCK(data, setvariableto) {
     Value value;
     if (!Scratch::getInputValue(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
@@ -14,6 +33,62 @@ SCRATCH_BLOCK(data, setvariableto) {
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), value, sprite);
     return BlockResult::CONTINUE;
 }
+namespace {
+
+bool isSideEffectFreeStringExpr(const ParsedInput *input) {
+    if (input == nullptr) return true;
+    switch (input->inputType) {
+    case ParsedInput::VALUE:
+        return true;
+    case ParsedInput::VARIABLE:
+        return !input->list;
+    case ParsedInput::BLOCK: {
+        const Block *inner = input->block;
+        if (inner == nullptr) return true;
+        const std::string &opcode = inner->opcode;
+        if (opcode == "argument_reporter_string_number" || opcode == "argument_reporter_boolean") return true;
+        if (opcode == "data_variable" || opcode == "data_itemoflist" || opcode == "data_itemnumoflist" || opcode == "data_listcontents") return true;
+        if (opcode == "operator_join") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING1")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING2"));
+        }
+        if (opcode == "operator_length" || opcode == "operator_letter_of") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "STRING"));
+        }
+        if (opcode == "operator_random") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "FROM")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "TO"));
+        }
+        if (opcode == "operator_add" || opcode == "operator_subtract" || opcode == "operator_multiply" || opcode == "operator_divide" ||
+            opcode == "operator_mod" || opcode == "operator_mathop") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM1")) &&
+                   isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM2"));
+        }
+        if (opcode == "operator_round") {
+            return isSideEffectFreeStringExpr(Scratch::getInput(const_cast<Block *>(inner), "NUM"));
+        }
+        return false;
+    }
+    }
+    return false;
+}
+
+Block *matchSelfAppend(Block *setBlock, const std::string &varId) {
+    const ParsedInput *value = Scratch::getInput(setBlock, "VALUE");
+    if (value == nullptr || value->inputType != ParsedInput::BLOCK || value->block == nullptr) return nullptr;
+
+    Block *join = value->block;
+    if (join->opcode != "operator_join") return nullptr;
+
+    const ParsedInput *left = Scratch::getInput(join, "STRING1");
+    if (left == nullptr || left->inputType != ParsedInput::VARIABLE || left->list || left->variableId != varId) return nullptr;
+
+    if (!isSideEffectFreeStringExpr(Scratch::getInput(join, "STRING2"))) return nullptr;
+    return join;
+}
+
+} // namespace
+
 SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
@@ -25,6 +100,15 @@ SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     }
 
     outFirstInstr = compiler.here();
+
+    if (varKind == BytecodeStackKind::String) {
+        if (Block *join = matchSelfAppend(block, varId)) {
+            compiler.compileInput(join, "STRING2", BytecodeStackKind::String);
+            compiler.emit(BytecodeOp::AppendVarString, compiler.variableSlot(varId));
+            return true;
+        }
+    }
+
     compiler.compileInput(block, "VALUE", varKind);
 
     BytecodeIndex slot = compiler.variableSlot(varId);
@@ -94,7 +178,8 @@ SCRATCH_BYTECODE_BLOCK(data, hidevariable) {
 }
 
 SCRATCH_BLOCK(data, showlist) {
-    const std::string &varId = Scratch::getFieldId(*block, "LIST");
+    std::string varId;
+    if (!resolveListMonitorId(block, thread, sprite, varId)) return BlockResult::REPEAT;
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = true;
@@ -102,13 +187,15 @@ SCRATCH_BLOCK(data, showlist) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, showlist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.emit(BytecodeOp::ShowListMonitor, compiler.listSlot(listId));
     return true;
 }
 
 SCRATCH_BLOCK(data, hidelist) {
-    const std::string &varId = Scratch::getFieldId(*block, "LIST");
+    std::string varId;
+    if (!resolveListMonitorId(block, thread, sprite, varId)) return BlockResult::REPEAT;
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = false;
@@ -116,6 +203,7 @@ SCRATCH_BLOCK(data, hidelist) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, hidelist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.emit(BytecodeOp::HideListMonitor, compiler.listSlot(listId));
     return true;
@@ -125,13 +213,15 @@ SCRATCH_BLOCK(data, addtolist) {
     Value item;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (items && items->size() < MAX_LIST_ITEMS) items->push_back(item);
 
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, addtolist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
@@ -143,7 +233,8 @@ SCRATCH_BLOCK(data, deleteoflist) {
     Value index;
     if (!Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (!items) return BlockResult::CONTINUE;
 
@@ -177,6 +268,7 @@ SCRATCH_BLOCK(data, deleteoflist) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, deleteoflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
@@ -185,11 +277,13 @@ SCRATCH_BYTECODE_BLOCK(data, deleteoflist) {
 }
 
 SCRATCH_BLOCK(data, deletealloflist) {
-    auto items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
     if (items) items->clear();
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, deletealloflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.emit(BytecodeOp::DeleteAllOfList, compiler.listSlot(listId));
     return true;
@@ -200,7 +294,8 @@ SCRATCH_BLOCK(data, insertatlist) {
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item) ||
         !Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (!items) return BlockResult::CONTINUE;
 
@@ -231,6 +326,7 @@ SCRATCH_BLOCK(data, insertatlist) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, insertatlist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
@@ -244,7 +340,8 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item) ||
         !Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (!items || items->empty()) return BlockResult::CONTINUE;
 
@@ -271,6 +368,7 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(data, replaceitemoflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
@@ -283,7 +381,8 @@ SCRATCH_BLOCK(data, itemoflist) {
     Value indexStrVal;
     if (!Scratch::getInputValue(block, "INDEX", thread, sprite, indexStrVal)) return BlockResult::REPEAT;
 
-    const auto &items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (!items || items->empty()) {
         *outValue = Value();
@@ -310,6 +409,7 @@ SCRATCH_BLOCK(data, itemoflist) {
 }
 
 SCRATCH_BYTECODE_BLOCK(data, itemoflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
@@ -321,7 +421,8 @@ SCRATCH_BLOCK_DOUBLE(data, itemnumoflist) {
     Value itemToFind;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
-    const auto &items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (items) {
         int index = 1;
@@ -339,6 +440,7 @@ SCRATCH_BLOCK_DOUBLE(data, itemnumoflist) {
 }
 
 SCRATCH_BYTECODE_BLOCK(data, itemnumoflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
@@ -347,13 +449,15 @@ SCRATCH_BYTECODE_BLOCK(data, itemnumoflist) {
 }
 
 SCRATCH_BLOCK_DOUBLE(data, lengthoflist) {
-    const auto &items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
     if (items) *outValue = items->size();
     else *outValue = 0;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BYTECODE_BLOCK(data, lengthoflist) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.emit(BytecodeOp::LengthOfList, compiler.listSlot(listId));
     return true;
@@ -363,7 +467,8 @@ SCRATCH_BLOCK_BOOLEAN(data, listcontainsitem) {
     Value itemToFind;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
-    const auto &items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
 
     if (items) {
         for (const auto &item : *items) {
@@ -379,6 +484,7 @@ SCRATCH_BLOCK_BOOLEAN(data, listcontainsitem) {
 }
 
 SCRATCH_BYTECODE_BLOCK(data, listcontainsitem) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
@@ -398,7 +504,8 @@ SCRATCH_BYTECODE_BLOCK(data, variable) {
 }
 
 SCRATCH_BLOCK_STRING(data, listcontents) {
-    const auto &items = Scratch::getListItems(*block, sprite);
+    std::vector<Value> *items;
+    if (!resolveListItems(block, thread, sprite, items)) return BlockResult::REPEAT;
     std::string ret = "";
     bool allSingle = true;
 
@@ -406,17 +513,25 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
         int i = 0;
 
         for (const auto &item : *items) {
-            if (!(item.isString() && Math::utf16Length(item.get<std::string>()) == 1)) {
+            if (!(item.isStringTyped() && item.utf16Length() == 1)) {
                 allSingle = false;
             }
         }
 
         for (const auto &item : *items) {
             if (allSingle) {
-                ret += item.asString();
+                if (const auto *ref = item.tryGetStringRef()) {
+                    ret += *ref;
+                } else {
+                    ret += item.asString();
+                }
             } else {
                 if (i > 0) ret += " ";
-                ret += item.asString();
+                if (const auto *ref = item.tryGetStringRef()) {
+                    ret += *ref;
+                } else {
+                    ret += item.asString();
+                }
             }
 
             i++;
@@ -428,6 +543,7 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
 }
 
 SCRATCH_BYTECODE_BLOCK(data, listcontents) {
+    if (Scratch::getInput(block, "LIST")) return false; // Evaluate computed selectors through the legacy bridge.
     const std::string &listId = Scratch::getFieldId(*block, "LIST");
     outFirstInstr = compiler.emit(BytecodeOp::PushList, compiler.listSlot(listId));
     compiler.emit(BytecodeOp::ConvertValueToString);

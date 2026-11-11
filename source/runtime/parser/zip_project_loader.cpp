@@ -1,6 +1,9 @@
 #include "zip_project_loader.hpp"
 #include <istream>
 #include <log.hpp>
+#ifdef SE_JIT
+#include <bytecode_jit.hpp>
+#endif
 #include <parser.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
@@ -42,8 +45,14 @@ bool readFileDirect(const std::string &path, char *dst, size_t size) {
 }
 #endif
 
+#ifdef __XBOX__
+static constexpr size_t MAX_ITEMS = 100000;
+#else
+static constexpr size_t MAX_ITEMS = 10000;
+#endif
+
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-static std::string truncateLargeJsonLists(const std::string &raw, size_t max_items = 1000) {
+static std::string truncateLargeJsonLists(const std::string &raw) {
     std::string result;
     result.reserve(raw.size());
     size_t pos = 0;
@@ -102,7 +111,7 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
                     if (depth == 0) break;
                 } else if (ch == ',' && depth == 1) {
                     items_count++;
-                    if (items_count == max_items) {
+                    if (items_count == MAX_ITEMS) {
                         trunc_pos = cur;
                     }
                 }
@@ -126,11 +135,23 @@ static std::string truncateLargeJsonLists(const std::string &raw, size_t max_ite
 
 static nlohmann::json parseProjectJson(const std::string &rawJson) {
 #if defined(__XBOX__) || defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__3DS__)
-    std::string sanitized = truncateLargeJsonLists(rawJson, 1000);
+#if defined(__XBOX__)
+    // Lists contain authored game data (Appel's maps have 6400 cells). Silently
+    // cutting them to 1000 entries changes the game rather than saving it.
+    if (rawJson.find("Infinity") == std::string::npos) {
+        Log::log("Parsing full project JSON: " + std::to_string(rawJson.size()) + " bytes");
+        auto parsed = nlohmann::json::parse(rawJson);
+        Log::log("Full project JSON parsed.");
+        return parsed;
+    }
+    std::string sanitized = rawJson;
+#else
+    std::string sanitized = truncateLargeJsonLists(rawJson);
     if (sanitized.size() != rawJson.size()) {
         Log::log("Preprocessed project.json: truncated lists from " + std::to_string(rawJson.size()) +
                  " to " + std::to_string(sanitized.size()) + " bytes");
     }
+#endif
     size_t inf_pos;
     while ((inf_pos = sanitized.find("Infinity")) != std::string::npos) {
         sanitized.replace(inf_pos, 8, "1e9");
@@ -241,6 +262,7 @@ bool ZipProjectLoader::load(std::istream *file) {
 
             project_json = parseProjectJson(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
+            Log::log("Project JSON parsed from in-RAM archive.");
 #else
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
@@ -356,19 +378,62 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
-    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
-    if (useBytecodeSetting.is_null()) {
+    const auto runtimeSetting = Unzip::getSetting("runtime");
+    const auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    Scratch::useJit = false;
+    if (runtimeSetting.is_string()) {
+        const std::string runtime = runtimeSetting.get<std::string>();
+        Scratch::useBytecode = runtime != "interpreter";
+        Scratch::useJit = runtime == "jit";
+    } else if (useBytecodeSetting.is_null()) {
 #if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
         Scratch::useBytecode = false;
 #else
         Scratch::useBytecode = true;
+#ifdef SE_JIT
+        Scratch::useJit = true;
+#endif
 #endif
     } else {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
+#ifdef SE_JIT
+        Scratch::useJit = Scratch::useBytecode;
+#endif
     }
 
+    {
+        const char *active = Scratch::useBytecode ? "bytecode VM" : "interpreter";
+        std::string note;
+#ifdef SE_JIT
+        if (Scratch::useBytecode) {
+            if (BytecodeJit::enabled()) {
+                active = "bytecode VM + JIT";
+            } else if (Scratch::useJit) {
+                note = " (JIT requested but unavailable)";
+            }
+        } else if (Scratch::useJit) {
+            note = " (JIT requested but unavailable)";
+        }
+#else
+        if (Scratch::useJit) note = " (JIT requested but this build has no JIT)";
+#endif
+        Log::log(std::string("Runtime: ") + active + note);
+#if defined(__XBOX__)
+        Log::log(std::string("[runtime select] setting='") +
+                 (runtimeSetting.is_string() ? runtimeSetting.get<std::string>() : "(none)") +
+                 "' useBytecode=" + (Scratch::useBytecode ? "true" : "false") +
+                 " useJit=" + (Scratch::useJit ? "true" : "false")
+#ifdef SE_JIT
+                 + " jitEnabled=" + (BytecodeJit::enabled() ? "true" : "false")
+#endif
+        );
+#endif
+    }
+
+    Log::log("Loading project extensions and sprites...");
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
     Parser::loadSprites(project_json, format);
+    Log::log("Project sprites loaded.");
     project_json.clear();
     return true;
 }

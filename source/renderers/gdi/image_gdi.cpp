@@ -2,6 +2,7 @@
 #include "nonstd/expected.hpp"
 #include "renderer_gdi.hpp"
 #include <algorithm>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -12,21 +13,33 @@ void Image_GDI::render(ImageRenderParams &params) {
 void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
-    const float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
 
-    p[0].x = params.x;
-    p[0].y = params.y;
-    p[1].x = params.x + renderWidth;
-    p[1].y = params.y;
-    p[2].x = params.x;
-    p[2].y = params.y + renderHeight;
+    float px = params.x;
+    float py = params.y;
+    if (PixelSnap::unrotated(params.rotation)) {
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(params.centered ? px - renderWidth / 2 : px, renderWidth, left, snappedW);
+        PixelSnap::span(params.centered ? py - renderHeight / 2 : py, renderHeight, top, snappedH, true);
+        renderWidth = snappedW;
+        renderHeight = snappedH;
+        px = params.centered ? left + snappedW / 2 : left;
+        py = params.centered ? top + snappedH / 2 : top;
+    }
+
+    p[0].x = px;
+    p[0].y = py;
+    p[1].x = px + renderWidth;
+    p[1].y = py;
+    p[2].x = px;
+    p[2].y = py + renderHeight;
 
     for (i = 0; i < 3; i++) {
-        float sx = params.x;
-        float sy = params.y;
+        float sx = px;
+        float sy = py;
         int x;
         int y;
 
@@ -119,6 +132,8 @@ void Image_GDI::setInitialTexture() {
     }
 
     SelectObject(this->hDC, this->hBitmap);
+
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GDI::refreshTexture() {
@@ -215,11 +230,15 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     PatBlt(hDC, 0, 0, cxDest, cyDest, BLACKNESS);
 
+#if 0
     if (p3.x == p[1].x && p3.y == p[2].y) {
         StretchBlt(hDC, 0, 0, cxDest, cyDest, src, x, y, cx, cy, SRCCOPY);
     } else {
         PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
     }
+#else
+    PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
+#endif
     GdiAlphaBlend(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, bf);
     // StretchBlt(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, SRCCOPY);
 

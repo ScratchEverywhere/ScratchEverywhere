@@ -2,6 +2,7 @@
 #include "bytecode_executor.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <math.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
@@ -35,14 +36,14 @@ uint64_t BlockExecutor::startHat(Sprite *sprite, Block *hat) {
 }
 
 std::vector<uint64_t> BlockExecutor::startBroadcastHats(std::string broadcast) {
-    std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
+    broadcast = Math::toLowerCaseJs(broadcast);
 
     std::vector<uint64_t> startedThreads;
     for (auto &spr : Scratch::sprites) {
         if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
         for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
             std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
-            std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+            broadcastOption = Math::toLowerCaseJs(broadcastOption);
 
             if (broadcastOption == broadcast) startedThreads.push_back(startHat(spr, hat));
         }
@@ -114,6 +115,13 @@ void BlockExecutor::runThreads() {
         i++;
     }
 
+    cleanupSprites();
+    if (stopClicked) {
+        Scratch::stopClicked();
+    }
+}
+
+void BlockExecutor::cleanupSprites() {
     Scratch::sprites.erase(
         std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
                        [](Sprite *s) {
@@ -143,9 +151,6 @@ void BlockExecutor::runThreads() {
             Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
         }
         sortSprites = false;
-    }
-    if (stopClicked) {
-        Scratch::stopClicked();
     }
 }
 

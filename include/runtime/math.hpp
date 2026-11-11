@@ -21,6 +21,7 @@ SE_EXPORT size_t utf16Length(const std::shared_ptr<const std::string> &str);
 SE_EXPORT std::string utf16CharAt(const std::shared_ptr<const std::string> &str, size_t utf16Index);
 
 SE_EXPORT std::string toLowerCaseJs(std::string_view str);
+SE_EXPORT bool containsCaseInsensitive(std::string_view haystack, std::string_view needle);
 
 SE_EXPORT bool caseInsensitiveEqual(std::string_view a, std::string_view b);
 SE_EXPORT bool caseInsensitiveLess(std::string_view a, std::string_view b);
@@ -28,6 +29,8 @@ SE_EXPORT bool caseInsensitiveLess(std::string_view a, std::string_view b);
 SE_EXPORT std::string toString(double number);
 
 SE_EXPORT int color(int r, int g, int b, int a);
+
+SE_EXPORT double jsRound(double value);
 
 SE_EXPORT double degreesToRadians(double degrees);
 
@@ -38,6 +41,36 @@ SE_EXPORT int16_t radiansToAngle16(float radians);
 SE_EXPORT std::string generateRandomString(int length);
 
 SE_EXPORT std::string removeQuotations(std::string value);
+
+#if defined(__XBOX__)
+constexpr uint32_t fnv1a_hash(const char *str, size_t len) {
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < len; ++i) {
+        hash ^= static_cast<uint8_t>(str[i]);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+constexpr uint32_t fnv1a_hash(std::string_view sv) {
+    return fnv1a_hash(sv.data(), sv.size());
+}
+
+constexpr uint32_t fnv1a_hash_case_insensitive(const char *str, size_t len) {
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < len; ++i) {
+        uint8_t c = static_cast<uint8_t>(str[i]);
+        if (c >= 'A' && c <= 'Z') c += ('a' - 'A');
+        hash ^= c;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+constexpr uint32_t fnv1a_hash_case_insensitive(std::string_view sv) {
+    return fnv1a_hash_case_insensitive(sv.data(), sv.size());
+}
+#endif
 
 SE_EXPORT const uint32_t next_pow2(uint32_t n);
 }; // namespace Math

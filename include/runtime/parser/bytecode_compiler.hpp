@@ -3,6 +3,7 @@
 #include <se_export.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct ParsedInput;
@@ -11,6 +12,9 @@ class SE_EXPORT BytecodeCompiler {
   public:
     using CustomCompileFn = bool (*)(BytecodeCompiler &compiler, Block *block, BytecodeIndex &outFirstInstr);
     static std::unordered_map<std::string, CustomCompileFn> &getCustomCompilers();
+
+    static void setReservedLiterals(std::unordered_set<std::string> names);
+    static void clearReservedLiterals();
 
     explicit BytecodeCompiler(Sprite *sprite) : sprite_(sprite) {}
 
@@ -44,6 +48,11 @@ class SE_EXPORT BytecodeCompiler {
     BytecodeIndex procedureSlot(Block *definitionBlock) const;
 
     bool inStatementContext() const { return statementContext_; }
+    uint32_t blockDepth() const { return blockDepth_; }
+    void recordCallSite(BytecodeIndex pc) {
+        chunk_.callSitePcs.push_back(pc);
+        chunk_.callSiteDepths.push_back(blockDepth_);
+    }
 
     BytecodeChunk &chunk() { return chunk_; }
     BytecodeLinkTable &link() { return link_; }
@@ -62,4 +71,5 @@ class SE_EXPORT BytecodeCompiler {
 
     const std::vector<std::string> *currentArgumentNames_ = nullptr;
     bool statementContext_ = false;
+    uint32_t blockDepth_ = 0;
 };
