@@ -43,6 +43,11 @@ void Builder::input() {
     bool found = false;
     for (int i = pool->count - 1; i >= 0; i--) {
         Element &e = pool->elements[i];
+
+        if (e.flags & Flag::Clip) {
+            e.scrollY -= Input::mouseScrollDelta;
+        }
+
         if (!(e.flags & Flag::Focusable)) continue;
         // TODO: account for scroll containers
         if (!found && mouseX >= e.rect.x && mouseX < e.rect.x + e.rect.w &&
@@ -408,14 +413,21 @@ void Painter::render(const Pool &pool) {
 
     for (uint16_t i = 0; i < pool.count; i++) {
         const Element &e = pool.elements[i];
+        int offsetX = 0;
+        int offsetY = 0;
 
         if (!(e.flags & Flag::Visible)) continue;
-        if (e.rect.x + e.rect.w < 0 || e.rect.y + e.rect.h < 0 || e.rect.x > windowWidth || e.rect.y > windowHeight) continue;
         if (e.parent != NONE) {
             const Element &p = pool.elements[e.parent];
             if (p.flags & Flag::Clip) {
-                if (e.rect.x + e.rect.w < p.rect.x || e.rect.x > p.rect.x + p.rect.w || e.rect.y + e.rect.h < p.rect.y || e.rect.y > p.rect.y + p.rect.h) continue;
+                const int px = p.rect.x + p.scrollX;
+                const int py = p.rect.y + p.scrollY;
+                if (e.rect.x + e.rect.w < px || e.rect.x > px + p.rect.w || e.rect.y + e.rect.h < py || e.rect.y > py + p.rect.h) continue;
+                offsetX += p.scrollX;
+                offsetY += p.scrollY;
             }
+        } else {
+            if (e.rect.x + e.rect.w < 0 || e.rect.y + e.rect.h < 0 || e.rect.x > windowWidth || e.rect.y > windowHeight) continue;
         }
 
         switch (e.kind) {
@@ -426,14 +438,14 @@ void Painter::render(const Pool &pool) {
 
             // TODO: make drawbox not centered
             if (style.round == 0)
-                renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), color.r, color.g, color.b, color.a);
+                renderer->drawBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2) - offsetX, e.rect.y + (e.rect.h / 2) - offsetY, color.r, color.g, color.b, color.a);
             else
-                renderer->drawRoundedBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2), e.rect.y + (e.rect.h / 2), style.round, color.r, color.g, color.b, color.a);
+                renderer->drawRoundedBox(e.rect.w, e.rect.h, e.rect.x + (e.rect.w / 2) - offsetX, e.rect.y + (e.rect.h / 2) - offsetY, style.round, color.r, color.g, color.b, color.a);
             break;
         }
         case UI::ElementKind::Text: {
             const auto &txt = pool.texts[e.payloadId];
-            txt->render(e.rect.x, e.rect.y);
+            txt->render(e.rect.x - offsetX, e.rect.y - offsetY);
             break;
         }
         case UI::ElementKind::Image: {
@@ -446,8 +458,8 @@ void Painter::render(const Pool &pool) {
             float centerY = (float)e.rect.y + ((float)e.rect.h / 2.0f);
 
             ImageRenderParams p = {
-                .x = centerX,
-                .y = centerY,
+                .x = centerX + offsetX,
+                .y = centerY + offsetY,
                 .scale = img.scale,
                 .centered = true,
             };

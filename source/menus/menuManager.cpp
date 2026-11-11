@@ -12,7 +12,8 @@ UI::Builder MenuManager::builder = {};
 UI::Pool MenuManager::elements = {};
 
 bool MenuManager::initMainMenu() {
-    UI::fontPaths[0] = "gfx/menu/Ubuntu-Bold";
+    UI::fontPaths[0] = "gfx/menu/RedditSansFudge-Bold";
+    UI::fontPaths[1] = "gfx/menu/RedditSansFudge-Regular";
     UI::loadTheme();
 
     loadedMenus[MenuId::MainMenu] = std::make_unique<MainMenu>();

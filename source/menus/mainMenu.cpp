@@ -9,8 +9,6 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::build(UI::Builder &b) {
-
-    // bro what the fuck clang-format
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),

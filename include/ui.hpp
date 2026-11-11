@@ -129,12 +129,14 @@ struct Element {
     Size w, h;
     ChildDir childDirection = ChildDir::UpDown;
     AlignMode align = AlignMode::Left;
-    uint8_t childGap = 0, scrollX = 0, scrollY = 0;
+    uint8_t childGap = 0;
     Padding padding;
     Color color;
 
     uint8_t style, state;
     uint16_t id;
+
+    int scrollX = 0, scrollY = 0;
 
     Rect rect;
 };
