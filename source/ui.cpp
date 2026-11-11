@@ -29,6 +29,12 @@ void loadTheme() {
     theme[StyleId::TabPressed] = {
         .normal = {.color = {118, 75, 114, 255}, .round = 8},
     };
+    theme[StyleId::ProjectButton] = {
+        .normal = {.color = {225, 225, 235, 255}, .round = 8},
+        .focused = {.color = {225, 191, 121, 255}, .round = 8},
+        .pressed = {.color = {255, 255, 255, 255}, .round = 8},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
 }
 
 static Rect screenRect(const Element &e) {

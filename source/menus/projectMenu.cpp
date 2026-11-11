@@ -1,5 +1,6 @@
 #include "projectMenu.hpp"
 #include "ui.hpp"
+#include <log.hpp>
 #include <translation.hpp>
 #include <unzip.hpp>
 
@@ -28,12 +29,16 @@ void ProjectMenu::build(UI::Builder &b) {
                       .align = UI::AlignMode::Center,
                   });
 
+                  uint16_t i = 500; // TODO: better way of doing ids
                   for (auto &project : projectFiles) {
                       b.element({
                                     .flags = UI::Flag::Visible | UI::Flag::Focusable,
                                     .w = UI::Size::fixed(300),
                                     .h = UI::Size::fit(),
                                     .color = {225, 225, 235, 255},
+                                    .style = UI::StyleId::ProjectButton,
+                                    .id = i++,
+                                    .onClick = [&] { Log::log(project); },
                                 },
                                 [&] {
                                     b.text({

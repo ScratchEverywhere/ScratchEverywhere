@@ -83,6 +83,7 @@ enum StyleId : uint8_t {
     None,
     Tab,
     TabPressed,
+    ProjectButton,
 };
 
 struct StateStyle {
