@@ -5,6 +5,8 @@
 
 #include "blockExecutor.hpp"
 #include "bytecode_analysis.hpp"
+#include "ir/lir.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_word.hpp"
 #include "renderer.hpp"
 #include "runtime.hpp"
@@ -21,7 +23,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sljitLir.h>
 #include <string>
 #include <unordered_map>
 
@@ -114,10 +115,15 @@ struct CompareDescriptor {
     BytecodeCompareKind kind = BytecodeCompareKind::Equals;
     ValueEntry a, b;
     uint32_t aPosition = 0, bPosition = 0;
+    mutable Value memoA, memoB;
+    mutable bool memoValid = false, memoResult = false;
 };
 
 struct ValueCallDescriptor {
     void (*fn)(Sprite *, const Value &) = nullptr;
+    bool (*fnBool)(const Value &) = nullptr;
+    ValueEntry second;
+    uint32_t secondPosition = 0;
     ValueEntry item;
     uint32_t itemPosition = 0;
 };
@@ -130,7 +136,16 @@ struct ListOpDescriptor {
     uint32_t itemPosition = 0;
 };
 
+struct InlineFrame {
+    uint32_t procedure = 0;
+    uint32_t callPc = 0;
+    uint32_t argCount = 0;
+    uint32_t valueStart = 0;
+    bool wantsValue = false;
+};
+
 struct ExitDescriptor {
+    std::vector<InlineFrame> frames;
     uint32_t pc = 0;
     uint32_t result = 0;
     uint32_t numbers = 0;
@@ -162,7 +177,7 @@ struct CallDescriptor {
     mutable bool resultNumber = true;
     mutable uint8_t fast = 0;
     bool nativeChecks = false;
-    uint32_t argInvalid = 0, argFromFrame = 0, argConstTyped = 0;
+    uint32_t argInvalid = 0, argFromFrame = 0, argConstTyped = 0, argNumbers = 0;
 };
 
 struct ReturnDescriptor {
@@ -214,7 +229,12 @@ struct alignas(64) Context {
 
 struct Code {
     void *machine = nullptr;
-    sljit_sw (*fn)(Context *, sljit_sw) = nullptr;
+    const BytecodeJitLir::BackendOps *ops = nullptr;
+    BytecodeAnalysis *analysis = nullptr;
+    std::shared_ptr<void> analysisOwner;
+    mutable std::vector<uint16_t> loopHeat;
+    mutable std::vector<uint8_t> loopTried;
+    BytecodeJitLir::Word (*fn)(Context *, BytecodeJitLir::Word) = nullptr;
 
     std::vector<EntryDescriptor> entries;
     std::deque<ExitDescriptor> exits;
@@ -237,7 +257,7 @@ struct Code {
     uint32_t slotVariables = 0;
 
     ~Code() {
-        if (machine != nullptr) sljit_free_code(machine, nullptr);
+        if (machine != nullptr && ops != nullptr) BytecodeJitLir::freeMachine(*ops, machine);
     }
 };
 

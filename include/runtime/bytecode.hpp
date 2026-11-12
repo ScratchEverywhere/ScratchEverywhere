@@ -221,6 +221,7 @@ struct SE_EXPORT BytecodeChunk {
 #ifdef SE_JIT
     mutable bool jitTried = false;
     mutable std::shared_ptr<BytecodeJitCode> jit;
+    mutable std::vector<std::shared_ptr<BytecodeJitCode>> jitRegions;
     mutable std::vector<int32_t> jitEntryAt;
 #endif
 
@@ -415,3 +416,4 @@ struct SE_EXPORT BytecodeThread {
 };
 
 uint64_t fastRandomBelow(uint64_t bound);
+double fastRandomDouble();

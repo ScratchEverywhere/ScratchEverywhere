@@ -62,6 +62,10 @@ macro(package_platform)
 		set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 		install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
 
+		if(SE_RUNTIME_DLLS)
+			install(FILES ${SE_RUNTIME_DLLS} DESTINATION .)
+		endif()
+
 		if(NOT SE_BUNDLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
 			install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/romfs" DESTINATION .)
 		endif()

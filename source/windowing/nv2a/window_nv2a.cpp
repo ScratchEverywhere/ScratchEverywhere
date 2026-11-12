@@ -8,8 +8,8 @@
 
 #ifdef __XBOX__
 #include <hal/video.h>
-#include <windows.h>
 #include <usbh_lib.h>
+#include <windows.h>
 #endif
 
 WindowNV2A::WindowNV2A(int width, int height, const std::string &title) {

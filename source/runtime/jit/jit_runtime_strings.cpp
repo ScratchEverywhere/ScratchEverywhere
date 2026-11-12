@@ -5,6 +5,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode.hpp"
 #include "conversions.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "math.hpp"
@@ -18,7 +19,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <sljitLir.h>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -26,10 +26,37 @@
 
 namespace BytecodeJitInternal::Runtime {
 
+const StringLayout &stringLayout() {
+    static const StringLayout layout = [] {
+        StringLayout found;
+        if (sizeof(std::string) != 32 || sizeof(void *) != 8) return found;
+        const std::string small("abc");
+        std::string large(100, 'x');
+        large.reserve(200);
+        const auto word = [](const void *object, size_t offset) {
+            size_t value;
+            std::memcpy(&value, static_cast<const char *>(object) + offset, sizeof value);
+            return value;
+        };
+        const char *base = reinterpret_cast<const char *>(&small);
+        const bool smallOk = word(&small, 0) == reinterpret_cast<size_t>(small.data()) && reinterpret_cast<const char *>(word(&small, 0)) == base + 16 && word(&small, 8) == small.size() && small.capacity() == 15;
+        const bool largeOk = word(&large, 0) == reinterpret_cast<size_t>(large.data()) && word(&large, 8) == large.size() && word(&large, 16) == large.capacity() && large.capacity() > 15;
+        if (!smallOk || !largeOk) return found;
+        found.pointer = 0;
+        found.size = 8;
+        found.capacity = 16;
+        found.buffer = 16;
+        found.smallCapacity = 15;
+        found.ok = true;
+        return found;
+    }();
+    return layout;
+}
+
 void refreshStringChar(uint32_t k) {
     const std::string &text = stringVariables[k];
     const unsigned char c = text.size() == 1 ? static_cast<unsigned char>(text[0]) : 0x80;
-    stringChar[k] = c < 0x80 ? static_cast<sljit_sw>(c >= 'A' && c <= 'Z' ? c + 32 : c) : -1;
+    stringChar[k] = c < 0x80 ? static_cast<BytecodeJitLir::Word>(c >= 'A' && c <= 'Z' ? c + 32 : c) : -1;
 }
 
 bool stringVariableIsAscii(uint32_t k) {
@@ -103,12 +130,12 @@ void setStringVariable(Context *ctx, uint32_t k, std::string &&value) {
     ctx->dirty[k] = 4;
 }
 
-void SLJIT_FUNC jitEnsureStringNumber(Context *ctx, sljit_sw k) {
+void LIR_FUNC jitEnsureStringNumber(Context *ctx, BytecodeJitLir::Word k) {
     const double number = Conversions::stringToNumber(stringVariables[k]);
     ctx->slots[ctx->code->slotVariables + k] = number == number ? number : 0.0;
 }
 
-void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     const auto setBoolean = [&](bool b) { ctx->slots[op->numberOut] = fromBits(b ? 1 : 0); };
     const std::string &x = stringOf(ctx, op->a, op->aPosition);
     const std::string &y = stringOf(ctx, op->b, op->bPosition);
@@ -124,7 +151,7 @@ void SLJIT_FUNC jitStringCompare(Context *ctx, const StringOp *op) {
     return;
 }
 
-void SLJIT_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
     const uint32_t k = op->variable;
     if (ctx->dirty[k] == 4) {
         const std::string &suffix = stringOf(ctx, op->a, op->aPosition);
@@ -144,39 +171,41 @@ void SLJIT_FUNC jitStringAppend(Context *ctx, const StringOp *op) {
     setStringVariable(ctx, k, std::move(joined));
 }
 
-void SLJIT_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitLetterOfVariable(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
     const double index = std::floor(number(op->numberIn)) - 1;
     std::string &letter = strs[op->outPosition];
     ctx->strHigh = std::max(ctx->strHigh, op->outPosition + 1);
     letter.clear();
-    const int64_t kind = ctx->dirty[op->variable];
+    int64_t kind = ctx->dirty[op->variable];
     if (kind == 0) {
         const Variable *var = variableAt(*ctx->thread, code.promoted[op->variable]);
         if (var != nullptr) {
             if (const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value)) {
-                if (index >= 0 && index < static_cast<double>(Math::utf16Length(*text))) letter = Math::utf16CharAt(*text, static_cast<size_t>(index));
+                setStringVariable(ctx, op->variable, std::string(**text));
+                kind = 4;
             } else {
                 const Value value = materializeVariable(ctx, op->variable);
                 if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
             }
         }
-    } else if (kind == 4) {
+    }
+    if (kind == 4) {
         const std::string &text = stringVariables[op->variable];
         if (stringVariableIsAscii(op->variable)) {
             if (index >= 0 && index < static_cast<double>(text.size())) letter.assign(1, text[static_cast<size_t>(index)]);
         } else if (index >= 0 && index < static_cast<double>(Math::utf16Length(std::string_view(text)))) {
             letter = Math::utf16CharAt(std::string_view(text), static_cast<size_t>(index));
         }
-    } else {
+    } else if (kind != 0) {
         const Value value = materializeVariable(ctx, op->variable);
         if (index >= 0 && index < static_cast<double>(value.utf16Length())) letter = value.utf16CharAt(static_cast<size_t>(index));
     }
     return;
 }
 
-void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
+void LIR_FUNC jitStringOp(Context *ctx, const StringOp *op) {
     const Code &code = *ctx->code;
     Sprite *sprite = static_cast<Sprite *>(ctx->sprite);
     const auto number = [&](uint32_t slot) { return ctx->slots[slot]; };
@@ -189,8 +218,13 @@ void SLJIT_FUNC jitStringOp(Context *ctx, const StringOp *op) {
         return;
 
     case StringOp::StoreVariable:
-        if (op->a.kind == StrEntry::Temp) setStringVariable(ctx, op->variable, std::move(strs[op->aPosition]));
-        else setStringVariable(ctx, op->variable, std::string(stringOf(ctx, op->a, op->aPosition)));
+        if (op->a.kind == StrEntry::Temp) {
+            setStringVariable(ctx, op->variable, std::move(strs[op->aPosition]));
+        } else {
+            const std::string &text = stringOf(ctx, op->a, op->aPosition);
+            if (ctx->dirty[op->variable] == 4 && stringVariables[op->variable] == text) return;
+            setStringVariable(ctx, op->variable, std::string(text));
+        }
         return;
 
     case StringOp::AppendVariable:

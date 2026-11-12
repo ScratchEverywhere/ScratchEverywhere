@@ -31,6 +31,7 @@ static int penHeight = 0;
 static GLuint penMSFBO = 0;
 static GLuint penMSColorRB = 0;
 static bool penNeedsResolve = false;
+static uint64_t penGeneration = 0;
 static constexpr GLsizei kPenSamples = 4;
 
 static GLuint dynamicVAO = 0, dynamicVBO = 0;
@@ -401,6 +402,15 @@ static void appendSolidCapsuleTris(std::vector<float> &out, float x1, float y1, 
         return;
     }
 
+    if (radius <= 0.75f) {
+        const float ux = dx / length * radius, uy = dy / length * radius;
+        const float ax = x1 - ux - uy, ay = y1 - uy + ux, bx = x1 - ux + uy, by = y1 - uy - ux;
+        const float cx = x2 + ux + uy, cy = y2 + uy - ux, ex = x2 + ux - uy, ey = y2 + uy + ux;
+        out.insert(out.end(), {ax, ay, r, g, b, a, bx, by, r, g, b, a, ex, ey, r, g, b, a,
+                               ax, ay, r, g, b, a, ex, ey, r, g, b, a, cx, cy, r, g, b, a});
+        return;
+    }
+
     float phi = std::atan2(dy, dx);
     std::vector<float> ring;
     ring.reserve(((capSegments + 1) * 2 + 1) * 2);
@@ -572,6 +582,7 @@ static void flushPenFBO() {
 
 static void penBegin() {
     penNeedsResolve = true;
+    penGeneration++;
     if (penFBOBound) return;
     glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
     glViewport(0, 0, penWidth, penHeight);
@@ -761,6 +772,7 @@ void Renderer_GLCore::penClear() {
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
     penFBOBound = false;
     penNeedsResolve = true;
+    penGeneration++;
 }
 
 void Renderer_GLCore::cleanupPen() {
@@ -775,16 +787,31 @@ static int penColorW = 0;
 static int penColorH = 0;
 
 void Renderer_GLCore::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
-    penColorPixels.clear();
-    penColorW = penColorH = 0;
-    if (penFBO == 0) return;
+    if (penFBO == 0) {
+        penColorPixels.clear();
+        penColorW = penColorH = 0;
+        return;
+    }
 
     const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
-    const int x0 = std::clamp(static_cast<int>(std::floor(minX * scale + penWidth / 2.0)) - 1, 0, penWidth);
-    const int x1 = std::clamp(static_cast<int>(std::ceil(maxX * scale + penWidth / 2.0)) + 2, 0, penWidth);
-    const int rowLo = std::clamp(penHeight - 1 - static_cast<int>(std::ceil(-minY * scale + penHeight / 2.0)) - 2, 0, penHeight);
-    const int rowHi = std::clamp(penHeight - 1 - static_cast<int>(std::floor(-maxY * scale + penHeight / 2.0)) + 2, 0, penHeight);
-    if (x1 <= x0 || rowHi <= rowLo) return;
+    int x0 = std::clamp(static_cast<int>(std::floor(minX * scale + penWidth / 2.0)) - 1, 0, penWidth);
+    int x1 = std::clamp(static_cast<int>(std::ceil(maxX * scale + penWidth / 2.0)) + 2, 0, penWidth);
+    int rowLo = std::clamp(penHeight - 1 - static_cast<int>(std::ceil(-minY * scale + penHeight / 2.0)) - 2, 0, penHeight);
+    int rowHi = std::clamp(penHeight - 1 - static_cast<int>(std::floor(-maxY * scale + penHeight / 2.0)) + 2, 0, penHeight);
+    if (x1 <= x0 || rowHi <= rowLo) {
+        penColorPixels.clear();
+        penColorW = penColorH = 0;
+        return;
+    }
+
+    static uint64_t cachedGeneration = ~uint64_t(0);
+    if (cachedGeneration == penGeneration && !penColorPixels.empty()) {
+        if (x0 >= penColorX && x1 <= penColorX + penColorW && rowLo >= penColorRow && rowHi <= penColorRow + penColorH) return;
+        x0 = 0;
+        x1 = penWidth;
+        rowLo = 0;
+        rowHi = penHeight;
+    }
 
     flushPenFBO();
     resolvePenFBOIfNeeded();
@@ -802,6 +829,7 @@ void Renderer_GLCore::preparePenColorQuery(float minX, float minY, float maxX, f
     glReadPixels(penColorX, penColorRow, penColorW, penColorH, GL_RGBA, GL_UNSIGNED_BYTE, penColorPixels.data());
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
     glPixelStorei(GL_PACK_ALIGNMENT, previousAlignment);
+    cachedGeneration = penGeneration;
 }
 
 bool Renderer_GLCore::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
