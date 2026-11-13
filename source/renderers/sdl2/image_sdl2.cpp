@@ -53,16 +53,33 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
     const SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
+#ifdef __VFLASH__
+    auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
+        SDL_Rect adjDst = *dst;
+        if (adjDst.w != src->w || adjDst.h != src->h) {
+            adjDst.x += (adjDst.w - src->w) / 2;
+            adjDst.y += (adjDst.h - src->h) / 2;
+            adjDst.w = src->w;
+            adjDst.h = src->h;
+        }
+        SDL_RenderCopy(sdlRenderer, texture, src, &adjDst);
+    };
+#else
+    auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
+        SDL_RenderCopyEx(sdlRenderer, texture, src, dst, rotation, &center, flip);
+    };
+#endif
+
     if (brightness != 0) {
         float b = brightness * 0.01f;
         if (brightness > 0.0f) {
             // render the normal image first
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -70,14 +87,14 @@ void Image_SDL2::render(ImageRenderParams &params) {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
 
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
             // reset for next frame
             SDL_SetTextureColorMod(texture, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+        renderCopy(&subRect, &renderRect);
     }
     freeTimer = maxFreeTimer;
 }
@@ -160,6 +177,39 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
     SDL_FreeSurface(surface);
 #else
+#ifdef __VFLASH__
+    const float targetScale = (imgData.width <= 240 && imgData.height <= 180) ? (320.0f / 480.0f) : 1.0f;
+    const int targetMaxW = 240;
+    const int targetMaxH = 180;
+    if (imgData.width > targetMaxW || imgData.height > targetMaxH || (imgData.width & 1) || targetScale < 0.99f) {
+        const float sx = static_cast<float>(targetMaxW) / static_cast<float>(imgData.width);
+        const float sy = static_cast<float>(targetMaxH) / static_cast<float>(imgData.height);
+        const float ratio = std::min(targetScale, std::min(sx, sy));
+        int newW = std::max(2, static_cast<int>(std::floor(imgData.width * ratio)) & ~1);
+        int newH = std::max(1, static_cast<int>(std::floor(imgData.height * ratio)));
+        uint8_t *scaled = static_cast<uint8_t *>(std::malloc(static_cast<size_t>(newW) * newH * 4));
+        if (scaled) {
+            const uint8_t *srcPixels = static_cast<const uint8_t *>(imgData.pixels);
+            for (int dy = 0; dy < newH; ++dy) {
+                const int syIdx = std::min(imgData.height - 1, (dy * imgData.height) / newH);
+                const uint8_t *srcRow = srcPixels + static_cast<size_t>(syIdx) * imgData.pitch;
+                uint8_t *dstRow = scaled + static_cast<size_t>(dy) * newW * 4;
+                for (int dx = 0; dx < newW; ++dx) {
+                    const int sxIdx = std::min(imgData.width - 1, (dx * imgData.width) / newW);
+                    const uint32_t *sp = reinterpret_cast<const uint32_t *>(srcRow + sxIdx * 4);
+                    uint32_t *dp = reinterpret_cast<uint32_t *>(dstRow + dx * 4);
+                    *dp = *sp;
+                }
+            }
+            std::free(imgData.pixels);
+            imgData.pixels = scaled;
+            imgData.scale *= static_cast<float>(newW) / static_cast<float>(imgData.width);
+            imgData.width = newW;
+            imgData.height = newH;
+            imgData.pitch = newW * 4;
+        }
+    }
+#endif
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
     if (!texture) {

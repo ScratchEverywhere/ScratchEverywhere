@@ -1,4 +1,4 @@
-#if defined(__NDS__)
+#if defined(__NDS__) || defined(__VFLASH__)
 #define NO_VORBIS
 #define NO_MP3
 #define NO_MUSIC
@@ -53,7 +53,7 @@ class SE_EXPORT SoundConfig {
 class SE_EXPORT SoundStream {
     friend class Mixer;
 
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
     std::atomic<unsigned int> activeMixers{0};
 #else
     volatile unsigned int activeMixers = 0;
@@ -92,7 +92,7 @@ class SE_EXPORT SoundStream {
     SoundConfig config;
     AudioResampler resampler;
 
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
     std::atomic<bool> paused{false};
     std::atomic<bool> auto_clean{false};
 #else
@@ -119,8 +119,10 @@ class SE_EXPORT SoundStream {
 
 class SE_EXPORT Mixer {
   public:
-#ifdef __NDS__
+#if defined(__NDS__)
     static constexpr unsigned int rate = 16000; // This is what maxmod's example uses.
+#elif defined(__VFLASH__)
+    static constexpr unsigned int rate = 22050; // Native V.Flash hardware rate (no SDL_ResampleAudio)
 #else
     static constexpr unsigned int rate = 48000;
 #endif

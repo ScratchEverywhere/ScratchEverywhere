@@ -7,7 +7,9 @@
 #include "runtime.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
+#ifndef __VFLASH__
 #include <mutex>
+#endif
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
@@ -89,7 +91,7 @@ void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
     resampler.reset();
 // prepareResampler() sizes the buffer after the decoder's rate/channels are known.
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
     this->paused.store(false, std::memory_order_relaxed);
     this->auto_clean.store(false, std::memory_order_relaxed);
 #else
@@ -359,7 +361,7 @@ SoundStream::~SoundStream() {
     }
     Mixer::mutex.unlock();
 
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
     while (activeMixers.load(std::memory_order_acquire) != 0)
 #else
     while (activeMixers != 0)
@@ -432,8 +434,10 @@ struct MixerStreamSnapshot {
 std::array<MixerStreamSnapshot, MAX_MIXER_STREAMS> mixerSnapshot{};
 std::array<float, MIX_CHUNK_FRAMES * 2> mixerBuffer{};
 SoundStream *retiredStreams = nullptr; // intrusive queue, protected by Mixer::mutex
-#if defined(ENABLE_AUDIO) && !defined(__NDS__)
+#if defined(ENABLE_AUDIO) && (!defined(__NDS__) && !defined(__VFLASH__))
+#ifndef __VFLASH__
 std::mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
+#endif
 #endif
 } // namespace
 
@@ -444,7 +448,7 @@ void Mixer::registerStream(const std::string &name, SoundStream *stream) {
     auto existing = Mixer::streams.find(name);
     if (existing != Mixer::streams.end() && existing->second != stream) {
         SoundStream *replaced = existing->second;
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         replaced->paused.store(true, std::memory_order_relaxed);
 #else
         replaced->paused = true;
@@ -525,8 +529,10 @@ void Mixer::requestSound(short *output, int frames) {
 // The workspace and each stream resampler are shared across callbacks. Serialize only
 // audio callbacks, not runtime controls, so they cannot race without holding Mixer::mutex
 // during potentially slow decoding/resampling.
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
+#ifndef __VFLASH__
     std::lock_guard<std::mutex> callbackLock(mixerCallbackMutex);
+#endif
 #endif
 
     size_t streamCount = 0;
@@ -534,7 +540,7 @@ void Mixer::requestSound(short *output, int frames) {
     for (const auto &entry : streams) {
         if (streamCount >= mixerSnapshot.size()) break;
         SoundStream *s = entry.second;
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         s->activeMixers.fetch_add(1, std::memory_order_acq_rel);
 #else
         s->activeMixers += 1;
@@ -548,7 +554,7 @@ void Mixer::requestSound(short *output, int frames) {
         // Scratch's pitch effect ranges from -360 to +360 semitones, i.e. 1/8x to 8x.
         // Clamp here as well so malformed settings cannot trigger callback-time allocation.
         snapshot.pitch = std::clamp(s->config.pitch, 0.125f, 8.0f);
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         snapshot.initiallyPaused = s->paused.load(std::memory_order_relaxed);
 #else
         snapshot.initiallyPaused = s->paused;
@@ -583,7 +589,7 @@ void Mixer::requestSound(short *output, int frames) {
         for (size_t i = 0; i < streamCount; ++i) {
             const MixerStreamSnapshot &snapshot = mixerSnapshot[i];
             SoundStream *s = snapshot.stream;
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
             if (!s || snapshot.initiallyPaused || s->paused.load(std::memory_order_relaxed)) continue;
 #else
             if (!s || snapshot.initiallyPaused || s->paused) continue;
@@ -596,7 +602,7 @@ void Mixer::requestSound(short *output, int frames) {
                                                      gainLeft, gainRight,
                                                      [s](float *data, int count) { return s->read(data, count); });
             if (mixed == 0)
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
                 s->paused.store(true, std::memory_order_relaxed);
 #else
                 s->paused = true;
@@ -615,7 +621,7 @@ void Mixer::requestSound(short *output, int frames) {
     // Instead, enqueue finished auto-clean streams and let a main-thread mixer API reap them.
     for (auto it = streams.begin(); it != streams.end();) {
         SoundStream *s = it->second;
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         if (s->paused.load(std::memory_order_relaxed) && s->auto_clean.load(std::memory_order_relaxed)) {
 #else
         if (s->paused && s->auto_clean) {
@@ -629,7 +635,7 @@ void Mixer::requestSound(short *output, int frames) {
     }
     for (size_t i = 0; i < streamCount; ++i) {
         if (mixerSnapshot[i].stream) {
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
             mixerSnapshot[i].stream->activeMixers.fetch_sub(1, std::memory_order_acq_rel);
 #else
             mixerSnapshot[i].stream->activeMixers -= 1;
@@ -651,7 +657,7 @@ void Mixer::drainRetiredStreams() {
     while (pending) {
         SoundStream *next = pending->nextRetired;
         pending->nextRetired = nullptr;
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         if (pending->activeMixers.load(std::memory_order_acquire) != 0) {
 #else
         if (pending->activeMixers != 0) {
@@ -677,7 +683,7 @@ void Mixer::cleanupAudio() {
     Mixer::mutex.lock();
     pendingStreams.reserve(Mixer::streams.size());
     for (auto &e : Mixer::streams) {
-#ifndef __NDS__
+#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
         e.second->paused.store(true, std::memory_order_relaxed);
 #else
         e.second->paused = true;

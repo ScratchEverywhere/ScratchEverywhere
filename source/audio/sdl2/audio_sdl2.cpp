@@ -27,6 +27,7 @@ extern "C" void SDLCALL sdl2Callback(void *ptr, Uint8 *stream, int len) {
 SoundDevice_SDL2::SoundDevice_SDL2() {
 #ifdef ENABLE_AUDIO
     SDL_AudioSpec spac;
+    SDL_zero(spac);
 
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         error = "Failed to init SDL2 Audio: " + std::string(SDL_GetError());
@@ -36,7 +37,11 @@ SoundDevice_SDL2::SoundDevice_SDL2() {
     spac.freq = Mixer::rate;
     spac.format = AUDIO_S16SYS;
     spac.channels = 2;
+#ifdef __VFLASH__
+    spac.samples = 1024;
+#else
     spac.samples = 2048;
+#endif
     spac.callback = sdl2Callback;
 
     if ((device = SDL_OpenAudioDevice(NULL, 0, &spac, NULL, 0)) == 0) {

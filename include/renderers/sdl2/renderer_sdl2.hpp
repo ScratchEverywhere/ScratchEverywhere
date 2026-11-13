@@ -1,6 +1,10 @@
 #pragma once
 #include "nonstd/expected.hpp"
+#ifdef __VFLASH__
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
 #include <renderer.hpp>
 #include <se_export.hpp>
 

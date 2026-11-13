@@ -1,5 +1,7 @@
 
-if(VITA)
+if(VFLASH)
+    target_link_libraries(renderer_interface INTERFACE SDL2)
+elseif(VITA)
     cl_add_dep(renderer_interface SDL2 OPTIONS
         "CMAKE_POLICY_DEFAULT_CMP0077" "NEW"
         "CMAKE_POLICY_DEFAULT_CMP0069" "NEW"

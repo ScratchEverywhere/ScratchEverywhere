@@ -141,6 +141,14 @@ bool Scratch::initializeRuntime() {
     return true;
 }
 
+#ifdef __VFLASH__
+extern "C" {
+size_t vflash_arena_used(void);
+size_t vflash_arena_peak(void);
+size_t vflash_arena_total(void);
+}
+#endif
+
 bool Scratch::startScratchProject() {
 
 #ifdef ENABLE_MENU
@@ -173,12 +181,19 @@ bool Scratch::startScratchProject() {
 
     std::pair<bool, bool> code;
     initializeScratchProject();
+#ifdef __VFLASH__
+    Log::log("V.Flash project initialized. Heap used: " + std::to_string(vflash_arena_used()) +
+             " peak: " + std::to_string(vflash_arena_peak()) + " / " + std::to_string(vflash_arena_total()));
+#endif
     Discord::setPlaying(Unzip::filePath);
     ScriptThread monitorDisplayThread;
     toggleDebugVars(debugVars);
     while (true) {
         code = stepScratchProject(monitorDisplayThread);
         if (!code.first) {
+#ifdef __VFLASH__
+            Log::log("V.Flash stepScratchProject exited! second=" + std::to_string(code.second));
+#endif
             cleanupScratchProject();
             return code.second;
         }
@@ -286,7 +301,7 @@ void Scratch::cleanupScratchProject() {
     shouldStop = false;
     forceRedraw = false;
     useCustomUsername = false;
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__) || defined(__VFLASH__)
     sb3InRam = false;
 #else
     sb3InRam = true;

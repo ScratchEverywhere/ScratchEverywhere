@@ -97,6 +97,9 @@ elseif(XBOX)
     cl_add_dep(nxdk)
     unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/xbox.cmake")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "VFlash" OR VFLASH)
+    set(VFLASH TRUE)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/vflash.cmake")
 endif()
 
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
@@ -210,6 +213,8 @@ if(SE_JIT)
         set(SE_JIT_REASON "the PSP only has a single precision floating point unit")
     elseif(SE_PLATFORM STREQUAL "wasm")
         set(SE_JIT_REASON "WebAssembly cannot run generated machine code")
+    elseif(SE_PLATFORM STREQUAL "vflash")
+        set(SE_JIT_REASON "V.Flash has too little RAM")
     endif()
 endif()
 
@@ -402,7 +407,7 @@ if(NOT SE_SVG)
     list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
 endif()
 
-if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
+if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR VFLASH OR (SE_PLATFORM STREQUAL "xbox"))
     list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
@@ -504,6 +509,54 @@ if(SE_EXECUTABLE)
         cl_add_dep(scratch-everywhere libretro)
     elseif(SE_LIBRARY)
         add_library(scratch-everywhere ${SOURCE_FILES})
+    elseif(VFLASH)
+        set(VFLASH_BLOCK_FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/ScratchEverywhere.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/control.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/data.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/events.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/logs.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/looks.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/motion.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/operators.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/pen.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/procedures.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/sensing.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/blocks/sound.cpp"
+        )
+        add_library(scratch-everywhere-blocks OBJECT ${VFLASH_BLOCK_FILES})
+        target_link_libraries(scratch-everywhere-blocks PRIVATE se-interface SDL2)
+        add_library(scratch-everywhere-core STATIC ${SOURCE_FILES})
+        target_include_directories(se-interface INTERFACE ${VFLASH_INCLUDE_DIRS})
+        target_compile_definitions(se-interface INTERFACE STBI_NO_THREAD_LOCALS)
+        target_link_libraries(scratch-everywhere-core PRIVATE se-interface SDL2)
+        target_compile_options(se-interface INTERFACE
+            -Oz
+            -mcpu=arm926ej-s -marm -mfloat-abi=soft -mlittle-endian -mabi=aapcs -fno-short-enums
+            -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables
+            -Wno-psabi
+            $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions -fno-rtti>
+        )
+        vflash_add_program(scratch-everywhere firmware-disc.ld
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/platforms/vflash/entry.c"
+        )
+        if(VFLASH_ENABLE_MMU)
+            target_sources(scratch-everywhere PRIVATE
+                "${VFLASH_SDK_DIR}/src/platform/mmu.c"
+                "${VFLASH_SDK_DIR}/src/platform/mmu_arm926.S"
+            )
+            target_compile_definitions(scratch-everywhere PRIVATE VFLASH_ENABLE_MMU=1)
+            target_compile_definitions(se-interface INTERFACE VFLASH_ENABLE_MMU=1)
+        endif()
+        target_link_libraries(se-interface INTERFACE stdc++_nano m c_nano gcc)
+        target_link_options(scratch-everywhere PRIVATE
+            -Wl,--wrap=malloc -Wl,--wrap=free -Wl,--wrap=calloc -Wl,--wrap=realloc
+            -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r -Wl,--wrap=_calloc_r -Wl,--wrap=_realloc_r
+        )
+        target_link_libraries(scratch-everywhere PRIVATE
+            scratch-everywhere-blocks scratch-everywhere-core se-interface SDL2
+            -Wl,--start-group stdc++_nano m c_nano gcc -Wl,--end-group
+        )
     else()
         add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
     endif()
@@ -679,7 +732,7 @@ target_link_libraries(se-interface INTERFACE renderer_interface)
 target_link_libraries(se-interface INTERFACE windowing_interface)
 if(SE_AUDIO)
     target_link_libraries(se-interface INTERFACE audio_interface)
-    if(NOT NINTENDO_DS)
+    if(NOT NINTENDO_DS AND NOT VFLASH)
         cl_add_dep(se-interface stb_vorbis)
         cl_add_dep(se-interface tsf)
     endif()
@@ -783,7 +836,7 @@ else()
     cl_add_dep(se-interface miniz)
 endif()
 cl_add_dep(se-interface expected-lite)
-if(NOT XBOX)
+if(NOT XBOX AND NOT VFLASH)
     cl_add_dep(se-interface __getexecname)
 endif()
 if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO AND NOT XBOX AND NOT PS4)
@@ -804,6 +857,17 @@ if(SE_BITMAP)
 endif()
 
 target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+
+if(VFLASH)
+    if(TARGET plutovg)
+        target_compile_options(plutovg PRIVATE -Os -fno-unwind-tables -fno-asynchronous-unwind-tables)
+        target_link_libraries(plutovg INTERFACE -Wl,--start-group stdc++_nano m c_nano gcc -Wl,--end-group)
+    endif()
+    if(TARGET lunasvg)
+        target_compile_options(lunasvg PRIVATE -Os -fno-exceptions -fno-rtti -fno-unwind-tables -fno-asynchronous-unwind-tables)
+        target_link_libraries(lunasvg INTERFACE -Wl,--start-group stdc++_nano m c_nano gcc -Wl,--end-group)
+    endif()
+endif()
 
 if(COMMAND package_platform)
     package_platform()

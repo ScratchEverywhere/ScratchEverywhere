@@ -29,7 +29,7 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
-#else
+#elif !defined(__VFLASH__)
 #include <dirent.h>
 #endif
 

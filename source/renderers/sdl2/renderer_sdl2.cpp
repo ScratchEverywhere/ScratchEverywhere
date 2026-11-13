@@ -128,6 +128,9 @@ Renderer_SDL2::Renderer_SDL2() {
         windowWidth = mode.w;
         windowHeight = mode.h;
     }
+#elif defined(__VFLASH__)
+    int windowWidth = 320;
+    int windowHeight = 240;
 #else
     int windowWidth = 480;
     int windowHeight = 360;
