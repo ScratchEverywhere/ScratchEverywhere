@@ -1,7 +1,7 @@
 # Always built from source (no system/package equivalent) - matches the old
 # SE_FORCE_SOURCE_libdlgmod behavior.
 function(_recipe_libdlgmod_source)
-	set(LIBDLGMOD_REF "840e9ea4ba7d65bf73d15e4a8a9629f4c2970a58")
+	set(LIBDLGMOD_REF "636d34aeda31931598b9e7e525dbff516a97922f")
 	if(CL_REQ_VERSION)
 		set(LIBDLGMOD_REF "${CL_REQ_VERSION}")
 	endif()
