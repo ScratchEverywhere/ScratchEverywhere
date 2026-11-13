@@ -223,12 +223,16 @@ float Renderer_SDL2::getPixelDensity() {
 bool Renderer_SDL2::initPen() {
     if (penTexture != nullptr) return true;
 
+#ifdef __VFLASH__
+    penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 240, 180);
+#else
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
             penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
             penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+#endif
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -475,6 +479,15 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
     int penY = -cords.second + Scratch::projectHeight / 2;
 
     float penScale;
+#ifdef __VFLASH__
+    int penWidth = 240;
+    int penHeight = 180;
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    penX *= scale;
+    penY *= scale;
+    penScale = sprite->renderInfo.renderScaleY;
+#else
     if (Scratch::hqpen) {
         int penWidth;
         int penHeight;
@@ -487,6 +500,7 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
     } else {
         penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
     }
+#endif
 
     ImageRenderParams params;
     params.centered = true;
@@ -706,6 +720,12 @@ void Renderer_SDL2::renderPenLayer() {
 
     SDL_Rect renderRect = {0, 0, 0, 0};
 
+#ifdef __VFLASH__
+    int penW = 240;
+    int penH = 180;
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penW, &penH);
+    renderRect = {(getWidth() - penW) / 2, (getHeight() - penH) / 2, penW, penH};
+#else
     if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
         renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
         renderRect.w = getWidth() - renderRect.x * 2;
@@ -715,6 +735,7 @@ void Renderer_SDL2::renderPenLayer() {
         renderRect.h = getHeight() - renderRect.y * 2;
         renderRect.w = getWidth();
     }
+#endif
 
     SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
 }
