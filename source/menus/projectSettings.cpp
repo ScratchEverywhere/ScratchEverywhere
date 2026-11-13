@@ -336,7 +336,7 @@ void ProjectSettings::render() {
         return;
     }
 
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b", "y", "back"})) {
         ProjectMenu *projectMenu = new ProjectMenu(projectPath);
         MenuManager::changeMenu(projectMenu);
         return;

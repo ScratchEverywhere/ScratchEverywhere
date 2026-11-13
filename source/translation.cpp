@@ -10,6 +10,9 @@
 
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 static constexpr const char *defaultLanguage = "en_us";
