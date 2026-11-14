@@ -214,6 +214,10 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
         }
     }
     if (Renderer_SDL2 *r = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer()); r && r->loadingStageBackdrop) {
+        isStageBackdrop = true;
+    }
+    if (isStageBackdrop) {
+        stagePixelVersion++;
         return {};
     }
 #endif

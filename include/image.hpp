@@ -87,6 +87,7 @@ class SE_EXPORT Image {
         bool valid = false;
     } reloadInfo;
     bool colorDataUnavailable = false;
+    float svgRasterScale = 0.0f;
     std::pair<float, float> svgViewOffset = {0, 0};
     float logicalWidth = 0.0f;
     bool logicalSizeKnown = false;

@@ -16,7 +16,6 @@
 #include <utility>
 
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
-#include <malloc.h>
 #include <vflash/clock.h>
 extern uint32_t g_se_vflash_upload_ticks;
 extern uint32_t g_se_vflash_upload_count;
@@ -247,12 +246,17 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                 uint32_t pa_x100 = (pace_ticks * 10u) / f;
                 uint32_t fps_x10 = (elapsed > 0) ? ((f * 100000u) / elapsed) : 0u;
                 uint32_t usedTex = 0, totalTex = 0, liveTex = 0, failTex = 0;
+                Renderer::VFlashPerfTelemetry perf;
                 if (Render::getGlobalRenderer()) {
                     Render::getGlobalRenderer()->getAtlasTelemetry(usedTex, totalTex, liveTex, failTex);
+                    Render::getGlobalRenderer()->getPerfTelemetry(perf);
                 }
-                struct mallinfo mi = mallinfo();
-                uint32_t heapKB = (uint32_t)mi.uordblks / 1024u;
-                std::printf("[vflash-telemetry] f=%lu elapsed=%lu.%02lums vm=%lu.%02lums upload=%lu.%02lums render=%lu.%02lums present=%lu.%02lums pace=%lu.%02lums fps=%lu.%lu uploads=%lu atlas=%lu/%lu(live=%lu,fail=%lu) heap=%luKB\n",
+                uint32_t wi_x100 = (perf.waitIdleTicks * 10u) / f;
+                uint32_t vf_x100 = (perf.presentViewTicks * 10u) / f;
+                uint32_t sy_x100 = (perf.syncTicks * 10u) / f;
+                uint32_t gs_x100 = (perf.gpuSubmitTicks * 10u) / f;
+                uint32_t gw_x100 = (perf.gpuWaitTicks * 10u) / f;
+                std::printf("[vflash-telemetry] f=%lu elapsed=%lu.%02lums vm=%lu.%02lums upload=%lu.%02lums render=%lu.%02lums present=%lu.%02lums pace=%lu.%02lums fps=%lu.%lu uploads=%lu atlas=%lu/%lu(live=%lu,fail=%lu) heap=n/a\n",
                             (unsigned long)f,
                             (unsigned long)(el_x100 / 100u), (unsigned long)(el_x100 % 100u),
                             (unsigned long)(vm_x100 / 100u), (unsigned long)(vm_x100 % 100u),
@@ -263,8 +267,15 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                             (unsigned long)(fps_x10 / 10u), (unsigned long)(fps_x10 % 10u),
                             (unsigned long)g_se_vflash_upload_count,
                             (unsigned long)usedTex, (unsigned long)totalTex,
-                            (unsigned long)liveTex, (unsigned long)failTex,
-                            (unsigned long)heapKB);
+                            (unsigned long)liveTex, (unsigned long)failTex);
+                std::printf("[vflash-perf] wait_idle=%lu.%02lums vblank_flip=%lu.%02lums sync=%lu.%02lums(n=%lu,kb=%lu) gpu_sub=%lu.%02lums gpu_wait=%lu.%02lums gpu_lists=%lu\n",
+                            (unsigned long)(wi_x100 / 100u), (unsigned long)(wi_x100 % 100u),
+                            (unsigned long)(vf_x100 / 100u), (unsigned long)(vf_x100 % 100u),
+                            (unsigned long)(sy_x100 / 100u), (unsigned long)(sy_x100 % 100u),
+                            (unsigned long)perf.syncCount, (unsigned long)(perf.syncBytes / 1024u),
+                            (unsigned long)(gs_x100 / 100u), (unsigned long)(gs_x100 % 100u),
+                            (unsigned long)(gw_x100 / 100u), (unsigned long)(gw_x100 % 100u),
+                            (unsigned long)perf.gpuLists);
                 g_se_vflash_vm_ticks = 0;
                 g_se_vflash_upload_ticks = 0;
                 g_se_vflash_upload_count = 0;

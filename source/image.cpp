@@ -545,6 +545,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     width = std::max(1, (int)(docW * finalScale));
     height = std::max(1, (int)(docH * finalScale));
     imgData.scale = finalScale;
+    svgRasterScale = scale;
+    svgRasterScale = scale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) {
@@ -555,6 +557,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     width = std::max(1, (int)(svgDocument->width() * finalScale));
     height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
+    svgRasterScale = scale;
+    svgRasterScale = scale;
 
     if (Render::currentRenderer == Renderers::Headless) {
         imgData.pitch = width * 4;
@@ -606,7 +610,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
-    if (!svgDocument || scale <= imgData.scale) return {};
+    if (!svgDocument || scale <= svgRasterScale) return {};
     if (svgDocument->width() <= 0.0f || svgDocument->height() <= 0.0f) return {};
 
     // TODO: De-duplicate code.
@@ -649,6 +653,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     imgData.width = width;
     imgData.height = height;
     imgData.scale = finalScale;
+    svgRasterScale = scale;
     imgData.pitch = width * 4;
     imgData.pixels = dst;
 

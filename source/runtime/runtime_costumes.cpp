@@ -56,6 +56,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     const int screenWidth = Render::getWidth();
     const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
+    struct StageBackdropLoadGuard {
+        Renderer *renderer;
+        bool active;
+        StageBackdropLoadGuard(Renderer *r, bool isStage) : renderer(r), active(r && isStage) {
+            if (active) renderer->setLoadingStageBackdrop(true);
+        }
+        ~StageBackdropLoadGuard() {
+            if (active) renderer->setLoadingStageBackdrop(false);
+        }
+    } stageBackdropGuard(Render::getGlobalRenderer(), sprite->isStage);
+
     auto it = costumeImages.find(costumeName);
     if (it != costumeImages.end()) {
         float cachedScale = (sprite->size / 100);
@@ -133,17 +144,6 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     float scale = (sprite->size / 100);
     scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
     const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
-
-    struct StageBackdropLoadGuard {
-        Renderer *renderer;
-        bool active;
-        StageBackdropLoadGuard(Renderer *r, bool isStage) : renderer(r), active(r && isStage) {
-            if (active) renderer->setLoadingStageBackdrop(true);
-        }
-        ~StageBackdropLoadGuard() {
-            if (active) renderer->setLoadingStageBackdrop(false);
-        }
-    } stageBackdropGuard(Render::getGlobalRenderer(), sprite->isStage);
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);

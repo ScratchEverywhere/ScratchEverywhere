@@ -95,11 +95,27 @@ class SE_EXPORT Renderer {
     virtual void renderSprites() = 0;
     virtual void setLoadingStageBackdrop(bool loading) { (void)loading; }
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    struct VFlashPerfTelemetry {
+        uint32_t presentCalls = 0;
+        uint32_t waitIdleTicks = 0;
+        uint32_t presentViewTicks = 0;
+        uint32_t syncCount = 0;
+        uint32_t syncTiles = 0;
+        uint32_t syncBytes = 0;
+        uint32_t syncTicks = 0;
+        uint32_t gpuLists = 0;
+        uint32_t gpuSubmitTicks = 0;
+        uint32_t gpuWaitTicks = 0;
+    };
     virtual bool getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) {
         (void)usedTexels;
         (void)totalTexels;
         (void)liveCount;
         (void)failCount;
+        return false;
+    }
+    virtual bool getPerfTelemetry(VFlashPerfTelemetry &out) {
+        (void)out;
         return false;
     }
 #endif

@@ -35,6 +35,27 @@ bool Renderer_SDL2::getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexel
     failCount = st.fail_frag + st.fail_oom + st.fail_meta;
     return true;
 }
+
+bool Renderer_SDL2::getPerfTelemetry(VFlashPerfTelemetry &out) {
+    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
+    vflash_renderer_perf_stats_t ps;
+    if (!nr || vflash_renderer_get_perf_stats(nr, &ps) != VFLASH_GPU_OK) return false;
+    out.presentCalls = ps.present_calls;
+    out.waitIdleTicks = ps.wait_idle_ticks;
+    out.presentViewTicks = ps.present_view_ticks;
+    out.syncCount = ps.sync_count;
+    out.syncTiles = ps.sync_tiles;
+    out.syncBytes = ps.sync_bytes;
+    out.syncTicks = ps.sync_ticks;
+    out.gpuLists = ps.gpu_lists - prevGpuLists;
+    out.gpuSubmitTicks = ps.gpu_submit_ticks - prevGpuSubmitTicks;
+    out.gpuWaitTicks = ps.gpu_wait_ticks - prevGpuWaitTicks;
+    prevGpuLists = ps.gpu_lists;
+    prevGpuSubmitTicks = ps.gpu_submit_ticks;
+    prevGpuWaitTicks = ps.gpu_wait_ticks;
+    vflash_renderer_reset_perf_stats(nr);
+    return true;
+}
 #endif
 
 #ifdef __WIIU__
@@ -712,9 +733,10 @@ void Renderer_SDL2::renderSprites() {
                         SDL_SetTextureBlendMode(stageBackdropTexture, SDL_BLENDMODE_BLEND);
                     }
                 }
-                if (stageBackdropTexture && activeStageBackdropId != backdropId) {
+                if (stageBackdropTexture && (activeStageBackdropId != backdropId || activeStageBackdropVersion != sdlImg->stagePixelVersion)) {
                     if (sdlImg->uploadToTexture(stageBackdropTexture)) {
                         activeStageBackdropId = backdropId;
+                        activeStageBackdropVersion = sdlImg->stagePixelVersion;
                     }
                 }
                 if (stageBackdropTexture) {

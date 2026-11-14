@@ -24,7 +24,12 @@ TEL_RE = re.compile(
     r"\[vflash-telemetry\]\s+f=(\d+)\s+elapsed=([\d.]+)ms\s+vm=([\d.]+)ms\s+"
     r"upload=([\d.]+)ms\s+render=([\d.]+)ms\s+present=([\d.]+)ms\s+"
     r"pace=([\d.]+)ms\s+fps=([\d.]+)"
-    r"(?:\s+uploads=(\d+)\s+atlas=(\d+)/(\d+)\(live=(\d+),fail=(\d+)\)\s+heap=(\d+)KB)?"
+    r"(?:\s+uploads=(\d+)\s+atlas=(\d+)/(\d+)\(live=(\d+),fail=(\d+)\)\s+heap=(\d+KB|n/a))?"
+)
+PERF_RE = re.compile(
+    r"\[vflash-perf\]\s+wait_idle=([\d.]+)ms\s+vblank_flip=([\d.]+)ms\s+"
+    r"sync=([\d.]+)ms\(n=(\d+),kb=(\d+)\)\s+"
+    r"gpu_sub=([\d.]+)ms\s+gpu_wait=([\d.]+)ms\s+gpu_lists=(\d+)"
 )
 GE_RE = re.compile(
     r"ge:\s+(\d+)\s+lists,\s+(\d+)\s+sprites,\s+(\d+)\s+fills,\s+"
@@ -49,8 +54,31 @@ def parse_log(text):
             "atlas_total": int(m.group(11)) if m.group(11) is not None else 0,
             "atlas_live": int(m.group(12)) if m.group(12) is not None else 0,
             "atlas_fail": int(m.group(13)) if m.group(13) is not None else 0,
-            "heap_kb": int(m.group(14)) if m.group(14) is not None else 0,
+            "heap_kb": int(m.group(14)[:-2]) if (m.group(14) and m.group(14).endswith("KB")) else None,
         })
+
+    perf_matches = list(PERF_RE.finditer(text))
+    for i, m in enumerate(perf_matches):
+        if i < len(tel_rows):
+            tel_rows[i].update({
+                "wait_idle_ms": float(m.group(1)),
+                "vblank_flip_ms": float(m.group(2)),
+                "sync_ms": float(m.group(3)),
+                "sync_n": int(m.group(4)),
+                "sync_kb": int(m.group(5)),
+                "gpu_sub_ms": float(m.group(6)),
+                "gpu_wait_ms": float(m.group(7)),
+                "gpu_lists": int(m.group(8)),
+            })
+    for r in tel_rows:
+        r.setdefault("wait_idle_ms", 0.0)
+        r.setdefault("vblank_flip_ms", 0.0)
+        r.setdefault("sync_ms", 0.0)
+        r.setdefault("sync_n", 0)
+        r.setdefault("sync_kb", 0)
+        r.setdefault("gpu_sub_ms", 0.0)
+        r.setdefault("gpu_wait_ms", 0.0)
+        r.setdefault("gpu_lists", 0)
 
     ge_rows = []
     for m in GE_RE.finditer(text):
@@ -128,13 +156,21 @@ def run_one(name, sb3_path, mmu, frames, sdk_root, work_dir):
         "upload_ms": avg(steady, "upload_ms"),
         "render_ms": avg(steady, "render_ms"),
         "present_ms": avg(steady, "present_ms"),
+        "wait_idle_ms": avg(steady, "wait_idle_ms"),
+        "vblank_flip_ms": avg(steady, "vblank_flip_ms"),
+        "sync_ms": avg(steady, "sync_ms"),
+        "sync_n_per_win": avg(steady, "sync_n"),
+        "sync_kb_per_win": avg(steady, "sync_kb"),
+        "gpu_sub_ms": avg(steady, "gpu_sub_ms"),
+        "gpu_wait_ms": avg(steady, "gpu_wait_ms"),
+        "gpu_lists_per_win": avg(steady, "gpu_lists"),
         "pace_ms": avg(steady, "pace_ms"),
         "uploads_per_win": avg(steady, "uploads"),
         "atlas_used": max(r["atlas_used"] for r in tel_rows),
         "atlas_total": max(r["atlas_total"] for r in tel_rows),
         "atlas_live": max(r["atlas_live"] for r in tel_rows),
         "atlas_fail": max(r["atlas_fail"] for r in tel_rows),
-        "heap_kb": max(r["heap_kb"] for r in tel_rows),
+        "heap_kb": max((r["heap_kb"] for r in tel_rows if r["heap_kb"] is not None), default=None),
         "ge_lists_60f": avg(ge_steady, "lists"),
         "ge_sprites_60f": avg(ge_steady, "sprites"),
         "ge_fills_60f": avg(ge_steady, "fills"),

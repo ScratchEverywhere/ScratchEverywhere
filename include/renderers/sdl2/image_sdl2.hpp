@@ -12,6 +12,8 @@ class SE_EXPORT Image_SDL2 : public Image {
   public:
     SDL_Texture *texture = nullptr;
     SDL_Renderer *sdlRenderer = nullptr;
+    bool isStageBackdrop = false;
+    uint32_t stagePixelVersion = 0;
 
     Image_SDL2(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
