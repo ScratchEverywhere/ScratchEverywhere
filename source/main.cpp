@@ -24,6 +24,9 @@
 #include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <renderer.hpp>
+#ifdef RENDERER_FLATLAND
+#include <flatland_backend.hpp>
+#endif
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -243,7 +246,16 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::GDI;
         } else if (arg == "--headless") {
             Render::currentRenderer = Renderers::Headless;
-        } else if (arg == "--sdl1") {
+        }
+#ifdef RENDERER_FLATLAND
+        else if (arg == "--flatland") {
+            Render::currentRenderer = Renderers::Flatland;
+        } else if (arg == "--flatland-port" && i + 1 < argc) {
+            FlatlandBackend::port = static_cast<uint16_t>(std::atoi(argv[++i]));
+            Render::currentRenderer = Renderers::Flatland;
+        }
+#endif
+        else if (arg == "--sdl1") {
             Render::currentRenderer = Renderers::SDL1;
         } else if (arg == "--sdl2") {
             Render::currentRenderer = Renderers::SDL2;

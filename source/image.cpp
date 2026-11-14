@@ -75,6 +75,9 @@ static bool hasSVGExtension(const std::string &path) {
 #if defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
 #endif
+#if defined(RENDERER_FLATLAND)
+#include <image_flatland.hpp>
+#endif
 #if defined(RENDERER_D3D9)
 #include <image_d3d9.hpp>
 #endif
@@ -246,6 +249,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_FLATLAND)
+    case Renderers::Flatland:
+        rawImg = new Image_Flatland(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
     default: {
         Log::logCritical("You forgot to add this renderer to createImageFromFile :grin: :grin:", true);
         break;
@@ -344,6 +352,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_HEADLESS)
     case Renderers::Headless:
         rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_FLATLAND)
+    case Renderers::Flatland:
+        rawImg = new Image_Flatland(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
     default: {

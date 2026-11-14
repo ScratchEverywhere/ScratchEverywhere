@@ -1,6 +1,10 @@
 #include "audio.hpp"
 #include "log.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
+#ifdef AUDIO_FLATLAND
+#include "audio_flatland.hpp"
+#endif
 #include <memory>
 
 #ifdef AUDIO_LIBPULSE
@@ -93,6 +97,14 @@ bool SoundPlayer::init() {
     const auto j = SettingsManager::getConfigSettings();
     uint8_t startIndex = 0;
     bool found = false;
+
+#ifdef AUDIO_FLATLAND
+    if (Render::currentRenderer == Renderers::Flatland) {
+        currentSoundBackend = AudioBackends::Flatland;
+        globalSoundDevice = new SoundDevice_Flatland;
+        return true;
+    }
+#endif
 
     if (j.contains("AudioEngine") && j["AudioEngine"].is_string()) {
         const std::string audioString = j["AudioEngine"].get<std::string>();
