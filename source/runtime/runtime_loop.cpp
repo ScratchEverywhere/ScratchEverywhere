@@ -16,8 +16,10 @@
 #include <utility>
 
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <malloc.h>
 #include <vflash/clock.h>
 extern uint32_t g_se_vflash_upload_ticks;
+extern uint32_t g_se_vflash_upload_count;
 extern uint32_t g_se_vflash_render_ticks;
 extern uint32_t g_se_vflash_present_ticks;
 extern uint32_t g_se_vflash_pace_ticks;
@@ -244,7 +246,13 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                 uint32_t pr_x100 = (g_se_vflash_present_ticks * 10u) / f;
                 uint32_t pa_x100 = (pace_ticks * 10u) / f;
                 uint32_t fps_x10 = (elapsed > 0) ? ((f * 100000u) / elapsed) : 0u;
-                std::printf("[vflash-telemetry] f=%lu elapsed=%lu.%02lums vm=%lu.%02lums upload=%lu.%02lums render=%lu.%02lums present=%lu.%02lums pace=%lu.%02lums fps=%lu.%lu\n",
+                uint32_t usedTex = 0, totalTex = 0, liveTex = 0, failTex = 0;
+                if (Render::getGlobalRenderer()) {
+                    Render::getGlobalRenderer()->getAtlasTelemetry(usedTex, totalTex, liveTex, failTex);
+                }
+                struct mallinfo mi = mallinfo();
+                uint32_t heapKB = (uint32_t)mi.uordblks / 1024u;
+                std::printf("[vflash-telemetry] f=%lu elapsed=%lu.%02lums vm=%lu.%02lums upload=%lu.%02lums render=%lu.%02lums present=%lu.%02lums pace=%lu.%02lums fps=%lu.%lu uploads=%lu atlas=%lu/%lu(live=%lu,fail=%lu) heap=%luKB\n",
                             (unsigned long)f,
                             (unsigned long)(el_x100 / 100u), (unsigned long)(el_x100 % 100u),
                             (unsigned long)(vm_x100 / 100u), (unsigned long)(vm_x100 % 100u),
@@ -252,9 +260,14 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                             (unsigned long)(rn_x100 / 100u), (unsigned long)(rn_x100 % 100u),
                             (unsigned long)(pr_x100 / 100u), (unsigned long)(pr_x100 % 100u),
                             (unsigned long)(pa_x100 / 100u), (unsigned long)(pa_x100 % 100u),
-                            (unsigned long)(fps_x10 / 10u), (unsigned long)(fps_x10 % 10u));
+                            (unsigned long)(fps_x10 / 10u), (unsigned long)(fps_x10 % 10u),
+                            (unsigned long)g_se_vflash_upload_count,
+                            (unsigned long)usedTex, (unsigned long)totalTex,
+                            (unsigned long)liveTex, (unsigned long)failTex,
+                            (unsigned long)heapKB);
                 g_se_vflash_vm_ticks = 0;
                 g_se_vflash_upload_ticks = 0;
+                g_se_vflash_upload_count = 0;
                 g_se_vflash_render_ticks = 0;
                 g_se_vflash_present_ticks = 0;
                 g_se_vflash_pace_ticks = 0;

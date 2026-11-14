@@ -16,6 +16,9 @@ class SE_EXPORT Renderer_SDL2 : public Renderer {
     SDL_Texture *stageBackdropTexture = nullptr;
     std::string activeStageBackdropId;
     void setLoadingStageBackdrop(bool loading) override { loadingStageBackdrop = loading; }
+#ifdef SE_VFLASH_TELEMETRY
+    bool getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) override;
+#endif
 #endif
 
     Renderer_SDL2();

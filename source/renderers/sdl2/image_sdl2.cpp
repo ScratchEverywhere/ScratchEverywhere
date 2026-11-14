@@ -10,6 +10,7 @@
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
 #include <vflash/clock.h>
 extern uint32_t g_se_vflash_upload_ticks;
+extern uint32_t g_se_vflash_upload_count;
 #endif
 
 void Image_SDL2::render(ImageRenderParams &params) {
@@ -233,6 +234,7 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     }
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
     g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
+    g_se_vflash_upload_count++;
 #endif
 #endif
 
@@ -295,16 +297,26 @@ bool Image_SDL2::uploadToTexture(SDL_Texture *dstTex) {
         ensureColorData();
     }
     if (!imgData.pixels) return false;
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    uint32_t ut0 = vflash_clock_ticks();
+#endif
     int uploadW = std::min(imgData.width, 240);
     int uploadH = std::min(imgData.height, 180);
+    bool ok = false;
     if (uploadW == 240 && uploadH == 180) {
-        return SDL_UpdateTexture(dstTex, nullptr, imgData.pixels, imgData.pitch) == 0;
+        ok = (SDL_UpdateTexture(dstTex, nullptr, imgData.pixels, imgData.pitch) == 0);
+    } else {
+        static std::vector<uint32_t> stageUploadBuf;
+        stageUploadBuf.assign(240 * 180, 0);
+        const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
+        for (int y = 0; y < uploadH; ++y) {
+            std::memcpy(&stageUploadBuf[y * 240], src + static_cast<size_t>(y) * imgData.pitch, static_cast<size_t>(uploadW) * 4);
+        }
+        ok = (SDL_UpdateTexture(dstTex, nullptr, stageUploadBuf.data(), 240 * 4) == 0);
     }
-    static std::vector<uint32_t> stageUploadBuf;
-    stageUploadBuf.assign(240 * 180, 0);
-    const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
-    for (int y = 0; y < uploadH; ++y) {
-        std::memcpy(&stageUploadBuf[y * 240], src + static_cast<size_t>(y) * imgData.pitch, static_cast<size_t>(uploadW) * 4);
-    }
-    return SDL_UpdateTexture(dstTex, nullptr, stageUploadBuf.data(), 240 * 4) == 0;
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
+    if (ok) g_se_vflash_upload_count++;
+#endif
+    return ok;
 }

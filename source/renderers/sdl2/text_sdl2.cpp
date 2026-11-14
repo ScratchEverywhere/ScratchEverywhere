@@ -5,6 +5,12 @@
 #include <renderer_sdl2.hpp>
 #include <vector>
 
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <vflash/clock.h>
+extern uint32_t g_se_vflash_upload_ticks;
+extern uint32_t g_se_vflash_upload_count;
+#endif
+
 TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
     renderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
@@ -46,7 +52,14 @@ void TextObjectSDL2::uploadAtlas(FontGeneration &gen) {
     }
 
     if (tex) {
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+        uint32_t ut0 = vflash_clock_ticks();
+#endif
         SDL_UpdateTexture(tex, nullptr, rgba.data(), gen.atlasWidth * 4);
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+        g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
+        g_se_vflash_upload_count++;
+#endif
     }
 
     gen.destroyBackendHandle = [](void *handle) {

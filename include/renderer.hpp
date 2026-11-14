@@ -94,6 +94,15 @@ class SE_EXPORT Renderer {
 
     virtual void renderSprites() = 0;
     virtual void setLoadingStageBackdrop(bool loading) { (void)loading; }
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    virtual bool getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) {
+        (void)usedTexels;
+        (void)totalTexels;
+        (void)liveCount;
+        (void)failCount;
+        return false;
+    }
+#endif
     virtual void renderPenLayer() = 0;
 
     virtual void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) = 0;

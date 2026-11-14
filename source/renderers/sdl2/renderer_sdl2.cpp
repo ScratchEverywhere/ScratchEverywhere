@@ -17,11 +17,24 @@
 #include <vector>
 
 #if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <SDL_vflash.h>
 #include <vflash/clock.h>
 uint32_t g_se_vflash_upload_ticks = 0;
+uint32_t g_se_vflash_upload_count = 0;
 uint32_t g_se_vflash_render_ticks = 0;
 uint32_t g_se_vflash_present_ticks = 0;
 uint32_t g_se_vflash_pace_ticks = 0;
+
+bool Renderer_SDL2::getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) {
+    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
+    vflash_atlas_stats_t st;
+    if (!nr || vflash_renderer_get_atlas_stats(nr, &st) != VFLASH_GPU_OK) return false;
+    totalTexels = st.total_texels;
+    usedTexels = st.total_texels - st.free_texels;
+    liveCount = st.live_count;
+    failCount = st.fail_frag + st.fail_oom + st.fail_meta;
+    return true;
+}
 #endif
 
 #ifdef __WIIU__
