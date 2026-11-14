@@ -53,22 +53,9 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
     const SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
-#ifdef __VFLASH__
-    auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
-        SDL_Rect adjDst = *dst;
-        if (adjDst.w != src->w || adjDst.h != src->h) {
-            adjDst.x += (adjDst.w - src->w) / 2;
-            adjDst.y += (adjDst.h - src->h) / 2;
-            adjDst.w = src->w;
-            adjDst.h = src->h;
-        }
-        SDL_RenderCopy(sdlRenderer, texture, src, &adjDst);
-    };
-#else
     auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
         SDL_RenderCopyEx(sdlRenderer, texture, src, dst, rotation, &center, flip);
     };
-#endif
 
     if (brightness != 0) {
         float b = brightness * 0.01f;
