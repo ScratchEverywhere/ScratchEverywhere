@@ -260,20 +260,12 @@ FILE *freopen(const char *pathname, const char *mode, FILE *stream) {
     return NULL;
 }
 
+extern uint64_t SDL_GetPerformanceCounter(void);
+
 int _gettimeofday(struct timeval *tv, void *tz) {
     (void)tz;
     if (tv) {
-        static uint16_t last_ticks = 0;
-        static uint64_t total_ticks = 0;
-        static int initialized = 0;
-        uint16_t now = vflash_clock_ticks();
-        if (!initialized) {
-            last_ticks = now;
-            initialized = 1;
-        } else {
-            total_ticks += (uint16_t)(now - last_ticks);
-            last_ticks = now;
-        }
+        uint64_t total_ticks = SDL_GetPerformanceCounter();
         uint64_t us = total_ticks * 100ULL;
         tv->tv_sec = (time_t)(us / 1000000ULL);
         tv->tv_usec = (suseconds_t)(us % 1000000ULL);
