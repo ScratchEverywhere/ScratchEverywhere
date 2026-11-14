@@ -5,6 +5,7 @@
 #include <SDL_rotozoom.h>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
@@ -16,8 +17,8 @@
 #include <vector>
 
 void Image_SDL1::render(ImageRenderParams &params) {
-    const int &x = params.x;
-    const int &y = params.y;
+    const int x = static_cast<int>(std::lround(params.x));
+    const int y = static_cast<int>(std::lround(params.y));
     const int &brightness = params.brightness;
     const double rotation = -Math::radiansToDegrees(params.rotation);
     const float &scale = params.scale;

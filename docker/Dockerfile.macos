@@ -18,7 +18,12 @@ COPY . .
 ARG ARCH=x86_64
 
 # TODO: Cloud Variables
-RUN mkdir build && cd build && \
+RUN --mount=type=secret,id=discord_app_id \
+	DISCORD_ARGS=""; \
+	if [ -s /run/secrets/discord_app_id ]; then \
+		DISCORD_ARGS="-DSE_DISCORD_RPC=ON -DSE_DISCORD_APP_ID=$(tr -d '[:space:]' < /run/secrets/discord_app_id)"; \
+	fi; \
+	mkdir build && cd build && \
 	${ARCH}-apple-darwin24.5-cmake \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
 	-DSE_CLOUDVARS=OFF \
@@ -26,6 +31,7 @@ RUN mkdir build && cd build && \
 	-DSE_AUDIO_ENGINE=sdl2 \
 	-DSE_WINDOWING=sdl2 \
 	-DCMAKE_BUILD_TYPE=Release \
+	${DISCORD_ARGS} \
 	.. && \
 	cmake --build . -j 2
 

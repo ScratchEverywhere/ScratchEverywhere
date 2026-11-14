@@ -1,10 +1,14 @@
 #include "bytecode_compiler.hpp"
 #include "blockExecutor.hpp"
+#include "bytecode_analysis.hpp"
+#include "math.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
+#include <unordered_set>
 
 std::unordered_map<std::string, BytecodeCompiler::CustomCompileFn> &BytecodeCompiler::getCustomCompilers() {
     static std::unordered_map<std::string, CustomCompileFn> compilers;
@@ -60,7 +64,7 @@ bool BytecodeCompiler::isStaticallyKind(const ParsedInput *input, BytecodeStackK
     case ParsedInput::VALUE:
         switch (kind) {
         case BytecodeStackKind::Number:
-            return input->value.isDouble();
+            return input->value.isDouble() && !input->value.isNaN();
         case BytecodeStackKind::String:
             return input->value.isString();
         case BytecodeStackKind::Boolean:
@@ -201,6 +205,35 @@ BytecodeIndex BytecodeCompiler::procedureSlot(Block *definitionBlock) const {
     return it != procedureSlotMap_.end() ? it->second : invalidBytecodeIndex;
 }
 
+namespace {
+
+std::vector<std::string> variablesWrittenByLegacyCode(Block *start) {
+    std::vector<std::string> written;
+    std::unordered_set<Block *> visited;
+    std::vector<Block *> pending{start};
+
+    while (!pending.empty()) {
+        Block *block = pending.back();
+        pending.pop_back();
+        if (block == nullptr || !visited.insert(block).second) continue;
+
+        pending.push_back(block->nextBlock);
+        pending.push_back(block->MyBlockDefinitionID);
+        for (const auto &[name, input] : block->inputs) {
+            if (input.inputType == ParsedInput::BLOCK) pending.push_back(input.block);
+        }
+
+        const std::string &opcode = block->opcode;
+        if (opcode == "data_setvariableto" || opcode == "data_changevariableby" || opcode == "control_for_each") {
+            const std::string &id = Scratch::getFieldId(*block, "VARIABLE");
+            if (std::find(written.begin(), written.end(), id) == written.end()) written.push_back(id);
+        }
+    }
+    return written;
+}
+
+} // namespace
+
 BytecodeIndex BytecodeCompiler::escapeSlot(Block *block) {
     auto it = escapeBlockMap_.find(block);
     if (it != escapeBlockMap_.end()) return it->second;
@@ -209,6 +242,14 @@ BytecodeIndex BytecodeCompiler::escapeSlot(Block *block) {
     link_.escapeBlocks.push_back(block);
     chunk_.escapeBlockOrdinals.push_back(block->bytecodeOrdinal);
     escapeBlockMap_[block] = slot;
+
+    const std::vector<std::string> written = variablesWrittenByLegacyCode(block);
+    std::vector<BytecodeIndex> slots;
+    for (const std::string &id : written)
+        slots.push_back(variableSlot(id));
+    chunk_.escapeWriteStart.push_back(static_cast<BytecodeIndex>(chunk_.escapeWrittenVariables.size()));
+    chunk_.escapeWriteCount.push_back(static_cast<BytecodeIndex>(slots.size()));
+    chunk_.escapeWrittenVariables.insert(chunk_.escapeWrittenVariables.end(), slots.begin(), slots.end());
     return slot;
 }
 
@@ -218,7 +259,10 @@ Block *BytecodeCompiler::substackBlock(Block *block, const std::string &inputNam
 }
 
 bool BytecodeCompiler::compileSubstack(Block *block, const std::string &inputName, Block *stopBlock, BytecodeIndex &outFirstInstr) {
-    return compileBlockChain(substackBlock(block, inputName), stopBlock, outFirstInstr);
+    blockDepth_++;
+    const bool compiled = compileBlockChain(substackBlock(block, inputName), stopBlock, outFirstInstr);
+    blockDepth_--;
+    return compiled;
 }
 
 namespace {
@@ -237,6 +281,17 @@ BytecodeStackKind stackKindForType(Type type) {
     default:
         return BytecodeStackKind::Value;
     }
+}
+
+bool canonicalizeLiterals = false;
+std::unordered_set<std::string> reservedLiterals;
+
+Value canonicalLiteral(const Value &value) {
+    if (!canonicalizeLiterals || !value.isString()) return value;
+    const std::string text = value.asString();
+    if (!BytecodeAnalysis::isCanonicalNumericString(text) || reservedLiterals.count(text) != 0) return value;
+    const auto parsed = Math::parseNumber(text);
+    return parsed.has_value() ? Value::stringTypedNumber(*parsed) : value;
 }
 
 void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeStackKind wanted) {
@@ -267,7 +322,7 @@ void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeSta
     }
     case BytecodeStackKind::Value: {
         BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
-        compiler.chunk().constants.push_back(value);
+        compiler.chunk().constants.push_back(canonicalLiteral(value));
         compiler.emit(BytecodeOp::PushConstValue, idx);
         return;
     }
@@ -528,6 +583,16 @@ BytecodeIndex compileStatementChain(BytecodeCompiler &compiler, Block *start) {
 }
 
 } // namespace
+
+void BytecodeCompiler::setReservedLiterals(std::unordered_set<std::string> names) {
+    reservedLiterals = std::move(names);
+    canonicalizeLiterals = std::getenv("SE_NOCANON") == nullptr;
+}
+
+void BytecodeCompiler::clearReservedLiterals() {
+    reservedLiterals.clear();
+    canonicalizeLiterals = false;
+}
 
 void Parser::compileBytecode(Sprite *sprite) {
     BytecodeCompiler compiler(sprite);

@@ -1,22 +1,23 @@
 #include "image_nv2a.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_nv2a.hpp"
-#include <renderers/xbox/image_xbox.hpp>
 #include "swizzle.h"
 #include "xgu.h"
+#include <pixel_snap.hpp>
+#include <renderers/xbox/image_xbox.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem.hpp>
+#include <image.hpp>
 #include <limits>
 #include <memory>
-#include <image.hpp>
 #ifdef SE_NV2A_PROFILE
 #include <log.hpp>
 #endif
@@ -25,10 +26,10 @@
 #include <runtime.hpp>
 #include <stb_image.h>
 #include <string>
-#include <unordered_map>
-#include <utility>
 #include <translation.hpp>
+#include <unordered_map>
 #include <unzip.hpp>
+#include <utility>
 #include <vector>
 
 #ifdef SE_NV2A_PROFILE
@@ -93,7 +94,7 @@ struct XBTTileHeader {
     int32_t w;
     int32_t h;
     uint32_t dataSize;
-    uint32_t codec;    // 1 = DXT1, 2 = DXT5, 3 = RGBA32, 4-6 = 16-bit formats
+    uint32_t codec; // 1 = DXT1, 2 = DXT5, 3 = RGBA32, 4-6 = 16-bit formats
 };
 #pragma pack(pop)
 
@@ -283,7 +284,7 @@ static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int i
 }
 
 static NV2ATexture *createDXTTexture(Renderer_NV2A *r, int w, int h, uint32_t codec,
-                                           const uint8_t *data, const Image *keep = nullptr) {
+                                     const uint8_t *data, const Image *keep = nullptr) {
     if (!r || !data || !isDXTCodec(codec) || expectedCacheDataSize(w, h, codec) == 0) return nullptr;
     const uint32_t fmt = (codec == CODEC_DXT5) ? XGU_TEXTURE_FORMAT_DXT5 : XGU_TEXTURE_FORMAT_DXT1;
     NV2ATexture *t = r->createTexture(w, h, fmt, false);
@@ -302,11 +303,16 @@ static NV2ATexture *createDXTTexture(Renderer_NV2A *r, int w, int h, uint32_t co
 
 static uint32_t rawCodecFormat(uint32_t codec) {
     switch (codec) {
-    case CODEC_RGBA32: return XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
-    case CODEC_RGB565: return XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED;
-    case CODEC_ARGB1555: return XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED;
-    case CODEC_ARGB4444: return XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED;
-    default: return 0;
+    case CODEC_RGBA32:
+        return XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+    case CODEC_RGB565:
+        return XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED;
+    case CODEC_ARGB1555:
+        return XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED;
+    case CODEC_ARGB4444:
+        return XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED;
+    default:
+        return 0;
     }
 }
 
@@ -329,8 +335,8 @@ static NV2ATexture *createRawTexture(Renderer_NV2A *r, int w, int h, uint32_t co
 }
 
 static std::vector<uint8_t> encodeRegionCache(const uint8_t *src, int pitch, int imgW, int imgH,
-                                               int tx, int ty, int tw, int th, uint32_t codec,
-                                               bool isOpaque, bool highQuality) {
+                                              int tx, int ty, int tw, int th, uint32_t codec,
+                                              bool isOpaque, bool highQuality) {
     if (isDXTCodec(codec)) {
         return encodeRegionDXT(src, pitch, imgW, imgH, tx, ty, tw, th, codec, isOpaque, highQuality);
     }
@@ -425,8 +431,7 @@ nonstd::expected<void, std::string> Image_NV2A::buildTiles() {
                 }
             }
 
-            const uint32_t codec16 = isOpaqueTile ? CODEC_RGB565 :
-                                     (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+            const uint32_t codec16 = isOpaqueTile ? CODEC_RGB565 : (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
             const uint32_t codecDXT = (isOpaqueTile || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
             auto upload16 = [&]() {
                 const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
@@ -489,10 +494,13 @@ void Image_NV2A::renderTiled(ImageRenderParams &params, bool gpuHue) {
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -578,8 +586,7 @@ void Image_NV2A::renderTiled(ImageRenderParams &params, bool gpuHue) {
                 {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
                 {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
                 {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
-                {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}
-            };
+                {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}};
 
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
             if (gpuHue) {
@@ -642,152 +649,165 @@ static inline void hsv2rgb(float h, float s, float v, float &r, float &g, float 
     float q = v * (1.0f - s * f);
     float t = v * (1.0f - s * (1.0f - f));
     switch (i % 6) {
-        case 0: r = v; g = t; b = p; break;
-        case 1: r = q; g = v; b = p; break;
-        case 2: r = p; g = v; b = t; break;
-        case 3: r = p; g = q; b = v; break;
-        case 4: r = t; g = p; b = v; break;
-        default: r = v; g = p; b = q; break;
+    case 0:
+        r = v;
+        g = t;
+        b = p;
+        break;
+    case 1:
+        r = q;
+        g = v;
+        b = p;
+        break;
+    case 2:
+        r = p;
+        g = v;
+        b = t;
+        break;
+    case 3:
+        r = p;
+        g = q;
+        b = v;
+        break;
+    case 4:
+        r = t;
+        g = p;
+        b = v;
+        break;
+    default:
+        r = v;
+        g = p;
+        b = q;
+        break;
     }
 }
 
 static void decodeDXT1Block(
-	const uint8_t *block,
-	uint8_t *dstRGBA,
-	int dstPitch,
-	int maxW,
-	int maxH,
-	bool forceFourColor = false
-) {
-	const uint16_t c0 =
-		static_cast<uint16_t>(block[0]) |
-		(static_cast<uint16_t>(block[1]) << 8);
+    const uint8_t *block,
+    uint8_t *dstRGBA,
+    int dstPitch,
+    int maxW,
+    int maxH,
+    bool forceFourColor = false) {
+    const uint16_t c0 =
+        static_cast<uint16_t>(block[0]) |
+        (static_cast<uint16_t>(block[1]) << 8);
 
-	const uint16_t c1 =
-		static_cast<uint16_t>(block[2]) |
-		(static_cast<uint16_t>(block[3]) << 8);
+    const uint16_t c1 =
+        static_cast<uint16_t>(block[2]) |
+        (static_cast<uint16_t>(block[3]) << 8);
 
-	int r0, g0, b0;
-	int r1, g1, b1;
+    int r0, g0, b0;
+    int r1, g1, b1;
 
-	unpackRGB565(c0, r0, g0, b0);
-	unpackRGB565(c1, r1, g1, b1);
+    unpackRGB565(c0, r0, g0, b0);
+    unpackRGB565(c1, r1, g1, b1);
 
-	uint8_t palette[4][4] = {
-		{
-			static_cast<uint8_t>(r0),
-			static_cast<uint8_t>(g0),
-			static_cast<uint8_t>(b0),
-			255
-		},
-		{
-			static_cast<uint8_t>(r1),
-			static_cast<uint8_t>(g1),
-			static_cast<uint8_t>(b1),
-			255
-		},
-		{0, 0, 0, 255},
-		{0, 0, 0, 255}
-	};
+    uint8_t palette[4][4] = {
+        {static_cast<uint8_t>(r0),
+         static_cast<uint8_t>(g0),
+         static_cast<uint8_t>(b0),
+         255},
+        {static_cast<uint8_t>(r1),
+         static_cast<uint8_t>(g1),
+         static_cast<uint8_t>(b1),
+         255},
+        {0, 0, 0, 255},
+        {0, 0, 0, 255}};
 
-	const bool fourColor = forceFourColor || (c0 > c1);
+    const bool fourColor = forceFourColor || (c0 > c1);
 
-	if (fourColor) {
-		palette[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
-		palette[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
-		palette[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
+    if (fourColor) {
+        palette[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
+        palette[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
+        palette[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
 
-		palette[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
-		palette[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
-		palette[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
-	} else {
-		palette[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
-		palette[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
-		palette[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
+        palette[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
+        palette[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
+        palette[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
+    } else {
+        palette[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
+        palette[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
+        palette[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
 
-		palette[3][0] = 0;
-		palette[3][1] = 0;
-		palette[3][2] = 0;
-		palette[3][3] = 0;
-	}
+        palette[3][0] = 0;
+        palette[3][1] = 0;
+        palette[3][2] = 0;
+        palette[3][3] = 0;
+    }
 
-	const uint32_t indices =
-		static_cast<uint32_t>(block[4]) |
-		(static_cast<uint32_t>(block[5]) << 8) |
-		(static_cast<uint32_t>(block[6]) << 16) |
-		(static_cast<uint32_t>(block[7]) << 24);
+    const uint32_t indices =
+        static_cast<uint32_t>(block[4]) |
+        (static_cast<uint32_t>(block[5]) << 8) |
+        (static_cast<uint32_t>(block[6]) << 16) |
+        (static_cast<uint32_t>(block[7]) << 24);
 
-	for (int y = 0; y < 4 && y < maxH; ++y) {
-		uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
 
-		for (int x = 0; x < 4 && x < maxW; ++x) {
-			const int shift = (y * 4 + x) * 2;
-			const int index = static_cast<int>((indices >> shift) & 3);
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            const int shift = (y * 4 + x) * 2;
+            const int index = static_cast<int>((indices >> shift) & 3);
 
-			memcpy(row + x * 4, palette[index], 4);
-		}
-	}
+            memcpy(row + x * 4, palette[index], 4);
+        }
+    }
 }
 
 static void decodeDXT5Block(
-	const uint8_t *block,
-	uint8_t *dstRGBA,
-	int dstPitch,
-	int maxW,
-	int maxH
-) {
-	const uint8_t a0 = block[0];
-	const uint8_t a1 = block[1];
+    const uint8_t *block,
+    uint8_t *dstRGBA,
+    int dstPitch,
+    int maxW,
+    int maxH) {
+    const uint8_t a0 = block[0];
+    const uint8_t a1 = block[1];
 
-	uint8_t alphaPalette[8] = {
-		a0, a1, 0, 0, 0, 0, 0, 0
-	};
+    uint8_t alphaPalette[8] = {
+        a0, a1, 0, 0, 0, 0, 0, 0};
 
-	if (a0 > a1) {
-		for (int i = 1; i <= 6; ++i) {
-			alphaPalette[1 + i] = static_cast<uint8_t>(
-				((7 - i) * a0 + i * a1) / 7
-			);
-		}
-	} else {
-		for (int i = 1; i <= 4; ++i) {
-			alphaPalette[1 + i] = static_cast<uint8_t>(
-				((5 - i) * a0 + i * a1) / 5
-			);
-		}
+    if (a0 > a1) {
+        for (int i = 1; i <= 6; ++i) {
+            alphaPalette[1 + i] = static_cast<uint8_t>(
+                ((7 - i) * a0 + i * a1) / 7);
+        }
+    } else {
+        for (int i = 1; i <= 4; ++i) {
+            alphaPalette[1 + i] = static_cast<uint8_t>(
+                ((5 - i) * a0 + i * a1) / 5);
+        }
 
-		alphaPalette[6] = 0;
-		alphaPalette[7] = 255;
-	}
+        alphaPalette[6] = 0;
+        alphaPalette[7] = 255;
+    }
 
-	uint64_t alphaIndices = 0;
+    uint64_t alphaIndices = 0;
 
-	for (int i = 0; i < 6; ++i) {
-		alphaIndices |=
-			static_cast<uint64_t>(block[2 + i]) << (i * 8);
-	}
+    for (int i = 0; i < 6; ++i) {
+        alphaIndices |=
+            static_cast<uint64_t>(block[2 + i]) << (i * 8);
+    }
 
-	// DXT5 always uses four-color interpolation for its color block.
-	decodeDXT1Block(
-		block + 8,
-		dstRGBA,
-		dstPitch,
-		maxW,
-		maxH,
-		true
-	);
+    // DXT5 always uses four-color interpolation for its color block.
+    decodeDXT1Block(
+        block + 8,
+        dstRGBA,
+        dstPitch,
+        maxW,
+        maxH,
+        true);
 
-	for (int y = 0; y < 4 && y < maxH; ++y) {
-		uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
 
-		for (int x = 0; x < 4 && x < maxW; ++x) {
-			const int shift = (y * 4 + x) * 3;
-			const int alphaIndex =
-				static_cast<int>((alphaIndices >> shift) & 7);
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            const int shift = (y * 4 + x) * 3;
+            const int alphaIndex =
+                static_cast<int>((alphaIndices >> shift) & 7);
 
-			row[x * 4 + 3] = alphaPalette[alphaIndex];
-		}
-	}
+            row[x * 4 + 3] = alphaPalette[alphaIndex];
+        }
+    }
 }
 
 static void purgeEffectOwner(Renderer_NV2A *r, const void *owner);
@@ -818,69 +838,64 @@ void Image_NV2A::releaseEffects() {
 }
 
 static void decodeRawPixel(
-	uint32_t codec,
-	const uint8_t *src,
-	uint8_t *dstRGBA
-) {
-	switch (codec) {
-		case CODEC_RGBA32:
-			dstRGBA[0] = src[0];
-			dstRGBA[1] = src[1];
-			dstRGBA[2] = src[2];
-			dstRGBA[3] = src[3];
-			break;
+    uint32_t codec,
+    const uint8_t *src,
+    uint8_t *dstRGBA) {
+    switch (codec) {
+    case CODEC_RGBA32:
+        dstRGBA[0] = src[0];
+        dstRGBA[1] = src[1];
+        dstRGBA[2] = src[2];
+        dstRGBA[3] = src[3];
+        break;
 
-		case CODEC_RGB565: {
-			const uint16_t p =
-				static_cast<uint16_t>(src[0]) |
-				(static_cast<uint16_t>(src[1]) << 8);
+    case CODEC_RGB565: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
 
-			int r, g, b;
-			unpackRGB565(p, r, g, b);
+        int r, g, b;
+        unpackRGB565(p, r, g, b);
 
-			dstRGBA[0] = static_cast<uint8_t>(r);
-			dstRGBA[1] = static_cast<uint8_t>(g);
-			dstRGBA[2] = static_cast<uint8_t>(b);
-			dstRGBA[3] = 255;
-			break;
-		}
+        dstRGBA[0] = static_cast<uint8_t>(r);
+        dstRGBA[1] = static_cast<uint8_t>(g);
+        dstRGBA[2] = static_cast<uint8_t>(b);
+        dstRGBA[3] = 255;
+        break;
+    }
 
-		case CODEC_ARGB1555: {
-			const uint16_t p =
-				static_cast<uint16_t>(src[0]) |
-				(static_cast<uint16_t>(src[1]) << 8);
+    case CODEC_ARGB1555: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
 
-			dstRGBA[0] = static_cast<uint8_t>(
-				((p >> 10) & 31) * 255 / 31
-			);
-			dstRGBA[1] = static_cast<uint8_t>(
-				((p >> 5) & 31) * 255 / 31
-			);
-			dstRGBA[2] = static_cast<uint8_t>(
-				(p & 31) * 255 / 31
-			);
-			dstRGBA[3] = (p & 0x8000) ? 255 : 0;
-			break;
-		}
+        dstRGBA[0] = static_cast<uint8_t>(
+            ((p >> 10) & 31) * 255 / 31);
+        dstRGBA[1] = static_cast<uint8_t>(
+            ((p >> 5) & 31) * 255 / 31);
+        dstRGBA[2] = static_cast<uint8_t>(
+            (p & 31) * 255 / 31);
+        dstRGBA[3] = (p & 0x8000) ? 255 : 0;
+        break;
+    }
 
-		case CODEC_ARGB4444: {
-			const uint16_t p =
-				static_cast<uint16_t>(src[0]) |
-				(static_cast<uint16_t>(src[1]) << 8);
+    case CODEC_ARGB4444: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
 
-			dstRGBA[0] = static_cast<uint8_t>(((p >> 8) & 15) * 17);
-			dstRGBA[1] = static_cast<uint8_t>(((p >> 4) & 15) * 17);
-			dstRGBA[2] = static_cast<uint8_t>((p & 15) * 17);
-			dstRGBA[3] = static_cast<uint8_t>(((p >> 12) & 15) * 17);
-			break;
-		}
+        dstRGBA[0] = static_cast<uint8_t>(((p >> 8) & 15) * 17);
+        dstRGBA[1] = static_cast<uint8_t>(((p >> 4) & 15) * 17);
+        dstRGBA[2] = static_cast<uint8_t>((p & 15) * 17);
+        dstRGBA[3] = static_cast<uint8_t>(((p >> 12) & 15) * 17);
+        break;
+    }
 
-		default:
-			memset(dstRGBA, 0, 4);
-			break;
-	}
+    default:
+        memset(dstRGBA, 0, 4);
+        break;
+    }
 }
-
 
 // ---------------------------------------------------------------------------
 // Shared, write-once effect-texture cache (color + pixelate)
@@ -939,12 +954,36 @@ static inline uint32_t hsv2rgbEffect(uint32_t h, uint32_t s, uint32_t v) {
     const uint32_t t = div255(v * (255 - div255(s * (255 - f))));
     uint32_t r, g, b;
     switch (seg) {
-    case 0: r = v; g = t; b = p; break;
-    case 1: r = q; g = v; b = p; break;
-    case 2: r = p; g = v; b = t; break;
-    case 3: r = p; g = q; b = v; break;
-    case 4: r = t; g = p; b = v; break;
-    default: r = v; g = p; b = q; break;
+    case 0:
+        r = v;
+        g = t;
+        b = p;
+        break;
+    case 1:
+        r = q;
+        g = v;
+        b = p;
+        break;
+    case 2:
+        r = p;
+        g = v;
+        b = t;
+        break;
+    case 3:
+        r = p;
+        g = q;
+        b = v;
+        break;
+    case 4:
+        r = t;
+        g = p;
+        b = v;
+        break;
+    default:
+        r = v;
+        g = p;
+        b = q;
+        break;
     }
     return r | (g << 8) | (b << 16);
 }
@@ -1021,7 +1060,8 @@ static bool observeHueKey(const EffectKey &key, uint32_t frame, float effect) {
         it->second = HuePersistence{frame, 1, hue};
     } else if (it->second.lastFrame != frame) {
         it->second.consecutiveFrames = frame - it->second.lastFrame == 1
-            ? std::min(HUE_STABLE_FRAMES, it->second.consecutiveFrames + 1) : 1;
+                                           ? std::min(HUE_STABLE_FRAMES, it->second.consecutiveFrames + 1)
+                                           : 1;
         it->second.lastFrame = frame;
     }
     return it->second.consecutiveFrames >= HUE_STABLE_FRAMES;
@@ -1037,12 +1077,15 @@ struct HueFrameBudget {
     uint32_t bakes = 0;
     void begin(uint32_t now) {
         if (!initialized || now != frame) {
-            frame = now; initialized = true; spent = 0; bakes = 0;
+            frame = now;
+            initialized = true;
+            spent = 0;
+            bakes = 0;
         }
     }
     bool allows(uint64_t estimate) const {
         return estimate && bakes == 0 && spent <= HUE_BUDGET_TICKS &&
-            estimate <= HUE_BUDGET_TICKS - spent;
+               estimate <= HUE_BUDGET_TICKS - spent;
     }
 };
 static HueFrameBudget s_hueBudget;
@@ -1085,7 +1128,6 @@ Image_NV2A::EffectCacheStats Image_NV2A::getEffectCacheStats() {
     return {s_effectCacheBytes, s_effectPeakBytes, s_effectCache.size(), s_effectCreated, s_effectEvicted};
 }
 
-
 static size_t effectCacheBudget() {
     if (s_effectBudgetOverride) return s_effectBudgetOverride;
     return OS::isEnhancedPlatform() ? (12u * 1024u * 1024u) : (4u * 1024u * 1024u);
@@ -1099,10 +1141,7 @@ enum class EffectEvictionReason {
     Count
 };
 
-static uint32_t s_effectEvictions[
-    static_cast<size_t>(EffectEvictionReason::Count)
-] = {};
-
+static uint32_t s_effectEvictions[static_cast<size_t>(EffectEvictionReason::Count)] = {};
 
 static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator
 evictEffectEntry(Renderer_NV2A *r, std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator it, EffectEvictionReason reason) {
@@ -1158,7 +1197,8 @@ static void trimEffectCache(Renderer_NV2A *r, uint32_t now, const EffectKey *kee
 
     std::vector<std::pair<uint32_t, EffectKey>> order;
     order.reserve(s_effectCache.size());
-    for (const auto &kv : s_effectCache) order.emplace_back(kv.second.lastUsed, kv.first);
+    for (const auto &kv : s_effectCache)
+        order.emplace_back(kv.second.lastUsed, kv.first);
     std::sort(order.begin(), order.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 
     const size_t target = budget - budget / 8;
@@ -1218,14 +1258,13 @@ static std::string formatNumber(double value) {
 }
 
 auto formatMs = [](double timeMs) -> std::string {
-	int ms = static_cast<int>(timeMs);
-	int us = static_cast<int>((timeMs - ms) * 1000.0);
-	std::string usStr = std::to_string(std::abs(us));
-	if (usStr.length() == 1) usStr = "00" + usStr;
-	else if (usStr.length() == 2) usStr = "0" + usStr;
-	return std::to_string(ms) + "." + usStr + " ms";
+    int ms = static_cast<int>(timeMs);
+    int us = static_cast<int>((timeMs - ms) * 1000.0);
+    std::string usStr = std::to_string(std::abs(us));
+    if (usStr.length() == 1) usStr = "00" + usStr;
+    else if (usStr.length() == 2) usStr = "0" + usStr;
+    return std::to_string(ms) + "." + usStr + " ms";
 };
-
 
 static uint32_t s_fxBakeAttempts = 0;
 static uint32_t s_fxBakeFailures = 0;
@@ -1492,7 +1531,6 @@ const uint8_t *Image_NV2A::getEffectSource(int &outPitch) {
     return nullptr;
 }
 
-
 static uint32_t s_effectLinear[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
 static uint16_t s_effectPacked16[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
 
@@ -1558,9 +1596,9 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
     // Fresh linear allocations are filled directly, without a scratch image.
     bool sourceQuality = false;
     const bool qualityCandidate = !residentOnly && hasColor && params.brightness > 0 &&
-        !hasPixelGrid && std::abs(params.whirlEffect) <= 0.001f &&
-        std::abs(params.fisheyeEffect) <= 0.001f && std::abs(params.mosaicEffect) <= 0.001f &&
-        params.subrect == nullptr && srcW <= 512 && srcH <= 512;
+                                  !hasPixelGrid && std::abs(params.whirlEffect) <= 0.001f &&
+                                  std::abs(params.fisheyeEffect) <= 0.001f && std::abs(params.mosaicEffect) <= 0.001f &&
+                                  params.subrect == nullptr && srcW <= 512 && srcH <= 512;
     if (qualityCandidate) {
         const int qualityW = (srcW + 15) & ~15, qualityH = srcH;
         const size_t count = static_cast<size_t>(qualityW) * qualityH;
@@ -1609,20 +1647,19 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
         if (s_effectCache.find(key) != s_effectCache.end()) {
             if (persistent && fullResolution) ++resident;
             else ++suppressed;
-        }
-        else ++misses;
+        } else ++misses;
         if (persistent) ++persistentDraws;
         if (!fullResolution) ++qualityGpu;
         if (resident + suppressed + misses == 1 || currentFrame - lastReport >= 120) {
             NV2A_LOG("NV2A_HYBRID_POLICY: resident=" + std::to_string(resident) +
-                " misses=" + std::to_string(misses) + " persistentDraws=" + std::to_string(persistentDraws) +
-                " residentSuppressed=" + std::to_string(suppressed) +
-                " qualityGpu=" + std::to_string(qualityGpu) +
-                " stableFrames=" + std::to_string(HUE_STABLE_FRAMES) +
-                " tracked=" + std::to_string(s_huePersistence.size()) + " coldAdmission=budgeted" +
-                " admitted=" + std::to_string(s_hueAdmitted) + " unknown=" + std::to_string(s_hueUnknown) +
-                " budgetDenied=" + std::to_string(s_hueBudgetDenied) + " overruns=" + std::to_string(s_hueOverruns) +
-                " worstBakeUs=" + std::to_string(s_hueWorstBake * 1000 / 733333));
+                     " misses=" + std::to_string(misses) + " persistentDraws=" + std::to_string(persistentDraws) +
+                     " residentSuppressed=" + std::to_string(suppressed) +
+                     " qualityGpu=" + std::to_string(qualityGpu) +
+                     " stableFrames=" + std::to_string(HUE_STABLE_FRAMES) +
+                     " tracked=" + std::to_string(s_huePersistence.size()) + " coldAdmission=budgeted" +
+                     " admitted=" + std::to_string(s_hueAdmitted) + " unknown=" + std::to_string(s_hueUnknown) +
+                     " budgetDenied=" + std::to_string(s_hueBudgetDenied) + " overruns=" + std::to_string(s_hueOverruns) +
+                     " worstBakeUs=" + std::to_string(s_hueWorstBake * 1000 / 733333));
             lastReport = currentFrame;
         }
 #endif
@@ -1641,10 +1678,9 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
         return found->second.tex;
     }
 
-
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
     const bool warmSource = hasColor && !hasPixelGrid && hsvW == effW && hsvH == effH &&
-        hsvCache.size() == static_cast<size_t>(effW) * effH;
+                            hsvCache.size() == static_cast<size_t>(effW) * effH;
     bool hybridAdmission = false;
     if (residentOnly) {
         if (!persistent) return nullptr;
@@ -1690,7 +1726,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
             hybridAdmission ? nullptr :
 #endif
-            texture;
+                            texture;
     }
 
 #ifdef SE_NV2A_PROFILE
@@ -1712,7 +1748,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
             hybridAdmission ? nullptr :
 #endif
-            texture;
+                            texture;
     }
 
     const bool ownsReconstructedSource = !effectSource.empty() && src == effectSource.data();
@@ -1725,11 +1761,11 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
     const int capH = linearQuality ? effH : toPowerOfTwo(effH);
     const bool compactColor = hasColor && !OS::isEnhancedPlatform()
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
-        && !sourceQuality
+                              && !sourceQuality
 #endif
         ;
-    const uint32_t effectFormat = linearQuality ? XGU_TEXTURE_FORMAT_A8R8G8B8 :
-        compactColor ? XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED : XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+    const uint32_t effectFormat = linearQuality ? XGU_TEXTURE_FORMAT_A8R8G8B8 : compactColor ? XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED
+                                                                                             : XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
 
     NV2ATexture *tex = nv2aRenderer->createTexture(linearQuality ? effW : capW, linearQuality ? effH : capH, effectFormat, !linearQuality, !linearQuality);
 
@@ -1757,7 +1793,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
             hybridAdmission ? nullptr :
 #endif
-            texture;
+                            texture;
     }
 
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
@@ -1835,7 +1871,8 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
     if (!linearQuality) {
         for (int y = 0; y < effH; ++y) {
             uint32_t *row = lin + static_cast<size_t>(y) * capW;
-            for (int x = effW; x < capW; ++x) row[x] = row[effW - 1];
+            for (int x = effW; x < capW; ++x)
+                row[x] = row[effW - 1];
         }
         for (int y = effH; y < capH; ++y) {
             memcpy(lin + static_cast<size_t>(y) * capW, lin + static_cast<size_t>(effH - 1) * capW, static_cast<size_t>(capW) * 4);
@@ -1862,7 +1899,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
                 static_cast<size_t>(y) * capW * 4;
 
             uint16_t *dstRow = packed16 +
-                static_cast<size_t>(y) * capW;
+                               static_cast<size_t>(y) * capW;
 
             for (int x = 0; x < capW; ++x) {
                 const uint8_t *p = srcRow + static_cast<size_t>(x) * 4;
@@ -1889,7 +1926,7 @@ NV2ATexture *Image_NV2A::acquireEffectTexture(const ImageRenderParams &params, b
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
             hybridAdmission ? nullptr :
 #endif
-            texture;
+                            texture;
     }
 
     // Linear textures use texel coordinates; swizzled textures use normalized UVs.
@@ -1940,10 +1977,13 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
     const float centerX = renderX + renderW / 2.0f;
@@ -1991,8 +2031,7 @@ void Image_NV2A::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex)
             {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
             {{p_tl.first, p_tl.second}, {255, 255, 255, alpha}, {u0, v0}},
             {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
-            {{p_bl.first, p_bl.second}, {255, 255, 255, alpha}, {u0, v1}}
-        };
+            {{p_bl.first, p_bl.second}, {255, 255, 255, alpha}, {u0, v1}}};
 
         const NV2AScaleMode mosaicScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
         nv2aRenderer->bindTexture(activeTex, mosaicScaleMode, /*wrap=*/true);
@@ -2129,10 +2168,14 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -2208,8 +2251,7 @@ void Image_NV2A::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTe
             {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
             {{p_tl.first, p_tl.second}, {cr, cg, cb, alpha}, {baseU0, baseV0}},
             {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
-            {{p_bl.first, p_bl.second}, {cr, cg, cb, alpha}, {baseU0, baseV1}}
-        };
+            {{p_bl.first, p_bl.second}, {cr, cg, cb, alpha}, {baseU0, baseV1}}};
 
         nv2aRenderer->bindTexture(activeTex, NV2AScaleMode::Nearest, /*wrap=*/false);
         nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
@@ -2344,10 +2386,14 @@ void Image_NV2A::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *acti
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -2546,8 +2592,8 @@ void Image_NV2A::render(ImageRenderParams &params) {
     // Positive brightness and geometric effects retain the CPU path. Dimming
     // uses the existing vertex RGB modulation after the hue transformation.
     bool gpuHue = hasColor && std::isfinite(params.colorEffect) &&
-        params.brightness <= 0 && !hasWhirl && !hasFisheye && !hasMosaic && !hasPixelate &&
-        params.subrect == nullptr;
+                  params.brightness <= 0 && !hasWhirl && !hasFisheye && !hasMosaic && !hasPixelate &&
+                  params.subrect == nullptr;
     NV2ATexture *residentHueTexture = nullptr;
     const NV2ATexture *rejectedHueTexture = nullptr;
     bool hueTextureRejected = false;
@@ -2580,14 +2626,14 @@ void Image_NV2A::render(ImageRenderParams &params) {
         if (fallbacks == 1 || frame - lastReport >= 120) {
             char message[256];
             std::snprintf(message, sizeof(message),
-                "NV2A_HYBRID_CPU: draws=%u frame=%u brightness=%d mesh=%d pixelate=%d subrect=%d textureRejected=%d format=%u data=%d width=%d height=%d tiles=%u",
-                fallbacks, frame, params.brightness, hasWhirl || hasFisheye || hasMosaic,
-                hasPixelate, params.subrect != nullptr, hueTextureRejected,
-                rejectedHueTexture ? rejectedHueTexture->format : 0,
-                rejectedHueTexture && rejectedHueTexture->data != nullptr,
-                rejectedHueTexture ? rejectedHueTexture->texWidth : 0,
-                rejectedHueTexture ? rejectedHueTexture->texHeight : 0,
-                static_cast<unsigned>(tiles.size()));
+                          "NV2A_HYBRID_CPU: draws=%u frame=%u brightness=%d mesh=%d pixelate=%d subrect=%d textureRejected=%d format=%u data=%d width=%d height=%d tiles=%u",
+                          fallbacks, frame, params.brightness, hasWhirl || hasFisheye || hasMosaic,
+                          hasPixelate, params.subrect != nullptr, hueTextureRejected,
+                          rejectedHueTexture ? rejectedHueTexture->format : 0,
+                          rejectedHueTexture && rejectedHueTexture->data != nullptr,
+                          rejectedHueTexture ? rejectedHueTexture->texWidth : 0,
+                          rejectedHueTexture ? rejectedHueTexture->texHeight : 0,
+                          static_cast<unsigned>(tiles.size()));
             NV2A_LOG(message);
             lastReport = frame;
         }
@@ -2605,10 +2651,10 @@ void Image_NV2A::render(ImageRenderParams &params) {
         if (fxTraceWasActive) {
             char buf[160];
             std::snprintf(buf, sizeof(buf),
-                "FX_TRACE_CLEAR: image=%p path=tiled color100=%d pixelate100=%d",
-                (void*)this,
-                static_cast<int>(std::lround(params.colorEffect * 100.0f)),
-                static_cast<int>(std::lround(params.pixelateEffect * 100.0f)));
+                          "FX_TRACE_CLEAR: image=%p path=tiled color100=%d pixelate100=%d",
+                          (void *)this,
+                          static_cast<int>(std::lround(params.colorEffect * 100.0f)),
+                          static_cast<int>(std::lround(params.pixelateEffect * 100.0f)));
             NV2A_LOG(buf);
         }
 
@@ -2669,10 +2715,10 @@ void Image_NV2A::render(ImageRenderParams &params) {
         hasPixelate
             ? NV2AScaleMode::Nearest
             : ((hasColor && activeTex != texture)
-                ? NV2AScaleMode::Linear
-                : (activeTex
-                    ? activeTex->scaleMode
-                    : NV2AScaleMode::PixelArt));
+                   ? NV2AScaleMode::Linear
+                   : (activeTex
+                          ? activeTex->scaleMode
+                          : NV2AScaleMode::PixelArt));
 
 #ifdef SE_NV2A_PROFILE
     // --- Integer-Only Transition Trace Block ---
@@ -2691,25 +2737,28 @@ void Image_NV2A::render(ImageRenderParams &params) {
         const int originalScale = texture ? static_cast<int>(texture->scaleMode) : -1;
         const int requestedScale = static_cast<int>(drawScaleMode);
         const int effectW = usesEffectTexture
-            ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texWidth * activeTex->uScale : activeTex->uScale)) : 0;
+                                ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texWidth * activeTex->uScale : activeTex->uScale))
+                                : 0;
         const int effectH = usesEffectTexture
-            ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texHeight * activeTex->vScale : activeTex->vScale)) : 0;
+                                ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texHeight * activeTex->vScale : activeTex->vScale))
+                                : 0;
         const unsigned int effectBytes = usesEffectTexture
-            ? static_cast<unsigned int>(activeTex->allocationSize) : 0;
+                                             ? static_cast<unsigned int>(activeTex->allocationSize)
+                                             : 0;
 
         char buf[384];
         std::snprintf(buf, sizeof(buf),
-            "FX_TRACE: image=%p original=%p active=%p "
-            "src=%dx%d effect=%dx%d effectBytes=%u "
-            "color100=%d pixelate100=%d hasColor=%d hasPixelate=%d "
-            "activeOriginal=%d effectTexture=%d pixelateBaked=%d "
-            "requestedScale=%d originalScale=%d",
-            (void*)this, (void*)texture, (void*)activeTex,
-            imgData.width, imgData.height, effectW, effectH, effectBytes,
-            color100, pixelate100,
-            (int)hasColor, (int)hasPixelate,
-            (int)activeIsOriginal, (int)usesEffectTexture,
-            (int)pixelateBaked, requestedScale, originalScale);
+                      "FX_TRACE: image=%p original=%p active=%p "
+                      "src=%dx%d effect=%dx%d effectBytes=%u "
+                      "color100=%d pixelate100=%d hasColor=%d hasPixelate=%d "
+                      "activeOriginal=%d effectTexture=%d pixelateBaked=%d "
+                      "requestedScale=%d originalScale=%d",
+                      (void *)this, (void *)texture, (void *)activeTex,
+                      imgData.width, imgData.height, effectW, effectH, effectBytes,
+                      color100, pixelate100,
+                      (int)hasColor, (int)hasPixelate,
+                      (int)activeIsOriginal, (int)usesEffectTexture,
+                      (int)pixelateBaked, requestedScale, originalScale);
         NV2A_LOG(buf);
     }
 
@@ -2761,10 +2810,14 @@ void Image_NV2A::render(ImageRenderParams &params) {
     const double rotationDeg = Math::radiansToDegrees(rotationRad);
     const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderX = std::round(renderX);
-        renderY = std::round(renderY);
-        renderW = std::round(renderW);
-        renderH = std::round(renderH);
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
     float subX = 0.0f, subY = 0.0f;
@@ -2820,8 +2873,7 @@ void Image_NV2A::render(ImageRenderParams &params) {
             {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
             {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
             {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
-            {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}
-        };
+            {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}};
 
 #ifdef SE_XBOX_NV2A_HYBRID_HUE
         if (gpuHue) {
@@ -2904,9 +2956,9 @@ void Image_NV2A::renderNineslice(double xPos, double yPos, double width, double 
                 {{x1, y1}, {255, 255, 255, 255}, {u1, v1}},
                 {{x0, y0}, {255, 255, 255, 255}, {u0, v0}},
                 {{x1, y1}, {255, 255, 255, 255}, {u1, v1}},
-                {{x0, y1}, {255, 255, 255, 255}, {u0, v1}}
-            };
-            for (int k = 0; k < 6; ++k) verts.push_back(quad[k]);
+                {{x0, y1}, {255, 255, 255, 255}, {u0, v1}}};
+            for (int k = 0; k < 6; ++k)
+                verts.push_back(quad[k]);
         }
     }
 
@@ -2969,8 +3021,7 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
     // a 16-bit swizzled surface when the contiguous heap has room for it.
     const bool prefer16Bit = (isSVGImage || imgData.scale <= 1.0f) &&
                              freeMem > 8u * 1024u * 1024u;
-    const uint32_t codec16 = isOpaqueImg ? CODEC_RGB565 :
-                             (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+    const uint32_t codec16 = isOpaqueImg ? CODEC_RGB565 : (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
     const uint32_t codecDXT = (isOpaqueImg || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
 
     if (prefer32Bit) {
@@ -2982,8 +3033,7 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
     if (prefer16Bit) {
         const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
                                               0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
-        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height,
-                                                               codec16, packed.data(), this);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height, codec16, packed.data(), this);
         if (texture) return {};
     }
 
@@ -2992,15 +3042,13 @@ nonstd::expected<void, std::string> Image_NV2A::setInitialTexture() {
     const auto dxtData = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
                                          0, 0, imgData.width, imgData.height, codecDXT,
                                          isOpaqueImg, imgData.scale <= 1.0f || isSVGImage);
-    texture = dxtData.empty() ? nullptr : createDXTTexture(nv2aRenderer, imgData.width, imgData.height,
-                                                             codecDXT, dxtData.data(), this);
+    texture = dxtData.empty() ? nullptr : createDXTTexture(nv2aRenderer, imgData.width, imgData.height, codecDXT, dxtData.data(), this);
     if (texture) return {};
 
     if (!prefer16Bit) {
         const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
                                               0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
-        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height,
-                                                               codec16, packed.data(), this);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height, codec16, packed.data(), this);
         if (texture) return {};
     }
 
@@ -3075,9 +3123,9 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
     const uint64_t maskPitch = (static_cast<uint64_t>(header.width) + 7) / 8;
     const uint64_t expectedMaskSize = maskPitch * header.height;
     const uint64_t expectedTileCount = header.isTiled
-        ? ((static_cast<uint64_t>(header.width) + TILE_SIZE - 1) / TILE_SIZE) *
-          ((static_cast<uint64_t>(header.height) + TILE_SIZE - 1) / TILE_SIZE)
-        : 1;
+                                           ? ((static_cast<uint64_t>(header.width) + TILE_SIZE - 1) / TILE_SIZE) *
+                                                 ((static_cast<uint64_t>(header.height) + TILE_SIZE - 1) / TILE_SIZE)
+                                           : 1;
     const bool validHeader = headerRead && validMagic && supportedVersion && dimensionsValid &&
                              header.isTiled <= 1 && header.numTiles > 0 &&
                              header.numTiles == expectedTileCount &&
@@ -3112,7 +3160,8 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
     if (header.isTiled) loadedTiles.reserve(header.numTiles);
     auto destroyLoaded = [&]() {
         if (loadedTexture) nv2aRenderer->destroyTexture(loadedTexture);
-        for (auto &tile : loadedTiles) nv2aRenderer->destroyTexture(tile.texture);
+        for (auto &tile : loadedTiles)
+            nv2aRenderer->destroyTexture(tile.texture);
         loadedTiles.clear();
     };
     auto fail = [&](bool corrupt) {
@@ -3160,8 +3209,8 @@ bool Image_NV2A::loadFromCache(const std::string &cachePath) {
         if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return fail(true);
 
         NV2ATexture *t = isDXTCodec(th.codec)
-            ? createDXTTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this)
-            : createRawTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this);
+                             ? createDXTTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this)
+                             : createRawTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this);
         if (!t) return fail(false);
 
         if (!header.isTiled) {
@@ -3502,11 +3551,13 @@ void Image_NV2A::precacheProjectTextures() {
     };
 
     if (Scratch::stageSprite) {
-        for (const auto &costume : Scratch::stageSprite->costumes) precacheCostume(costume, true);
+        for (const auto &costume : Scratch::stageSprite->costumes)
+            precacheCostume(costume, true);
     }
     for (auto *sprite : Scratch::sprites) {
         if (sprite == Scratch::stageSprite) continue;
-        for (const auto &costume : sprite->costumes) precacheCostume(costume, false);
+        for (const auto &costume : sprite->costumes)
+            precacheCostume(costume, false);
     }
 
     if (allSucceeded) {
@@ -3593,7 +3644,6 @@ Image_NV2A::Image_NV2A(std::string filePath, bool fromScratchProject, bool bitma
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
 }
-
 
 Image_NV2A::~Image_NV2A() {
     releaseEffects();

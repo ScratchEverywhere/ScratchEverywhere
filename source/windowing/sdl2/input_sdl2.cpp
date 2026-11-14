@@ -100,11 +100,11 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
         pos[0] = rawMouseX * Render::getPixelDensity();
         pos[1] = rawMouseY * Render::getPixelDensity();
 #elif !defined(PLATFORM_HAS_TOUCH)
-        if (Input::mousePointer.isMoving) {
-            pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
-            pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
-            return pos;
-        }
+    if (Input::mousePointer.isMoving) {
+        pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-Input::mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+        return pos;
+    }
 #endif
 #ifdef PLATFORM_HAS_TOUCH
     }
@@ -285,6 +285,7 @@ void InputDevice_SDL2::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
+        Input::clampMouseToStage();
         Input::mousePointer.isPressed = touchActive;
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
@@ -299,6 +300,7 @@ void InputDevice_SDL2::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
@@ -331,7 +333,7 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     SDL_StartTextInput();
 
@@ -346,7 +348,7 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
                 // Add text
                 inputText += event.text.text;
                 text->setText(inputText);
-                text->setColor(Math::color(0, 0, 0, 255));
+                text->setColor(Math::color(255, 255, 255, 255));
 
 #if defined(__SWITCH__) || defined(VITA)
                 inputActive = false;

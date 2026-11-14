@@ -1,6 +1,6 @@
 {
   "ui.controls.apply": "Aplicar (Y)",
-  "ui.headless.projectPrompt": "Por favor escribe el proyecto que deseas abrir",
+  "ui.headless.projectPrompt": "Por favor escribe el proyecto que deseas abrir.",
   "ui.projects.noProjects": "¡No se han encontrado proyectos!",
   "ui.projects.path": "Pon los proyectos en  ",
   "ui.settings.controls": "Cambiar controles",
@@ -39,11 +39,14 @@
   "ui.loading.sprites": "Cargando sprites",
   "ui.loading.extensions": "Cargando extensiones",
   "ui.loading.finish": "¡Terminado!",
-  "ui.popup.extensions": "¡Cuidado! Este proyecto tiene extensiones nativas, estas tienen acesso completo a tu dispositivo",
+  "ui.popup.extensions": "¡Cuidado! Este proyecto tiene extensiones nativas, estas tienen acesso completo a tu dispositivo.",
   "version.prefix.beta": "Versión Beta",
   "version.prefix.alpha": "Versión Alpha",
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Candidato de Lanzamiento",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Versión de desarrollo"
+  "version.prefix.dev": "Versión de desarrollo",
+  "ui.settings.runtime": "Tiempo de ejecución",
+  "ui.popup.bytecodeCacheTooNew": "Este proyecto descomprimido es de una versión más reciente de Scratch Everywhere!, por favor descomprímelo de nuevo o usa la versión sin descomprimir.",
+  "ui.loading.caching": "Guardando imágenes en caché"
 }

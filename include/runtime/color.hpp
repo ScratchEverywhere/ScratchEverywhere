@@ -64,7 +64,7 @@ inline Color RGBA2CSBO(const ColorRGBA &color) {
     const float s = (cmax == 0) ? 0 : (diff / cmax) * 100;
 
     if (diff == 0) goto end;
-    if (cmax == r) return {static_cast<float>(fmod(60 * ((g - b) / diff), 360)) * 100.0f / 360, s, cmax * 100, a};
+    if (cmax == r) return {static_cast<float>(fmod(60 * ((g - b) / diff) + 360, 360)) * 100.0f / 360, s, cmax * 100, a};
     if (cmax == g) return {static_cast<float>(fmod(60 * ((b - r) / diff) + 120, 360)) * 100.0f / 360, s, cmax * 100, a};
     if (cmax == b) return {static_cast<float>(fmod(60 * ((r - g) / diff) + 240, 360)) * 100.0f / 360, s, cmax * 100, a};
 

@@ -8,6 +8,7 @@
 #include <image.hpp>
 #include <log.hpp>
 #include <os.hpp>
+#include <pixel_snap.hpp>
 #include <string>
 #include <unordered_map>
 #include <unzip.hpp>
@@ -25,9 +26,20 @@ void Image_SDL3::render(ImageRenderParams &params) {
     const bool &centered = params.centered;
     SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
+    const float floatW = imgData.width / imgData.scale * scale;
+    const float floatH = imgData.height / imgData.scale * scale;
+    const float floatX = centered ? x - (floatW / 2.0f) : x;
+    const float floatY = centered ? y - (floatH / 2.0f) : y;
+
+    float snapLeft, snapTop, snapW, snapH;
+    PixelSnap::span(floatX, floatW, snapLeft, snapW);
+    PixelSnap::span(floatY, floatH, snapTop, snapH, true);
+
     SDL_FRect renderRect;
-    renderRect.w = imgData.width / imgData.scale * scale;
-    renderRect.h = imgData.height / imgData.scale * scale;
+    renderRect.x = std::round(snapLeft);
+    renderRect.y = std::round(snapTop);
+    renderRect.w = std::max(1.0f, std::round(snapLeft + snapW) - renderRect.x);
+    renderRect.h = std::max(1.0f, std::round(snapTop + snapH) - renderRect.y);
 
     SDL_FRect subRect;
     if (params.subrect != nullptr) {
@@ -42,14 +54,6 @@ void Image_SDL3::render(ImageRenderParams &params) {
             .y = 0.0f,
             .w = static_cast<float>(imgData.width),
             .h = static_cast<float>(imgData.height)};
-    }
-
-    if (centered) {
-        renderRect.x = x - (renderRect.w / 2);
-        renderRect.y = y - (renderRect.h / 2);
-    } else {
-        renderRect.x = x;
-        renderRect.y = y;
     }
 
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
@@ -160,6 +164,8 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
         Log::logError(err);
         return nonstd::make_unexpected(err);
     }
+
+    discardColorData();
 
     return {};
 }

@@ -124,7 +124,8 @@ void TextObjectNV2A::render(int xPos, int yPos) {
 
 #if defined(__XBOX__)
     size_t totalGlyphs = 0;
-    for (const auto &glyphs : layoutLines) totalGlyphs += glyphs.size();
+    for (const auto &glyphs : layoutLines)
+        totalGlyphs += glyphs.size();
     if (totalGlyphs == 0) return;
 
     size_t totalVerts = totalGlyphs * 6;

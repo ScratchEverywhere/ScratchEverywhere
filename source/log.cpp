@@ -155,7 +155,6 @@ static inline void com1_puts(const char *str) {
 #define SE_XBOX_LOG_TO_DISK 1
 #endif
 
-
 static void xbox_append_log(const char *prefix, const std::string &msg) {
     if (!log_cs_inited) {
         InitializeCriticalSection(&log_cs);

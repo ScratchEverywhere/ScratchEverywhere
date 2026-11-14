@@ -68,10 +68,14 @@ SCRATCH_BLOCK_POSITIONAL_SPRITE_SS_V(sensing, of) {
     Value result(0);
 
     Sprite *spriteObject = nullptr;
-    for (Sprite *currentSprite : Scratch::sprites) {
-        if (!currentSprite->isClone && (currentSprite->name == object || (object == "_stage_" && currentSprite->isStage))) {
-            spriteObject = currentSprite;
-            break;
+    if (object == "_stage_") {
+        spriteObject = Scratch::stageSprite;
+    } else {
+        for (Sprite *currentSprite : Scratch::sprites) {
+            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == object) {
+                spriteObject = currentSprite;
+                break;
+            }
         }
     }
 
@@ -91,31 +95,26 @@ SCRATCH_BLOCK_POSITIONAL_SPRITE_SS_V(sensing, of) {
 
     if (spriteObject->isStage) {
         if (value == "background #" || value == "backdrop #") {
-            result = Value(spriteObject->currentCostume + 1);
+            return Value(spriteObject->currentCostume + 1);
         } else if (value == "backdrop name") {
-            result = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        } else {
-            for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) {
-                    setOutFromVar(variable);
-                    break;
-                }
-            }
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else if (value == "volume") {
+            return Value(static_cast<double>(spriteObject->volume));
         }
     } else {
-        if (value == "x position") result = Value(spriteObject->xPosition);
-        else if (value == "y position") result = Value(spriteObject->yPosition);
-        else if (value == "direction") result = Value(spriteObject->rotation);
-        else if (value == "costume #") result = Value(spriteObject->currentCostume + 1);
-        else if (value == "costume name" || value == "backdrop name") result = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else if (value == "size") result = Value(spriteObject->size);
-        else {
-            for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) {
-                    setOutFromVar(variable);
-                    break;
-                }
-            }
+        if (value == "x position") return Value(spriteObject->xPosition);
+        if (value == "y position") return Value(spriteObject->yPosition);
+        if (value == "direction") return Value(spriteObject->rotation);
+        if (value == "costume #") return Value(spriteObject->currentCostume + 1);
+        if (value == "costume name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        if (value == "size") return Value(spriteObject->size);
+        if (value == "volume") return Value(static_cast<double>(spriteObject->volume));
+    }
+
+    for (const auto &[id, variable] : spriteObject->variables) {
+        if (value == variable.name) {
+            setOutFromVar(variable);
+            break;
         }
     }
     return result;
@@ -154,6 +153,11 @@ SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     std::string distanceTo;
     if (!Scratch::getInputValueAs(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
 
+    if (sprite->isStage) {
+        *outValue = 10000;
+        return BlockResult::CONTINUE;
+    }
+
     if (distanceTo == "_mouse_") {
         const double dx = Input::mousePointer.x - sprite->xPosition;
         const double dy = Input::mousePointer.y - sprite->yPosition;
@@ -173,6 +177,8 @@ SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
 }
 SCRATCH_BLOCK_SIGNATURE(sensing, distanceto, {"DISTANCETOMENU", BytecodeStackKind::String});
 SCRATCH_BLOCK_POSITIONAL_SPRITE_S_N(sensing, distanceto) {
+    if (sprite->isStage) return 10000;
+
     if (str == "_mouse_") {
         const double dx = Input::mousePointer.x - sprite->xPosition;
         const double dy = Input::mousePointer.y - sprite->yPosition;
@@ -199,6 +205,7 @@ SCRATCH_BLOCK_SIGNATURE(sensing, dayssince2000);
 
 SCRATCH_BLOCK_DOUBLE(sensing, current) {
     std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
+    std::transform(inputValue.begin(), inputValue.end(), inputValue.begin(), ::toupper);
 
     if (inputValue == "YEAR") *outValue = TimeSE::getYear();
     else if (inputValue == "MONTH") *outValue = TimeSE::getMonth();
@@ -211,7 +218,8 @@ SCRATCH_BLOCK_DOUBLE(sensing, current) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(sensing, current) {
-    const std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
+    std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
+    std::transform(inputValue.begin(), inputValue.end(), inputValue.begin(), ::toupper);
 
     BytecodeIndex field;
     if (inputValue == "YEAR") field = 0;

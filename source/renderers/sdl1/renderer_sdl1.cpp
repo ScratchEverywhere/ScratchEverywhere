@@ -297,6 +297,20 @@ void Renderer_SDL1::penClear() {
     SDL_FillRect(penSurface, NULL, SDL_MapRGBA(penSurface->format, 0, 0, 0, 0));
 }
 
+bool Renderer_SDL1::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (penSurface == nullptr) return false;
+    const double scale = penSurface->h / static_cast<double>(Scratch::projectHeight);
+    const int px = static_cast<int>(std::floor(x * scale + penSurface->w / 2.0));
+    const int py = static_cast<int>(std::floor(-y * scale + penSurface->h / 2.0));
+    if (px < 0 || py < 0 || px >= penSurface->w || py >= penSurface->h) return false;
+
+    if (SDL_MUSTLOCK(penSurface)) SDL_LockSurface(penSurface);
+    const Uint32 pixel = *reinterpret_cast<const Uint32 *>(static_cast<const Uint8 *>(penSurface->pixels) + py * penSurface->pitch + px * 4);
+    if (SDL_MUSTLOCK(penSurface)) SDL_UnlockSurface(penSurface);
+    SDL_GetRGBA(pixel, penSurface->format, &r, &g, &b, &a);
+    return a != 0;
+}
+
 void Renderer_SDL1::cleanupPen() {
     if (penSurface != nullptr) {
         SDL_FreeSurface(penSurface);

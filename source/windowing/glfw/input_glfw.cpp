@@ -73,6 +73,7 @@ void InputDevice_GLFW::getInput() {
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = (int)coords.first;
     Input::mousePointer.y = (int)coords.second;
+    Input::clampMouseToStage();
 
     // Handle keyboard keys
     auto checkKey = [&](int glfwKey, std::string scratchName) {
@@ -216,7 +217,7 @@ std::string InputDevice_GLFW::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     g_inputText = "";
     g_inputActive = true;
@@ -255,7 +256,7 @@ std::string InputDevice_GLFW::openSoftwareKeyboard(const char *hintText) {
             text->setColor(Math::color(0, 0, 0, 170));
         } else {
             text->setText(g_inputText);
-            text->setColor(Math::color(0, 0, 0, 255));
+            text->setColor(Math::color(255, 255, 255, 255));
         }
 
         text->setScale(1.0f);

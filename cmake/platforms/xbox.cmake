@@ -349,6 +349,7 @@ macro(package_platform)
     target_link_options(scratch-everywhere PRIVATE 
         "-safeseh:no"                  # REQUIRED FOR BUNDLE
         "-include:_automount_d_drive"  # TODO: Do we even need D: anymore if automount is on?
+        "-stack:524288"                # 512 KB main thread stack reserve (prevents 64 KB default overflow)
     )
 
     find_program(CXBE_BIN cxbe PATHS "${NXDK_DIR}/bin" "${NXDK_DIR}/tools/cxbe" "$ENV{NXDK_DIR}/bin" "$ENV{NXDK_DIR}/tools/cxbe")

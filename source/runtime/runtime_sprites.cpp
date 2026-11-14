@@ -1,5 +1,5 @@
-#include "runtime.hpp"
 #include "collision.hpp"
+#include "runtime.hpp"
 #include <algorithm>
 #include <cmath>
 #include <input.hpp>
@@ -103,10 +103,9 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
+    if (Scratch::fencing) fenceSpriteWithinBounds(sprite, x, y);
     sprite->xPosition = x;
     sprite->yPosition = y;
-
-    if (Scratch::fencing) fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) {
         if (accuratePen) Render::penMoveAccurate(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
@@ -115,39 +114,36 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
     if (sprite->visible) Scratch::forceRedraw = true;
 }
 
-void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-    if (std::abs(sprite->xPosition) < Scratch::projectWidth * 0.3 && std::abs(sprite->yPosition) < Scratch::projectHeight * 0.3)
+void Scratch::fenceSpriteWithinBounds(Sprite *sprite, double &x, double &y) {
+    if (std::abs(x) < Scratch::projectWidth * 0.3 && std::abs(y) < Scratch::projectHeight * 0.3)
         return;
 
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
-    collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
-    constexpr float fenceWidth = 15.0f;
+    const collision::AABB bounds = collision::getFenceBounds(sprite);
+    constexpr double fenceWidth = 15.0;
 
-    const float width = spriteBounds.right - spriteBounds.left;
-    const float height = spriteBounds.top - spriteBounds.bottom;
-    const float inset = std::floor(std::min(width, height) * 0.5f);
+    const double width = bounds.right - bounds.left;
+    const double height = bounds.top - bounds.bottom;
+    const double inset = std::floor(std::min(width, height) * 0.5);
 
-    const float sx = (Scratch::projectWidth * 0.5f) - std::min(fenceWidth, inset);
-    const float sy = (Scratch::projectHeight * 0.5f) - std::min(fenceWidth, inset);
+    const double sx = (Scratch::projectWidth * 0.5) - std::min(fenceWidth, inset);
+    const double sy = (Scratch::projectHeight * 0.5) - std::min(fenceWidth, inset);
 
-    float x = sprite->xPosition;
-    float y = sprite->yPosition;
+    const double dx = x - sprite->xPosition;
+    const double dy = y - sprite->yPosition;
 
-    if (spriteBounds.right < -sx) {
-        x = std::ceil(sprite->xPosition - (sx + spriteBounds.right));
-    } else if (spriteBounds.left > sx) {
-        x = std::floor(sprite->xPosition + (sx - spriteBounds.left));
+    if (bounds.right + dx < -sx) {
+        x = std::ceil(sprite->xPosition - (sx + bounds.right));
+    } else if (bounds.left + dx > sx) {
+        x = std::floor(sprite->xPosition + (sx - bounds.left));
     }
 
-    if (spriteBounds.top < -sy) {
-        y = std::ceil(sprite->yPosition - (sy + spriteBounds.top));
-    } else if (spriteBounds.bottom > sy) {
-        y = std::floor(sprite->yPosition + (sy - spriteBounds.bottom));
+    if (bounds.top + dy < -sy) {
+        y = std::ceil(sprite->yPosition - (sy + bounds.top));
+    } else if (bounds.bottom + dy > sy) {
+        y = std::floor(sprite->yPosition + (sy - bounds.bottom));
     }
-
-    sprite->xPosition = x;
-    sprite->yPosition = y;
 }
 
 void Scratch::setDirection(Sprite *sprite, double direction) {

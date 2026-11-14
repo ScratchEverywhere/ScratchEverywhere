@@ -34,6 +34,7 @@ void ProjectSettingsMenu::info(UI::Builder &b, const std::string &text) {
 }
 
 void ProjectSettingsMenu::build(UI::Builder &b) {
+
 #ifdef __NDS__
     constexpr bool collisionDefault = false;
 #else
@@ -44,7 +45,6 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
 #else
     constexpr bool ramDefault = true;
 #endif
-
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
@@ -53,7 +53,8 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-        b.text({.text = "Project", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = "Project", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+
                   b.element({
                                 .flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
                                 .w = UI::Size::grow(),
@@ -63,44 +64,44 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                 .align = UI::AlignMode::Left,
                             },
                             [&] {
-            b.element({
-                          .flags = UI::Flag::Visible | UI::Flag::Focusable,
-                          .w = UI::Size::fit(),
-                          .h = UI::Size::fit(),
-                          .childDirection = UI::ChildDir::LeftRight,
-                          .childGap = 5,
-                          .padding = UI::Padding::all(10),
-                          .style = UI::StyleId::Button,
-                      },
-                      [&] {
-                          b.image({.imagePath = "gfx/menu/projects.svg"});
-                          b.text({
-                              .text = "Play!",
-                              .color = {255, 255, 255, 255},
-                              .align = UI::AlignMode::Center,
-                          });
-                      });
+                                b.element({
+                                              .flags = UI::Flag::Visible | UI::Flag::Focusable,
+                                              .w = UI::Size::fit(),
+                                              .h = UI::Size::fit(),
+                                              .childDirection = UI::ChildDir::LeftRight,
+                                              .childGap = 5,
+                                              .padding = UI::Padding::all(10),
+                                              .style = UI::StyleId::Button,
+                                          },
+                                          [&] {
+                                              b.image({.imagePath = "gfx/menu/projects.svg"});
+                                              b.text({
+                                                  .text = "Play!",
+                                                  .color = {255, 255, 255, 255},
+                                                  .align = UI::AlignMode::Center,
+                                              });
+                                          });
 
-            section(b, "Info");
+                                section(b, "Info");
 
-            info(b, projectPath);
-            info(b, "67.67 MB");
+                                info(b, projectPath);
+                                info(b, "67.67 MB");
 
-            section(b, "Project Settings");
-
+                                section(b, "Project Settings");
 #if defined(__3DS__) || defined(__NDS__)
-            toggle(b, "bottomScreen", "ui.settings.bottom", false);
+                                toggle(b, "bottomScreen", "ui.settings.bottom", false);
 #endif
-            toggle(b, "accuratePen", "ui.settings.penMode", true);
+                                toggle(b, "accuratePen", "ui.settings.penMode", true);
 
-            toggle(b, "accurateCollision", "ui.settings.collisionMode", collisionDefault);
+                                toggle(b, "accurateCollision", "ui.settings.collisionMode", collisionDefault);
 
-            toggle(b, "debugVars", "ui.settings.fps", false);
+                                toggle(b, "debugVars", "ui.settings.fps", false);
 
-            toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
+                                toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
 
-            toggle(b, "warpTimer", "ui.settings.warp", true);
+                                toggle(b, "warpTimer", "ui.settings.warp", true);
 
-            dropdown(b, "runtime", "ui.settings.runtime", getRuntimeBackends(), "interpreter");
-                            }); });
+                                dropdown(b, "runtime", "ui.settings.runtime", getRuntimeBackends(), "interpreter");
+                            });
+              });
 }

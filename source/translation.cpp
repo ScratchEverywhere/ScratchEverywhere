@@ -116,7 +116,10 @@ void TranslationManager::loadLanguage(std::string language) {
 const std::string TranslationManager::getTranslation(const std::string &translationKey) {
     for (const auto &keys : translationChain) {
         auto it = keys.find(translationKey);
-        if (it != keys.end() && it->is_string()) return it->get<std::string>();
+        if (it != keys.end() && it->is_string()) {
+            const std::string str = it->get<std::string>();
+            if (!str.empty()) return str;
+        }
     }
     return translationKey;
 }

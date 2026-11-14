@@ -5,6 +5,7 @@
 #include <image.hpp>
 #include <image_geometry.hpp>
 #include <log.hpp>
+#include <math.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <unordered_set>
@@ -14,17 +15,25 @@ namespace {
 void applyImageGeometry(Sprite *sprite, Costume &costume, Image &image) {
     sprite->spriteWidth = image.getWidth();
     sprite->spriteHeight = image.getHeight();
+    sprite->spriteWidthExact = image.getExactWidth();
+    sprite->spriteHeightExact = image.getExactHeight();
     const auto offset = image.getSVGViewOffset();
-    // Apply the difference, rather than accumulating offsets on cached loads,
-    // clone copies, or a retry after a temporary missing-image fallback.
-    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidth / 2);
-    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeight / 2);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterX, costume.imageViewOffsetX, offset.first, sprite->spriteWidthExact / 2.0);
+    ImageGeometry::updateRotationCenter(costume.rotationCenterY, costume.imageViewOffsetY, offset.second, sprite->spriteHeightExact / 2.0);
 }
-}
+} // namespace
+
+#ifdef __XBOX__
+static bool s_costumeCacheDirty = true;
+#endif
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
-    costumeIndex = std::round(costumeIndex);
+    costumeIndex = Math::jsRound(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+#ifdef __XBOX__
+    s_costumeCacheDirty = true;
+#endif
 
 #ifdef __XBOX__
     if (costumeImages.size() >= (sprites.size() + 2)) {
@@ -40,6 +49,9 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     Costume &costume = sprite->costumes[sprite->currentCostume];
     const std::string &costumeName = costume.fullName;
+
+    sprite->renderInfo.oldX = -999999.0f;
+    sprite->renderInfo.oldY = -999999.0f;
 
     const int screenWidth = Render::getWidth();
     const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
@@ -69,6 +81,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             costumeImages[costumeName] = missingIt->second;
             sprite->spriteWidth = missingIt->second->getWidth();
             sprite->spriteHeight = missingIt->second->getHeight();
+            sprite->spriteWidthExact = missingIt->second->getExactWidth();
+            sprite->spriteHeightExact = missingIt->second->getExactHeight();
         }
         return;
     }
@@ -111,6 +125,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
         sprite->spriteWidth = 0;
         sprite->spriteHeight = 0;
+        sprite->spriteWidthExact = 0.0f;
+        sprite->spriteHeightExact = 0.0f;
         return false;
     };
 
@@ -152,6 +168,9 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         applyImageGeometry(sprite, costume, *image);
 
         costumeImages[costumeName] = image;
+#ifdef __XBOX__
+        s_costumeCacheDirty = true;
+#endif
 #ifdef __XBOX__
         if (sprite->isStage) {
             image->freePixels();
@@ -196,6 +215,9 @@ void Scratch::flushCostumeImages() {
 }
 
 void Scratch::freeUnusedCostumeImages(const Image *keep) {
+#ifdef __XBOX__
+    if (!s_costumeCacheDirty && keep == nullptr) return;
+#endif
     std::unordered_set<std::string> activeCostumes;
     activeCostumes.reserve(sprites.size() + 1);
     activeCostumes.insert("SE__Missingno");
@@ -212,16 +234,6 @@ void Scratch::freeUnusedCostumeImages(const Image *keep) {
         }
     }
 
-#ifdef __XBOX__
-    for (Sprite *sprite : sprites) {
-        for (auto &costume : sprite->costumes) {
-            if (!activeCostumes.count(costume.fullName)) {
-                costume.collisionMask = nullptr;
-            }
-        }
-    }
-#endif
-
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
         if (id == "SE__Missingno") continue;
@@ -230,7 +242,23 @@ void Scratch::freeUnusedCostumeImages(const Image *keep) {
         }
     }
 
+#ifdef __XBOX__
+    if (!toDelete.empty()) {
+        std::unordered_set<std::string> deletingSet(toDelete.begin(), toDelete.end());
+        for (Sprite *sprite : sprites) {
+            for (auto &costume : sprite->costumes) {
+                if (deletingSet.count(costume.fullName)) {
+                    costume.collisionMask = nullptr;
+                }
+            }
+        }
+    }
+#endif
+
     for (const std::string &id : toDelete) {
         costumeImages.erase(id);
     }
+#ifdef __XBOX__
+    s_costumeCacheDirty = false;
+#endif
 }

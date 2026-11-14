@@ -190,7 +190,8 @@ void TextObject::cleanupText() {
 
 static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
 #ifdef USE_BUNDLE
-    auto entry = Bundle::assets().find(fullPath);
+    const auto assets = Bundle::assets();
+    auto entry = assets.find(fullPath);
     if (!entry) {
         Log::logError("Failed to open font file: " + fullPath);
         return {};

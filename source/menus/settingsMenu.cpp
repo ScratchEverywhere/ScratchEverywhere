@@ -1,5 +1,5 @@
 #include "settingsMenu.hpp"
-// #include "discord.hpp"
+#include "discord.hpp"
 #include "menuManager.hpp"
 #include "os.hpp"
 #include "renderer.hpp"

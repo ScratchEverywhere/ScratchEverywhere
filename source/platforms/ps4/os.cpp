@@ -50,7 +50,7 @@ std::string OS::getRomFSLocation() {
 #ifdef USE_BUNDLE
     return "";
 #endif
-    return "/app0/";
+    return "/app0/romfs/";
 }
 
 bool OS::isOnline() {
