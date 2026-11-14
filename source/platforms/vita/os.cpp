@@ -49,28 +49,49 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
+    // TODO: Add an actual way to check if online
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+    return true;
+#endif
     return false;
 }
 
+static void *netMemory = nullptr;
+static bool networkUp = false;
+
 bool OS::initWifi() {
+    if (networkUp) return true;
+
     Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
     sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
 
     Log::log("[Vita] Running sceNetInit");
     SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
+    int size = 1 * 1024 * 1024;
+    netMemory = malloc(size);
+    if (netMemory == nullptr) return false;
+    netInitParam.memory = netMemory;
     netInitParam.size = size;
     netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
+    if (sceNetInit(&netInitParam) < 0) {
+        free(netMemory);
+        netMemory = nullptr;
+        return false;
+    }
 
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
+    networkUp = true;
     return true;
 }
 
 void OS::deInitWifi() {
-    // TODO: implement
+    if (!networkUp) return;
+    sceNetCtlTerm();
+    sceNetTerm();
+    free(netMemory);
+    netMemory = nullptr;
+    networkUp = false;
 }
 
 std::string OS::getUsername() {

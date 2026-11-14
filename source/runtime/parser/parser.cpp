@@ -28,7 +28,8 @@
 
 #ifdef ENABLE_CLOUDVARS
 #include <ctime>
-#include <mist/mist.hpp>
+#include <net/cloud.hpp>
+#include <version_config.h>
 #include <random>
 #include <sstream>
 
@@ -38,15 +39,15 @@ const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
 std::string Scratch::cloudUsername;
 bool Scratch::cloudProject = false;
 
-std::unique_ptr<MistConnection> cloudConnection = nullptr;
+std::unique_ptr<CloudProvider> cloudConnection = nullptr;
 #endif
 
 #ifdef ENABLE_CLOUDVARS
-void Parser::initMist() {
-    Log::log("initMist: Starting cloud variable initialization");
+void Parser::initCloud() {
+    Log::log("initCloud: Starting cloud variable initialization");
 
     if (!OS::initWifi()) {
-        Log::logWarning("initMist: Network initialization failed, cannot connect to cloud variables.");
+        Log::logWarning("initCloud: Network initialization failed, cannot connect to cloud variables.");
         return;
     }
 
@@ -54,7 +55,7 @@ void Parser::initMist() {
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
-        Log::log("initMist: Generating new cloud username");
+        Log::log("initCloud: Generating new cloud username");
         std::random_device rd;
         std::ostringstream usernameStream;
         usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
@@ -64,15 +65,15 @@ void Parser::initMist() {
         if (usernameFile.good()) {
             usernameFile << Scratch::cloudUsername;
             usernameFile.close();
-            Log::log("initMist: Saved username to " + usernameFilename);
+            Log::log("initCloud: Saved username to " + usernameFilename);
         } else {
-            Log::logWarning("initMist: Failed to open " + usernameFilename + " for writing");
+            Log::logWarning("initCloud: Failed to open " + usernameFilename + " for writing");
         }
     } else {
         fileStream >> Scratch::cloudUsername;
     }
     fileStream.close();
-    Log::log("initMist: Cloud username is: " + Scratch::cloudUsername);
+    Log::log("initCloud: Cloud username is: " + Scratch::cloudUsername);
 
     std::vector<std::string> assetIds;
     for (const auto &sprite : Scratch::sprites) {
@@ -96,49 +97,25 @@ void Parser::initMist() {
     projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
     const std::string cloudURL = SettingsManager::getConfigSettings().value("CloudVariableServer", "wss://clouddata.turbowarp.org/");
 
-    Log::log("initMist: Creating MistConnection with URL " + cloudURL + " and project ID " + projectID.str());
-    cloudConnection = std::make_unique<MistConnection>(cloudURL, projectID.str(), Scratch::cloudUsername, "contact@grady.link");
-
-#ifdef __XBOX__
-    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
-        if (connected) {
-            Log::log("initMist: Mist++: " + message);
-            return;
-        }
-        Log::logWarning("initMist: Mist++ Disconnected: " + message);
-    });
-#else
-    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
-        if (connected) {
-            Log::log("initMist: Mist++ Connected: " + message);
-            return;
-        }
-        Log::logWarning("initMist: Mist++ Disconnected: " + message);
-    });
-#endif
-
-#ifdef __XBOX__
+    Log::log("initCloud: Creating CloudProvider with URL " + cloudURL + " and project ID " + projectID.str());
+    cloudConnection = std::make_unique<CloudProvider>(cloudURL, projectID.str(), Scratch::cloudUsername, "ScratchEverywhere/" SE_VERSION_STRING " contact@grady.link");
     cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
-        Log::log("initMist: Variable update received: " + name + " = " + value);
+        Log::log("initCloud: Variable update received: " + name + " = " + value);
         BlockExecutor::handleCloudVariableChange(name, value);
     });
-#else
-    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
-#endif
 
-    Log::log("initMist: Connecting to cloud variables with id: " + projectID.str());
-#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
-    bool connectSuccess = cloudConnection->connect();
-#else
-    bool connectSuccess = cloudConnection->connect(false);
-#endif
-    Log::log(std::string("initMist: cloudConnection->connect() returned ") + (connectSuccess ? "true" : "false"));
+    Log::log("initCloud: Connecting to cloud variables with id: " + projectID.str());
+    cloudConnection->start();
 }
 
-void Parser::cleanupMist() {
+void Parser::updateCloud() {
+    if (cloudConnection) cloudConnection->drainUpdates();
+}
+
+void Parser::cleanupCloud() {
     if (cloudConnection) {
-        Log::log("cleanupMist: Disconnecting and cleaning up MistConnection");
-        cloudConnection->disconnect();
+        Log::log("cleanupCloud: Disconnecting and cleaning up CloudProvider");
+        cloudConnection->stop();
         cloudConnection.reset();
     }
     Scratch::cloudProject = false;

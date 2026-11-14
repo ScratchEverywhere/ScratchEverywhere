@@ -7,9 +7,9 @@
 #include <variant>
 
 #ifdef ENABLE_CLOUDVARS
-#include <mist/mist.hpp>
+#include <net/cloud.hpp>
 
-extern std::unique_ptr<MistConnection> cloudConnection;
+extern std::unique_ptr<CloudProvider> cloudConnection;
 #endif
 
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
@@ -28,6 +28,9 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
             }
         },
                    var.value);
+#ifdef ENABLE_CLOUDVARS
+        if (var.cloud && cloudConnection) cloudConnection->updateVariable(var.name, getVariableValueAs<std::string>(&var));
+#endif
     };
 
     // Set sprite variable
@@ -43,13 +46,6 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
     auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
         assignToVar(globalIt->second);
-#ifdef ENABLE_CLOUDVARS
-        if (globalIt->second.cloud) {
-            if (cloudConnection) {
-                cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
-            }
-        }
-#endif
         return;
     }
 
@@ -195,7 +191,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
     if (!Scratch::stageSprite) return;
     for (auto it = Scratch::stageSprite->variables.begin(); it != Scratch::stageSprite->variables.end(); ++it) {
-        if (it->second.name != name) continue;
+        if (it->second.name != name || !it->second.cloud) continue;
         it->second.value = Value(value);
         return;
     }

@@ -14,8 +14,10 @@ set(SE_DECTALK_DEFAULT ON)
 set(SE_CACHING_DEFAULT ON)
 set(SE_BUNDLE_DEFAULT ON) # DO NOT TOUCH; Xbox relies on using bundle entirely.
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS OFF) # TODO: Revisit cloud vars once Mist++ is integrated into SE!
+set(SE_ALLOW_CLOUDVARS ON)
 set(SE_ALLOW_DOWNLOAD ON)
+set(SE_TLS_BACKEND_VALID_OPTIONS "mbedtls")
+set(SE_TLS_BACKEND_PRIORITY "mbedtls")
 
 set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
@@ -207,21 +209,10 @@ include_directories(
     ${NXDK_DIR}/lib/net/nvnetdrv
 )
 
-# HACK: Force CMake's internal system probes to see the NXDK network stack
-# This should help libcurl detect sockets, recv, send, and struct sizes
-list(APPEND CMAKE_REQUIRED_INCLUDES
-    ${NXDK_DIR}/lib/net/lwip/src/include
-    ${NXDK_DIR}/lib/net/lwip/src/include/posix
-    ${NXDK_DIR}/lib/net/nforceif/include
-    ${NXDK_DIR}/lib/net/nvnetdrv
-)
+set(HAVE_ARPA_INET_H 1 CACHE INTERNAL "Forced for NXDK")
+set(HAVE_NETINET_IN_H 1 CACHE INTERNAL "Forced for NXDK")
 
-set(CMAKE_REQUIRED_FLAGS "-D__XBOX__ -DUSE_LWIPSOCK")
-
-# HACK: A few manual overrides
-set(CURL_SIZEOF_CURL_SOCKET_T 4 CACHE INTERNAL "Forced size for NXDK")
-set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced size for NXDK")
-set(HAVE_POSIX_STRERROR_R 1 CACHE INTERNAL "Forced for NXDK")
+add_compile_options(-Wno-error -Wno-pedantic)
 
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
@@ -260,7 +251,6 @@ add_compile_options(
     # Aligning loops and functions to the CPU's cache line boundary
     -falign-functions=16
     -falign-loops=16
-    -falign-jumps=16
 )
 
 # These will run with -O3 optimizations.
@@ -292,41 +282,6 @@ list(REMOVE_ITEM SE_BASIC_OPTIMIZE_SOURCES ${SE_MAX_OPTIMIZE_SOURCES} ${SE_OPTIM
 set_source_files_properties(${SE_MAX_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O3")
 set_source_files_properties(${SE_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
 set_source_files_properties(${SE_BASIC_OPTIMIZE_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1")
-
-# HACK: Force CMake to skip failing network checks for libcurl on Xbox
-set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SOCKET 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_RECV 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SEND 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SELECT 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_GETADDRINFO 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_FREEADDRINFO 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_STRUCT_SOCKADDR_STORAGE 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_GETPEERNAME 1 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_GETSOCKNAME 1 CACHE INTERNAL "Forced for NXDK")
-
-# HACK: Force type size checks to bypass CMake's failing test compilations
-set(HAVE_SIZEOF_SSIZE_T 1 CACHE INTERNAL "Forced for NXDK")
-set(SIZEOF_SSIZE_T 4 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SIZEOF_TIME_T 1 CACHE INTERNAL "Forced for NXDK")
-set(SIZEOF_TIME_T 4 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SIZEOF_SUSECONDS_T 0 CACHE INTERNAL "Forced for NXDK")
-unset(SIZEOF_SUSECONDS_T CACHE)
-set(HAVE_SIZEOF_OFF_T 1 CACHE INTERNAL "Forced for NXDK")
-set(SIZEOF_OFF_T 4 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SIZEOF_SA_FAMILY_T 1 CACHE INTERNAL "Forced for NXDK")
-set(SIZEOF_SA_FAMILY_T 2 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_SIZEOF_STRUCT_SOCKADDR_STORAGE 1 CACHE INTERNAL "Forced for NXDK")
-set(SIZEOF_STRUCT_SOCKADDR_STORAGE 128 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_CURL_SIZEOF_CURL_SOCKET_T 1 CACHE INTERNAL "Forced for NXDK")
-set(CURL_SIZEOF_CURL_SOCKET_T 4 CACHE INTERNAL "Forced for NXDK")
-set(HAVE_CURL_SIZEOF_CURL_OFF_T 1 CACHE INTERNAL "Forced for NXDK")
-set(CURL_SIZEOF_CURL_OFF_T 8 CACHE INTERNAL "Forced for NXDK")
-
-# FIXME: Force mistpp to resolve via source on Xbox and apply the compatibility patch;
-# remove when mistpp gets updated to support this target without patches
-#set(CL_mistpp_STAGES source)
-#set(CL_mistpp_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/mistpp.patch")
 
 macro(package_platform)
     if(SE_XBOX_DEBUG_SYMBOLS)

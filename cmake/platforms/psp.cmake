@@ -8,8 +8,10 @@ set(SE_CACHING_DEFAULT OFF)
 set(SE_BUNDLE_DEFAULT OFF)
 
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS OFF)
-set(SE_ALLOW_DOWNLOAD OFF)
+set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_DOWNLOAD ON)
+set(SE_TLS_BACKEND_VALID_OPTIONS "mbedtls")
+set(SE_TLS_BACKEND_PRIORITY "mbedtls")
 
 set(SE_HAS_THREADS ON)
 
@@ -21,6 +23,7 @@ set(SE_HAS_CONTROLLER TRUE)
 set(SE_PLATFORM "psp")
 
 macro(package_platform)
+    target_link_libraries(se-interface INTERFACE pspnet_apctl pspnet_inet pspnet_resolver pspnet psputility)
     create_pbp_file(
         TARGET scratch-everywhere
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png

@@ -31,7 +31,7 @@
 void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
-    if (cloudProject) Parser::initMist();
+    if (cloudProject) Parser::initCloud();
 #endif
     Scratch::nextProject = false;
 
@@ -101,6 +101,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
     if (!forceRedraw || checkFPS) {
         forceRedraw = false;
+
+#ifdef ENABLE_CLOUDVARS
+        Parser::updateCloud();
+#endif
 
         float currentFPS;
         if (debugVars) {

@@ -1,5 +1,6 @@
 #include <fat.h>
 #include <gccore.h>
+#include <network.h>
 #include <ogc/conf.h>
 #include <os.hpp>
 
@@ -49,14 +50,30 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
+    // TODO: Add an actual way to check if online
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+    return true;
+#endif
     return false;
 }
 
+static bool networkUp = false;
+
 bool OS::initWifi() {
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+    if (networkUp) return true;
+    if (net_init() < 0) return false;
+    networkUp = true;
+    return true;
+#else
     return false;
+#endif
 }
 
 void OS::deInitWifi() {
+    if (!networkUp) return;
+    net_deinit();
+    networkUp = false;
 }
 
 std::string OS::getUsername() {

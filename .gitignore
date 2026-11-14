@@ -72,6 +72,8 @@ main.code-workspace
 *.ipk
 *.nds
 *.pkg
+*.iso
+*.xbe
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
