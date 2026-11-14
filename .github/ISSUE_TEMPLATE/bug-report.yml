@@ -51,6 +51,7 @@ body:
               - PS4
               - Libretro
               - Original Xbox
+              - V.Flash
     - type: textarea
       id: additional-context
       attributes:

@@ -1,0 +1,54 @@
+name: V.Flash CI
+
+on:
+  push:
+    paths:
+      - CMakeLists.txt
+      - cmake/platforms/vflash.cmake
+      - cmake/renderers/vflash.cmake
+      - cmake/audio/vflash.cmake
+      - cmake/windowing/sdl2.cmake
+      - cmake/deps/*
+      - source/runtime/**
+      - source/platforms/
+      - source/platforms/vflash/**
+      - source/renderers/vflash/**
+      - source/windowing/sdl2/**
+      - source/audio/vflash/**
+      - source/*
+      - source/menus/**
+      - gfx/**
+      - include/**
+      - .github/workflows/ci-vflash.yml
+      - docker/Dockerfile.vflash
+      - source/main.cpp
+    branches:
+      - main
+      - feat/vflash
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Create `romfs` directory
+        run: mkdir -p romfs
+      - name: Build V.Flash Target
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.vflash
+          target: exporter
+          outputs: type=local,dest=build-vflash-ci
+      - name: Verify Build Outputs
+        run: |
+          test -s build-vflash-ci/scratch-vflash.elf
+          test -s build-vflash-ci/BOOT.BIN
+          test -s build-vflash-ci/homebrew.iso
+          test -s build-vflash-ci/homebrew.bin
+          test -s build-vflash-ci/homebrew.cue
