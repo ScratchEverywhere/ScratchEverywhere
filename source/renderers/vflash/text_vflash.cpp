@@ -5,11 +5,6 @@
 #include <renderer_vflash.hpp>
 #include <vector>
 
-#ifdef SE_VFLASH_TELEMETRY
-#include <vflash/clock.h>
-extern uint32_t g_se_vflash_upload_ticks;
-extern uint32_t g_se_vflash_upload_count;
-#endif
 
 TextObjectVFlash::TextObjectVFlash(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
@@ -48,14 +43,7 @@ void TextObjectVFlash::uploadAtlas(FontGeneration &gen) {
     }
 
     if (tex) {
-#ifdef SE_VFLASH_TELEMETRY
-        uint32_t ut0 = vflash_clock_ticks();
-#endif
         SDL_UpdateTexture(tex, nullptr, rgba.data(), gen.atlasWidth * 4);
-#ifdef SE_VFLASH_TELEMETRY
-        g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
-        g_se_vflash_upload_count++;
-#endif
     }
 
     gen.destroyBackendHandle = [](void *handle) {

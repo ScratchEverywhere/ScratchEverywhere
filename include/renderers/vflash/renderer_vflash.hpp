@@ -12,13 +12,6 @@ class SE_EXPORT Renderer_VFlash : public Renderer {
     std::string activeStageBackdropId;
     uint32_t activeStageBackdropVersion = 0;
     void setLoadingStageBackdrop(bool loading) override { loadingStageBackdrop = loading; }
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t prevGpuLists = 0;
-    uint32_t prevGpuSubmitTicks = 0;
-    uint32_t prevGpuWaitTicks = 0;
-    bool getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) override;
-    bool getPerfTelemetry(VFlashPerfTelemetry &out) override;
-#endif
 
     Renderer_VFlash();
     ~Renderer_VFlash() override;

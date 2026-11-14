@@ -7,11 +7,6 @@
 #include <stdexcept>
 #include <string>
 
-#ifdef SE_VFLASH_TELEMETRY
-#include <vflash/clock.h>
-extern uint32_t g_se_vflash_upload_ticks;
-extern uint32_t g_se_vflash_upload_count;
-#endif
 
 void Image_VFlash::render(ImageRenderParams &params) {
     renderWithTexture(params, texture);
@@ -228,16 +223,9 @@ nonstd::expected<void, std::string> Image_VFlash::setInitialTexture() {
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
 #ifndef __PS4__
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t ut0 = vflash_clock_ticks();
-#endif
     if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
         return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
-#ifdef SE_VFLASH_TELEMETRY
-    g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
-    g_se_vflash_upload_count++;
-#endif
 #endif
 
     discardColorData();
@@ -299,9 +287,6 @@ bool Image_VFlash::uploadToTexture(SDL_Texture *dstTex) {
         ensureColorData();
     }
     if (!imgData.pixels) return false;
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t ut0 = vflash_clock_ticks();
-#endif
     int uploadW = std::min(imgData.width, 240);
     int uploadH = std::min(imgData.height, 180);
     bool ok = false;
@@ -316,9 +301,5 @@ bool Image_VFlash::uploadToTexture(SDL_Texture *dstTex) {
         }
         ok = (SDL_UpdateTexture(dstTex, nullptr, stageUploadBuf.data(), 240 * 4) == 0);
     }
-#ifdef SE_VFLASH_TELEMETRY
-    g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
-    if (ok) g_se_vflash_upload_count++;
-#endif
     return ok;
 }

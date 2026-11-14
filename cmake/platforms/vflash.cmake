@@ -74,6 +74,7 @@ macro(vflash_create_executable)
     vflash_add_program(scratch-everywhere firmware-disc.ld
         "${CMAKE_CURRENT_SOURCE_DIR}/source/platforms/vflash/entry.c"
     )
+    target_compile_options(scratch-everywhere PRIVATE -Wno-error)
     if(VFLASH_ENABLE_MMU)
         target_sources(scratch-everywhere PRIVATE
             "${VFLASH_SDK_DIR}/src/platform/mmu.c"

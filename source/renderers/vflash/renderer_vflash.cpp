@@ -16,47 +16,6 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef SE_VFLASH_TELEMETRY
-#include <SDL_vflash.h>
-#include <vflash/clock.h>
-uint32_t g_se_vflash_upload_ticks = 0;
-uint32_t g_se_vflash_upload_count = 0;
-uint32_t g_se_vflash_render_ticks = 0;
-uint32_t g_se_vflash_present_ticks = 0;
-uint32_t g_se_vflash_pace_ticks = 0;
-
-bool Renderer_VFlash::getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) {
-    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
-    vflash_atlas_stats_t st;
-    if (!nr || vflash_renderer_get_atlas_stats(nr, &st) != VFLASH_GPU_OK) return false;
-    totalTexels = st.total_texels;
-    usedTexels = st.total_texels - st.free_texels;
-    liveCount = st.live_count;
-    failCount = st.fail_frag + st.fail_oom + st.fail_meta;
-    return true;
-}
-
-bool Renderer_VFlash::getPerfTelemetry(VFlashPerfTelemetry &out) {
-    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
-    vflash_renderer_perf_stats_t ps;
-    if (!nr || vflash_renderer_get_perf_stats(nr, &ps) != VFLASH_GPU_OK) return false;
-    out.presentCalls = ps.present_calls;
-    out.waitIdleTicks = ps.wait_idle_ticks;
-    out.presentViewTicks = ps.present_view_ticks;
-    out.syncCount = ps.sync_count;
-    out.syncTiles = ps.sync_tiles;
-    out.syncBytes = ps.sync_bytes;
-    out.syncTicks = ps.sync_ticks;
-    out.gpuLists = ps.gpu_lists - prevGpuLists;
-    out.gpuSubmitTicks = ps.gpu_submit_ticks - prevGpuSubmitTicks;
-    out.gpuWaitTicks = ps.gpu_wait_ticks - prevGpuWaitTicks;
-    prevGpuLists = ps.gpu_lists;
-    prevGpuSubmitTicks = ps.gpu_submit_ticks;
-    prevGpuWaitTicks = ps.gpu_wait_ticks;
-    vflash_renderer_reset_perf_stats(nr);
-    return true;
-}
-#endif
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -607,18 +566,8 @@ void Renderer_VFlash::beginFrame(int screen, int colorR, int colorG, int colorB)
 }
 
 void Renderer_VFlash::endFrame(bool shouldFlush) {
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t t0 = vflash_clock_ticks();
-    SDL_RenderPresent(Sdlrenderer);
-    uint32_t t1 = vflash_clock_ticks();
-    SDL_Delay(16);
-    uint32_t t2 = vflash_clock_ticks();
-    g_se_vflash_present_ticks += (uint16_t)(t1 - t0);
-    g_se_vflash_pace_ticks += (uint16_t)(t2 - t1);
-#else
     SDL_RenderPresent(Sdlrenderer);
     SDL_Delay(16);
-#endif
     hasFrameBegan = false;
 }
 
@@ -668,9 +617,6 @@ void Renderer_VFlash::drawRoundedBox(int w, int h, int x, int y, int radius, uin
 }
 
 void Renderer_VFlash::renderSprites() {
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t rt0 = vflash_clock_ticks();
-#endif
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
 
@@ -758,15 +704,7 @@ void Renderer_VFlash::renderSprites() {
     }
 #endif
 
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t rt1 = vflash_clock_ticks();
     SDL_RenderPresent(Sdlrenderer);
-    uint32_t rt2 = vflash_clock_ticks();
-    g_se_vflash_render_ticks += (uint16_t)(rt1 - rt0);
-    g_se_vflash_present_ticks += (uint16_t)(rt2 - rt1);
-#else
-    SDL_RenderPresent(Sdlrenderer);
-#endif
 }
 
 void Renderer_VFlash::renderPenLayer() {
