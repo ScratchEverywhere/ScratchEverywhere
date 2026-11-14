@@ -53,7 +53,7 @@ class SE_EXPORT SoundConfig {
 class SE_EXPORT SoundStream {
     friend class Mixer;
 
-#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
+#if !defined(__NDS__) && !defined(__VFLASH__)
     std::atomic<unsigned int> activeMixers{0};
 #else
     volatile unsigned int activeMixers = 0;
@@ -92,7 +92,7 @@ class SE_EXPORT SoundStream {
     SoundConfig config;
     AudioResampler resampler;
 
-#if (!defined(__NDS__) && !defined(__VFLASH__)) && !defined(__VFLASH__)
+#if !defined(__NDS__) && !defined(__VFLASH__)
     std::atomic<bool> paused{false};
     std::atomic<bool> auto_clean{false};
 #else
