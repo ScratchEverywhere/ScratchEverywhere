@@ -28,6 +28,14 @@ SE_EXPORT bool enabled();
 
 SE_EXPORT void compile(const BytecodeChunk &chunk, const BytecodeLinkTable &link);
 
+SE_EXPORT bool tierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeIndex head);
+
+SE_EXPORT void requestTierUp(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeIndex head);
+SE_EXPORT long tierUpPolls();
+
+SE_EXPORT void installFinished();
+SE_EXPORT void shutdownBackground();
+
 SE_EXPORT Result run(const BytecodeChunk &chunk, BytecodeThread &thread, uint32_t entryId, Timer &sliceTimer, bool &sliceTimerStarted);
 
 } // namespace BytecodeJit

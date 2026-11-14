@@ -5,6 +5,7 @@
 #include "blockExecutor.hpp"
 #include "bytecode.hpp"
 #include "conversions.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "runtime.hpp"
@@ -18,7 +19,6 @@
 #include <cstring>
 #include <log.hpp>
 #include <memory>
-#include <sljitLir.h>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -63,11 +63,11 @@ const ListLayout &listLayout() {
     static const ListLayout layout = [] {
         ListLayout l;
         const Value::Layout v = Value::layout();
-        l.items = static_cast<sljit_sw>(offsetof(List, items));
-        l.valueSize = static_cast<sljit_sw>(v.size);
-        l.tag = static_cast<sljit_sw>(v.tag);
-        l.flags = static_cast<sljit_sw>(v.flags);
-        l.number = static_cast<sljit_sw>(v.number);
+        l.items = static_cast<BytecodeJitLir::Word>(offsetof(List, items));
+        l.valueSize = static_cast<BytecodeJitLir::Word>(v.size);
+        l.tag = static_cast<BytecodeJitLir::Word>(v.tag);
+        l.flags = static_cast<BytecodeJitLir::Word>(v.flags);
+        l.number = static_cast<BytecodeJitLir::Word>(v.number);
         l.numberTag = v.numberTag;
         l.stringTag = v.stringTag;
         l.booleanTag = v.booleanTag;
@@ -100,13 +100,48 @@ const ListLayout &listLayout() {
 
 Value typedNumberValue(double number) { return Value::stringTypedNumber(number); }
 
+const Value *untouchedTextValue(Context *ctx, uint32_t k) {
+    const Variable *var = variableAt(*ctx->thread, ctx->code->promoted[k]);
+    if (var == nullptr) return nullptr;
+    const auto *text = std::get_if<std::shared_ptr<const std::string>>(&var->value);
+    if (text == nullptr) return nullptr;
+    if (untouchedText[k] != *text) {
+        untouchedText[k] = *text;
+        untouchedValue[k] = Value(*text);
+    }
+    return &untouchedValue[k];
+}
+
 Value materializeVariableSlow(Context *ctx, uint32_t k) {
     const Code &code = *ctx->code;
     const int64_t kind = ctx->dirty[k];
-    if (kind == 0) return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
+    if (kind == 0) {
+        if (ctx->numericTagged[k] == 1) return typedNumberValue(ctx->slots[code.slotVariables + k]);
+        if (const Value *text = untouchedTextValue(ctx, k)) return *text;
+        return BlockExecutor::getVariableValueAs<Value>(variableAt(*ctx->thread, code.promoted[k]));
+    }
     if (kind == 3) return shadowValues[k];
     if (kind == 4) return Value(stringVariables[k]);
     return ctx->chunk->constants[kind - 5];
+}
+
+void LIR_FUNC jitPushColorConst(Context *ctx, BytecodeJitLir::Word index) {
+    ctx->thread->colorStack.push_back(ctx->chunk->colorConstants[index]);
+}
+
+void LIR_FUNC jitPushColorVariable(Context *ctx, BytecodeJitLir::Word variable) {
+    ctx->thread->colorStack.push_back(BlockExecutor::getVariableValueAs<Color>(variableAt(*ctx->thread, static_cast<uint32_t>(variable))));
+}
+
+void LIR_FUNC jitPushColorPromoted(Context *ctx, BytecodeJitLir::Word k) {
+    ctx->thread->colorStack.push_back(materializeVariable(ctx, static_cast<uint32_t>(k)).asColor());
+}
+
+void LIR_FUNC jitCallColorVoid(Context *ctx, void (*fn)(Sprite *, Color)) {
+    BytecodeThread &thread = *ctx->thread;
+    const Color color = thread.colorStack.back();
+    thread.colorStack.pop_back();
+    fn(static_cast<Sprite *>(ctx->sprite), color);
 }
 
 Value materializeEntrySlow(Context *ctx, const ValueEntry &entry, uint32_t position) {
@@ -189,7 +224,7 @@ void loadFrame(Context *ctx, const EntryDescriptor &entry) {
     ctx->warp = thread.withoutScreenRefresh ? 1 : 0;
 }
 
-sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
+BytecodeJitLir::Word LIR_FUNC jitEnter(Context *ctx, BytecodeJitLir::Word entryId) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
     const EntryDescriptor &entry = code.entries[entryId];
@@ -215,6 +250,13 @@ sljit_sw SLJIT_FUNC jitEnter(Context *ctx, sljit_sw entryId) {
             continue;
         }
         ctx->slots[code.slotVariables + k] = number;
+        if (var != nullptr && var->value.index() == 2) {
+            double text;
+            if (const Value *value = untouchedTextValue(ctx, k); value != nullptr && value->plainNumber(text) && text == text) {
+                ctx->slots[code.slotVariables + k] = text;
+                ctx->numericTagged[k] = 2;
+            }
+        }
         if (var != nullptr && (var->value.index() == 1 || (var->value.index() == 0 && std::get<Value>(var->value).isDouble()))) {
             ctx->numericTagged[k] = 1;
             if (var->value.index() == 1 || std::get<Value>(var->value).isRealNumber()) {
@@ -327,15 +369,33 @@ void materializeLazyFrames(Context *ctx) {
     refreshDepthLimit(ctx);
 }
 
-sljit_sw SLJIT_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
-    materializeLazyFrames(ctx);
-    syncStacks(ctx, exit);
-    commitVariables(ctx);
-    ctx->thread->pc = exit->pc;
-    return static_cast<sljit_sw>(exit->result);
+void materializeInlineFrames(Context *ctx, const ExitDescriptor *exit) {
+    if (exit->frames.empty()) return;
+    BytecodeThread &thread = *ctx->thread;
+    bool previousWarp = ctx->warp != 0;
+    for (const InlineFrame &inlined : exit->frames) {
+        BytecodeCallFrame &real = thread.callStack.emplace_back();
+        real.procedureIndex = inlined.procedure;
+        real.returnInstruction = inlined.callPc + 1;
+        real.stackBase = ctx->valueBase + inlined.valueStart;
+        real.argCount = inlined.argCount;
+        real.wantsValue = inlined.wantsValue;
+        real.previousWarp = previousWarp;
+        previousWarp = true;
+    }
+    thread.withoutScreenRefresh = true;
 }
 
-sljit_sw SLJIT_FUNC jitLeave(Context *ctx, sljit_sw result) {
+BytecodeJitLir::Word LIR_FUNC jitExit(Context *ctx, const ExitDescriptor *exit) {
+    materializeLazyFrames(ctx);
+    syncStacks(ctx, exit);
+    materializeInlineFrames(ctx, exit);
+    commitVariables(ctx);
+    ctx->thread->pc = exit->pc;
+    return static_cast<BytecodeJitLir::Word>(exit->result);
+}
+
+BytecodeJitLir::Word LIR_FUNC jitLeave(Context *ctx, BytecodeJitLir::Word result) {
     commitVariables(ctx);
     return result;
 }
@@ -485,7 +545,7 @@ bool lazyCall(Context *ctx, const CallDescriptor *call) {
     return true;
 }
 
-sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
+BytecodeJitLir::Word LIR_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
@@ -496,7 +556,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
 
     if (thread.callStack.size() >= MAX_CALL_DEPTH) {
         thread.pc = call->callPc + 1;
-        return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Interpret);
+        return 1 + static_cast<BytecodeJitLir::Word>(BytecodeJit::Result::Interpret);
     }
 
     const BytecodeProcedure &proc = ctx->chunk->procedures[call->procedure];
@@ -505,7 +565,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
         if (bytecodeIsRecursiveCall(*ctx->chunk, thread.callStack, call->procedure, call->callPc)) {
             thread.pendingRecursiveCallPc = call->callPc;
             thread.pc = call->callPc;
-            return 1 + static_cast<sljit_sw>(BytecodeJit::Result::Yield);
+            return 1 + static_cast<BytecodeJitLir::Word>(BytecodeJit::Result::Yield);
         }
     }
     thread.pendingRecursiveCallPc = invalidBytecodeIndex;
@@ -528,7 +588,7 @@ sljit_sw SLJIT_FUNC jitCall(Context *ctx, const CallDescriptor *call) {
     return 0;
 }
 
-sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
+BytecodeJitLir::Word lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
     const ExitDescriptor *state = ret->state;
@@ -596,7 +656,7 @@ sljit_sw lazyReturn(Context *ctx, const ReturnDescriptor *ret) {
     return entryId;
 }
 
-sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
+BytecodeJitLir::Word LIR_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     BytecodeThread &thread = *ctx->thread;
     const Code &code = *ctx->code;
 
@@ -634,17 +694,59 @@ sljit_sw SLJIT_FUNC jitReturn(Context *ctx, const ReturnDescriptor *ret) {
     return entry;
 }
 
-void SLJIT_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
+void LIR_FUNC jitCallValueVoid(Context *ctx, const ValueCallDescriptor *call) {
     const Value value = materializeEntry(ctx, call->item, call->itemPosition);
     call->fn(static_cast<Sprite *>(ctx->sprite), value);
 }
 
-double SLJIT_FUNC jitRepeatRemaining(double counter) {
+BytecodeJitLir::Word LIR_FUNC jitCallValueBool(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    return call->fnBool(peekEntry(ctx, call->item, call->itemPosition, scratch)) ? 1 : 0;
+}
+
+void LIR_FUNC jitConvertValueToColor(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    ctx->thread->colorStack.push_back(peekEntry(ctx, call->item, call->itemPosition, scratch).asColor());
+}
+
+BytecodeJitLir::Word LIR_FUNC jitConvertValueToBoolean(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratch;
+    return peekEntry(ctx, call->item, call->itemPosition, scratch).get<bool>() ? 1 : 0;
+}
+
+double LIR_FUNC jitRandomValues(Context *ctx, const ValueCallDescriptor *call) {
+    Value scratchFrom, scratchTo;
+    const Value &fromValue = peekEntry(ctx, call->item, call->itemPosition, scratchFrom);
+    const Value &toValue = peekEntry(ctx, call->second, call->secondPosition, scratchTo);
+    const double a = fromValue.get<double>();
+    const double b = toValue.get<double>();
+    if (a == b) return a;
+    const double from = std::min(a, b);
+    const double to = std::max(a, b);
+    if (fromValue.isScratchInt() && toValue.isScratchInt()) return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1 - from)));
+    return from + fastRandomDouble() * (to - from);
+}
+
+void LIR_FUNC jitCostumeNumberName(Context *ctx, BytecodeJitLir::Word position, BytecodeJitLir::Word byNumber) {
+    const Sprite *sprite = static_cast<const Sprite *>(ctx->sprite);
+    Value result = byNumber == 0 ? Value(sprite->costumes[sprite->currentCostume].name) : Value(sprite->currentCostume + 1);
+    ctx->slots[ctx->code->slotValues + position] = result.numberRaw();
+    temps[position] = std::move(result);
+    tempLazy[position] = 0;
+    ctx->tempHigh = std::max(ctx->tempHigh, static_cast<uint32_t>(position) + 1);
+}
+
+double LIR_FUNC jitRepeatRound(double counter) {
+    if (std::isnan(counter)) return 0.0;
+    return std::round(counter);
+}
+
+double LIR_FUNC jitRepeatRemaining(double counter) {
     if (std::isnan(counter)) counter = 0.0;
     return std::round(counter) - 1.0;
 }
 
-sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind) {
+BytecodeJitLir::Word LIR_FUNC jitCompareUnordered(double a, double b, BytecodeJitLir::Word kind) {
     const bool nan1 = std::isnan(a), nan2 = std::isnan(b);
     switch (static_cast<BytecodeCompareKind>(kind)) {
     case BytecodeCompareKind::Equals:
@@ -656,18 +758,40 @@ sljit_sw SLJIT_FUNC jitCompareUnordered(double a, double b, sljit_sw kind) {
     }
 }
 
-double SLJIT_FUNC jitMathOp(double value, sljit_sw op) {
+double LIR_FUNC jitMathOp(double value, BytecodeJitLir::Word op) {
     return bytecodeMathOpApply(static_cast<BytecodeMathOp>(op), value);
 }
 
-double SLJIT_FUNC jitRandomInt(double a, double b) {
+double LIR_FUNC jitRandomInt(double a, double b) {
     if (a == b) return a;
     const double from = std::min(a, b);
     const double to = std::max(a, b);
     return from + static_cast<double>(fastRandomBelow(static_cast<uint64_t>(to + 1.0 - from)));
 }
 
-sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {
+BytecodeJitLir::Word LIR_FUNC jitPreempt(Context *ctx, BytecodeJitLir::Word target) {
+    static const long hotPolls = BytecodeJit::tierUpPolls();
+    bool switchCode = false;
+    if (hotPolls > 0) BytecodeJit::installFinished();
+    if (hotPolls > 0 && ctx->chunk != nullptr && ctx->code == ctx->chunk->jit.get() && target >= 0 && static_cast<size_t>(target) < ctx->chunk->instructions.size()) {
+        const BytecodeIndex head = static_cast<BytecodeIndex>(target);
+        const auto ready = [&] { return head < ctx->chunk->jitEntryAt.size() && (ctx->chunk->jitEntryAt[head] >> 24) != 0; };
+        if (ready()) {
+            switchCode = true;
+        } else {
+            const Code &baseline = *ctx->code;
+            if (baseline.loopHeat.size() != ctx->chunk->instructions.size()) {
+                baseline.loopHeat.assign(ctx->chunk->instructions.size(), 0);
+                baseline.loopTried.assign(ctx->chunk->instructions.size(), 0);
+            }
+            if (baseline.loopHeat[head] < 0xffff) baseline.loopHeat[head]++;
+            if (baseline.loopHeat[head] >= hotPolls && !baseline.loopTried[head] && ctx->thread->link != nullptr) {
+                baseline.loopTried[head] = 1;
+                BytecodeJit::requestTierUp(*ctx->chunk, *ctx->thread->link, head);
+                switchCode = ready();
+            }
+        }
+    }
     static const bool checkNaN = std::getenv("SE_JIT_CHECKNAN") != nullptr;
     if (checkNaN) {
         for (uint32_t k = 0; k < ctx->code->promoted.size(); k++) {
@@ -683,13 +807,15 @@ sljit_sw SLJIT_FUNC jitPreempt(Context *ctx) {
         static long polls = 0;
         if (++polls % every == 0) return 1;
     }
-    if (!(Scratch::warpTimer && ctx->thread->withoutScreenRefresh)) return 0;
-    if (!*ctx->timerStarted) {
-        ctx->timer->start();
-        *ctx->timerStarted = true;
-        return 0;
+    if (Scratch::warpTimer && ctx->thread->withoutScreenRefresh) {
+        if (!*ctx->timerStarted) {
+            ctx->timer->start();
+            *ctx->timerStarted = true;
+        } else if (ctx->timer->getTimeMs() > 500) {
+            return 1;
+        }
     }
-    return ctx->timer->getTimeMs() > 500 ? 1 : 0;
+    return switchCode ? 2 : 0;
 }
 
 } // namespace BytecodeJitInternal::Runtime

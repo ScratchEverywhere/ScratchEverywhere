@@ -3,6 +3,7 @@
 #ifdef SE_JIT
 
 #include "bytecode.hpp"
+#include "ir/lir_caps.hpp"
 #include "jit_runtime.hpp"
 #include "jit_types.hpp"
 #include "runtime/data/blueprint.hpp"
@@ -15,12 +16,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include <sljitLir.h>
 #include <utility>
 
 namespace BytecodeJitInternal::Runtime {
 
-void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     Value item;
     if (list != nullptr && !list->items.empty()) {
@@ -33,27 +33,27 @@ void SLJIT_FUNC jitListItem(Context *ctx, const ListOpDescriptor *op) {
     ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
 }
 
-void SLJIT_FUNC jitListReplaceAny(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListReplaceAny(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     const Value index = materializeEntry(ctx, op->index, op->indexPosition);
     const Value item = materializeEntry(ctx, op->item, op->itemPosition);
     if (list != nullptr) bytecodeListReplace(*list, index, item);
 }
 
-void SLJIT_FUNC jitListInsertAny(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListInsertAny(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     const Value index = materializeEntry(ctx, op->index, op->indexPosition);
     Value item = materializeEntry(ctx, op->item, op->itemPosition);
     if (list != nullptr) bytecodeListInsert(*list, index, std::move(item));
 }
 
-void SLJIT_FUNC jitListDeleteAny(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListDeleteAny(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     const Value index = materializeEntry(ctx, op->index, op->indexPosition);
     if (list != nullptr) bytecodeListDelete(*list, index);
 }
 
-void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     const Value index = materializeEntry(ctx, op->item, op->itemPosition);
     Value item;
@@ -67,13 +67,13 @@ void SLJIT_FUNC jitListItemAny(Context *ctx, const ListOpDescriptor *op) {
     ctx->tempHigh = std::max(ctx->tempHigh, op->indexPosition + 1);
 }
 
-void SLJIT_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow) {
+void LIR_FUNC jitStoreShadow(Context *ctx, const ShadowDescriptor *shadow) {
     shadowValues[shadow->variable] = materializeEntry(ctx, shadow->entry, shadow->position);
     ctx->numericTagged[shadow->variable] = shadowValues[shadow->variable].isDouble() && !shadowValues[shadow->variable].isNaN() ? 1 : 0;
     ctx->shadowUsed[shadow->variable >> 6] |= uint64_t(1) << (shadow->variable & 63);
 }
 
-void SLJIT_FUNC jitStoreBoolean(Context *ctx, sljit_sw k, sljit_sw value) {
+void LIR_FUNC jitStoreBoolean(Context *ctx, BytecodeJitLir::Word k, BytecodeJitLir::Word value) {
     ctx->slots[ctx->code->slotVariables + k] = value != 0 ? 1.0 : 0.0;
     ctx->numericTagged[k] = 0;
     shadowValues[k] = Value(value != 0);
@@ -81,7 +81,7 @@ void SLJIT_FUNC jitStoreBoolean(Context *ctx, sljit_sw k, sljit_sw value) {
     ctx->dirty[k] = 3;
 }
 
-void SLJIT_FUNC jitSetNaN(Context *ctx, sljit_sw k) {
+void LIR_FUNC jitSetNaN(Context *ctx, BytecodeJitLir::Word k) {
     ctx->slots[ctx->code->slotVariables + k] = 0.0;
     ctx->numericTagged[k] = 0;
     shadowValues[k] = Value(std::numeric_limits<double>::quiet_NaN());
@@ -184,7 +184,15 @@ static bool entryNumber(Context *ctx, const ValueEntry &entry, uint32_t position
     return false;
 }
 
-sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
+static const Value &compareOperand(Context *ctx, const ValueEntry &entry, uint32_t position, Value &scratch) {
+    if (const Value *stored = entryValue(ctx, entry, position)) return *stored;
+    if (entry.kind == ValueEntry::VarValue && ctx->dirty[entry.constant] == 0 && ctx->numericTagged[entry.constant] != 1) {
+        if (const Value *text = untouchedTextValue(ctx, entry.constant)) return *text;
+    }
+    return peekEntry(ctx, entry, position, scratch);
+}
+
+BytecodeJitLir::Word LIR_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *compare) {
     if (double x, y; entryNumber(ctx, compare->a, compare->aPosition, x) && entryNumber(ctx, compare->b, compare->bPosition, y) && x == x && y == y) {
         switch (compare->kind) {
         case BytecodeCompareKind::Equals:
@@ -196,32 +204,44 @@ sljit_sw SLJIT_FUNC jitCompareValues(Context *ctx, const CompareDescriptor *comp
         }
     }
     Value scratchA, scratchB;
-    const Value &a = peekEntry(ctx, compare->a, compare->aPosition, scratchA);
-    const Value &b = peekEntry(ctx, compare->b, compare->bPosition, scratchB);
-    switch (compare->kind) {
-    case BytecodeCompareKind::Equals:
-        return a == b;
-    case BytecodeCompareKind::Less:
-        return a < b;
-    default:
-        return a > b;
+    const Value &a = compareOperand(ctx, compare->a, compare->aPosition, scratchA);
+    const Value &b = compareOperand(ctx, compare->b, compare->bPosition, scratchB);
+    const auto compute = [&] {
+        switch (compare->kind) {
+        case BytecodeCompareKind::Equals:
+            return a == b;
+        case BytecodeCompareKind::Less:
+            return a < b;
+        default:
+            return a > b;
+        }
+    };
+    if (a.isString() && b.isString()) {
+        if (compare->memoValid && compare->memoA.stringId() == a.stringId() && compare->memoB.stringId() == b.stringId()) return compare->memoResult;
+        const bool result = compute();
+        compare->memoA = a;
+        compare->memoB = b;
+        compare->memoResult = result;
+        compare->memoValid = true;
+        return result;
     }
+    return compute();
 }
 
-void SLJIT_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListReplace(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     if (list == nullptr || list->items.empty()) return;
     const size_t position = listPosition(ctx->slots[ctx->code->slotValues + op->indexPosition], list->items.size());
     if (position < list->items.size()) list->items[position] = materializeEntry(ctx, op->item, op->itemPosition);
 }
 
-void SLJIT_FUNC jitListAdd(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListAdd(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     Value item = materializeEntry(ctx, op->item, op->itemPosition);
     if (list != nullptr && list->items.size() < BYTECODE_MAX_LIST_ITEMS) list->items.push_back(std::move(item));
 }
 
-void SLJIT_FUNC jitListInsert(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListInsert(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     Value item = materializeEntry(ctx, op->item, op->itemPosition);
     if (list == nullptr) return;
@@ -234,7 +254,7 @@ void SLJIT_FUNC jitListInsert(Context *ctx, const ListOpDescriptor *op) {
     if (list->items.size() > BYTECODE_MAX_LIST_ITEMS) list->items.pop_back();
 }
 
-void SLJIT_FUNC jitListDelete(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListDelete(Context *ctx, const ListOpDescriptor *op) {
     List *list = listAt(*ctx->thread, op->list);
     if (list == nullptr) return;
     double index = ctx->slots[ctx->code->slotValues + op->indexPosition];
@@ -244,16 +264,16 @@ void SLJIT_FUNC jitListDelete(Context *ctx, const ListOpDescriptor *op) {
     if (position >= 0 && position < static_cast<double>(list->items.size())) eraseValueAt(list->items, static_cast<size_t>(position));
 }
 
-void SLJIT_FUNC jitListClear(Context *ctx, const ListOpDescriptor *op) {
+void LIR_FUNC jitListClear(Context *ctx, const ListOpDescriptor *op) {
     if (List *list = listAt(*ctx->thread, op->list)) list->items.clear();
 }
 
-double SLJIT_FUNC jitListLength(Context *ctx, const ListOpDescriptor *op) {
+double LIR_FUNC jitListLength(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     return list != nullptr ? static_cast<double>(list->items.size()) : 0.0;
 }
 
-double SLJIT_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
+double LIR_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     Value scratch;
     const Value &item = peekEntry(ctx, op->item, op->itemPosition, scratch);
@@ -262,7 +282,7 @@ double SLJIT_FUNC jitListIndexOf(Context *ctx, const ListOpDescriptor *op) {
     return found < list->items.size() ? static_cast<double>(found + 1) : 0.0;
 }
 
-sljit_sw SLJIT_FUNC jitListContains(Context *ctx, const ListOpDescriptor *op) {
+BytecodeJitLir::Word LIR_FUNC jitListContains(Context *ctx, const ListOpDescriptor *op) {
     const List *list = listAt(*ctx->thread, op->list);
     Value scratch;
     const Value &item = peekEntry(ctx, op->item, op->itemPosition, scratch);

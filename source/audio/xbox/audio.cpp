@@ -51,7 +51,7 @@ static DWORD WINAPI nxaudioThreadFunc(LPVOID param) {
             Mixer::requestSound(reinterpret_cast<short *>(bufferMem[currentIdx]), FRAMES_PER_BUFFER);
         }
 
-        __asm__ __volatile__ ("sfence" ::: "memory");
+        __asm__ __volatile__("sfence" ::: "memory");
         nxAudioBufferInitialize(&audioBuffers[currentIdx], bufferMem[currentIdx], BUFFER_SIZE_BYTES);
         nxAudioBufferQueue(&audioVoice, &audioBuffers[currentIdx]);
 
@@ -117,7 +117,7 @@ SoundDevice_XboxAudio::SoundDevice_XboxAudio() {
     // Start with silence and let the audio worker produce the first samples. Mixing here
     // used to decode sounds synchronously on the runtime thread during backend startup.
     for (int i = 0; i < NUM_BUFFERS; i++) {
-        __asm__ __volatile__ ("sfence" ::: "memory");
+        __asm__ __volatile__("sfence" ::: "memory");
         nxAudioBufferQueue(&audioVoice, &audioBuffers[i]);
     }
 

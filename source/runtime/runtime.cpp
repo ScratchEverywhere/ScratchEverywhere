@@ -1,3 +1,4 @@
+#include "bytecode_jit.hpp"
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
@@ -188,6 +189,9 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+#ifdef SE_JIT
+    BytecodeJit::shutdownBackground();
+#endif
 #ifdef ENABLE_CUSTOM_EXTENSIONS
     extensions::cleanup();
 #endif

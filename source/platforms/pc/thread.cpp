@@ -53,7 +53,8 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
 
 #ifdef _WIN32
     unsigned id;
-    impl->thread = (HANDLE)_beginthreadex(nullptr, 0, win32_Wrapper, data, 0, &id);
+    const bool bigStack = stackSize > (2u << 20);
+    impl->thread = (HANDLE)_beginthreadex(nullptr, bigStack ? static_cast<unsigned>(stackSize) : 0, win32_Wrapper, data, bigStack ? STACK_SIZE_PARAM_IS_A_RESERVATION : 0, &id);
 
     /* ive never seen it fail so i am not sure if this is right. MSDN says -1 is the failure */
     if (impl->thread == (HANDLE)-1) {
@@ -63,7 +64,13 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
         return false;
     }
 #else
-    int result = pthread_create(&impl->thread, nullptr, pthread_Wrapper, data);
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    size_t defaultSize = 0;
+    pthread_attr_getstacksize(&attributes, &defaultSize);
+    if (stackSize > defaultSize) pthread_attr_setstacksize(&attributes, stackSize);
+    int result = pthread_create(&impl->thread, &attributes, pthread_Wrapper, data);
+    pthread_attr_destroy(&attributes);
 
     if (result != 0) {
         delete data;

@@ -18,13 +18,13 @@ void PopupMenu::init() {
     textObj->scale = 0.75f;
 
     if (type == PopupType::ACCEPT_OR_CANCEL) {
-        ButtonObject *acceptButton = new ButtonObject("Accept", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
-        ButtonObject *cancelButton = new ButtonObject("Cancel", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *acceptButton = new ButtonObject("Accept", "gfx/menu/genericButton.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *cancelButton = new ButtonObject("Cancel", "gfx/menu/genericButton.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
 
         buttons.push_back(acceptButton);
         buttons.push_back(cancelButton);
     } else if (type == PopupType::ACKNOWLEDGE) {
-        ButtonObject *okButton = new ButtonObject("OK", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *okButton = new ButtonObject("OK", "gfx/menu/genericButton.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
         buttons.push_back(okButton);
     }
 
@@ -32,7 +32,7 @@ void PopupMenu::init() {
 
     for (int i = 0; i < buttons.size(); i++) {
         ButtonObject *button = buttons[i];
-        button->text->setColor(Math::color(0, 0, 0, 255));
+        button->text->setColor(Math::color(255, 255, 255, 255));
         control->buttonObjects.push_back(button);
 
         if (i + 1 < buttons.size()) button->buttonDown = buttons[i + 1];
@@ -66,8 +66,8 @@ void PopupMenu::render() {
         }
     }
 
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
 
     textObj->render(0, 0);
 

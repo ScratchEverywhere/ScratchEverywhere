@@ -444,10 +444,20 @@ void ControlObject::render(double xPos, double yPos) {
     double bottomY = buttonCenter[1] + (scaledHeight / 2) + breathingOffset;
 
     // Render boxes at all 4 corners
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), leftX, topY, 33, 34, 36, 255);     // Top-left
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, topY, 33, 34, 36, 255);    // Top-right
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), leftX, bottomY, 33, 34, 36, 255);  // Bottom-left
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, bottomY, 33, 34, 36, 255); // Bottom-right
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, topY, 255, 255, 255, 255);     // Top-left
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, topY, 255, 255, 255, 255);    // Top-right
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, bottomY, 255, 255, 255, 255);  // Bottom-left
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, bottomY, 255, 255, 255, 255); // Bottom-right
+
+    // Corner thingies for the corners
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), topY, 255, 255, 255, 255); // |""
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // |_
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // _|
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), topY, 255, 255, 255, 255); // ""|
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
 
     if (touchPos[0] != 0 && touchPos[1] != 0) lastFrameTouchPos = touchPos;
 }

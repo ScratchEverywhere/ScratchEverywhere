@@ -221,11 +221,12 @@ void Emitter::findRegions() {
             if (divisor >= 2.0 && divisor < 2147483648.0 && divisor == std::floor(divisor)) moddedByConstant.insert(chunk_.instructions[pc - 2].a);
         }
         const bool tinyBody = tail - head + 1 <= 12;
-        if (shadowSupported && !noShadow && listAccesses.empty() && hotCalls == 0) {
+        const bool indexShadow = lowerLimit() > 0 && !listAccesses.empty() && !listsChange;
+        if (shadowSupported && !noShadow && (listAccesses.empty() || indexShadow) && hotCalls == 0) {
             int best = 0;
             bool bestBenefits = false;
             for (const auto &[variable, info] : shadow) {
-                const bool benefits = comparedWithConstant.count(variable) != 0 || moddedByConstant.count(variable) != 0;
+                const bool benefits = comparedWithConstant.count(variable) != 0 || moddedByConstant.count(variable) != 0 || indexShadow;
                 if (!tinyBody && !benefits) continue;
                 if (bestBenefits && !benefits) continue;
                 if (!info.first || (benefits == bestBenefits && info.second <= best) || disqualified.count(variable) || variable >= promotedIndex_.size() || promotedIndex_[variable] < 0 || stringWritten_[variable]) continue;

@@ -191,6 +191,7 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
             if (argName == "is Scratch Everywhere!?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isScratchEverywhere"];
             else if (argName == "is New 3DS?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isNew3DS"];
             else if (argName == "is DSi?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isDSi"];
+            else if (argName == "is compiled?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isCompiled"];
             else newBlock->blockFunction = BlockExecutor::getHandlers()["argument_reporter_boolean"];
         } else {
             if (argName == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];

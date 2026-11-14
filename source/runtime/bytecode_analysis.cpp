@@ -153,7 +153,11 @@ bool isUnconditionalJump(BytecodeOp op) { return op == BytecodeOp::Jump; }
 } // namespace
 
 BytecodeAnalysis::BytecodeAnalysis(const BytecodeChunk &chunk, const BytecodeLinkTable &link, BytecodeAnalysisPolicy policy, std::vector<BytecodeValueType> variableSeed)
-    : chunk_(chunk), link_(link), policy_(policy), seed_(std::move(variableSeed)) {}
+    : chunk_(chunk), link_(link), policy_(policy), seed_(std::move(variableSeed)) {
+    canonicalConstants_.resize(chunk.constants.size());
+    for (size_t i = 0; i < chunk.constants.size(); i++)
+        canonicalConstants_[i] = isCanonicalNumber(chunk.constants[i]) ? 1 : 0;
+}
 
 bool BytecodeAnalysis::isCanonicalNumericString(const std::string &text) {
     if (text.empty() || text.find_first_of("eE") != std::string::npos) return false;
@@ -318,7 +322,7 @@ bool BytecodeAnalysis::step(State &s, const BytecodeInstruction &instr, bool war
         if (instr.a < chunk_.constants.size()) {
             const Value &constant = chunk_.constants[instr.a];
             if (constant.isRealNumber()) type = VType::Number;
-            else if (constant.isStringTyped()) type = isCanonicalNumber(constant) ? VType::NumericString : VType::String;
+            else if (constant.isStringTyped()) type = canonicalConstants_[instr.a] ? VType::NumericString : VType::String;
             else if (constant.isBoolean()) type = VType::Boolean;
             else if (constant.isColor()) type = VType::Color;
         }

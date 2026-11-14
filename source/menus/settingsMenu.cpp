@@ -44,52 +44,52 @@ void SettingsMenu::init() {
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-    // Credits->text->setColor(Math::color(0, 0, 0, 255));
+    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/genericButton.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    // Credits->text->setColor(Math::color(255, 255, 255, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
-    EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
-    ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
+    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/genericButton.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
+    EnableUsername->text->setColor(Math::color(255, 255, 255, 255));
+    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/genericButton.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
+    ChangeUsername->text->setColor(Math::color(255, 255, 255, 255));
 
-    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
-    EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
-    ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
+    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/upperButton.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
+    EnableCustomFolderPath->text->setColor(Math::color(255, 255, 255, 255));
+    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/lowerButton.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
+    ChangeFolderPath->text->setColor(Math::color(255, 255, 255, 255));
 
-    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
-    EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
+    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/genericButton.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
+    EnableMenuMusic->text->setColor(Math::color(255, 255, 255, 255));
 
-    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
-    ClearCache->text->setColor(Math::color(0, 0, 0, 255));
+    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/genericButton.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
+    ClearCache->text->setColor(Math::color(255, 255, 255, 255));
 
-    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
-    Language->text->setColor(Math::color(0, 0, 0, 255));
+    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/genericButton.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
+    Language->text->setColor(Math::color(255, 255, 255, 255));
     Language->textScale = 1.0;
 
 #ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/genericButton.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(255, 255, 255, 255));
 #endif
 
-    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/projectBox.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
-    RendererButton->text->setColor(Math::color(0, 0, 0, 255));
+    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/upperButton.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
+    RendererButton->text->setColor(Math::color(255, 255, 255, 255));
     RendererButton->textScale = 1.0;
     validRenderers = Render::getAvailableRenderers();
 
-    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/projectBox.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
-    WindowingButton->text->setColor(Math::color(0, 0, 0, 255));
+    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/midButton.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton->text->setColor(Math::color(255, 255, 255, 255));
     WindowingButton->textScale = 1.0;
     validWindowingBackends = WindowSE::getAvailableWindowingBackends();
 
-    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/projectBox.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
-    AudioEngineButton->text->setColor(Math::color(0, 0, 0, 255));
+    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/lowerButton.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
+    AudioEngineButton->text->setColor(Math::color(255, 255, 255, 255));
     AudioEngineButton->textScale = 1.0;
     validAudioBackends = SoundPlayer::getAvailableAudioBackends();
 
 #ifdef ENABLE_DISCORD_RPC
-    discordButton = new ButtonObject(getDiscordString(), "gfx/menu/projectBox.svg", 200, 570, "gfx/menu/Ubuntu-Bold", true);
-    discordButton->text->setColor(Math::color(0, 0, 0, 255));
+    discordButton = new ButtonObject(getDiscordString(), "gfx/menu/genericButton.svg", 200, 570, "gfx/menu/Ubuntu-Bold", true);
+    discordButton->text->setColor(Math::color(255, 255, 255, 255));
     discordButton->textScale = 1.0;
 #endif
 
@@ -271,8 +271,8 @@ void SettingsMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
 
     if (ClearCache->isPressed({"a"})) {
         const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");

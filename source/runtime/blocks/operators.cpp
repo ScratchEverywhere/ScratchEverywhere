@@ -256,12 +256,24 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
 
 #if defined(__XBOX__)
     switch (Math::fnv1a_hash(operation.data(), operation.size())) {
-    case Math::fnv1a_hash("abs", 3): *outValue = abs(value); break;
-    case Math::fnv1a_hash("floor", 5): *outValue = floor(value); break;
-    case Math::fnv1a_hash("ceiling", 7): *outValue = ceil(value); break;
-    case Math::fnv1a_hash("sqrt", 4): *outValue = sqrt(value); break;
-    case Math::fnv1a_hash("sin", 3): *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
-    case Math::fnv1a_hash("cos", 3): *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10; break;
+    case Math::fnv1a_hash("abs", 3):
+        *outValue = abs(value);
+        break;
+    case Math::fnv1a_hash("floor", 5):
+        *outValue = floor(value);
+        break;
+    case Math::fnv1a_hash("ceiling", 7):
+        *outValue = ceil(value);
+        break;
+    case Math::fnv1a_hash("sqrt", 4):
+        *outValue = sqrt(value);
+        break;
+    case Math::fnv1a_hash("sin", 3):
+        *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        break;
+    case Math::fnv1a_hash("cos", 3):
+        *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        break;
     case Math::fnv1a_hash("tan", 3): {
         double modAngle = std::fmod(value, 360.0);
         if (modAngle < -180.0) modAngle += 360.0;
@@ -271,14 +283,30 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
         else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
         break;
     }
-    case Math::fnv1a_hash("asin", 4): *outValue = Math::radiansToDegrees(asin(value)); break;
-    case Math::fnv1a_hash("acos", 4): *outValue = Math::radiansToDegrees(acos(value)); break;
-    case Math::fnv1a_hash("atan", 4): *outValue = Math::radiansToDegrees(atan(value)); break;
-    case Math::fnv1a_hash("ln", 2): *outValue = log(value); break;
-    case Math::fnv1a_hash("log", 3): *outValue = log(value) / log(10); break;
-    case Math::fnv1a_hash("e ^", 3): *outValue = exp(value); break;
-    case Math::fnv1a_hash("10 ^", 4): *outValue = pow(10, value); break;
-    default: *outValue = 0; break;
+    case Math::fnv1a_hash("asin", 4):
+        *outValue = Math::radiansToDegrees(asin(value));
+        break;
+    case Math::fnv1a_hash("acos", 4):
+        *outValue = Math::radiansToDegrees(acos(value));
+        break;
+    case Math::fnv1a_hash("atan", 4):
+        *outValue = Math::radiansToDegrees(atan(value));
+        break;
+    case Math::fnv1a_hash("ln", 2):
+        *outValue = log(value);
+        break;
+    case Math::fnv1a_hash("log", 3):
+        *outValue = log(value) / log(10);
+        break;
+    case Math::fnv1a_hash("e ^", 3):
+        *outValue = exp(value);
+        break;
+    case Math::fnv1a_hash("10 ^", 4):
+        *outValue = pow(10, value);
+        break;
+    default:
+        *outValue = 0;
+        break;
     }
 #else
     if (operation == "abs") *outValue = abs(value);
@@ -314,21 +342,50 @@ SCRATCH_BYTECODE_BLOCK(operator, mathop) {
     BytecodeMathOp op;
 #if defined(__XBOX__)
     switch (Math::fnv1a_hash(operation.data(), operation.size())) {
-    case Math::fnv1a_hash("abs", 3): op = BytecodeMathOp::Abs; break;
-    case Math::fnv1a_hash("floor", 5): op = BytecodeMathOp::Floor; break;
-    case Math::fnv1a_hash("ceiling", 7): op = BytecodeMathOp::Ceiling; break;
-    case Math::fnv1a_hash("sqrt", 4): op = BytecodeMathOp::Sqrt; break;
-    case Math::fnv1a_hash("sin", 3): op = BytecodeMathOp::Sin; break;
-    case Math::fnv1a_hash("cos", 3): op = BytecodeMathOp::Cos; break;
-    case Math::fnv1a_hash("tan", 3): op = BytecodeMathOp::Tan; break;
-    case Math::fnv1a_hash("asin", 4): op = BytecodeMathOp::Asin; break;
-    case Math::fnv1a_hash("acos", 4): op = BytecodeMathOp::Acos; break;
-    case Math::fnv1a_hash("atan", 4): op = BytecodeMathOp::Atan; break;
-    case Math::fnv1a_hash("ln", 2): op = BytecodeMathOp::Ln; break;
-    case Math::fnv1a_hash("log", 3): op = BytecodeMathOp::Log; break;
-    case Math::fnv1a_hash("e ^", 3): op = BytecodeMathOp::Exp; break;
-    case Math::fnv1a_hash("10 ^", 4): op = BytecodeMathOp::Pow10; break;
-    default: return false;
+    case Math::fnv1a_hash("abs", 3):
+        op = BytecodeMathOp::Abs;
+        break;
+    case Math::fnv1a_hash("floor", 5):
+        op = BytecodeMathOp::Floor;
+        break;
+    case Math::fnv1a_hash("ceiling", 7):
+        op = BytecodeMathOp::Ceiling;
+        break;
+    case Math::fnv1a_hash("sqrt", 4):
+        op = BytecodeMathOp::Sqrt;
+        break;
+    case Math::fnv1a_hash("sin", 3):
+        op = BytecodeMathOp::Sin;
+        break;
+    case Math::fnv1a_hash("cos", 3):
+        op = BytecodeMathOp::Cos;
+        break;
+    case Math::fnv1a_hash("tan", 3):
+        op = BytecodeMathOp::Tan;
+        break;
+    case Math::fnv1a_hash("asin", 4):
+        op = BytecodeMathOp::Asin;
+        break;
+    case Math::fnv1a_hash("acos", 4):
+        op = BytecodeMathOp::Acos;
+        break;
+    case Math::fnv1a_hash("atan", 4):
+        op = BytecodeMathOp::Atan;
+        break;
+    case Math::fnv1a_hash("ln", 2):
+        op = BytecodeMathOp::Ln;
+        break;
+    case Math::fnv1a_hash("log", 3):
+        op = BytecodeMathOp::Log;
+        break;
+    case Math::fnv1a_hash("e ^", 3):
+        op = BytecodeMathOp::Exp;
+        break;
+    case Math::fnv1a_hash("10 ^", 4):
+        op = BytecodeMathOp::Pow10;
+        break;
+    default:
+        return false;
     }
 #else
     if (operation == "abs") op = BytecodeMathOp::Abs;
