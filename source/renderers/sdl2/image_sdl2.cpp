@@ -23,8 +23,10 @@ void Image_SDL2::render(ImageRenderParams &params) {
     const bool &centered = params.centered;
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
-    const float floatW = imgData.width / imgData.scale * scale;
-    const float floatH = imgData.height / imgData.scale * scale;
+    const float baseW = params.subrect != nullptr ? static_cast<float>(params.subrect->w) : (imgData.width / imgData.scale);
+    const float baseH = params.subrect != nullptr ? static_cast<float>(params.subrect->h) : (imgData.height / imgData.scale);
+    const float floatW = baseW * scale;
+    const float floatH = baseH * scale;
     const float floatX = centered ? x - (floatW / 2.0f) : x;
     const float floatY = centered ? y - (floatH / 2.0f) : y;
 
@@ -41,10 +43,10 @@ void Image_SDL2::render(ImageRenderParams &params) {
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
         subRect = {
-            .x = params.subrect->x,
-            .y = params.subrect->y,
-            .w = params.subrect->w,
-            .h = params.subrect->h};
+            .x = static_cast<int>(std::round(params.subrect->x * imgData.scale)),
+            .y = static_cast<int>(std::round(params.subrect->y * imgData.scale)),
+            .w = std::max(1, static_cast<int>(std::round(params.subrect->w * imgData.scale))),
+            .h = std::max(1, static_cast<int>(std::round(params.subrect->h * imgData.scale)))};
     } else {
         subRect = {
             .x = 0,
