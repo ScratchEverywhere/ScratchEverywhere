@@ -27,6 +27,20 @@ struct ColoredAtlasKeyHash {
 static std::unordered_map<ColoredAtlasKey, ColoredAtlasEntry, ColoredAtlasKeyHash> vflashColoredAtlases;
 static std::unordered_map<const FontGeneration *, uint64_t> vflashUploadVersions;
 
+static void destroyVflashColoredAtlasesForGen(const FontGeneration *gen) {
+    for (auto it = vflashColoredAtlases.begin(); it != vflashColoredAtlases.end();) {
+        if (it->first.gen == gen) {
+            if (it->second.tex) {
+                SDL_DestroyTexture(it->second.tex);
+            }
+            it = vflashColoredAtlases.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    vflashUploadVersions.erase(gen);
+}
+
 static SDL_Texture *createColoredAtlasTexture(SDL_Renderer *renderer, const FontGeneration &gen, uint8_t r, uint8_t g, uint8_t b) {
     std::vector<uint8_t> rgba((size_t)gen.atlasWidth * (size_t)gen.atlasHeight * 4);
     for (size_t i = 0; i < gen.pixels.size(); ++i) {
@@ -79,9 +93,22 @@ void TextObjectSDL2::uploadAtlas(FontGeneration &gen) {
     }
 
     gen.backendHandle = tex;
+#ifdef __VFLASH__
+    if (!tex) {
+        destroyVflashColoredAtlasesForGen(&gen);
+        gen.destroyBackendHandle = nullptr;
+    } else {
+        const FontGeneration *genPtr = &gen;
+        gen.destroyBackendHandle = [genPtr](void *handle) {
+            if (handle) SDL_DestroyTexture((SDL_Texture *)handle);
+            destroyVflashColoredAtlasesForGen(genPtr);
+        };
+    }
+#else
     gen.destroyBackendHandle = [](void *handle) {
         SDL_DestroyTexture((SDL_Texture *)handle);
     };
+#endif
     gen.dirty = false;
 }
 
