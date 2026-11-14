@@ -134,6 +134,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
     const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
+    struct StageBackdropLoadGuard {
+        Renderer *renderer;
+        bool active;
+        StageBackdropLoadGuard(Renderer *r, bool isStage) : renderer(r), active(r && isStage) {
+            if (active) renderer->setLoadingStageBackdrop(true);
+        }
+        ~StageBackdropLoadGuard() {
+            if (active) renderer->setLoadingStageBackdrop(false);
+        }
+    } stageBackdropGuard(Render::getGlobalRenderer(), sprite->isStage);
+
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
 #ifdef __XBOX__

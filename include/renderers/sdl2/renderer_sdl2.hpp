@@ -11,6 +11,12 @@
 class SE_EXPORT Renderer_SDL2 : public Renderer {
   public:
     SDL_Renderer *Sdlrenderer = nullptr;
+#ifdef __VFLASH__
+    bool loadingStageBackdrop = false;
+    SDL_Texture *stageBackdropTexture = nullptr;
+    std::string activeStageBackdropId;
+    void setLoadingStageBackdrop(bool loading) override { loadingStageBackdrop = loading; }
+#endif
 
     Renderer_SDL2();
     ~Renderer_SDL2() override;

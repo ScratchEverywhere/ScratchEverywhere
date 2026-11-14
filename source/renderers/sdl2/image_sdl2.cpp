@@ -13,6 +13,15 @@ extern uint32_t g_se_vflash_upload_ticks;
 #endif
 
 void Image_SDL2::render(ImageRenderParams &params) {
+    renderWithTexture(params, texture);
+}
+
+void Image_SDL2::renderWithTexture(ImageRenderParams &params, SDL_Texture *tex) {
+    if (!tex) {
+        if (!texture && !setInitialTexture().has_value()) return;
+        tex = texture;
+        if (!tex) return;
+    }
 
     const float &x = params.x;
     const float &y = params.y;
@@ -56,12 +65,12 @@ void Image_SDL2::render(ImageRenderParams &params) {
     }
 
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
-    SDL_SetTextureAlphaMod(texture, alpha);
+    SDL_SetTextureAlphaMod(tex, alpha);
 
     const SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
     auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
-        SDL_RenderCopyEx(sdlRenderer, texture, src, dst, rotation, &center, flip);
+        SDL_RenderCopyEx(sdlRenderer, tex, src, dst, rotation, &center, flip);
     };
 
     if (brightness != 0) {
@@ -71,23 +80,23 @@ void Image_SDL2::render(ImageRenderParams &params) {
             renderCopy(&subRect, &renderRect);
 
             // render another, blended image on top
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
+            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(tex, Uint8(255 * b * opacity));
             renderCopy(&subRect, &renderRect);
 
             // reset for next frame
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         } else {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
-            SDL_SetTextureColorMod(texture, col, col, col);
+            SDL_SetTextureColorMod(tex, col, col, col);
 
             renderCopy(&subRect, &renderRect);
             // reset for next frame
-            SDL_SetTextureColorMod(texture, 255, 255, 255);
+            SDL_SetTextureColorMod(tex, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
-        SDL_SetTextureColorMod(texture, 255, 255, 255);
+        SDL_SetTextureColorMod(tex, 255, 255, 255);
         renderCopy(&subRect, &renderRect);
     }
     freeTimer = maxFreeTimer;
@@ -203,6 +212,9 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
             imgData.pitch = newW * 4;
         }
     }
+    if (Renderer_SDL2 *r = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer()); r && r->loadingStageBackdrop) {
+        return {};
+    }
 #endif
     texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
@@ -275,4 +287,16 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitma
 
 Image_SDL2::~Image_SDL2() {
     SDL_DestroyTexture(texture);
+}
+
+bool Image_SDL2::uploadToTexture(SDL_Texture *dstTex) {
+    if (!dstTex) return false;
+    if (!imgData.pixels) {
+        ensureColorData();
+    }
+    if (!imgData.pixels) return false;
+    int uploadW = std::min(imgData.width, 240);
+    int uploadH = std::min(imgData.height, 180);
+    SDL_Rect updateRect = {0, 0, uploadW, uploadH};
+    return SDL_UpdateTexture(dstTex, &updateRect, imgData.pixels, imgData.pitch) == 0;
 }

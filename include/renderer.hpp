@@ -93,6 +93,7 @@ class SE_EXPORT Renderer {
     virtual float getPixelDensity() = 0;
 
     virtual void renderSprites() = 0;
+    virtual void setLoadingStageBackdrop(bool loading) { (void)loading; }
     virtual void renderPenLayer() = 0;
 
     virtual void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) = 0;

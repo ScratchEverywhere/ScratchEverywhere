@@ -1,4 +1,5 @@
 #include "renderer_sdl2.hpp"
+#include "image_sdl2.hpp"
 #include "speech_manager_sdl2.hpp"
 #include <window.hpp>
 
@@ -170,6 +171,12 @@ Renderer_SDL2::~Renderer_SDL2() {
     }
 
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
+#ifdef __VFLASH__
+    if (stageBackdropTexture != nullptr) {
+        SDL_DestroyTexture(stageBackdropTexture);
+        stageBackdropTexture = nullptr;
+    }
+#endif
 
     TextObject::cleanupText();
     SDL_DestroyRenderer(Sdlrenderer);
@@ -682,7 +689,32 @@ void Renderer_SDL2::renderSprites() {
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
 
+#ifdef __VFLASH__
+            if (currentSprite->isStage) {
+                Image_SDL2 *sdlImg = static_cast<Image_SDL2 *>(image);
+                const std::string &backdropId = currentSprite->costumes[currentSprite->currentCostume].fullName;
+                if (!stageBackdropTexture) {
+                    stageBackdropTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 240, 180);
+                    if (stageBackdropTexture) {
+                        SDL_SetTextureBlendMode(stageBackdropTexture, SDL_BLENDMODE_BLEND);
+                    }
+                }
+                if (stageBackdropTexture && activeStageBackdropId != backdropId) {
+                    if (sdlImg->uploadToTexture(stageBackdropTexture)) {
+                        activeStageBackdropId = backdropId;
+                    }
+                }
+                if (stageBackdropTexture) {
+                    sdlImg->renderWithTexture(params, stageBackdropTexture);
+                } else {
+                    image->render(params);
+                }
+            } else {
+                image->render(params);
+            }
+#else
             image->render(params);
+#endif
         }
         // Draw collision points (for debugging)
         // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
