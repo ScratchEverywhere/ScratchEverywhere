@@ -25,6 +25,12 @@
 #ifdef RENDERER_NV2A
 #include <renderers/nv2a/image_nv2a.hpp>
 #endif
+#ifdef __VFLASH__
+#include <vflash/loading.h>
+#include <vflash/video.h>
+static bool s_vflashLoadingActive = false;
+static unsigned s_vflashLoadingProgress = 0;
+#endif
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -54,6 +60,20 @@ void Unzip::setLoadingState(const std::string &state) {
     unzipStateMutex().lock();
     s_loadingState = state;
     unzipStateMutex().unlock();
+#ifdef __VFLASH__
+    if (s_vflashLoadingActive && vflash_video_tiled_address() == 0) {
+        s_vflashLoadingProgress = std::min(60u, s_vflashLoadingProgress + 15u);
+        vflash_loading_set_progress(s_vflashLoadingProgress);
+        const char *label = state.c_str();
+        if (state == "ui.loading.opening") label = "Opening project...";
+        else if (state == "ui.loading.unzipping") label = "Unzipping project...";
+        else if (state == "ui.loading.sprites") label = "Loading sprites...";
+        else if (state == "ui.loading.images") label = "Loading images...";
+        else if (state == "ui.loading.finish") label = "Ready";
+        vflash_loading_set_status(label);
+        vflash_loading_render();
+    }
+#endif
 }
 
 std::string Unzip::getLoadingState() {
@@ -226,9 +246,23 @@ void loadInitialImages() {
     }
 #else
     Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+#ifdef __VFLASH__
+    const size_t totalSprites = Scratch::sprites.size();
+    size_t spriteIdx = 0;
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+        spriteIdx++;
+        if (s_vflashLoadingActive && vflash_video_tiled_address() == 0 && totalSprites > 0 && (spriteIdx % 4 == 0 || spriteIdx == totalSprites)) {
+            unsigned pct = 60u + static_cast<unsigned>((spriteIdx * 35u) / totalSprites);
+            vflash_loading_set_progress(pct);
+            vflash_loading_render();
+        }
+    }
+#else
     for (auto &currentSprite : Scratch::sprites) {
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
+#endif
 #endif
 }
 
@@ -291,11 +325,35 @@ bool Unzip::load() {
 
 #else
     // Non-threaded loading fallback
+#ifdef __VFLASH__
+    if (vflash_video_tiled_address() == 0) {
+        vflash_loading_config_t cfg = {
+            "ScratchEverywhere!",
+            "V.Flash Port",
+            "Loading Scratch Project",
+            nullptr};
+        s_vflashLoadingProgress = 5u;
+        vflash_loading_init_ex(&cfg);
+        s_vflashLoadingActive = true;
+    }
+#endif
     Unzip::openScratchProject(nullptr);
     if (Unzip::projectOpened != 1) {
+#ifdef __VFLASH__
+        if (s_vflashLoadingActive && vflash_video_tiled_address() == 0) {
+            vflash_loading_finish();
+            s_vflashLoadingActive = false;
+        }
+#endif
         return false;
     }
     loadInitialImages();
+#ifdef __VFLASH__
+    if (s_vflashLoadingActive && vflash_video_tiled_address() == 0) {
+        vflash_loading_finish();
+        s_vflashLoadingActive = false;
+    }
+#endif
     return true;
 #endif
 }
