@@ -7,6 +7,11 @@
 #include <stdexcept>
 #include <string>
 
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <vflash/clock.h>
+extern uint32_t g_se_vflash_upload_ticks;
+#endif
+
 void Image_SDL2::render(ImageRenderParams &params) {
 
     const float &x = params.x;
@@ -206,9 +211,15 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
 #ifndef __PS4__
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    uint32_t ut0 = vflash_clock_ticks();
+#endif
     if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
         return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    g_se_vflash_upload_ticks += (uint16_t)(vflash_clock_ticks() - ut0);
+#endif
 #endif
 
     discardColorData();

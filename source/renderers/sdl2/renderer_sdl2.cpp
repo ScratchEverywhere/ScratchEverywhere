@@ -15,6 +15,14 @@
 #include <unordered_map>
 #include <vector>
 
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <vflash/clock.h>
+uint32_t g_se_vflash_upload_ticks = 0;
+uint32_t g_se_vflash_render_ticks = 0;
+uint32_t g_se_vflash_present_ticks = 0;
+uint32_t g_se_vflash_pace_ticks = 0;
+#endif
+
 #ifdef __WIIU__
 #include <coreinit/debug.h>
 #include <nn/act.h>
@@ -587,8 +595,18 @@ void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Renderer_SDL2::endFrame(bool shouldFlush) {
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    uint32_t t0 = vflash_clock_ticks();
+    SDL_RenderPresent(Sdlrenderer);
+    uint32_t t1 = vflash_clock_ticks();
+    SDL_Delay(16);
+    uint32_t t2 = vflash_clock_ticks();
+    g_se_vflash_present_ticks += (uint16_t)(t1 - t0);
+    g_se_vflash_pace_ticks += (uint16_t)(t2 - t1);
+#else
     SDL_RenderPresent(Sdlrenderer);
     SDL_Delay(16);
+#endif
     hasFrameBegan = false;
 }
 
@@ -638,6 +656,9 @@ void Renderer_SDL2::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 }
 
 void Renderer_SDL2::renderSprites() {
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    uint32_t rt0 = vflash_clock_ticks();
+#endif
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
 
@@ -703,7 +724,15 @@ void Renderer_SDL2::renderSprites() {
     }
 #endif
 
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+    uint32_t rt1 = vflash_clock_ticks();
     SDL_RenderPresent(Sdlrenderer);
+    uint32_t rt2 = vflash_clock_ticks();
+    g_se_vflash_render_ticks += (uint16_t)(rt1 - rt0);
+    g_se_vflash_present_ticks += (uint16_t)(rt2 - rt1);
+#else
+    SDL_RenderPresent(Sdlrenderer);
+#endif
 }
 
 void Renderer_SDL2::renderPenLayer() {

@@ -15,6 +15,17 @@
 #include <speech_manager.hpp>
 #include <utility>
 
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#include <vflash/clock.h>
+extern uint32_t g_se_vflash_upload_ticks;
+extern uint32_t g_se_vflash_render_ticks;
+extern uint32_t g_se_vflash_present_ticks;
+extern uint32_t g_se_vflash_pace_ticks;
+static uint32_t g_se_vflash_vm_ticks = 0;
+static uint32_t g_se_vflash_tel_frames = 0;
+static uint32_t g_se_vflash_win_start = 0;
+#endif
+
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
 #endif
@@ -135,6 +146,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         static const bool diagStall = std::getenv("SE_DIAG_STALL") != nullptr;
         Timer diagTimer(false);
         if (diagStall) diagTimer.start();
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+        if (g_se_vflash_win_start == 0) g_se_vflash_win_start = vflash_clock_ticks();
+        uint32_t vmt0 = vflash_clock_ticks();
+#endif
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
         if (checkFPS && !forcedStep && Scratch::FPS > 0) {
@@ -147,6 +162,9 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                 BytecodeExecutor::runThreads();
             }
         }
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+        g_se_vflash_vm_ticks += (uint16_t)(vflash_clock_ticks() - vmt0);
+#endif
         if (diagStall) {
             static double average = 0, atOnset = 0;
             static int lightStreak = 0, cooldown = 0;
@@ -207,6 +225,43 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
             Render::renderSprites();
             Scratch::flushCostumeImages();
+
+#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+            g_se_vflash_tel_frames++;
+            if (g_se_vflash_tel_frames >= 60) {
+                uint32_t now = vflash_clock_ticks();
+                uint32_t elapsed = (uint16_t)(now - g_se_vflash_win_start);
+                uint32_t accounted = g_se_vflash_vm_ticks + g_se_vflash_upload_ticks +
+                                     g_se_vflash_render_ticks + g_se_vflash_present_ticks +
+                                     g_se_vflash_pace_ticks;
+                uint32_t wait_ticks = (elapsed > accounted) ? (elapsed - accounted) : 0;
+                uint32_t f = g_se_vflash_tel_frames;
+                uint32_t pace_ticks = g_se_vflash_pace_ticks + wait_ticks;
+                uint32_t el_x100 = (elapsed * 10u) / f;
+                uint32_t vm_x100 = (g_se_vflash_vm_ticks * 10u) / f;
+                uint32_t up_x100 = (g_se_vflash_upload_ticks * 10u) / f;
+                uint32_t rn_x100 = (g_se_vflash_render_ticks * 10u) / f;
+                uint32_t pr_x100 = (g_se_vflash_present_ticks * 10u) / f;
+                uint32_t pa_x100 = (pace_ticks * 10u) / f;
+                uint32_t fps_x10 = (elapsed > 0) ? ((f * 100000u) / elapsed) : 0u;
+                std::printf("[vflash-telemetry] f=%lu elapsed=%lu.%02lums vm=%lu.%02lums upload=%lu.%02lums render=%lu.%02lums present=%lu.%02lums pace=%lu.%02lums fps=%lu.%lu\n",
+                            (unsigned long)f,
+                            (unsigned long)(el_x100 / 100u), (unsigned long)(el_x100 % 100u),
+                            (unsigned long)(vm_x100 / 100u), (unsigned long)(vm_x100 % 100u),
+                            (unsigned long)(up_x100 / 100u), (unsigned long)(up_x100 % 100u),
+                            (unsigned long)(rn_x100 / 100u), (unsigned long)(rn_x100 % 100u),
+                            (unsigned long)(pr_x100 / 100u), (unsigned long)(pr_x100 % 100u),
+                            (unsigned long)(pa_x100 / 100u), (unsigned long)(pa_x100 % 100u),
+                            (unsigned long)(fps_x10 / 10u), (unsigned long)(fps_x10 % 10u));
+                g_se_vflash_vm_ticks = 0;
+                g_se_vflash_upload_ticks = 0;
+                g_se_vflash_render_ticks = 0;
+                g_se_vflash_present_ticks = 0;
+                g_se_vflash_pace_ticks = 0;
+                g_se_vflash_tel_frames = 0;
+                g_se_vflash_win_start = now;
+            }
+#endif
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
 
