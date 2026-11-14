@@ -641,7 +641,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-        if (Render::currentRenderer == Renderers::GL2D) {
+        if (Render::currentRenderer == Renderers::GL2D || Render::currentRenderer == Renderers::VFlash) {
             Scratch::accurateCollision = false;
         } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();

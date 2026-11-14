@@ -719,7 +719,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
-#if defined(__XBOX__)
+#if defined(__XBOX__) || defined(__VFLASH__)
     if (!pixels) {
         Scratch::freeUnusedCostumeImages(this);
         pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
@@ -730,12 +730,14 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
         return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
     }
 #else
-    if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
+    if (!pixels) {
+        return nonstd::make_unexpected("Failed to decode raster image.");
+    }
 #endif
     if (textData) {
         int textWidth = 0, textHeight = 0, textChannels = 0;
         unsigned char *text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__VFLASH__)
         if (!text) {
             Scratch::freeUnusedCostumeImages(this);
             text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);

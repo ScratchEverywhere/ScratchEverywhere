@@ -6,6 +6,8 @@
 #include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
+#include <sdl2_vflash/SDL_vflash.h>
+#include <vflash/renderer.h>
 
 
 void Image_VFlash::render(ImageRenderParams &params) {
@@ -177,14 +179,16 @@ nonstd::expected<void, std::string> Image_VFlash::setInitialTexture() {
     SDL_FreeSurface(surface);
 #else
     const float targetScale = (imgData.width <= 240 && imgData.height <= 180) ? (320.0f / 480.0f) : 1.0f;
-    const int targetMaxW = 240;
-    const int targetMaxH = 180;
-    if (imgData.width > targetMaxW || imgData.height > targetMaxH || (imgData.width & 1) || targetScale < 0.99f) {
-        const float sx = static_cast<float>(targetMaxW) / static_cast<float>(imgData.width);
-        const float sy = static_cast<float>(targetMaxH) / static_cast<float>(imgData.height);
-        const float ratio = std::min(targetScale, std::min(sx, sy));
+    const int targetMaxW = 160;
+    const int targetMaxH = 120;
+    auto downscaleToFit = [&](int maxW, int maxH, float baseScale) {
+        if (imgData.width <= maxW && imgData.height <= maxH && !(imgData.width & 1) && baseScale >= 0.99f) return;
+        const float sx = static_cast<float>(maxW) / static_cast<float>(imgData.width);
+        const float sy = static_cast<float>(maxH) / static_cast<float>(imgData.height);
+        const float ratio = std::min(baseScale, std::min(sx, sy));
         int newW = std::max(2, static_cast<int>(std::floor(imgData.width * ratio)) & ~1);
         int newH = std::max(1, static_cast<int>(std::floor(imgData.height * ratio)));
+        if (newW == imgData.width && newH == imgData.height) return;
         uint8_t *scaled = static_cast<uint8_t *>(std::malloc(static_cast<size_t>(newW) * newH * 4));
         if (scaled) {
             const uint8_t *srcPixels = static_cast<const uint8_t *>(imgData.pixels);
@@ -206,7 +210,8 @@ nonstd::expected<void, std::string> Image_VFlash::setInitialTexture() {
             imgData.height = newH;
             imgData.pitch = newW * 4;
         }
-    }
+    };
+    downscaleToFit(targetMaxW, targetMaxH, targetScale);
     if (Renderer_VFlash *r = static_cast<Renderer_VFlash *>(Render::getGlobalRenderer()); r && r->loadingStageBackdrop) {
         isStageBackdrop = true;
     }
@@ -214,17 +219,34 @@ nonstd::expected<void, std::string> Image_VFlash::setInitialTexture() {
         stagePixelVersion++;
         return {};
     }
-    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-#endif
-    if (!texture) {
-        return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
-    }
+    auto tryUpload = [&]() -> bool {
+        if (!texture) {
+            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+            if (!texture) return false;
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        }
+        if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
+            SDL_DestroyTexture(texture);
+            texture = nullptr;
+            return false;
+        }
+        return true;
+    };
 
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-
-#ifndef __PS4__
-    if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
-        return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
+    if (!tryUpload()) {
+        Scratch::freeUnusedCostumeImages(this);
+        if (!tryUpload()) {
+            vflash_atlas_stats_t stats{};
+            vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(sdlRenderer);
+            if (nr) vflash_renderer_get_atlas_stats(nr, &stats);
+            if (stats.largest_free_w >= 8 && stats.largest_free_h >= 8 &&
+                (imgData.width > static_cast<int>(stats.largest_free_w) || imgData.height > static_cast<int>(stats.largest_free_h))) {
+                downscaleToFit(static_cast<int>(stats.largest_free_w), static_cast<int>(stats.largest_free_h), 1.0f);
+            }
+            if (!tryUpload()) {
+                return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
+            }
+        }
     }
 #endif
 

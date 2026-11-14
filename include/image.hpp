@@ -107,7 +107,7 @@ class SE_EXPORT Image {
 
     static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH, const Image *keep = nullptr);
 
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__VFLASH__)
     const unsigned int maxFreeTimer = 30;
 #else
     const unsigned int maxFreeTimer = 540;
