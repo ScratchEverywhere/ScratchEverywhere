@@ -9,6 +9,12 @@
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
+static const auto MIN = Scratch::screenToScratchCoords(0, 0,
+                                                    Render::getWidth(), Render::getHeight());
+
+static const auto MAX = Scratch::screenToScratchCoords(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT,
+                                                    Render::getWidth(), Render::getHeight());
+
 static const size_t key_amount = 24;
 
 // Defining The Keys To Check
