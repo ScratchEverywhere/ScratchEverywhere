@@ -436,13 +436,13 @@ void loadAdvancedProjectSettingsSb2() {
     if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
     } else {
-        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::VFlash || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
         else Scratch::accuratePen = false;
     }
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-        if (Render::currentRenderer == Renderers::GL2D) {
+        if (Render::currentRenderer == Renderers::GL2D || Render::currentRenderer == Renderers::VFlash) {
             Scratch::accurateCollision = false;
         } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();

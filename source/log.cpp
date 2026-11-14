@@ -81,6 +81,9 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
+#ifdef __VFLASH__
+    (void)message;
+#else
     std::string filePath = OS::getScratchFolderLocation() + "log.txt";
     std::ofstream logFile;
     logFile.open(filePath, std::ios::app);
@@ -90,13 +93,16 @@ void Log::writeToFile(std::string message) {
     } else {
         std::cerr << "Could not open log file: " << filePath << std::endl;
     }
+#endif
 }
 
 void Log::deleteLogFile() {
+#ifndef __VFLASH__
     std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
     if (std::remove(filePath.c_str()) != 0) {
         Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
+#endif
 }
 #elif defined(__XBOX__)
 static CRITICAL_SECTION log_cs;
@@ -322,6 +328,9 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
+#ifdef __VFLASH__
+    (void)message;
+#else
     std::string filePath = OS::getScratchFolderLocation() + "log.txt";
     std::ofstream logFile;
     logFile.open(filePath, std::ios::app);
@@ -331,12 +340,15 @@ void Log::writeToFile(std::string message) {
     } else {
         std::cerr << "Could not open log file: " << filePath << std::endl;
     }
+#endif
 }
 
 void Log::deleteLogFile() {
+#ifndef __VFLASH__
     std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
     if (std::remove(filePath.c_str()) != 0) {
         Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
+#endif
 }
 #endif

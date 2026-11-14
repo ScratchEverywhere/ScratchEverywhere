@@ -17,6 +17,8 @@
 #elif defined(__XBOX__)
 #include <direct.h>
 #include <windows.h>
+#elif defined(__VFLASH__)
+#include <unistd.h>
 #else
 #include <dirent.h>
 #include <pwd.h>
@@ -185,6 +187,9 @@ nonstd::expected<void, std::string> FileSystem::removeDirectory(const std::strin
     }
 
     return {};
+#elif defined(__VFLASH__)
+    (void)path;
+    return nonstd::make_unexpected("Read-only filesystem on V.Flash");
 #else
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
@@ -337,6 +342,9 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
 
     FindClose(hFind);
 
+#elif defined(__VFLASH__)
+    (void)path;
+    return nonstd::make_unexpected("Directory listing unsupported on V.Flash");
 #else
     DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {

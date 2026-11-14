@@ -30,6 +30,9 @@
 #ifdef AUDIO_SDL2
 #include "audio_sdl2.hpp"
 #endif
+#ifdef AUDIO_VFLASH
+#include "audio_vflash.hpp"
+#endif
 #ifdef AUDIO_SDL1
 #include "audio_sdl1.hpp"
 #endif
@@ -75,6 +78,9 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
 #endif
 #ifdef AUDIO_SDL2
     add(AudioBackends::SDL2);
+#endif
+#ifdef AUDIO_VFLASH
+    add(AudioBackends::VFlash);
 #endif
 #ifdef AUDIO_SDL1
     add(AudioBackends::SDL1);
@@ -193,6 +199,15 @@ bool SoundPlayer::init() {
 #ifdef AUDIO_SDL2
             currentSoundBackend = AudioBackends::SDL2;
             globalSoundDevice = new SoundDevice_SDL2;
+            break;
+#else
+            continue;
+#endif
+        }
+        case AudioBackends::VFlash: {
+#ifdef AUDIO_VFLASH
+            currentSoundBackend = AudioBackends::VFlash;
+            globalSoundDevice = new SoundDevice_VFlash;
             break;
 #else
             continue;

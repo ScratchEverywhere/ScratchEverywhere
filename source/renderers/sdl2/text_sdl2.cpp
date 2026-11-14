@@ -1,4 +1,6 @@
 #include "text_sdl2.hpp"
+#include <algorithm>
+#include <cmath>
 #include <renderer.hpp>
 #include <renderer_sdl2.hpp>
 #include <vector>
@@ -21,20 +23,30 @@ void TextObjectSDL2::uploadAtlas(FontGeneration &gen) {
         rgba[i * 4 + 3] = gen.pixels[i];
     }
 
-    if (gen.backendHandle) {
-        SDL_DestroyTexture((SDL_Texture *)gen.backendHandle);
+    SDL_Texture *tex = (SDL_Texture *)gen.backendHandle;
+    int texW = 0;
+    int texH = 0;
+    if (tex && (SDL_QueryTexture(tex, nullptr, nullptr, &texW, &texH) != 0 ||
+                texW != gen.atlasWidth || texH != gen.atlasHeight)) {
+        SDL_DestroyTexture(tex);
+        tex = nullptr;
         gen.backendHandle = nullptr;
     }
 
-    SDL_Texture *tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, gen.atlasWidth, gen.atlasHeight);
+    if (!tex) {
+        tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, gen.atlasWidth, gen.atlasHeight);
+        if (tex) {
+            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+        }
+        gen.backendHandle = tex;
+    }
+
     if (tex) {
-        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         SDL_UpdateTexture(tex, nullptr, rgba.data(), gen.atlasWidth * 4);
     }
 
-    gen.backendHandle = tex;
     gen.destroyBackendHandle = [](void *handle) {
-        SDL_DestroyTexture((SDL_Texture *)handle);
+        if (handle) SDL_DestroyTexture((SDL_Texture *)handle);
     };
     gen.dirty = false;
 }
@@ -43,7 +55,9 @@ void TextObjectSDL2::render(int xPos, int yPos) {
     if (!renderer || !fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
 
     FontGeneration &gen = touchGeneration();
-    if (gen.dirty) uploadAtlas(gen);
+    if (gen.dirty) {
+        uploadAtlas(gen);
+    }
     if (!gen.backendHandle) return;
 
     SDL_Texture *tex = (SDL_Texture *)gen.backendHandle;
@@ -60,8 +74,8 @@ void TextObjectSDL2::render(int xPos, int yPos) {
         drawX -= layoutWidth / 2.0f;
         drawY -= layoutHeight / 2.0f;
     }
-
-    const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
+    const float renderScale = glyphScale;
+    const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * renderScale;
 
     std::vector<SDL_Vertex> verts;
     std::vector<int> indices;
@@ -71,13 +85,13 @@ void TextObjectSDL2::render(int xPos, int yPos) {
         if (glyphs.empty()) continue;
 
         float lineX = drawX;
-        float lineY = drawY + (float)li * lineHeight + gen.ascent * glyphScale;
+        float lineY = drawY + (float)li * lineHeight + gen.ascent * renderScale;
 
         for (const GlyphQuad &q : glyphs) {
-            float qx0 = lineX + q.x0 * glyphScale;
-            float qy0 = lineY + q.y0 * glyphScale;
-            float qx1 = lineX + q.x1 * glyphScale;
-            float qy1 = lineY + q.y1 * glyphScale;
+            float qx0 = lineX + q.x0 * renderScale;
+            float qy0 = lineY + q.y0 * renderScale;
+            float qx1 = lineX + q.x1 * renderScale;
+            float qy1 = lineY + q.y1 * renderScale;
 
             int base = (int)verts.size();
             verts.push_back({{qx0, qy0}, col, {q.s0, q.t0}});

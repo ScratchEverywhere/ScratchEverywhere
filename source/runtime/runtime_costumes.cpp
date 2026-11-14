@@ -56,6 +56,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     const int screenWidth = Render::getWidth();
     const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
+    struct StageBackdropLoadGuard {
+        Renderer *renderer;
+        bool active;
+        StageBackdropLoadGuard(Renderer *r, bool isStage) : renderer(r), active(r && isStage) {
+            if (active) renderer->setLoadingStageBackdrop(true);
+        }
+        ~StageBackdropLoadGuard() {
+            if (active) renderer->setLoadingStageBackdrop(false);
+        }
+    } stageBackdropGuard(Render::getGlobalRenderer(), sprite->isStage);
+
     auto it = costumeImages.find(costumeName);
     if (it != costumeImages.end()) {
         float cachedScale = (sprite->size / 100);

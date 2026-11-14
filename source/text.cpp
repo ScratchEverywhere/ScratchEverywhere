@@ -16,6 +16,9 @@
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/text_sdl2.hpp>
 #endif
+#ifdef RENDERER_VFLASH
+#include <renderers/vflash/text_vflash.hpp>
+#endif
 #ifdef RENDERER_XBOX
 #include <renderers/xbox/text_xbox.hpp>
 #endif
@@ -65,6 +68,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_SDL2
     case Renderers::SDL2:
         return std::make_unique<TextObjectSDL2>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_VFLASH
+    case Renderers::VFlash:
+        return std::make_unique<TextObjectVFlash>(txt, posX, posY, fontPath);
 #endif
 #ifdef RENDERER_XBOX
     case Renderers::Xbox:
@@ -244,16 +251,21 @@ TextObjectBase::TextObjectBase(std::string txt, double posX, double posY, std::s
 TextObjectBase::~TextObjectBase() = default;
 
 bool TextObjectBase::loadFont(std::string fontPath) {
-    if (fontPath.empty()) fontPath = "gfx/ingame/fonts/NotoSans-Medium";
+#ifdef __VFLASH__
+    constexpr const char *defaultFont = "gfx/ingame/fonts/Grand9KPixel";
+#else
+    constexpr const char *defaultFont = "gfx/ingame/fonts/NotoSans-Medium";
+#endif
+    if (fontPath.empty()) fontPath = defaultFont;
     std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
 
     fontAtlas = FontManager::acquire(fullPath);
     if (!fontAtlas->isValid()) {
         auto buffer = readFontFile(fullPath);
         if (buffer.empty()) {
-            if (fontPath != "gfx/ingame/fonts/NotoSans-Medium") {
+            if (fontPath != defaultFont) {
                 // Fallback to default font
-                return loadFont("gfx/ingame/fonts/NotoSans-Medium");
+                return loadFont(defaultFont);
             }
             return false;
         }
