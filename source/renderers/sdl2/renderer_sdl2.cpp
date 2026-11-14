@@ -16,47 +16,6 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
-#include <SDL_vflash.h>
-#include <vflash/clock.h>
-uint32_t g_se_vflash_upload_ticks = 0;
-uint32_t g_se_vflash_upload_count = 0;
-uint32_t g_se_vflash_render_ticks = 0;
-uint32_t g_se_vflash_present_ticks = 0;
-uint32_t g_se_vflash_pace_ticks = 0;
-
-bool Renderer_SDL2::getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) {
-    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
-    vflash_atlas_stats_t st;
-    if (!nr || vflash_renderer_get_atlas_stats(nr, &st) != VFLASH_GPU_OK) return false;
-    totalTexels = st.total_texels;
-    usedTexels = st.total_texels - st.free_texels;
-    liveCount = st.live_count;
-    failCount = st.fail_frag + st.fail_oom + st.fail_meta;
-    return true;
-}
-
-bool Renderer_SDL2::getPerfTelemetry(VFlashPerfTelemetry &out) {
-    vflash_renderer_t *nr = vflash_sdl2_get_native_renderer(Sdlrenderer);
-    vflash_renderer_perf_stats_t ps;
-    if (!nr || vflash_renderer_get_perf_stats(nr, &ps) != VFLASH_GPU_OK) return false;
-    out.presentCalls = ps.present_calls;
-    out.waitIdleTicks = ps.wait_idle_ticks;
-    out.presentViewTicks = ps.present_view_ticks;
-    out.syncCount = ps.sync_count;
-    out.syncTiles = ps.sync_tiles;
-    out.syncBytes = ps.sync_bytes;
-    out.syncTicks = ps.sync_ticks;
-    out.gpuLists = ps.gpu_lists - prevGpuLists;
-    out.gpuSubmitTicks = ps.gpu_submit_ticks - prevGpuSubmitTicks;
-    out.gpuWaitTicks = ps.gpu_wait_ticks - prevGpuWaitTicks;
-    prevGpuLists = ps.gpu_lists;
-    prevGpuSubmitTicks = ps.gpu_submit_ticks;
-    prevGpuWaitTicks = ps.gpu_wait_ticks;
-    vflash_renderer_reset_perf_stats(nr);
-    return true;
-}
-#endif
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -171,9 +130,6 @@ Renderer_SDL2::Renderer_SDL2() {
         windowWidth = mode.w;
         windowHeight = mode.h;
     }
-#elif defined(__VFLASH__)
-    int windowWidth = 320;
-    int windowHeight = 240;
 #else
     int windowWidth = 480;
     int windowHeight = 360;
@@ -205,12 +161,6 @@ Renderer_SDL2::~Renderer_SDL2() {
     }
 
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
-#ifdef __VFLASH__
-    if (stageBackdropTexture != nullptr) {
-        SDL_DestroyTexture(stageBackdropTexture);
-        stageBackdropTexture = nullptr;
-    }
-#endif
 
     TextObject::cleanupText();
     SDL_DestroyRenderer(Sdlrenderer);
@@ -272,16 +222,12 @@ float Renderer_SDL2::getPixelDensity() {
 bool Renderer_SDL2::initPen() {
     if (penTexture != nullptr) return true;
 
-#ifdef __VFLASH__
-    penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 240, 180);
-#else
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
             penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
             penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
-#endif
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -528,15 +474,6 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
     int penY = -cords.second + Scratch::projectHeight / 2;
 
     float penScale;
-#ifdef __VFLASH__
-    int penWidth = 240;
-    int penHeight = 180;
-    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-    penX *= scale;
-    penY *= scale;
-    penScale = sprite->renderInfo.renderScaleY;
-#else
     if (Scratch::hqpen) {
         int penWidth;
         int penHeight;
@@ -549,7 +486,6 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
     } else {
         penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
     }
-#endif
 
     ImageRenderParams params;
     params.centered = true;
@@ -636,18 +572,8 @@ void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Renderer_SDL2::endFrame(bool shouldFlush) {
-#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
-    uint32_t t0 = vflash_clock_ticks();
-    SDL_RenderPresent(Sdlrenderer);
-    uint32_t t1 = vflash_clock_ticks();
-    SDL_Delay(16);
-    uint32_t t2 = vflash_clock_ticks();
-    g_se_vflash_present_ticks += (uint16_t)(t1 - t0);
-    g_se_vflash_pace_ticks += (uint16_t)(t2 - t1);
-#else
     SDL_RenderPresent(Sdlrenderer);
     SDL_Delay(16);
-#endif
     hasFrameBegan = false;
 }
 
@@ -697,9 +623,6 @@ void Renderer_SDL2::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 }
 
 void Renderer_SDL2::renderSprites() {
-#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
-    uint32_t rt0 = vflash_clock_ticks();
-#endif
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
 
@@ -723,33 +646,7 @@ void Renderer_SDL2::renderSprites() {
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
 
-#ifdef __VFLASH__
-            if (currentSprite->isStage) {
-                Image_SDL2 *sdlImg = static_cast<Image_SDL2 *>(image);
-                const std::string &backdropId = currentSprite->costumes[currentSprite->currentCostume].fullName;
-                if (!stageBackdropTexture) {
-                    stageBackdropTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 240, 180);
-                    if (stageBackdropTexture) {
-                        SDL_SetTextureBlendMode(stageBackdropTexture, SDL_BLENDMODE_BLEND);
-                    }
-                }
-                if (stageBackdropTexture && (activeStageBackdropId != backdropId || activeStageBackdropVersion != sdlImg->stagePixelVersion)) {
-                    if (sdlImg->uploadToTexture(stageBackdropTexture)) {
-                        activeStageBackdropId = backdropId;
-                        activeStageBackdropVersion = sdlImg->stagePixelVersion;
-                    }
-                }
-                if (stageBackdropTexture) {
-                    sdlImg->renderWithTexture(params, stageBackdropTexture);
-                } else {
-                    image->render(params);
-                }
-            } else {
-                image->render(params);
-            }
-#else
             image->render(params);
-#endif
         }
         // Draw collision points (for debugging)
         // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
@@ -791,15 +688,7 @@ void Renderer_SDL2::renderSprites() {
     }
 #endif
 
-#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
-    uint32_t rt1 = vflash_clock_ticks();
     SDL_RenderPresent(Sdlrenderer);
-    uint32_t rt2 = vflash_clock_ticks();
-    g_se_vflash_render_ticks += (uint16_t)(rt1 - rt0);
-    g_se_vflash_present_ticks += (uint16_t)(rt2 - rt1);
-#else
-    SDL_RenderPresent(Sdlrenderer);
-#endif
 }
 
 void Renderer_SDL2::renderPenLayer() {
@@ -816,12 +705,6 @@ void Renderer_SDL2::renderPenLayer() {
 
     SDL_Rect renderRect = {0, 0, 0, 0};
 
-#ifdef __VFLASH__
-    int penW = 240;
-    int penH = 180;
-    SDL_QueryTexture(penTexture, nullptr, nullptr, &penW, &penH);
-    renderRect = {(getWidth() - penW) / 2, (getHeight() - penH) / 2, penW, penH};
-#else
     if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
         renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
         renderRect.w = getWidth() - renderRect.x * 2;
@@ -831,7 +714,6 @@ void Renderer_SDL2::renderPenLayer() {
         renderRect.h = getHeight() - renderRect.y * 2;
         renderRect.w = getWidth();
     }
-#endif
 
     SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
 }

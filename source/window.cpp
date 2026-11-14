@@ -67,6 +67,7 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
             b = WindowingBackends::SDL1;
             break;
         case Renderers::SDL2:
+        case Renderers::VFlash:
             b = WindowingBackends::SDL1;
             break;
         case Renderers::SDL3:

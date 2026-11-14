@@ -26,6 +26,9 @@
 #ifdef RENDERER_SDL2
 #include "renderer_sdl2.hpp"
 #endif
+#ifdef RENDERER_VFLASH
+#include "renderer_vflash.hpp"
+#endif
 #ifdef RENDERER_SDL1
 #include "renderer_sdl1.hpp"
 #endif
@@ -94,6 +97,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #endif
 #ifdef RENDERER_SDL2
     add(Renderers::SDL2);
+#endif
+#ifdef RENDERER_VFLASH
+    add(Renderers::VFlash);
 #endif
 #ifdef RENDERER_SDL1
     add(Renderers::SDL1);
@@ -219,6 +225,15 @@ bool Render::init() {
 #ifdef RENDERER_SDL2
             Render::currentRenderer = Renderers::SDL2;
             globalRenderer = new Renderer_SDL2;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::VFlash: {
+#ifdef RENDERER_VFLASH
+            Render::currentRenderer = Renderers::VFlash;
+            globalRenderer = new Renderer_VFlash;
             break;
 #else
             continue;

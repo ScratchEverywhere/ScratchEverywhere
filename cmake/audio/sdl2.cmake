@@ -1,6 +1,3 @@
-if(VFLASH)
-    target_link_libraries(audio_interface INTERFACE SDL2)
-else()
 # SDL2 is only used for audio here (not windowing/rendering), so trim every
 # other subsystem out of a from-source build to keep it lean.
 cl_add_dep(audio_interface SDL2
@@ -10,4 +7,3 @@ cl_add_dep(audio_interface SDL2
 		"SDL_KMSDRM" "OFF" "SDL_VULKAN" "OFF" "SDL_VIVANTE" "OFF" "SDL_RENDER_D3D" "OFF"
 		"SDL_OFFSCREEN" "OFF" "SDL_HIDAPI" "OFF" "SDL_UNIX_CONSOLE_BUILD" "ON"
 )
-endif()

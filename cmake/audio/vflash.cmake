@@ -1,0 +1,1 @@
+target_link_libraries(audio_interface INTERFACE SDL2)

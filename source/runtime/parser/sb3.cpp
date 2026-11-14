@@ -589,7 +589,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
 
         Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
-            if (Render::currentRenderer == Renderers::SDL2) {
+            if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::VFlash) {
                 Scratch::FPS = 255; // SDL2's vsync will figure it out
             } else {
                 Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
@@ -635,7 +635,7 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
     if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
     } else {
-        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::VFlash || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) Scratch::accuratePen = true;
         else Scratch::accuratePen = false;
     }
 

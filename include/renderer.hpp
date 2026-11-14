@@ -20,6 +20,7 @@ enum class SE_EXPORT Renderers : uint8_t {
     GX2,
     SDL3,
     SDL2,
+    VFlash,
     Citro2D,
     GL2D,
     SDL1,
@@ -37,6 +38,7 @@ constexpr std::array RendererNames = {
     "GX2",
     "SDL3",
     "SDL2",
+    "V.Flash",
     "Citro2D",
     "GL2D",
     "SDL1",
@@ -94,7 +96,7 @@ class SE_EXPORT Renderer {
 
     virtual void renderSprites() = 0;
     virtual void setLoadingStageBackdrop(bool loading) { (void)loading; }
-#if defined(__VFLASH__) && defined(SE_VFLASH_TELEMETRY)
+#if (defined(RENDERER_VFLASH) || defined(__VFLASH__)) && defined(SE_VFLASH_TELEMETRY)
     struct VFlashPerfTelemetry {
         uint32_t presentCalls = 0;
         uint32_t waitIdleTicks = 0;

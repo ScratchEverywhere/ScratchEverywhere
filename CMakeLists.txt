@@ -257,7 +257,7 @@ if(NOT LIBRETRO)
     list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
 endif()
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "nv2a" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+    set(SE_RENDERER_PRIORITY "all" "vflash" "d3d9" "opengl_core" "nv2a" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 

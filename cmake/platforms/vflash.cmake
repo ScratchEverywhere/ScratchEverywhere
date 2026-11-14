@@ -4,13 +4,13 @@ enable_language(ASM)
 set(VFLASH_OPT_LEVEL "-Os" CACHE STRING "Compiler optimization level (-O1, -O2, -O3, -Os)")
 find_package(VFlash REQUIRED)
 
-set(SE_RENDERER_VALID_OPTIONS "sdl2")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_RENDERER_VALID_OPTIONS "vflash")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "vflash")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
-set(SE_RENDERER "sdl2" CACHE STRING "Select the desired renderer backend." FORCE)
+set(SE_RENDERER "vflash" CACHE STRING "Select the desired renderer backend." FORCE)
 set(SE_WINDOWING "sdl2" CACHE STRING "Select the desired windowing backend." FORCE)
-set(SE_AUDIO_ENGINE "sdl2" CACHE STRING "Select the desired audio backend." FORCE)
+set(SE_AUDIO_ENGINE "vflash" CACHE STRING "Select the desired audio backend." FORCE)
 
 set(SE_CACHING_DEFAULT OFF)
 set(SE_BUNDLE_DEFAULT OFF)

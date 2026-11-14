@@ -12,8 +12,6 @@ class SE_EXPORT Image_SDL2 : public Image {
   public:
     SDL_Texture *texture = nullptr;
     SDL_Renderer *sdlRenderer = nullptr;
-    bool isStageBackdrop = false;
-    uint32_t stagePixelVersion = 0;
 
     Image_SDL2(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
@@ -22,8 +20,6 @@ class SE_EXPORT Image_SDL2 : public Image {
     ~Image_SDL2() override;
 
     void render(ImageRenderParams &params) override;
-    void renderWithTexture(ImageRenderParams &params, SDL_Texture *tex);
-    bool uploadToTexture(SDL_Texture *dstTex);
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 
     void *getNativeTexture() override;

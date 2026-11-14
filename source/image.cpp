@@ -45,6 +45,9 @@ static bool hasSVGExtension(const std::string &path) {
 #if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
 #endif
+#if defined(RENDERER_VFLASH)
+#include <image_vflash.hpp>
+#endif
 #if defined(RENDERER_XBOX)
 #include <image_xbox.hpp>
 #endif
@@ -191,6 +194,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_VFLASH)
+    case Renderers::VFlash:
+        rawImg = new Image_VFlash(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_XBOX)
     case Renderers::Xbox:
         rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -289,6 +297,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_SDL2)
     case Renderers::SDL2:
         rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_VFLASH)
+    case Renderers::VFlash:
+        rawImg = new Image_VFlash(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_XBOX)

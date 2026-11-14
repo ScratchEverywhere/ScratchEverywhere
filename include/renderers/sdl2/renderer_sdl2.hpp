@@ -1,30 +1,12 @@
 #pragma once
 #include "nonstd/expected.hpp"
-#ifdef __VFLASH__
-#include <SDL.h>
-#else
 #include <SDL2/SDL.h>
-#endif
 #include <renderer.hpp>
 #include <se_export.hpp>
 
 class SE_EXPORT Renderer_SDL2 : public Renderer {
   public:
     SDL_Renderer *Sdlrenderer = nullptr;
-#ifdef __VFLASH__
-    bool loadingStageBackdrop = false;
-    SDL_Texture *stageBackdropTexture = nullptr;
-    std::string activeStageBackdropId;
-    uint32_t activeStageBackdropVersion = 0;
-    void setLoadingStageBackdrop(bool loading) override { loadingStageBackdrop = loading; }
-#ifdef SE_VFLASH_TELEMETRY
-    uint32_t prevGpuLists = 0;
-    uint32_t prevGpuSubmitTicks = 0;
-    uint32_t prevGpuWaitTicks = 0;
-    bool getAtlasTelemetry(uint32_t &usedTexels, uint32_t &totalTexels, uint32_t &liveCount, uint32_t &failCount) override;
-    bool getPerfTelemetry(VFlashPerfTelemetry &out) override;
-#endif
-#endif
 
     Renderer_SDL2();
     ~Renderer_SDL2() override;

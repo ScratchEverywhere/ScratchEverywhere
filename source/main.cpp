@@ -247,6 +247,8 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::SDL1;
         } else if (arg == "--sdl2") {
             Render::currentRenderer = Renderers::SDL2;
+        } else if (arg == "--vflash") {
+            Render::currentRenderer = Renderers::VFlash;
         } else if (arg == "--sdl3") {
             Render::currentRenderer = Renderers::SDL3;
         } else if (arg == "--xbox") {

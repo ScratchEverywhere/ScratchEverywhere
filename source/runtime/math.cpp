@@ -49,6 +49,7 @@ int Math::color(int r, int g, int b, int a) {
 #endif
     case Renderers::SDL1:
     case Renderers::SDL2:
+    case Renderers::VFlash:
     case Renderers::SDL3:
     case Renderers::Xbox:
     case Renderers::GX2:

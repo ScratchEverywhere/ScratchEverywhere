@@ -71,6 +71,7 @@ SCRATCH_BLOCK(SE, controller) {
 #endif
 #if defined(WINDOWING_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
     case Renderers::SDL2:
+    case Renderers::VFlash:
         if (controller != nullptr) *outValue = Value(std::string(SDL_GameControllerName(controller)));
         break;
 #endif
