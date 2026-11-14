@@ -1,6 +1,6 @@
 {
   "ui.controls.apply": "Aplică (Y)",
-  "ui.headless.projectPrompt": "Scrie care proiect vrei să deschizi",
+  "ui.headless.projectPrompt": "Scrie care proiect vrei să deschizi.",
   "ui.projects.noProjects": "Niciun proiect Scratch găsit!",
   "ui.projects.path": "Pune proiectele în ",
   "ui.settings.controls": "Schimbă Control",
@@ -40,5 +40,13 @@
   "version.prefix.beta": "Versiune Beta",
   "version.prefix.release": "Versiune Public",
   "version.prefix.releaseCanidate": "Canditidă Public",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "ui.settings.runtime": "Runtime",
+  "ui.settings.renderer": "",
+  "ui.settings.windowing": "",
+  "ui.settings.audioEngine": "",
+  "ui.loading.caching": "",
+  "ui.popup.bytecodeCacheTooNew": "",
+  "version.prefix.alpha": "",
+  "version.prefix.dev": ""
 }

@@ -1,11 +1,12 @@
 #pragma once
-#include <se_export.hpp>
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
 #include "text.hpp"
+#include <se_export.hpp>
 
 enum class PopupType : uint8_t {
     ACCEPT_OR_CANCEL,
+    ACKNOWLEDGE,
 };
 
 class SE_EXPORT PopupMenu : public Menu {

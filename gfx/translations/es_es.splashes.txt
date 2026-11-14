@@ -50,6 +50,7 @@ TEXTO SPLASH DIVERTIDO Y/O INGENIOSO
 ¡Port de SDL1 por Leap!
 ¡Port de OpenGL por Leap!
 ¡Port de libretro por Nishi!
+¡Port de Xbox por MikeDEV!
 ¡Música del menú compuesta por Dogo6647!
 ¡Desde 2025!
 ¡C++!
@@ -58,7 +59,7 @@ TEXTO SPLASH DIVERTIDO Y/O INGENIOSO
 ¡SDL!
 ¡Funciona! (cuando quiere...)
 Guau.
-¡Beta!
+¡Lanzado!
 ¡Déjà vu!
 ¡A jugar, {UserName}!
 ¡Woo, TurboWarp!

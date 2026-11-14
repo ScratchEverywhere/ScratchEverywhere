@@ -1,13 +1,13 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <image.hpp>
+#include <se_export.hpp>
 
 class SE_EXPORT Image_Headless : public Image {
   public:
     Image_Headless(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_Headless(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_Headless(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_Headless() override;
 

@@ -38,7 +38,11 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
+#ifndef USE_BUNDLE
+    return "assets/";
+#else
     return "";
+#endif
 }
 
 bool OS::isOnline() {

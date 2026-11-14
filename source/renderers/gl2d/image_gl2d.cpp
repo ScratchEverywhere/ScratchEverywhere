@@ -61,7 +61,7 @@ Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, bool bitma
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_GL2D::Image_GL2D(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
     auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
 
@@ -83,8 +83,8 @@ void *Image_GL2D::getNativeTexture() {
 }
 
 void Image_GL2D::render(ImageRenderParams &params) {
-    int x = params.x;
-    int y = params.y;
+    int x = static_cast<int>(std::lround(params.x));
+    int y = static_cast<int>(std::lround(params.y));
     float scale = params.scale;
     const int16_t rotation = Math::radiansToAngle16(params.rotation);
     const bool &centered = params.centered;

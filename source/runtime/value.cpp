@@ -1,163 +1,527 @@
 #include "value.hpp"
 #include "math.hpp"
+#include <algorithm>
 #include <array>
+#include <cctype>
+#include <charconv>
+#include <cmath>
+#include <cstring>
+#include <optional>
 #include <os.hpp>
 #include <regex>
+#include <string_view>
 
-Value::Value(int val) : value(static_cast<double>(val)) {}
+using Math::caseInsensitiveEqual;
+using Math::caseInsensitiveLess;
 
-Value::Value(double val) : value(val) {}
-
-Value::Value(std::string val) : value(std::make_shared<const std::string>(std::move(val))) {}
-
-Value::Value(bool val) : value(val) {}
-
-Value::Value(Color val) : value(val) {}
-
-Value::Value(Undefined val) : value(val) {}
-
-double Value::asDouble() const {
-    if (isDouble()) {
-        if (isNaN()) return 0.0;
-        return std::get<double>(value);
-    } else if (isString()) {
-        auto &strValue = *std::get<std::shared_ptr<const std::string>>(value);
-        return Math::parseNumber(strValue).value_or(0);
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
-        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
-    } else if (isBoolean()) {
-        return std::get<bool>(value) ? 1 : 0;
-    }
-
-    return 0.0;
+std::deque<StringPool::Entry> &StringPool::storageRef() {
+    static std::deque<Entry> s = [] {
+        std::deque<Entry> d;
+        d.push_back({"", 1});
+        return d;
+    }();
+    return s;
 }
 
-std::string Value::asString() const {
-    if (isDouble()) {
-        return Math::toString(std::get<double>(value));
-    } else if (isString()) {
-        return *std::get<std::shared_ptr<const std::string>>(value);
-    } else if (isBoolean()) {
-        return std::get<bool>(value) ? "true" : "false";
-    } else if (isUndefined()) {
-        return "undefined";
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
-        const char hex_chars[] = "0123456789abcdef";
-        const unsigned char r = static_cast<unsigned char>(rgb.r);
-        const unsigned char g = static_cast<unsigned char>(rgb.g);
-        const unsigned char b = static_cast<unsigned char>(rgb.b);
-        std::string hex_str = "#";
-        hex_str += hex_chars[r >> 4];
-        hex_str += hex_chars[r & 0x0F];
-        hex_str += hex_chars[g >> 4];
-        hex_str += hex_chars[g & 0x0F];
-        hex_str += hex_chars[b >> 4];
-        hex_str += hex_chars[b & 0x0F];
-        return hex_str;
-    }
-
-    return "";
+std::unordered_map<StringPool::Key, uint32_t, StringPool::KeyHash, StringPool::KeyEqual> &StringPool::lookupRef() {
+    static std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> m = [] {
+        std::unordered_map<Key, uint32_t, KeyHash, KeyEqual> mm;
+        mm.emplace(Key{std::string_view(storageRef()[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
+        return mm;
+    }();
+    return m;
 }
 
-bool Value::asBoolean() const {
-    if (isBoolean()) {
-        return std::get<bool>(value);
-    }
-    if (isDouble()) {
-        return std::get<double>(value) != 0.0 && !isNaN();
-    }
-    if (isString()) {
-        std::string strValue = *std::get<std::shared_ptr<const std::string>>(value);
-        std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
-        return strValue != "" && strValue != "0" && strValue != "false";
-    }
-    if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
-        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
-    }
-    return false;
+std::vector<uint32_t> &StringPool::freeListRef() {
+    static std::vector<uint32_t> f;
+    return f;
 }
 
-Color Value::asColor() const {
-    if (isString()) {
-        std::string stringValue = asString();
-        if (stringValue[0] == '#') {
-            std::string r, g, b;
-            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{3}$"))) {
-                stringValue = "#" + std::string(2, stringValue[1]) + std::string(2, stringValue[2]) + std::string(2, stringValue[3]);
-            }
-            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) {
-                r = stringValue.substr(1, 2);
-                g = stringValue.substr(3, 2);
-                b = stringValue.substr(5, 2);
-                return RGBA2CSBO({static_cast<float>(std::stoi(r, 0, 16)), static_cast<float>(std::stoi(g, 0, 16)), static_cast<float>(std::stoi(b, 0, 16)), 255});
-            } else return {0, 0, 0, 0};
+std::array<uint32_t, 128> &StringPool::asciiIdsRef() {
+    static std::array<uint32_t, 128> ids = [] {
+        std::array<uint32_t, 128> arr{};
+        auto &pool = storageRef();
+        auto &lookup = lookupRef();
+        
+        for (unsigned int c = 0; c < 128; ++c) {
+            std::string text(1, static_cast<char>(c));
+            const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+            const uint32_t id = static_cast<uint32_t>(pool.size());
+            
+            Entry e;
+            e.data = std::move(text);
+            e.refCount = 1;
+            e.pinned = true;
+            e.utf16State = Entry::Utf16State::ASCII;
+            e.deduped = true;
+            e.hash = hash;
+            
+            pool.push_back(std::move(e));
+            arr[c] = id;
+            lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
         }
-    }
-    const double RGBA = asDouble();
-    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
+        return arr;
+    }();
+    return ids;
 }
 
-bool Value::operator==(const Value &other) const {
-    std::string string1 = asString();
-    std::string string2 = other.asString();
+uint32_t StringPool::getOrInsert(std::string_view str) {
+    if (str.empty()) return 0u;
+    if (str.size() == 1 && static_cast<unsigned char>(str[0]) < 0x80) {
+        return asciiIdsRef()[static_cast<unsigned char>(str[0])];
+    }
 
-    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
-        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
-        if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-            return asDouble() == other.asDouble();
+    auto &pool = storageRef();
+    auto &freeSlots = freeListRef();
+
+    const bool tryDedup = str.size() <= dedupMaxLength;
+    size_t hash = 0;
+
+    if (tryDedup) {
+        auto &lookup = lookupRef();
+        hash = std::hash<std::string_view>{}(str);
+        auto it = lookup.find(Key{str, hash});
+        if (it != lookup.end()) {
+            uint32_t id = it->second;
+            if (!pool[id].pinned) pool[id].refCount++;
+            return id;
         }
     }
 
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 == string2;
+    uint32_t id;
+    if (!freeSlots.empty()) {
+        id = freeSlots.back();
+        freeSlots.pop_back();
+        pool[id].data.assign(str.data(), str.size());
+        pool[id].refCount = 1;
+        pool[id].pinned = false;
+    } else {
+        id = static_cast<uint32_t>(pool.size());
+        pool.push_back({std::string(str), 1, false});
+    }
+
+    pool[id].deduped = tryDedup;
+    if (tryDedup) {
+        pool[id].hash = hash;
+        lookupRef().emplace(Key{std::string_view(pool[id].data), hash}, id);
+    }
+    return id;
+}
+
+void StringPool::addRef(uint32_t id) {
+    if (id == 0) return;
+    auto &pool = storageRef();
+    if (id < pool.size() && !pool[id].pinned) pool[id].refCount++;
+}
+
+void StringPool::release(uint32_t id) {
+    if (id == 0) return;
+    auto &pool = storageRef();
+    auto &freeSlots = freeListRef();
+
+    if (id >= pool.size()) return;
+    Entry &e = pool[id];
+    if (e.pinned || e.refCount == 0) return;
+
+    if (--e.refCount == 0) {
+        if (e.deduped) lookupRef().erase(Key{std::string_view(e.data), e.hash});
+        e.data.clear();
+        e.deduped = false;
+        e.numericState = Entry::NumericState::NOT_COMPUTED;
+        e.utf16State = Entry::Utf16State::NOT_BUILT;
+        std::vector<uint32_t>().swap(e.utf16Offsets);
+        freeSlots.push_back(id);
+    }
+}
+
+void StringPool::ensureUtf16(Entry &entry) {
+    if (entry.utf16State != Entry::Utf16State::NOT_BUILT) return;
+
+    const bool ascii = std::all_of(entry.data.begin(), entry.data.end(), [](unsigned char c) { return c < 0x80; });
+    if (ascii) {
+        entry.utf16State = Entry::Utf16State::ASCII;
+        return;
+    }
+    entry.utf16Offsets = Math::utf16Index(entry.data);
+    entry.utf16State = Entry::Utf16State::INDEXED;
+}
+
+void StringPool::computeNumeric(Entry &e) {
+    const auto parsed = Math::parseNumber(e.data);
+    e.numericState = parsed.has_value() ? Entry::NumericState::NUMERIC : Entry::NumericState::NOT_NUMERIC;
+    e.numericValue = parsed.has_value() ? *parsed : 0.0;
+    e.hasDot = e.data.find('.') != std::string::npos;
+}
+
+bool StringPool::isNumeric(uint32_t id, bool &hasDot) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
+    hasDot = e.hasDot;
+    return e.numericState == Entry::NumericState::NUMERIC;
+}
+
+double StringPool::toNumber(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    if (e.numericState == Entry::NumericState::NOT_COMPUTED) computeNumeric(e);
+    return e.numericState == Entry::NumericState::NUMERIC ? e.numericValue : 0.0;
+}
+
+size_t StringPool::utf16Length(uint32_t id) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) return e.data.size();
+    return e.utf16Offsets.empty() ? 0 : e.utf16Offsets.size() - 1;
+}
+
+std::string StringPool::utf16CharAt(uint32_t id, size_t index) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) return index < e.data.size() ? std::string(1, e.data[index]) : std::string();
+    if (index + 1 >= e.utf16Offsets.size()) return "";
+    return e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]);
+}
+
+uint32_t StringPool::utf16CharId(uint32_t id, size_t index) {
+    auto &pool = storageRef();
+    Entry &e = pool[id < pool.size() ? id : 0];
+    ensureUtf16(e);
+    if (e.utf16State == Entry::Utf16State::ASCII) {
+        if (index >= e.data.size()) return 0u;
+        return asciiIdsRef()[static_cast<unsigned char>(e.data[index])];
+    }
+    if (index + 1 >= e.utf16Offsets.size()) return 0u;
+    return StringPool::getOrInsert(e.data.substr(e.utf16Offsets[index], e.utf16Offsets[index + 1] - e.utf16Offsets[index]));
+}
+
+const std::string &StringPool::get(uint32_t id) {
+    auto &pool = storageRef();
+    if (id >= pool.size()) return pool[0].data;
+    return pool[id].data;
+}
+
+void StringPool::resetAll() {
+    auto &pool = storageRef();
+    auto &lookup = lookupRef();
+    auto &freeSlots = freeListRef();
+    auto &ascii = asciiIdsRef();
+
+    pool.clear();
+    pool.push_back({"", 1});
+    lookup.clear();
+    lookup.emplace(Key{std::string_view(pool[0].data), std::hash<std::string_view>{}(std::string_view())}, 0u);
+    freeSlots.clear();
+
+    for (size_t c = 0; c < ascii.size(); ++c) {
+        const std::string text(1, static_cast<char>(c));
+        const auto hash = std::hash<std::string_view>{}(std::string_view(text));
+        const uint32_t id = static_cast<uint32_t>(pool.size());
+        Entry e;
+        e.data = text;
+        e.refCount = 1;
+        e.pinned = true;
+        e.utf16State = Entry::Utf16State::ASCII;
+        e.deduped = true;
+        e.hash = hash;
+        pool.push_back(std::move(e));
+        ascii[c] = id;
+        lookup.emplace(Key{std::string_view(pool[id].data), hash}, id);
+    }
+}
+
+Value::Value(int val) : tag(Tag::NUMBER), flags(0) { storage.d = static_cast<double>(val); }
+
+Value::Value(double val) : tag(Tag::NUMBER), flags(0) { storage.d = val; }
+
+Value::Value(std::string_view val) : tag(Tag::STRING_ID), flags(0) {
+    storage.stringId = StringPool::getOrInsert(val);
+}
+
+Value::Value(std::string val) : tag(Tag::STRING_ID), flags(0) {
+    storage.stringId = StringPool::getOrInsert(val);
+}
+
+Value::Value(std::shared_ptr<const std::string> val) : tag(Tag::STRING_ID), flags(0) {
+    storage.stringId = val ? StringPool::getOrInsert(*val) : 0u;
+}
+
+Value::Value(bool val) : tag(Tag::BOOLEAN), flags(0) { storage.b = val; }
+
+static_assert(sizeof(Value) == 16, "Value must stay two machine words; the JIT and list memmoves rely on it being compact");
+
+namespace {
+
+std::vector<Color> &colorStorage() {
+    static std::vector<Color> colors(1);
+    return colors;
+}
+
+std::unordered_map<std::string, uint32_t> &colorIndex() {
+    static std::unordered_map<std::string, uint32_t> index;
+    return index;
+}
+
+} // namespace
+
+uint32_t ColorPool::intern(const Color &color) {
+    const std::string key(reinterpret_cast<const char *>(&color), sizeof color);
+    auto &index = colorIndex();
+    if (const auto it = index.find(key); it != index.end()) return it->second;
+    auto &colors = colorStorage();
+    const uint32_t id = static_cast<uint32_t>(colors.size());
+    colors.push_back(color);
+    index.emplace(key, id);
+    return id;
+}
+
+const Color &ColorPool::get(uint32_t id) {
+    auto &colors = colorStorage();
+    return colors[id < colors.size() ? id : 0];
+}
+
+Value::Value(Color val) : tag(Tag::COLOR), flags(0) { storage.colorId = ColorPool::intern(val); }
+
+Value::Value(Undefined) : tag(Tag::UNDEFINED), flags(0) {}
+
+Value &Value::operator=(const Value &other) {
+    if (this == &other) return *this;
+
+    if (tag == Tag::STRING_ID && other.tag == Tag::STRING_ID) {
+        if (storage.stringId == other.storage.stringId) {
+            flags = other.flags;
+            return *this;
+        }
+        StringPool::addRef(other.storage.stringId);
+        StringPool::release(storage.stringId);
+        storage.stringId = other.storage.stringId;
+        flags = other.flags;
+        return *this;
+    }
+
+    destroyActive();
+    tag = other.tag;
+    flags = other.flags;
+    constructFrom(other);
+    return *this;
+}
+
+Value &Value::operator=(Value &&other) noexcept {
+    if (this == &other) return *this;
+
+    if (tag == Tag::STRING_ID && other.tag == Tag::STRING_ID) {
+        if (storage.stringId == other.storage.stringId) {
+            StringPool::release(other.storage.stringId);
+            flags = other.flags;
+            other.storage.stringId = 0;
+            other.flags = 0;
+            return *this;
+        }
+        StringPool::release(storage.stringId);
+        storage.stringId = other.storage.stringId;
+        flags = other.flags;
+        other.storage.stringId = 0;
+        other.flags = 0;
+        return *this;
+    }
+
+    destroyActive();
+    tag = other.tag;
+    flags = other.flags;
+    constructFrom(std::move(other));
+    other.tag = Tag::STRING_ID;
+    other.storage.stringId = 0;
+    other.flags = 0;
+    return *this;
+}
+
+bool Value::isNumeric() const {
+    if (isDouble() || isBoolean()) return true;
+    if (!isString()) return false;
+
+    if (flags & FLAG_NUMERIC_COMPUTED) {
+        return (flags & FLAG_IS_NUMERIC) != 0;
+    }
+
+    bool hasDot;
+    const bool numeric = StringPool::isNumeric(storage.stringId, hasDot);
+
+    flags |= FLAG_NUMERIC_COMPUTED;
+    if (numeric) flags |= FLAG_IS_NUMERIC;
+    if (hasDot) flags |= FLAG_HAS_DOT;
+
+    return numeric;
+}
+
+std::string_view Value::asStringView(std::string &scratch) const {
+    if (isString()) {
+        return StringPool::get(storage.stringId);
+    }
+    scratch = asString();
+    return scratch;
+}
+
+Value Value::utf16CharAtValue(size_t index) const {
+    if (!isString()) return Value(utf16CharAt(index));
+    const uint32_t charId = StringPool::utf16CharId(storage.stringId, index);
+    if (charId == 0u) return Value();
+    Value out;
+    out.tag = Tag::STRING_ID;
+    out.storage.stringId = charId;
+    StringPool::addRef(charId);
+    return out;
+}
+
+bool Value::plainNumber(double &out) const {
+    if (isDouble()) {
+        if (isNaN()) return false;
+        out = storage.d;
+        return true;
+    }
+    if (!isString() || !isNumeric()) return false;
+    out = asDouble();
+    return true;
+}
+
+namespace {
+bool sameText(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    const size_t n = a.size();
+    if (n > 24) return std::memcmp(a.data(), b.data(), n) == 0;
+    const volatile char *x = a.data();
+    const volatile char *y = b.data();
+    for (size_t i = 0; i < n; i++) {
+        if (x[i] != y[i]) return false;
+    }
+    return true;
+}
+} // namespace
+
+bool Value::compareStrings(int kind, std::string_view a, std::string_view b) {
+    const auto blank = [](std::string_view text) {
+        return std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isspace(c) && c != '\t'; });
+    };
+    const auto mayBeNumber = [](std::string_view text) {
+        if (text.empty()) return false;
+        const unsigned char c = static_cast<unsigned char>(text.front());
+        return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == 'I' || c >= 0x80 || c <= ' ';
+    };
+    const auto parse = [&mayBeNumber](std::string_view text) -> std::optional<double> {
+        if (!mayBeNumber(text)) return std::nullopt;
+        const auto parsed = Math::parseNumber(text);
+        if (!parsed.has_value()) return std::nullopt;
+        return *parsed;
+    };
+    if (kind == 0) {
+        if (sameText(a, b)) return true;
+        const auto na = parse(a);
+        if (na.has_value() && !blank(a)) {
+            const auto nb = parse(b);
+            if (nb.has_value() && !blank(b)) return *na == *nb;
+        }
+        return caseInsensitiveEqual(a, b);
+    }
+    const auto na = parse(a);
+    if (na.has_value()) {
+        const auto nb = parse(b);
+        if (nb.has_value()) return kind == 1 ? *na < *nb : *na > *nb;
+    }
+    if (sameText(a, b)) return false;
+    return kind == 1 ? caseInsensitiveLess(a, b) : caseInsensitiveLess(b, a);
+}
+
+bool Value::equalsSlow(const Value &other) const {
+    if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN())
+        return storage.d == other.storage.d;
+    if (isBoolean() && other.isBoolean())
+        return storage.b == other.storage.b;
+    if (isColor() && other.isColor())
+        return storage.colorId == other.storage.colorId || ColorPool::get(storage.colorId) == ColorPool::get(other.storage.colorId);
+
+    if (isString() && other.isString() && storage.stringId == other.storage.stringId)
+        return true;
+
+    double number;
+    if (isDouble() && !isNaN() && other.isString() && other.plainNumber(number)) return storage.d == number;
+    if (other.isDouble() && !other.isNaN() && isString() && plainNumber(number)) return number == other.storage.d;
+
+    std::string scratchA, scratchB;
+    std::string_view svA = asStringView(scratchA);
+    std::string_view svB = other.asStringView(scratchB);
+
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN() &&
+        !std::all_of(svA.begin(), svA.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
+        !std::all_of(svB.begin(), svB.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
+        return asDouble() == other.asDouble();
+    }
+
+    return caseInsensitiveEqual(svA, svB);
 }
 
 bool Value::operator<(const Value &other) const {
     if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() < other.asDouble();
+        return get<double>() < other.get<double>();
     }
 
-    std::string string1 = asString();
-    std::string string2 = other.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 < string2;
+    if (isString() && other.isString() && storage.stringId == other.storage.stringId)
+        return false;
+
+    std::string scratchA, scratchB;
+    std::string_view svA = asStringView(scratchA);
+    std::string_view svB = other.asStringView(scratchB);
+    return caseInsensitiveLess(svA, svB);
 }
 
 bool Value::operator>(const Value &other) const {
     if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() > other.asDouble();
+        return get<double>() > other.get<double>();
     }
 
-    std::string string1 = asString();
-    std::string string2 = other.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 > string2;
+    if (isString() && other.isString() && storage.stringId == other.storage.stringId)
+        return false;
+
+    std::string scratchA, scratchB;
+    std::string_view svA = asStringView(scratchA);
+    std::string_view svB = other.asStringView(scratchB);
+    return caseInsensitiveLess(svB, svA);
 }
 
-bool Value::isScratchInt() {
+bool Value::isScratchInt() const {
     if (isDouble()) {
         double val = asDouble();
         if (std::isnan(val)) return true;
         return std::fabs(val) < 1e21 && std::floor(val) == val;
     }
     if (isBoolean()) return true;
-    if (isString()) return asString().find('.') == std::string::npos;
+    if (isString()) {
+        if (flags & FLAG_NUMERIC_COMPUTED) {
+            return (flags & FLAG_HAS_DOT) == 0;
+        }
+        const std::string_view sv = StringPool::get(storage.stringId);
+        return sv.find('.') == std::string_view::npos;
+    }
     return false;
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
     if (jsonVal.is_number()) return Value(jsonVal.get<double>());
-    if (jsonVal.is_string()) return Value(jsonVal.get<std::string>());
+    if (jsonVal.is_string()) return Value(jsonVal.get<std::string_view>());
     if (jsonVal.is_boolean()) return Value(jsonVal.get<bool>());
     if (jsonVal.is_array()) {
         if (jsonVal.size() > 1) return fromJson(jsonVal[1]);
         return Value(0);
     }
     return Value(0);
+}
+
+size_t Value::utf16Length() const {
+    if (isString()) return StringPool::utf16Length(storage.stringId);
+    return Math::utf16Length(asString());
+}
+
+std::string Value::utf16CharAt(size_t index) const {
+    if (isString()) return StringPool::utf16CharAt(storage.stringId, index);
+    return Math::utf16CharAt(asString(), index);
 }

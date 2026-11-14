@@ -7,10 +7,13 @@ SCRATCH_SHADOW_BLOCK(music_menu_INSTRUMENT, INSTRUMENT)
 SCRATCH_SHADOW_BLOCK(note, NOTE);
 
 SCRATCH_BLOCK(music, setInstrument) {
-    if (!Scratch::getInputValueAs(block, "INSTRUMENT", thread, sprite, sprite->instrument)) return BlockResult::REPEAT;
+    double instrument;
+    if (!Scratch::getInputValueAs(block, "INSTRUMENT", thread, sprite, instrument)) return BlockResult::REPEAT;
+    sprite->instrument = instrument;
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(music, setInstrument, {"INSTRUMENT", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(music, playNoteForBeats) {
     double note, beats;
@@ -37,6 +40,7 @@ SCRATCH_BLOCK(music, playNoteForBeats) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(music, playNoteForBeats, {"NOTE", BytecodeStackKind::Number}, {"BEATS", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(music, playDrumForBeats) {
     double drum, beats;
@@ -63,27 +67,40 @@ SCRATCH_BLOCK(music, playDrumForBeats) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(music, playDrumForBeats, {"DRUM", BytecodeStackKind::Number}, {"BEATS", BytecodeStackKind::Number});
 
-SCRATCH_BLOCK(music, getTempo) {
-    *outValue = Value(Scratch::tempo);
-
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(music, getTempo) {
+    return Scratch::tempo;
+}
+SCRATCH_BLOCK_DOUBLE(music, getTempo) {
+    *outValue = block_music_getTempo_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(music, getTempo);
 
+SCRATCH_BLOCK_POSITIONAL_N_VOID(music, setTempo) {
+    Scratch::tempo = num;
+}
 SCRATCH_BLOCK(music, setTempo) {
-    if (!Scratch::getInputValueAs(block, "TEMPO", thread, sprite, Scratch::tempo)) return BlockResult::REPEAT;
+    double tempo;
+    if (!Scratch::getInputValueAs(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
+    block_music_setTempo_pos_(sprite, tempo);
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(music, setTempo, {"TEMPO", BytecodeStackKind::Number});
 
+SCRATCH_BLOCK_POSITIONAL_N_VOID(music, changeTempo) {
+    Scratch::tempo += num;
+}
 SCRATCH_BLOCK(music, changeTempo) {
     double tempo;
     if (!Scratch::getInputValueAs(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
-
-    Scratch::tempo += tempo;
+    block_music_changeTempo_pos_(sprite, tempo);
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(music, changeTempo, {"TEMPO", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(music, restForBeats) {
     BlockState *state = thread->getState(block);
@@ -104,3 +121,4 @@ SCRATCH_BLOCK(music, restForBeats) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(music, restForBeats, {"BEATS", BytecodeStackKind::Number});

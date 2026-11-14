@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <image.hpp>
 #include <os.hpp>
+#include <se_export.hpp>
 #include <text.hpp>
 
 class SE_EXPORT Loading {

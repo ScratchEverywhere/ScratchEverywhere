@@ -2,7 +2,7 @@
 #include <se_export.hpp>
 
 #include "meta.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <sol/sol.hpp>
 
 namespace extensions {

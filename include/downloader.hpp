@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <cctype>
+#include <se_export.hpp>
 #ifdef __3DS__
 #include <sys/select.h>
 #include <sys/time.h>

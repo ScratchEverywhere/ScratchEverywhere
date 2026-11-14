@@ -1,5 +1,10 @@
 #include "input.hpp"
+#include <algorithm>
+#include <cstdlib>
 #include <log.hpp>
+#include <renderer.hpp>
+
+InputDevice *globalInputDevice = nullptr;
 
 std::pair<float, float> Input::leftJoystick = {0, 0};
 std::pair<float, float> Input::rightJoystick = {0, 0};
@@ -12,6 +17,96 @@ std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<Block *> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
+int Input::mouseScrollDelta = 0;
+
+int Input::inputViewportX = 0;
+int Input::inputViewportY = 0;
+int Input::inputViewportW = 0;
+int Input::inputViewportH = 0;
+
+InputDevice *Input::getGlobalInputDevice() {
+    return globalInputDevice;
+}
+
+void Input::setGlobalInputDevice(InputDevice *device) {
+    globalInputDevice = device;
+}
+
+void Input::destroyGlobalInputDevice() {
+    if (globalInputDevice) delete globalInputDevice;
+}
+
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {0, 0};
+    if (globalInputDevice) pos = globalInputDevice->getTouchPosition();
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (pos[0] == 0 && pos[1] == 0 && mousePointer.isMoving) {
+        pos[0] = static_cast<int>((mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
+        pos[1] = static_cast<int>((-mousePointer.y * Render::renderScale) + (Render::getHeight() * 0.5f));
+    }
+#endif
+    return pos;
+}
+
+void Input::getInput() {
+    if (globalInputDevice) globalInputDevice->getInput();
+}
+
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (const char *automatic = std::getenv("SE_AUTOANSWER"); automatic != nullptr) return automatic;
+    if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
+    return "";
+}
+
+void Input::setClipboardText(const std::string &text) {
+    if (globalInputDevice) globalInputDevice->setClipboardText(text);
+}
+
+void Input::setInputViewport(int x, int y, int w, int h) {
+    inputViewportX = x;
+    inputViewportY = y;
+    inputViewportW = w;
+    inputViewportH = h;
+}
+
+void Input::clearInputViewport() {
+    inputViewportW = 0;
+    inputViewportH = 0;
+}
+
+bool Input::hasInputViewport() {
+    return inputViewportW > 0 && inputViewportH > 0;
+}
+
+void Input::applyInputViewportOffset(int &x, int &y) {
+    if (!hasInputViewport()) return;
+    x -= inputViewportX;
+    y -= inputViewportY;
+}
+
+void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int renderHeight) {
+    if (!hasInputViewport()) return;
+    x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
+    y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+
+    x = std::clamp(x, 0, renderWidth);
+    y = std::clamp(y, 0, renderHeight);
+}
+
+void Input::clampMouseToStage() {
+    mousePointer.x = std::clamp(static_cast<float>(mousePointer.x), -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    mousePointer.y = std::clamp(static_cast<float>(mousePointer.y), -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+}
+
+void *Input::inputWindowHandleOverride = nullptr;
+
+void Input::setInputWindowHandle(void *handle) {
+    inputWindowHandleOverride = handle;
+}
+
+void Input::clearInputWindowHandle() {
+    inputWindowHandleOverride = nullptr;
+}
 
 void Input::applyControls(std::string controlsFilePath) {
     Input::inputControls.clear();
@@ -28,8 +123,21 @@ void Input::applyControls(std::string controlsFilePath) {
             if (controlsJson.contains("controls")) {
                 for (auto &[key, value] : controlsJson["controls"].items()) {
                     if (key.empty() || value.empty()) continue;
-                    Input::inputControls[value.get<std::string>()] = key;
-                    Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    // A key can be bound to several physical inputs, e.g. both
+                    // D-pad Up and left-stick Up for arrow-only Scratch games.
+                    auto bind = [&](const nlohmann::json &button) {
+                        if (!button.is_string()) return;
+                        const auto name = button.get<std::string>();
+                        if (name.empty()) return;
+                        Input::inputControls[name] = key;
+                        Log::log("Loaded control: " + key + " -> " + name);
+                    };
+                    if (value.is_array()) {
+                        for (const auto &button : value)
+                            bind(button);
+                    } else {
+                        bind(value);
+                    }
                 }
                 file.close();
                 return;
@@ -79,7 +187,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         case 39:
             return "right arrow";
             break;
-        case 50:
+        case 40:
             return "down arrow";
             break;
         };

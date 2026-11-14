@@ -1,29 +1,44 @@
 #include <chrono>
 #include <mutex>
-#include <pthread.h>
 #include <thread.hpp>
 #include <thread>
 #include <unistd.h>
 #ifdef _WIN32
+#include <process.h>
 #include <windows.h>
+#else
+#include <pthread.h>
 #endif
 
 struct SE_Thread::Impl {
+#ifdef _WIN32
+    HANDLE thread;
+#else
     pthread_t thread;
+#endif
     bool active = false;
 };
 
-struct PthreadData {
+struct ThreadData {
     void (*entryPoint)(void *);
     void *args;
 };
-
+#ifdef _WIN32
+static unsigned CALLBACK win32_Wrapper(void *data) {
+    ThreadData *ctx = static_cast<ThreadData *>(data);
+    ctx->entryPoint(ctx->args);
+    delete ctx;
+    _endthreadex(0);
+    return 0;
+}
+#else
 static void *pthread_Wrapper(void *data) {
-    PthreadData *ctx = static_cast<PthreadData *>(data);
+    ThreadData *ctx = static_cast<ThreadData *>(data);
     ctx->entryPoint(ctx->args);
     delete ctx;
     return nullptr;
 }
+#endif
 
 SE_Thread::SE_Thread() : impl(nullptr) {}
 
@@ -32,11 +47,30 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
 
     impl = new Impl;
 
-    PthreadData *data = new PthreadData;
+    ThreadData *data = new ThreadData;
     data->entryPoint = entryPoint;
     data->args = args;
 
-    int result = pthread_create(&impl->thread, nullptr, pthread_Wrapper, data);
+#ifdef _WIN32
+    unsigned id;
+    const bool bigStack = stackSize > (2u << 20);
+    impl->thread = (HANDLE)_beginthreadex(nullptr, bigStack ? static_cast<unsigned>(stackSize) : 0, win32_Wrapper, data, bigStack ? STACK_SIZE_PARAM_IS_A_RESERVATION : 0, &id);
+
+    /* ive never seen it fail so i am not sure if this is right. MSDN says -1 is the failure */
+    if (impl->thread == (HANDLE)-1) {
+        delete data;
+        delete impl;
+        impl = nullptr;
+        return false;
+    }
+#else
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    size_t defaultSize = 0;
+    pthread_attr_getstacksize(&attributes, &defaultSize);
+    if (stackSize > defaultSize) pthread_attr_setstacksize(&attributes, stackSize);
+    int result = pthread_create(&impl->thread, &attributes, pthread_Wrapper, data);
+    pthread_attr_destroy(&attributes);
 
     if (result != 0) {
         delete data;
@@ -44,6 +78,7 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
         impl = nullptr;
         return false;
     }
+#endif
 
     impl->active = true;
     return true;
@@ -56,7 +91,12 @@ SE_Thread::~SE_Thread() {
 void SE_Thread::join() {
     if (impl != nullptr) {
         if (impl->active) {
+#ifdef _WIN32
+            WaitForSingleObject(impl->thread, INFINITE);
+            CloseHandle(impl->thread);
+#else
             pthread_join(impl->thread, nullptr);
+#endif
             impl->active = false;
         }
         delete impl;
@@ -66,17 +106,29 @@ void SE_Thread::join() {
 
 void SE_Thread::detach() {
     if (impl != nullptr && impl->active) {
+#ifdef _WIN32
+        CloseHandle(impl->thread);
+#else
         pthread_detach(impl->thread);
+#endif
         impl->active = false;
     }
 }
 
 void SE_Thread::sleep(uint16_t milliseconds) {
+#ifdef _WIN32
+    Sleep(milliseconds);
+#else
     usleep(milliseconds * 1000);
+#endif
 }
 
 unsigned int SE_Thread::getCurrentThreadId() {
+#ifdef _WIN32
+    return static_cast<unsigned int>((uintptr_t)GetCurrentThread());
+#else
     return static_cast<unsigned int>((uintptr_t)pthread_self());
+#endif
 }
 
 struct SE_Mutex::Impl {

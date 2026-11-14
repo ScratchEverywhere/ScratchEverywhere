@@ -1,11 +1,11 @@
 #pragma once
-#include <se_export.hpp>
 #include <SDL.h>
+#include <se_export.hpp>
 #include <window.hpp>
 
 class SE_EXPORT WindowSDL2 : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowSDL2(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

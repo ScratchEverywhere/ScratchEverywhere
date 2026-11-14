@@ -7,6 +7,7 @@ SCRATCH_BLOCK(sceneManager, receivedData) {
     *outValue = Scratch::dataNextProject;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sceneManager, receivedData);
 
 SCRATCH_BLOCK(sceneManager, openSB3) {
     if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, Unzip::filePath)) return BlockResult::REPEAT;
@@ -33,6 +34,7 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
     Scratch::shouldStop = true;
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(sceneManager, openSB3, {"arg0", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(sceneManager, openSB3withData) {
     Value arg1;
@@ -60,3 +62,4 @@ SCRATCH_BLOCK(sceneManager, openSB3withData) {
     Scratch::shouldStop = true;
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(sceneManager, openSB3withData, {"arg0", BytecodeStackKind::String}, {"arg1", BytecodeStackKind::Value});

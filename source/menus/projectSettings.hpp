@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
+#include <se_export.hpp>
 
 class SE_EXPORT ProjectSettings : public Menu {
   private:
@@ -16,6 +16,7 @@ class SE_EXPORT ProjectSettings : public Menu {
     ButtonObject *ramButton = nullptr;
     ButtonObject *collisionButton = nullptr;
     ButtonObject *refreshLimitButton = nullptr;
+    ButtonObject *runtimeButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

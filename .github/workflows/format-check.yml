@@ -1,18 +1,28 @@
-name: Markdown Format Check
+name: Format Check
 
 on:
   pull_request:
     branches: [main]
 
 jobs:
-  fmt-check:
+  markdown-fmt-check:
+    name: "`deno fmt` (Markdown) Check"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: latest
-      - name: Check Formating
-        run: deno fmt --check *.md
+      - name: Check Formatting
+        run: deno fmt --check **/*.md
+
+  clang-fmt-check:
+    name: "`clang-format` (Source) Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Check Formatting
+        run: find src include -type f \(-name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h'\) | xargs clang-format --dry-run --Werror

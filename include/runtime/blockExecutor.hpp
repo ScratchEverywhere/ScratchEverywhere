@@ -1,9 +1,11 @@
 #pragma once
-#include <se_export.hpp>
-#include "sprite.hpp"
+#include "bytecode.hpp"
+#include "types.hpp"
 #include <functional>
 #include <os.hpp>
+#include <se_export.hpp>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace MonitorDisplayNames {
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4> SIMPLE_MONITORS{
@@ -56,10 +58,15 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 class SE_EXPORT BlockExecutor {
   public:
     static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
+    static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &getInputSignatures();
+    static std::unordered_map<std::string, BytecodePositionalFn> &getPositionalHandlers();
+    static std::unordered_set<std::string> &getBlockingBlocks();
 
     static void linkPointers(Sprite *sprite);
 
     static void executeKeyHats();
+    static void executeWhenGreaterThanHats();
+    static void resetWhenGreaterThanHats();
     static void doSpriteClicking();
 
     /**
@@ -70,8 +77,21 @@ class SE_EXPORT BlockExecutor {
      */
     static ScriptThread *startThread(Sprite *sprite, Block *blockID, bool shouldRestart = true);
     static void runThreads();
-    static BlockResult runThread(ScriptThread &thread, Sprite &sprite, Value *outValue);
+    // Reconcile clone deletion and layer ordering after both execution engines have run.
+    static void cleanupSprites();
+    static BlockResult runThread(ScriptThread &thread, Sprite &sprite);
     static std::vector<ScriptThread *> threads;
+
+    static uint64_t nextThreadId();
+    static bool isThreadRunning(uint64_t id);
+
+    static uint64_t startHat(Sprite *sprite, Block *hat);
+
+    /**
+     * Starts every "when I receive" hat listening for the given broadcast (case-insensitive).
+     * @return the ids of the threads that were started.
+     */
+    static std::vector<uint64_t> startBroadcastHats(std::string broadcast);
 
     // If true, all sprites will be sorted at the end of the frame.
     static bool sortSprites;
@@ -86,6 +106,8 @@ class SE_EXPORT BlockExecutor {
     static void runAllBlocksByOpcode(const std::string &opcodeToFind, std::vector<ScriptThread *> *out = nullptr);
     static void runAllBlocksByOpcodeInSprite(const std::string &opcode, Sprite *sprite, std::vector<ScriptThread *> *out = nullptr);
 
+    static Variable *getVariable(const std::string &variableId, Sprite *sprite);
+
     /**
      * Gets the Value of the specified Scratch variable.
      * @param variableId ID of the variable to find
@@ -93,6 +115,23 @@ class SE_EXPORT BlockExecutor {
      * @return The Value of the Variable.
      */
     static Value getVariableValue(const std::string &variableId, Sprite *sprite);
+
+    /**
+     * Gets the Value of the specified Scratch variable.
+     * @param variableId ID of the variable to find
+     * @param sprite Pointer to the sprite the variable is inside. If the variable is global, it would be in the Stage Sprite.
+     * @return The Value of the Variable.
+     */
+    template <typename T>
+    static T getVariableValueAs(const std::string &variableId, Sprite *sprite);
+
+    /**
+     * Gets the Value of the specified Scratch variable.
+     * @param var Pointer to the Variable
+     * @return The Value of the Variable.
+     */
+    template <typename T>
+    static T getVariableValueAs(Variable *var);
 
     /**
      * Gets the Value of the specified Scratch list.
@@ -130,3 +169,13 @@ class SE_EXPORT BlockExecutor {
     static int dragPositionOffsetX;
     static int dragPositionOffsetY;
 };
+
+#define GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(T)                        \
+    extern template T BlockExecutor::getVariableValueAs<T>(Variable *); \
+    extern template T BlockExecutor::getVariableValueAs<T>(const std::string &, Sprite *)
+
+GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(Value);
+GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(double);
+GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(std::string);
+GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(bool);
+GET_VARIABLE_VALUE_AS_TEMPLATE_EXTERN(Color);

@@ -6,6 +6,7 @@
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <log.hpp>
+#include <xbox_menu_trace.hpp>
 
 ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
     initProjectName = selectedProjectName;
@@ -17,6 +18,10 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+#ifdef __XBOX__
+    awaitingConfirmRelease = true;
+    pendingProjectLoad = false;
+#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -29,7 +34,9 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 30;
     for (std::string &file : projectFiles) {
-        /*ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        std::size_t dot = file.find_last_of('.');
+        std::string displayName = dot == std::string::npos ? file : file.substr(0, dot);
+        ButtonObject *project = new ButtonObject(displayName, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -58,13 +65,12 @@ void ProjectMenu::init() {
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        projects.push_back(new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true));
-        ButtonObject *projectObj = projects.at(projects.size() - 1);
-        projectObj->text->setColor(Math::color(126, 101, 1, 255));
-        projectObj->y -= projectObj->text->getSize()[1] / 2;
-        if (projectObj->text->getSize()[0] > projectObj->buttonTexture->image->getWidth() * 0.85) {
-            float scale = (float)projectObj->buttonTexture->image->getWidth() / (projectObj->text->getSize()[0] * 1.15);
-            projectObj->textScale = scale;
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        project->text->setColor(Math::color(126, 101, 1, 255));
+        project->y -= project->text->getSize()[1] / 2;
+        if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
+            project->textScale = scale;
         }
         // projects.push_back(project);
         projectControl->buttonObjects.push_back(projectObj);
@@ -140,24 +146,48 @@ void ProjectMenu::init() {
 
 void ProjectMenu::render() {
     Input::getInput();
+#ifdef __XBOX__
+    if (pendingProjectLoad) {
+        // A small project can finish loading before A/X is released. Keep UI
+        // controls until release so launching cannot trigger a game key hat.
+        if (Input::keyHeldDuration["a"] != 0 || Input::keyHeldDuration["x"] != 0 || Input::mousePointer.isPressed) return;
+        pendingProjectLoad = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser load after release");
+        XboxMenuTrace::beginGameFrames();
+        MenuManager::loadProject();
+        return;
+    }
+    // A may still be held after confirming Exit Project, and remapping the
+    // game controls back to UI controls makes it look like a new key press.
+    if (awaitingConfirmRelease && Input::keyHeldDuration["a"] == 0 && Input::keyHeldDuration["x"] == 0) {
+        awaitingConfirmRelease = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser armed");
+    }
+    const bool acceptReady = !awaitingConfirmRelease;
+#else
+    const bool acceptReady = true;
+#endif
     projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+        static bool menuMusicFailed = false;
 #ifdef __NDS__
-        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
+                menuMusicFailed = true;
             } else
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
+                menuMusicFailed = true;
             } else
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
@@ -165,17 +195,29 @@ void ProjectMenu::render() {
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed()) {
+        if (acceptReady && projectControl->selectedObject->isPressed()) {
+            if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser accepted " + projectControl->selectedObject->text->getText());
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
-                // Unpacked sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
+                std::string name = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + name;
+                Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", name);
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
-                // normal sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
+                std::string name = projectControl->selectedObject->text->getText();
+                ProjectFormat format;
+                std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + name, format);
+                Unzip::filePath = !resolved.empty() ? resolved : (OS::getScratchFolderLocation() + name + ".sb3");
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else {
                 // Settings button
@@ -204,8 +246,11 @@ void ProjectMenu::render() {
         //     return;
         // }
     } else {
-        if (noProjectsButton->isPressed({"a"})) {
-            MenuManager::changeMenu(MenuManager::previousMenu);
+        if (acceptReady && noProjectsButton->isPressed({"a"})) {
+            // A browser opened directly at startup has no previous menu yet.
+            Menu *destination = MenuManager::previousMenu;
+            if (destination == nullptr) destination = new MainMenu();
+            MenuManager::changeMenu(destination);
             return;
         }
     }
@@ -216,8 +261,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;

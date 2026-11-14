@@ -1,6 +1,7 @@
 #include "controlsMenu.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
+#include "unpackMenu.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 
@@ -14,8 +15,14 @@ ControlsMenu::~ControlsMenu() {
 }
 
 void ControlsMenu::init() {
-
-    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+    }
     if (!Unzip::load()) {
         Log::logCritical("Failed to load project for ControlsMenu.", false);
         OS::toExit = true;
@@ -90,7 +97,7 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/controlsButton.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 1.0;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
@@ -204,9 +211,9 @@ void ControlsMenu::render() {
 
         // Highlight selected
         if (settingsControl->selectedObject == controlButton.button)
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
         else
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
     }
 
     // Render UI elements

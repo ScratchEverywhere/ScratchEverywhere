@@ -1,9 +1,10 @@
 #pragma once
 #include "blockExecutor.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
+#include <set>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
@@ -36,12 +37,7 @@ class SE_EXPORT Scratch {
     static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
 
     template <typename T>
-    static bool getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
-        Value tmp;
-        if (!getInputValue(block, inputName, thread, sprite, tmp)) return false;
-        outValue = tmp.get<T>();
-        return true;
-    }
+    static bool getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue);
 
     static ParsedInput *getInput(Block *block, const std::string &inputName);
     static void resetInput(Block *block, const std::string &inputName = "");
@@ -61,9 +57,17 @@ class SE_EXPORT Scratch {
 
     static ParsedField *getField(Block &block, const std::string &fieldName);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
-    static std::string getFieldId(Block &block, const std::string &fieldName);
+    static const std::string &getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
+    static std::vector<Value> *getListItems(const std::string &name, Sprite *sprite);
+
+    static bool resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName);
+
+    /**
+     * Starts the sound `fullName` at the sprite's volume so that "play sound until done" can wait on it with `Mixer::isSoundPlaying`.
+     */
+    static void startSoundUntilDone(Sprite *sprite, const std::string &fullName);
 
     /**
      * Frees every Sprite from memory.
@@ -71,7 +75,7 @@ class SE_EXPORT Scratch {
     static void cleanupSprites();
 
     static void gotoXY(Sprite *sprite, double x, double y);
-    static void fenceSpriteWithinBounds(Sprite *sprite);
+    static void fenceSpriteWithinBounds(Sprite *sprite, double &x, double &y);
     static bool isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, const std::string &targetName = "");
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
@@ -79,16 +83,17 @@ class SE_EXPORT Scratch {
     static void moveLayer(Sprite *s, int layers);
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
+    static std::set<std::string> failedCostumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
     static void flushCostumeImages();
-    static void freeUnusedCostumeImages();
+    static void freeUnusedCostumeImages(const Image *keep = nullptr);
 
     static void createDebugMonitor(const std::string &name, int x, int y);
     static void toggleDebugVars(const bool enabled);
 
     static bool hasNativeExtensions;
 
-    static float tempo;
+    static double tempo;
 
     static int projectWidth;
     static int projectHeight;
@@ -113,6 +118,9 @@ class SE_EXPORT Scratch {
 
     static bool debugVars;
     static bool sb3InRam;
+    static bool useBytecode;
+    static bool useJit;
+    static bool bytecodeCacheTooNew;
 
     static double counter;
 
@@ -140,3 +148,10 @@ class SE_EXPORT Scratch {
     static std::string cloudUsername;
 #endif
 };
+
+#define GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(T) extern template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(Value);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(double);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(std::string);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(bool);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(Color);

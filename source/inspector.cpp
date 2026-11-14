@@ -2,18 +2,24 @@
 #ifdef ENABLE_INSPECTOR
 
 #include <blockExecutor.hpp>
+#include <bytecode_disassembler.hpp>
+#include <collision.hpp>
+#include <input.hpp>
 #include <iostream>
 #include <queue>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
-#include <sprite.hpp>
 #include <sstream>
 #include <string>
 #include <thread.hpp>
+#include <types.hpp>
 #include <vector>
 
 namespace Inspector {
+
+bool paused = false;
+int stepsRemaining = 0;
 
 struct WatchEntry {
     std::string targetStr;
@@ -87,6 +93,7 @@ static void loop(void *arg) {
     std::cout << "Inspector active. Type 'help' for commands.\n";
     while (true) {
         if (!std::getline(std::cin, line)) {
+            std::cin.clear();
             SE_Thread::sleep(100);
             continue;
         }
@@ -131,6 +138,8 @@ void processCommands() {
                           << "  watch, unwatch, clearwatch - Real-time variable tracking\n"
                           << "[Control]\n"
                           << "  flag, stop               - Start or stop project execution\n"
+                          << "[Bytecode]\n"
+                          << "  bytecode                 - Dump a sprite's compiled bytecode chunk\n"
                           << "Syntax: Use 'SpriteName:Var' for locals, '@Layer' for specefic sprite at a certain layer (including stage and clones).\n\n";
             } else if (subCmd == "inspect" || subCmd == "inspectext") {
                 std::cout << "Usage: " << subCmd << " <name or @layer>\n"
@@ -148,6 +157,12 @@ void processCommands() {
             } else if (subCmd == "listset" || subCmd == "listadd" || subCmd == "listremove" || subCmd == "listclear") {
                 std::cout << "List commands use 1-based indexing.\n"
                           << "Example: listset Sprite1:myList 1 newItem\n";
+            } else if (subCmd == "bytecode") {
+                std::cout << "Usage: bytecode <name or @layer>\n"
+                          << "Dumps the sprite's compiled BytecodeChunk: scripts, procedures, and the full\n"
+                          << "instruction listing. Most things still show up as EscapeToLegacyThread /\n"
+                          << "CallLegacyReporter -- that's expected, only a few opcodes are compiled so far.\n"
+                          << "Prints a message instead if the sprite has no compiled bytecode.\n";
             } else {
                 std::cout << "No extra info for '" << subCmd << "'.\n";
             }
@@ -206,7 +221,7 @@ void processCommands() {
 
                 std::cout << "- Variables:\n";
                 for (auto &[id, v] : target->variables) {
-                    std::cout << "  " << v.name << " = " << v.value.asString() << "\n";
+                    std::cout << "  " << v.name << " = " << BlockExecutor::getVariableValueAs<Value>(&v).asString() << "\n";
                 }
                 std::cout << "- Lists:\n";
                 for (auto &[id, l] : target->lists) {
@@ -262,6 +277,27 @@ void processCommands() {
                 else if (prop == "rotation") target->rotation = std::stof(valStr);
                 else if (prop == "visible") target->visible = (valStr == "true" || valStr == "1");
             }
+        } else if (cmd == "resizesvgs") {
+            Render::resizeSVGs();
+            std::cout << "Resized SVGs.\n";
+        } else if (cmd == "pause") {
+            paused = true;
+            stepsRemaining = 0;
+            std::cout << "Paused.\n";
+        } else if (cmd == "resume") {
+            paused = false;
+            stepsRemaining = 0;
+            std::cout << "Resumed.\n";
+        } else if (cmd == "step") {
+            std::string countStr = parseArg(ss, false);
+            int count = 1;
+            try {
+                if (!countStr.empty()) count = std::stoi(countStr);
+            } catch (...) {
+            }
+            paused = true;
+            stepsRemaining += count;
+            std::cout << "Stepping " << count << ".\n";
         } else if (cmd == "broadcast") {
             std::string name = parseArg(ss, true);
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -271,7 +307,7 @@ void processCommands() {
                     std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
                     std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
                     if (broadcastOption == name) {
-                        BlockExecutor::startThread(spr, hat);
+                        BlockExecutor::startHat(spr, hat);
                     }
                 }
             }
@@ -284,6 +320,54 @@ void processCommands() {
             std::string s1Name = parseArg(ss, false), s2Name = parseArg(ss, false);
             Sprite *s1 = findSprite(s1Name), *s2 = findSprite(s2Name);
             if (s1 && s2) std::cout << (Scratch::isColliding("sprite", s1, s2) ? "YES\n" : "NO\n");
+        } else if (cmd == "touchmouse") {
+            std::string sName = parseArg(ss, false);
+            Sprite *s = findSprite(sName);
+            if (s) {
+                std::cout << "mousePointer: (" << Input::mousePointer.x << ", " << Input::mousePointer.y << ")\n"
+                          << "sprite pos: (" << s->xPosition << ", " << s->yPosition << ")\n"
+                          << "isColliding(mouse): " << (Scratch::isColliding("mouse", s) ? "YES" : "NO") << "\n"
+                          << "pointInSpriteFast: " << (collision::pointInSpriteFast(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n"
+                          << "pointInSprite: " << (collision::pointInSprite(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n";
+                collision::AABB box = collision::getSpriteBounds(s);
+                std::cout << "AABB: left=" << box.left << " right=" << box.right << " top=" << box.top << " bottom=" << box.bottom << "\n";
+
+                auto &costume = s->costumes[s->currentCostume];
+                auto imgFind = Scratch::costumeImages.find(costume.fullName);
+                if (imgFind != Scratch::costumeImages.end()) {
+                    std::cout << "image: w=" << imgFind->second->getWidth() << " h=" << imgFind->second->getHeight() << "\n";
+                }
+                auto freshMask = collision::generateCollisionMask(s, 1);
+                auto mask = freshMask;
+                if (mask) {
+                    std::cout << "mask: w=" << mask->width << " h=" << mask->height
+                              << " scaleFactor=" << mask->scaleFactor << " maxRadius=" << mask->maxRadius << "\n"
+                              << "rotationCenter: (" << costume.rotationCenterX << ", " << costume.rotationCenterY << ")\n"
+                              << "costume.isSVG=" << costume.isSVG << " bitmapResolution=" << costume.bitmapResolution << "\n"
+                              << "sprite.size=" << s->size << "\n";
+                    int opaqueCount = 0;
+                    for (unsigned int yy = 0; yy < mask->height; yy++) {
+                        for (unsigned int xx = 0; xx < mask->width; xx++) {
+                            if (mask->getPixel(xx, yy)) opaqueCount++;
+                        }
+                    }
+                    std::cout << "opaquePixels=" << opaqueCount << " / " << (mask->width * mask->height) << "\n";
+                } else std::cout << "mask: null\n";
+            } else std::cout << "not found\n";
+        } else if (cmd == "accurate") {
+            std::string valStr = parseArg(ss, false);
+            if (!valStr.empty()) Scratch::accurateCollision = (valStr == "1" || valStr == "true");
+            std::cout << "accurateCollision=" << (Scratch::accurateCollision ? "true" : "false") << "\n";
+        } else if (cmd == "mouse") {
+            std::string xStr = parseArg(ss, false), yStr = parseArg(ss, false), downStr = parseArg(ss, false);
+            try {
+                if (!xStr.empty()) Input::mousePointer.x = std::stoi(xStr);
+                if (!yStr.empty()) Input::mousePointer.y = std::stoi(yStr);
+                if (!downStr.empty()) Input::mousePointer.isPressed = (downStr == "true" || downStr == "1" || downStr == "down");
+            } catch (...) {
+            }
+            std::cout << "mouse: x=" << Input::mousePointer.x << " y=" << Input::mousePointer.y
+                      << " down=" << (Input::mousePointer.isPressed ? "true" : "false") << "\n";
         } else if (cmd == "watch") {
             std::string target = parseArg(ss, true);
             watchedVars.push_back({target, Value()});
@@ -302,12 +386,24 @@ void processCommands() {
             Scratch::greenFlagClicked();
         } else if (cmd == "stop") {
             Scratch::stopClicked();
+        } else if (cmd == "bytecode") {
+            std::string spriteName = parseArg(ss, true);
+            Sprite *target = findSprite(spriteName);
+            if (!target) {
+                std::cout << "Sprite '" << spriteName << "' not found.\n";
+            } else if (!target->bytecode) {
+                std::cout << "Sprite '" << target->name << "' has no compiled bytecode.\n";
+            } else {
+                std::cout << "Sprite: " << target->name << (target->isStage ? " (Stage)" : "") << "\n"
+                          << BytecodeDisassembler::disassemble(*target->bytecode, target->bytecodeLink.get());
+            }
         }
     } else {
         queueMutex.unlock();
     }
 
-    for (auto &w : watchedVars) {
+    // TODO: reimplement
+    /* for (auto &w : watchedVars) {
         size_t colon = w.targetStr.find(':');
         Value current;
         if (colon == std::string::npos) {
@@ -335,7 +431,8 @@ void processCommands() {
             std::cout << "[WATCH] " << w.targetStr << " : " << w.lastValue.asString() << " -> " << current.asString() << "\n";
             w.lastValue = current;
         }
-    }
+    } */
+    std::cout.flush();
 }
 
 } // namespace Inspector

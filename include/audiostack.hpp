@@ -22,11 +22,13 @@
 #endif
 #endif
 #include "nonstd/expected.hpp"
-#include <miniz.h>
+#include <atomic>
+#include <audio_resampler.hpp>
 #include <optional>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
+#include <zip_archive.hpp>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -49,15 +51,26 @@ class SE_EXPORT SoundConfig {
  * more than wav/mp3
  */
 class SE_EXPORT SoundStream {
-    unsigned char *buffer;
-    size_t buffer_size;
-    int (*callback)(SoundStream *strm, float *iwave, int length);
+    friend class Mixer;
+
+#ifndef __NDS__
+    std::atomic<unsigned int> activeMixers{0};
+#else
+    volatile unsigned int activeMixers = 0;
+#endif
+
+    SoundStream *nextRetired = nullptr;
+    unsigned char *buffer = nullptr;
+    size_t buffer_size = 0;
+    int (*callback)(SoundStream *strm, float *iwave, int length) = nullptr;
 
     bool loadAsWAV();
     bool loadAsMP3();
     bool loadAsVorbis();
     bool loadFromBuffer();
+    bool loadFromFile(const std::string &path);
     void commonInit();
+    void prepareResampler();
 
   public:
 #ifdef ENABLE_AUDIO
@@ -72,15 +85,20 @@ class SE_EXPORT SoundStream {
 
     std::string name;
 
-    int type;
+    int type = SoundStreamUnknown;
 
-    int channels;
-    int rate;
+    int channels = 0;
+    int rate = 0;
     SoundConfig config;
+    AudioResampler resampler;
 
-    bool paused;
-    bool auto_clean;
-    bool no_lock;
+#ifndef __NDS__
+    std::atomic<bool> paused{false};
+    std::atomic<bool> auto_clean{false};
+#else
+    volatile bool paused = false;
+    volatile bool auto_clean = false;
+#endif
 
     /**
      * Set if an error occurs in the constructor.
@@ -88,11 +106,11 @@ class SE_EXPORT SoundStream {
     std::optional<std::string> error;
 
     SoundStream(std::string path, bool cached = false, bool on_disk = false);
-    SoundStream(mz_zip_archive *zip, std::string path);
+    SoundStream(ZipArchive *zip, std::string path);
     SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate);
 
     nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
-    nonstd::expected<void, std::string> init(mz_zip_archive *zip, std::string path);
+    nonstd::expected<void, std::string> init(ZipArchive *zip, std::string path);
 
     ~SoundStream();
 
@@ -108,7 +126,7 @@ class SE_EXPORT Mixer {
 #endif
 
     static SE_Mutex mutex;
-#ifdef ENABLE_AUDIO
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     static tsf *hTsf;
 #endif
     static void *sf2_buffer;
@@ -119,6 +137,7 @@ class SE_EXPORT Mixer {
     static bool musicInitialized;
     static void initMusic();
     static void requestSound(short *output, int frames); /* expects stereo */
+    static void registerStream(const std::string &name, SoundStream *stream);
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);
     static void setPitch(std::string name, float pitch);
@@ -127,6 +146,8 @@ class SE_EXPORT Mixer {
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
+    // Called by main-thread audio controls to destroy streams retired by the audio callback.
+    static void drainRetiredStreams();
     static float beatsToSec(float v);
     static int note(int instrument, int note, float volume, float beats);
     static int drum(int drum, float volume, float beats);

@@ -1,10 +1,10 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <3ds.h>
 #include <citro2d.h>
 #include <citro3d.h>
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 
 class SE_EXPORT Image_C2D : public Image {
@@ -18,7 +18,7 @@ class SE_EXPORT Image_C2D : public Image {
 
     Image_C2D(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_C2D(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_C2D() override;
 

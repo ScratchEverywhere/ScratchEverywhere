@@ -2,7 +2,7 @@
 #include <se_export.hpp>
 
 #include "meta.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 
 namespace extensions::runtime {
 SE_EXPORT void setThread(ScriptThread *thread);

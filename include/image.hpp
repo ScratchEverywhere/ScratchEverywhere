@@ -1,16 +1,16 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <optional>
+#include <se_export.hpp>
 #ifdef ENABLE_SVG
 #include "lunasvg.h"
 #endif
 #include <cstddef>
 #include <memory.h>
-#include <miniz.h>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <vector>
+#include <zip_archive.hpp>
 
 struct SE_EXPORT ImageSubrect {
     int x = 0;
@@ -28,6 +28,7 @@ struct SE_EXPORT ImageRenderParams {
     int brightness = 0;
     float rotation = 0;
     bool flip = false;
+    bool blend = true;
     ImageSubrect *subrect = nullptr;
 
     float colorEffect = 0.0f;
@@ -56,6 +57,7 @@ struct SE_EXPORT ImageData {
 struct SE_EXPORT SVGFont {
     std::string path;
     bool isLoaded = false;
+    bool fromProject = false;
 };
 #endif
 
@@ -67,21 +69,56 @@ class SE_EXPORT Image {
 #endif
 
     bool loadFont(const std::string &family);
+    void releaseSVGDocumentIfFinal(float requestedScale, float renderedScale);
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
-    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
-    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
-    inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
+    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1, bool scratch2 = false);
+    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false,
+                                                                               const unsigned char *textData = nullptr, size_t textSize = 0);
 
   protected:
     ImageData imgData;
+    std::vector<uint8_t> alpha8;
+    struct {
+        std::string path;
+        ZipArchive *zip = nullptr;
+        bool useZip = false;
+        bool fromProject = true;
+        bool halfQuality = false;
+        bool valid = false;
+    } reloadInfo;
+    bool colorDataUnavailable = false;
+    std::pair<float, float> svgViewOffset = {0, 0};
+    float logicalWidth = 0.0f;
+    bool logicalSizeKnown = false;
+    float logicalHeight = 0.0f;
+    bool isSVGImage = false;
 
     virtual nonstd::expected<void, std::string> refreshTexture() = 0;
+
+    void discardColorData();
 
     std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
   public:
+    static void registerProjectFont(const std::string &family, const std::string &fileName);
+    static void clearProjectFonts();
+    bool isOpaque = false;
+
+    static unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH, const Image *keep = nullptr);
+
+#ifdef __XBOX__
+    const unsigned int maxFreeTimer = 30;
+#else
     const unsigned int maxFreeTimer = 540;
+#endif
     unsigned int freeTimer = maxFreeTimer;
+
+    void freePixels() {
+        if (imgData.pixels) {
+            free(imgData.pixels);
+            imgData.pixels = nullptr;
+        }
+    }
 
     /**
      * Set if an error occurs in the constructor.
@@ -89,26 +126,70 @@ class SE_EXPORT Image {
     std::optional<std::string> error;
     Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    nonstd::expected<void, std::string> init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
+
+    // Color sensing needs CPU pixels even when a renderer keeps only GPU data.
+    virtual bool ensureColorData();
 
     virtual ImageData getPixels(ImageSubrect rect);
     inline ImageData getPixels() {
         return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
     }
 
+#ifdef __XBOX__
+    std::vector<uint8_t> alphaMask;
+    int alphaMaskPitch = 0;
+#endif
+
+    inline int getPixelWidth() const { return imgData.width; }
+    inline int getPixelHeight() const { return imgData.height; }
+    inline bool hasAlphaData() const {
+        return imgData.pixels != nullptr || isOpaque || !alpha8.empty()
+#ifdef __XBOX__
+               || !alphaMask.empty()
+#endif
+            ;
+    }
+
     inline uint8_t getAlphaAt(int x, int y) const {
-        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
+        if (x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
             return 0;
+        if (isOpaque)
+            return 255;
+#ifdef __XBOX__
+        if (!alphaMask.empty())
+            return ((alphaMask[static_cast<size_t>(y) * alphaMaskPitch + (x >> 3)] >> (x & 7)) & 1) ? 255 : 0;
+#endif
+        if (!imgData.pixels)
+            return alpha8.empty() ? 0 : alpha8[static_cast<size_t>(y) * imgData.width + x];
         const uint8_t *px =
             static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
         return px[3];
     }
 
+    // Only valid for IMAGE_FORMAT_RGBA32
+    inline void getColorAt(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height) {
+            r = g = b = 0;
+            return;
+        }
+        const uint8_t *px =
+            static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
+        r = px[0];
+        g = px[1];
+        b = px[2];
+    }
+
     int getWidth();
     int getHeight();
+    float getExactWidth();
+    float getExactHeight();
+
+    inline float getScale() const { return imgData.scale; }
+    inline std::pair<float, float> getSVGViewOffset() const { return svgViewOffset; }
 
     nonstd::expected<void, std::string> resizeSVG(float scale);
 
@@ -119,4 +200,4 @@ class SE_EXPORT Image {
 };
 
 SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);

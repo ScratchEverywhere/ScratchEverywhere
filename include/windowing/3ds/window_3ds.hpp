@@ -1,13 +1,13 @@
 #pragma once
-#include <se_export.hpp>
 #include <3ds.h>
 #include <citro2d.h>
 #include <citro3d.h>
+#include <se_export.hpp>
 #include <window.hpp>
 
 class SE_EXPORT Window3DS : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    Window3DS(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

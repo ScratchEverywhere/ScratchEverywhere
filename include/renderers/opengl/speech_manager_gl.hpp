@@ -1,27 +1,17 @@
 #pragma once
 #include <se_export.hpp>
 
-#include "speech_text_gl.hpp"
-#include <memory>
 #include <speech_manager.hpp>
 
-class Image;
-
 class SE_EXPORT SpeechManagerGL : public SpeechManager {
-  private:
-    std::shared_ptr<Image> bubbleImage = nullptr;
-    std::shared_ptr<Image> speechIndicatorImage = nullptr;
-
   protected:
-    double getCurrentTime() override;
-    void createSpeechObject(Sprite *sprite, const std::string &message) override;
-
-  private:
-    void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
+    SpeechRenderConfig getSpeechRenderConfig() override {
+        SpeechRenderConfig config;
+        config.fontScaleRatio = 16.0f / 33.3f;
+        return config;
+    }
 
   public:
     SpeechManagerGL();
-    ~SpeechManagerGL();
-
-    void render(int offsetX = 0, int offsetY = 0) override;
+    ~SpeechManagerGL() override;
 };

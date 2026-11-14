@@ -1,12 +1,12 @@
 #pragma once
-#include <se_export.hpp>
 #include "menuObjects.hpp"
 #include "os.hpp"
 #include "text.hpp"
 #include <input.hpp>
 #include <math.hpp>
 #include <nlohmann/json.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
+#include <se_export.hpp>
 #include <unzip.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>

@@ -8,7 +8,7 @@ Image_Headless::Image_Headless(std::string filePath, bool fromScratchProject, bo
     }
 }
 
-Image_Headless::Image_Headless(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_Headless::Image_Headless(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
     if (imgData.pixels) {
         free(imgData.pixels);
         imgData.pixels = nullptr;

@@ -24,9 +24,9 @@ void LanguageMenu::init() {
 
     int y = 0;
     for (auto &lang : languages) {
-        ButtonObject *button = new ButtonObject(lang.name, "gfx/menu/projectBox.svg", 200, y, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *button = new ButtonObject(lang.name, "gfx/menu/submenuButton.svg", 200, y, "gfx/menu/Ubuntu-Bold");
         button->shouldNineslice = true;
-        button->text->setColor(Math::color(0, 0, 0, 255));
+        button->text->setColor(Math::color(255, 255, 255, 255));
         control->buttonObjects.push_back(button);
         y += 40;
     }
@@ -68,8 +68,8 @@ void LanguageMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
+    Render::beginFrame(0, 66, 44, 66);
+    Render::beginFrame(1, 66, 44, 66);
 
     control->render(0, 0);
     backButton->render();

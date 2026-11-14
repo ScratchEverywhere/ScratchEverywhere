@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <cstdint>
+#include <se_export.hpp>
 
 class SE_EXPORT Timer {
   private:
@@ -26,7 +26,8 @@ class SE_EXPORT Timer {
      * @return True if enough time has passed, False otherwise.
      */
     bool hasElapsed(int ms) {
-        return getTimeMs() >= ms;
+        if (ms <= 0) return true;
+        return getTimeMs() >= static_cast<uint64_t>(ms);
     }
 
     /**
