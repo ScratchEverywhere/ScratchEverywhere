@@ -297,6 +297,14 @@ bool Image_SDL2::uploadToTexture(SDL_Texture *dstTex) {
     if (!imgData.pixels) return false;
     int uploadW = std::min(imgData.width, 240);
     int uploadH = std::min(imgData.height, 180);
-    SDL_Rect updateRect = {0, 0, uploadW, uploadH};
-    return SDL_UpdateTexture(dstTex, &updateRect, imgData.pixels, imgData.pitch) == 0;
+    if (uploadW == 240 && uploadH == 180) {
+        return SDL_UpdateTexture(dstTex, nullptr, imgData.pixels, imgData.pitch) == 0;
+    }
+    static std::vector<uint32_t> stageUploadBuf;
+    stageUploadBuf.assign(240 * 180, 0);
+    const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
+    for (int y = 0; y < uploadH; ++y) {
+        std::memcpy(&stageUploadBuf[y * 240], src + static_cast<size_t>(y) * imgData.pitch, static_cast<size_t>(uploadW) * 4);
+    }
+    return SDL_UpdateTexture(dstTex, nullptr, stageUploadBuf.data(), 240 * 4) == 0;
 }
