@@ -1,3 +1,4 @@
+#pragma once
 #include "menuManager.hpp"
 
 class SE_EXPORT MainMenu : public Menu {

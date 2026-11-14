@@ -227,12 +227,12 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
     return window;
 }
 
-const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends() {
-    std::vector<WindowingBackendInfo> windowingBackends;
+const std::vector<std::string> WindowSE::getAvailableWindowingBackends() {
+    std::vector<std::string> windowingBackends;
 
     auto add = [&](WindowingBackends w) {
         uint8_t id = static_cast<uint8_t>(w);
-        windowingBackends.push_back({id, WindowingBackendNames[id]});
+        windowingBackends.push_back(WindowingBackendNames[id]);
     };
 
 #ifdef WINDOWING_SDL3

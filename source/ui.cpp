@@ -30,9 +30,21 @@ void loadTheme() {
         .normal = {.color = {118, 75, 114, 255}, .round = 8},
     };
     theme[StyleId::ProjectButton] = {
-        .normal = {.color = {225, 225, 235, 255}, .round = 8},
-        .focused = {.color = {225, 191, 121, 255}, .round = 8},
-        .pressed = {.color = {255, 255, 255, 255}, .round = 8},
+        .normal = {.color = {225, 225, 235, 255}, .round = 8, .borderColor = {92, 60, 90, 255}, .borderThickness = 12},
+        .focused = {.color = {225, 225, 235, 255}, .round = 8, .borderColor = {243, 143, 235, 255}, .borderThickness = 12},
+        .pressed = {.color = {225, 225, 235, 255}, .round = 8, .borderColor = {0, 0, 0, 255}, .borderThickness = 12},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
+    theme[StyleId::Button] = {
+        .normal = {.color = {92, 60, 90, 255}, .round = 8},
+        .focused = {.color = {156, 105, 156, 255}, .round = 8},
+        .pressed = {.color = {79, 42, 76, 255}, .round = 8},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
+    theme[StyleId::TransparentButton] = {
+        .normal = {.color = {0, 0, 0, 0}, .round = 8},
+        .focused = theme[StyleId::Button].focused,
+        .pressed = theme[StyleId::Button].pressed,
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
 }
@@ -86,6 +98,59 @@ uint16_t Builder::scrollAncestor(uint16_t i) {
     return NONE;
 }
 
+static uint16_t nextVisible(const Pool &pool, uint16_t c) {
+    while (c != NONE && !(pool.elements[c].flags & Flag::Visible))
+        c = pool.elements[c].next;
+    return c;
+}
+
+// Wraps p's visible children into rows. Returns the total content height.
+// p.rect.w must already be final.
+static int flowChildren(Pool &pool, Element &p, bool place) {
+    const int contentW = p.rect.w - p.padding.left - p.padding.right;
+    const int gap = p.childGap;
+
+    int y = 0;
+    bool anyRow = false;
+    uint16_t c = nextVisible(pool, p.firstChild);
+
+    while (c != NONE) {
+        // find the extent of this row: children [c, end)
+        int rowW = 0, rowH = 0, n = 0;
+        uint16_t end = c;
+        while (end != NONE) {
+            const Element &e = pool.elements[end];
+            const int needed = e.rect.w + (n > 0 ? gap : 0);
+            if (n > 0 && rowW + needed > contentW) break; // wrap. A row always keeps at least one child
+            rowW += needed;
+            rowH = std::max<int>(rowH, e.rect.h);
+            n++;
+            end = nextVisible(pool, e.next);
+        }
+
+        if (place) {
+            // center or right-align the whole row using the parent's align
+            int x = p.padding.left;
+            const int free = std::max(0, contentW - rowW);
+            if (p.align == AlignMode::Center) x += free / 2;
+            else if (p.align == AlignMode::Right) x += free;
+
+            for (uint16_t r = c; r != end; r = nextVisible(pool, pool.elements[r].next)) {
+                Element &e = pool.elements[r];
+                e.rect.x = p.rect.x + x;
+                e.rect.y = p.rect.y + p.padding.up + y;
+                x += e.rect.w + gap;
+            }
+        }
+
+        y += rowH + gap;
+        anyRow = true;
+        c = end;
+    }
+
+    return anyRow ? y - gap : 0; // drop the trailing gap
+}
+
 void Builder::input() {
     // TODO: Input class changes
     Input::getInput();
@@ -129,7 +194,7 @@ void Builder::input() {
         if (target != NONE) {
             const Element &e = pool->elements[target];
             if (ScrollState *s = findScrollState(e.id)) {
-                s->y -= Input::mouseScrollDelta * 3;
+                s->y -= Input::mouseScrollDelta * 5;
                 clampScroll(e, *s);
                 resolveScroll();
             }
@@ -351,6 +416,8 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
         Element &e = pool->elements[i];
         if (!(e.flags & Flag::Visible)) continue;
 
+        if (e.childDirection == ChildDir::Grid && e.h.mode == SizeMode::Fit)
+            e.rect.h = flowChildren(*pool, e, false);
         if (e.w.mode == SizeMode::Fit) e.rect.w += (e.padding.left + e.padding.right);
         if (e.h.mode == SizeMode::Fit) e.rect.h += (e.padding.up + e.padding.down);
 
@@ -372,7 +439,6 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
             break;
         }
         case ChildDir::Grid: {
-            // TODO: grid :yum:
             break;
         }
         }
@@ -389,7 +455,10 @@ void Builder::layout() {
     for (uint16_t i = 0; i < pool->count; i++) {
         Element &p = pool->elements[i];
         if (!(p.flags & Flag::Visible) || p.firstChild == NONE) continue;
-        if (p.childDirection == ChildDir::Grid) continue; // TODO: burppppppppp
+        if (p.childDirection == ChildDir::Grid) {
+            flowChildren(*pool, p, true);
+            continue;
+        }
 
         const bool horiz = p.childDirection == ChildDir::LeftRight;
         auto mainOf = [&](Element &e) -> int16_t & { return horiz ? e.rect.w : e.rect.h; };
@@ -547,6 +616,38 @@ void Builder::updateScrollBounds() {
     }
 }
 
+static const ScrollState *findScrollConst(const Pool &pool, uint16_t id) {
+    for (uint16_t i = 0; i < pool.scrollContainerCount; i++)
+        if (pool.scrollContainers[i].id == id) return &pool.scrollContainers[i];
+    return nullptr;
+}
+
+void Painter::renderScrollbars(Renderer *renderer, const Pool &pool) {
+    constexpr int barW = 4, barMargin = 2, minThumb = 16;
+
+    for (uint16_t i = 0; i < pool.count; i++) {
+        const Element &e = pool.elements[i];
+        if (!(e.flags & Flag::Visible) || !(e.flags & Flag::ScrollY)) continue;
+
+        const ScrollState *s = findScrollConst(pool, e.id);
+        const int viewH = e.rect.h;
+        if (!s || viewH <= 0 || s->extentH <= viewH) continue;
+
+        const Rect sr = screenRect(e);
+        if (!overlaps(sr, effectiveClip(pool, e.clipOwner, windowRect))) continue;
+
+        const int maxScroll = s->extentH - viewH;
+        const int thumbH = std::min(viewH, std::max(minThumb, viewH * viewH / s->extentH));
+        const int travel = viewH - thumbH;
+        const int thumbY = sr.y + (s->y * travel) / maxScroll;
+
+        const int cx = sr.x + sr.w - barMargin - barW + barW / 2;
+        const int cy = thumbY + thumbH / 2;
+
+        renderer->drawRoundedBox(barW, thumbH, cx, cy, barW / 2, 156, 105, 156, 150);
+    }
+}
+
 void Painter::render(const Pool &pool) {
     Renderer *renderer = Render::getGlobalRenderer();
 
@@ -567,6 +668,13 @@ void Painter::render(const Pool &pool) {
             const StateStyle &style = theme[e.style].get(e.state);
             const Color color = e.style == StyleId::None ? e.color : style.color;
             if (color.a == 0) continue;
+
+            if (style.borderThickness > 0) {
+                if (style.round == 0)
+                    renderer->drawBox(sr.w + style.borderThickness, sr.h + style.borderThickness, sr.x + (sr.w / 2), sr.y + (sr.h / 2), style.borderColor.r, style.borderColor.g, style.borderColor.b, style.borderColor.a);
+                else
+                    renderer->drawRoundedBox(sr.w + style.borderThickness, sr.h + style.borderThickness, sr.x + (sr.w / 2), sr.y + (sr.h / 2), style.round, style.borderColor.r, style.borderColor.g, style.borderColor.b, style.borderColor.a);
+            }
 
             // TODO: make drawbox not centered
             if (style.round == 0)
@@ -601,6 +709,7 @@ void Painter::render(const Pool &pool) {
         }
         }
     }
+    renderScrollbars(renderer, pool);
 }
 
 } // namespace UI

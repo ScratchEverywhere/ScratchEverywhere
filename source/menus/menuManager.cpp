@@ -1,6 +1,8 @@
 #include "menuManager.hpp"
+#include "languageMenu.hpp"
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
+#include "projectSettings.hpp"
 #include "renderer.hpp"
 #include "settingsMenu.hpp"
 #include "ui.hpp"
@@ -18,7 +20,7 @@ bool MenuManager::initMainMenu() {
 
     loadedMenus[MenuId::MainMenu] = std::make_unique<MainMenu>();
     loadedMenus[MenuId::ProjectMenu] = std::make_unique<ProjectMenu>();
-    loadedMenus[MenuId::SettingsMenu] = std::make_unique<SettingsMenu>();
+    loadedMenus[MenuId::GlobalSettingsMenu] = std::make_unique<GlobalSettingsMenu>();
 
     currentMenu = MenuId::MainMenu;
 
@@ -36,8 +38,12 @@ void MenuManager::changeMenu(MenuId id) {
             loadedMenus[id] = std::make_unique<ProjectMenu>();
             break;
         }
-        case MenuId::SettingsMenu: {
-            loadedMenus[id] = std::make_unique<SettingsMenu>();
+        case MenuId::GlobalSettingsMenu: {
+            loadedMenus[id] = std::make_unique<GlobalSettingsMenu>();
+            break;
+        }
+        case MenuId::LanguageMenu: {
+            loadedMenus[id] = std::make_unique<LanguageMenu>();
             break;
         }
         default: {
@@ -48,6 +54,12 @@ void MenuManager::changeMenu(MenuId id) {
     }
     currentMenu = id;
     builder.dirty = true;
+}
+
+void MenuManager::unloadMenu(MenuId id) {
+    if (loadedMenus.find(id) != loadedMenus.end()) {
+        loadedMenus.erase(id);
+    }
 }
 
 void MenuManager::render() {
@@ -126,8 +138,8 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
                   tab("gfx/menu/projects.svg", MenuId::ProjectMenu, []() {
                       MenuManager::changeMenu(MenuId::ProjectMenu);
                   });
-                  tab("gfx/menu/settings.svg", MenuId::SettingsMenu, []() {
-                      MenuManager::changeMenu(MenuId::SettingsMenu);
+                  tab("gfx/menu/settings.svg", MenuId::GlobalSettingsMenu, []() {
+                      MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
                   });
               });
 }

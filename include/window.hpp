@@ -44,7 +44,7 @@ class SE_EXPORT WindowSE {
   public:
     virtual ~WindowSE() = default;
     static WindowingBackends currentWindowingBackend;
-    static const std::vector<WindowingBackendInfo> getAvailableWindowingBackends();
+    static const std::vector<std::string> getAvailableWindowingBackends();
 
     static int msaaSamples;
 

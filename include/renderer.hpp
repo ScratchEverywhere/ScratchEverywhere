@@ -144,7 +144,7 @@ extern std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 
 extern std::unordered_map<std::string, Monitor> monitors;
 
-const std::vector<RendererInfo> getAvailableRenderers();
+const std::vector<std::string> getAvailableRenderers();
 Renderer *getGlobalRenderer();
 
 // --- global renderer functions

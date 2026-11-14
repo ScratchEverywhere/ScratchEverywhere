@@ -61,12 +61,12 @@ Renderer *Render::getGlobalRenderer() {
     return globalRenderer;
 }
 
-const std::vector<RendererInfo> Render::getAvailableRenderers() {
-    std::vector<RendererInfo> renderers;
+const std::vector<std::string> Render::getAvailableRenderers() {
+    std::vector<std::string> renderers;
 
     auto add = [&](Renderers r) {
         uint8_t id = static_cast<uint8_t>(r);
-        renderers.push_back({id, RendererNames[id]});
+        renderers.push_back(RendererNames[id]);
     };
 
 #ifdef RENDERER_OPENGL_CORE

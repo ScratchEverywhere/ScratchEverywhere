@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <image.hpp>
+#include <renderer.hpp>
 #include <string>
 #include <text.hpp>
 
@@ -84,12 +85,16 @@ enum StyleId : uint8_t {
     Tab,
     TabPressed,
     ProjectButton,
+    Button,
+    TransparentButton,
 };
 
 struct StateStyle {
     Color color;
     Color textColor;
     uint8_t round;
+    Color borderColor;
+    uint8_t borderThickness = 0;
 };
 
 struct Style {
@@ -260,7 +265,8 @@ class Builder {
 
 namespace Painter {
 void render(const Pool &pool);
-};
+void renderScrollbars(Renderer *renderer, const Pool &pool);
+}; // namespace Painter
 
 void loadTheme();
 

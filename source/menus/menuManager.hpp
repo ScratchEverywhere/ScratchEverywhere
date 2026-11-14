@@ -13,7 +13,9 @@ enum class MenuId : uint8_t {
     None,
     MainMenu,
     ProjectMenu,
-    SettingsMenu,
+    ProjectSettingsMenu,
+    GlobalSettingsMenu,
+    LanguageMenu,
 };
 
 namespace MenuManager {
@@ -25,4 +27,5 @@ bool initMainMenu();
 void render();
 void buildMenuBar(UI::Builder &b);
 void changeMenu(MenuId id);
+void unloadMenu(MenuId id);
 }; // namespace MenuManager
