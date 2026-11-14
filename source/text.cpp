@@ -244,16 +244,21 @@ TextObjectBase::TextObjectBase(std::string txt, double posX, double posY, std::s
 TextObjectBase::~TextObjectBase() = default;
 
 bool TextObjectBase::loadFont(std::string fontPath) {
-    if (fontPath.empty()) fontPath = "gfx/ingame/fonts/NotoSans-Medium";
+#ifdef __VFLASH__
+    constexpr const char *defaultFont = "gfx/ingame/fonts/Grand9KPixel";
+#else
+    constexpr const char *defaultFont = "gfx/ingame/fonts/NotoSans-Medium";
+#endif
+    if (fontPath.empty()) fontPath = defaultFont;
     std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
 
     fontAtlas = FontManager::acquire(fullPath);
     if (!fontAtlas->isValid()) {
         auto buffer = readFontFile(fullPath);
         if (buffer.empty()) {
-            if (fontPath != "gfx/ingame/fonts/NotoSans-Medium") {
+            if (fontPath != defaultFont) {
                 // Fallback to default font
-                return loadFont("gfx/ingame/fonts/NotoSans-Medium");
+                return loadFont(defaultFont);
             }
             return false;
         }
