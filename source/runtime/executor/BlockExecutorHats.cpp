@@ -106,7 +106,7 @@ void BlockExecutor::doSpriteClicking() {
 #if !defined(__NDS__) && !defined(__3DS__) && !defined(__OGC__) && !defined(__PSP__)
         if (Input::draggingSprite == nullptr) {
             std::array<int, 2> touchPos = Input::getTouchPosition();
-            blockedByMonitor = Render::isPointOverMonitor(touchPos[0], touchPos[1]);
+            // blockedByMonitor = Render::isPointOverMonitor(touchPos[0], touchPos[1]);
         }
 #endif
 

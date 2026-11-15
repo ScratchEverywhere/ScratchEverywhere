@@ -22,8 +22,14 @@ UI::Builder MenuManager::builder = {};
 UI::Pool MenuManager::elements = {};
 
 bool MenuManager::initMainMenu() {
+#ifdef __NDS__
+    UI::fontPaths[0] = "gfx/ingame/fonts/Grand9KPixel";
+    UI::fontPaths[1] = "gfx/ingame/fonts/Grand9KPixel";
+#else
     UI::fontPaths[0] = "gfx/menu/RedditSansFudge-Bold";
     UI::fontPaths[1] = "gfx/menu/RedditSansFudge-Regular";
+#endif
+
     UI::loadTheme();
 
     loadedMenus[MenuId::MainMenu] = std::make_unique<MainMenu>();
@@ -187,5 +193,6 @@ void MenuManager::loadProject() {
 }
 
 void MenuManager::cleanup() {
+    builder.cleanup();
     loadedMenus.clear();
 }

@@ -88,6 +88,9 @@ void InputDevice_NDS::getInput() {
         if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
             Input::mousePointer.isMoving = true;
 
+        Input::mousePointer.rawX = touchPos[0];
+        Input::mousePointer.rawY = touchPos[1];
+
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;

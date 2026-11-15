@@ -5,6 +5,7 @@
 #ifdef ENABLE_AUDIO
 #include <maxmod9.h>
 #endif
+#include "menuManager.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
@@ -70,6 +71,9 @@ SpeechManager *Renderer_GL2D::getSpeechManager() {
 
 void Renderer_GL2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (hasFrameBegan) return;
+    if (screen == 1) lcdMainOnBottom();
+    else lcdMainOnTop();
+
     glBegin2D();
     int r5 = colorR >> 3;
     int g5 = colorG >> 3;
@@ -163,7 +167,7 @@ void Renderer_GL2D::renderSprites() {
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
     }
 
-    Render::renderMonitors();
+    MenuManager::render();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
 #ifdef ENABLE_AUDIO

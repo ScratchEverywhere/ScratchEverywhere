@@ -304,14 +304,14 @@ void Builder::end() {
 }
 
 uint16_t Builder::text(const TextProps &props) {
-    Element e = ElementProps::toElement({.w = Size::fit(), .h = Size::fit(), .align = props.align, .color = props.color});
+    Element e = ElementProps::toElement({.w = Size::fit(), .h = Size::fit(), .align = props.align, .color = props.color}, scale);
     e.kind = ElementKind::Text;
 
     uint16_t txtId = pool->textCount++;
     auto textObj = createTextObject(props.text, 0, 0, fontPaths[props.fontId]);
     textObj->setColor(Math::color(props.color.r, props.color.g, props.color.b, props.color.a));
     textObj->setCenterAligned(false);
-    textObj->setScale(props.scale);
+    textObj->setScale(props.scale * scale);
     pool->texts[txtId] = std::move(textObj);
     e.payloadId = txtId;
 
@@ -321,13 +321,24 @@ uint16_t Builder::text(const TextProps &props) {
 uint16_t Builder::image(const ImageProps &props) {
     ImageProps payload = props;
 
-    auto img = createImageFromFile(props.imagePath, false, false, 1.0f);
-    if (img.has_value()) {
-        payload.image = std::move(img.value());
+    Image *image;
+
+    if (pool->imageData.find(payload.imagePath) != pool->imageData.end()) {
+        image = pool->imageData.at(payload.imagePath).get();
+    } else {
+        auto i = createImageFromFile(payload.imagePath, false, false, 1.0f);
+        if (i.has_value()) {
+            image = i.value().get();
+            pool->imageData.emplace(payload.imagePath, std::move(i.value()));
+        } else {
+            Log::logError("Failed to load menu image: " + payload.imagePath + ": " + i.error());
+        }
     }
 
-    Element e = ElementProps::toElement({.w = Size::fixed(payload.image->getWidth()), .h = Size::fixed(payload.image->getHeight()), .align = props.align, .color = {0, 0, 0, 255}});
+    Element e = ElementProps::toElement({.w = Size::fixed(image ? image->getWidth() : 0), .h = Size::fixed(image ? image->getHeight() : 0), .align = props.align, .color = {0, 0, 0, 255}}, scale);
     e.kind = ElementKind::Image;
+
+    payload.scale *= scale;
 
     uint16_t imgId = pool->imageCount++;
     pool->images[imgId] = std::move(payload);
@@ -617,6 +628,11 @@ void Builder::updateScrollBounds() {
     }
 }
 
+void Builder::cleanup() {
+    if (pool)
+        pool->imageData.clear();
+}
+
 static const ScrollState *findScrollConst(const Pool &pool, uint16_t id) {
     for (uint16_t i = 0; i < pool.scrollContainerCount; i++)
         if (pool.scrollContainers[i].id == id) return &pool.scrollContainers[i];
@@ -691,10 +707,13 @@ void Painter::render(const Pool &pool) {
         }
         case UI::ElementKind::Image: {
             const auto &img = pool.images[e.payloadId];
-            if (!img.image) {
-                Log::logError("[UI] Image is null.");
-                break;
-            }
+
+            Image *image = nullptr;
+
+            if (pool.imageData.find(img.imagePath) != pool.imageData.end()) {
+                image = pool.imageData.at(img.imagePath).get();
+            } else break;
+
             float centerX = (float)sr.x + ((float)sr.w / 2.0f);
             float centerY = (float)sr.y + ((float)sr.h / 2.0f);
 
@@ -705,7 +724,7 @@ void Painter::render(const Pool &pool) {
                 .centered = true,
             };
 
-            img.image->render(p);
+            image->render(p);
             break;
         }
         }

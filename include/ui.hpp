@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <image.hpp>
 #include <renderer.hpp>
@@ -81,6 +83,16 @@ struct Padding {
     static inline Padding axis(uint8_t leftRight, uint8_t upDown) { return {leftRight, leftRight, upDown, upDown}; }
 };
 
+inline uint8_t scaleU8(uint8_t v, float k) {
+    return static_cast<uint8_t>(std::min(255.0f, std::round(v * k)));
+}
+
+inline Size scaleSize(Size s, float k) {
+    if (s.mode == SizeMode::Fixed)
+        return Size::fixed(static_cast<uint16_t>(std::min(16383.0f, std::round(s.value * k))));
+    return s;
+}
+
 enum StyleId : uint8_t {
     None,
     Tab,
@@ -124,7 +136,6 @@ struct TextProps {
 struct ImageProps {
     std::string imagePath;
     float scale = 1.0f;
-    std::shared_ptr<Image> image = nullptr;
     AlignMode align = AlignMode::Left;
 };
 
@@ -172,19 +183,20 @@ struct ElementProps {
     uint16_t id;
     std::function<void()> onClick = nullptr;
 
-    static inline Element toElement(const ElementProps &p) {
+    static inline Element toElement(const ElementProps &p, float k = 1.0f) {
         Element e;
-        e.w = p.w;
-        e.h = p.h;
-        e.padding = p.padding;
-        e.childGap = p.childGap;
+        e.w = scaleSize(p.w, k);
+        e.h = scaleSize(p.h, k);
+        e.padding = {scaleU8(p.padding.left, k), scaleU8(p.padding.right, k),
+                     scaleU8(p.padding.up, k), scaleU8(p.padding.down, k)};
+        e.childGap = scaleU8(p.childGap, k);
         e.childDirection = p.childDirection;
         e.align = p.align;
         e.flags = p.flags;
         e.color = p.color;
         e.style = p.style;
         e.id = p.id;
-        e.rect = {.x = p.x, .y = p.y, .w = 0, .h = 0};
+        e.rect = {static_cast<int16_t>(std::lround(p.x * k)), static_cast<int16_t>(std::lround(p.y * k)), 0, 0};
         return e;
     }
 };
@@ -198,6 +210,8 @@ struct Pool {
 
     std::array<ImageProps, MAX_IMAGE_ELEMENTS> images;
     uint16_t imageCount = 0;
+
+    std::unordered_map<std::string, std::shared_ptr<Image>> imageData;
 
     std::array<std::function<void()>, MAX_IMAGE_ELEMENTS> callbacks;
     uint16_t callbackCount = 0;
@@ -228,15 +242,17 @@ class Builder {
     Element *findElement(uint16_t id);
 
   public:
+    float scale = 0.5f;
     bool dirty = true;
     void layout();
     bool shouldRebuild();
     void begin(Pool &pool);
     void input();
+    void cleanup();
 
     template <class F>
     uint16_t element(const ElementProps &p, F &&body) {
-        Element e = ElementProps::toElement(p);
+        Element e = ElementProps::toElement(p, scale);
 
         if (p.onClick) {
             e.onClickId = pool->callbackCount;
@@ -250,7 +266,7 @@ class Builder {
     }
 
     uint16_t element(const ElementProps &p) {
-        Element e = ElementProps::toElement(p);
+        Element e = ElementProps::toElement(p, scale);
 
         if (p.onClick) {
             e.onClickId = pool->callbackCount;

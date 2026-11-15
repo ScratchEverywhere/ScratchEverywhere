@@ -66,7 +66,7 @@ bool activateMainMenu() {
 
     while (Render::appShouldRun()) {
         Input::getInput();
-        Render::beginFrame(1, 255, 255, 255);
+        Render::beginFrame(1, 68, 44, 66);
         MenuManager::render();
         Render::endFrame(false);
 
