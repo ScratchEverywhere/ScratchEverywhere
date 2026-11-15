@@ -203,6 +203,17 @@ void Builder::input() {
     oldHeldFrames = mouseHeldFrames;
 }
 
+static float getScale(const Rect &r) {
+    const int effH = std::min<int>(r.h, (r.w * 3) / 4);
+    if (effH <= 360) {
+        return std::clamp((effH - 120) / 240.0f, 0.5f, 1.0f);
+    }
+    if (effH <= 1080) {
+        return 1.0f;
+    }
+    return effH / 1080.0f;
+}
+
 bool Builder::shouldRebuild() {
     const Renderer *renderer = Render::getGlobalRenderer();
     const int windowWidth = renderer->window->getWidth();
@@ -215,6 +226,7 @@ bool Builder::shouldRebuild() {
         oldWindowWidth = windowWidth;
         oldWindowHeight = windowHeight;
         windowRect = {0, 0, static_cast<int16_t>(windowWidth), static_cast<int16_t>(windowHeight)};
+        scale = getScale(windowRect);
         return true;
     }
     return dirty;

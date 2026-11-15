@@ -36,6 +36,7 @@ void ProjectMenu::build(UI::Builder &b) {
                                 for (auto &project : projectFiles) {
                                     b.element({.flags = UI::Flag::Visible | UI::Flag::Focusable,
                                                .w = UI::Size::fixed(300),
+                                               .h = UI::Size::fit(),
                                                .padding = UI::Padding::axis(8, 12),
                                                .color = {225, 225, 235, 255},
                                                .style = UI::StyleId::ProjectButton,

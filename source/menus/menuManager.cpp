@@ -86,6 +86,7 @@ void MenuManager::render() {
         builder.begin(elements);
 
         if (currentMenu == MenuId::Ingame) {
+            builder.scale = 1.0f;
             builder.element({
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
