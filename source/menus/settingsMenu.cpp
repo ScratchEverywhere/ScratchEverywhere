@@ -22,7 +22,7 @@ void SettingsMenu::toggle(UI::Builder &b, const std::string &jsonKey, const std:
 
     const UI::Color color = toggled ? UI::Color{255, 151, 46, 255} : UI::Color{67, 57, 34, 255};
 
-    b.element({.flags = UI::Flag::Visible | UI::Flag::Focusable,
+    b.element({.flags = UI::Flag::Focusable,
                .w = UI::Size::fit(),
                .h = UI::Size::fit(),
                .childDirection = UI::ChildDir::LeftRight,
@@ -51,7 +51,7 @@ void SettingsMenu::toggle(UI::Builder &b, const std::string &jsonKey, const std:
 
 void SettingsMenu::button(UI::Builder &b, const std::string &name, std::function<void()> onClick) {
 
-    b.element({.flags = UI::Flag::Visible | UI::Flag::Focusable,
+    b.element({.flags = UI::Flag::Focusable,
                .w = UI::Size::fit(),
                .h = UI::Size::fit(),
                .childDirection = UI::ChildDir::LeftRight,
@@ -86,7 +86,7 @@ void SettingsMenu::dropdown(UI::Builder &b, const std::string &jsonKey, const st
 
     const std::string next = options[(index + 1) % options.size()];
 
-    b.element({.flags = UI::Flag::Visible | UI::Flag::Focusable,
+    b.element({.flags = UI::Flag::Focusable,
 
                .childDirection = UI::ChildDir::LeftRight,
                .childGap = 10,
@@ -200,7 +200,7 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                   b.text({.text = "Global Settings", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
-                                .flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
+                                .flags = UI::Flag::ScrollY,
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
                                 .childDirection = UI::ChildDir::UpDown,

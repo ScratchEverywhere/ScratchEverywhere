@@ -67,7 +67,7 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                   b.text({.text = "Project", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
-                                .flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
+                                .flags = UI::Flag::ScrollY,
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
                                 .childDirection = UI::ChildDir::UpDown,
@@ -76,7 +76,7 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                             },
                             [&] {
                                 b.element({
-                                              .flags = UI::Flag::Visible | UI::Flag::Focusable,
+                                              .flags = UI::Flag::Focusable,
                                               .w = UI::Size::grow(),
                                               .h = UI::Size::fit(),
                                               .childDirection = UI::ChildDir::LeftRight,

@@ -61,7 +61,7 @@ void frame(UI::Builder &b, float scale, float x, float y, UI::Size w, UI::Size h
     const uint8_t border = std::max<uint8_t>(1, px(scale));
     const bool sized = w.mode != UI::SizeMode::Fit;
 
-    b.element({.flags = UI::Flag::Visible | UI::Flag::Floating,
+    b.element({.flags = UI::Flag::Floating,
                .w = w,
                .h = h,
                .x = pos(x),
@@ -154,7 +154,7 @@ void IngameMenu::listVariable(UI::Builder &b, const Value &item, size_t index, f
     const float font = scale / 2.0f;
 
     b.element({
-                  .flags = UI::Flag::Visible | UI::Flag::Focusable,
+                  .flags = UI::Flag::Focusable,
                   .w = UI::Size::grow(),
                   .childDirection = UI::ChildDir::LeftRight,
                   .align = UI::AlignMode::Center,
@@ -194,7 +194,7 @@ void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
                       label(b, var.displayName, font, kBlack, UI::AlignMode::Center);
                   });
 
-        b.element({.flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
+        b.element({.flags = UI::Flag::ScrollY,
                    .w = UI::Size::grow(),
                    .h = UI::Size::grow(),
                    .childGap = gap,

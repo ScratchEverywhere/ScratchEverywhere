@@ -148,7 +148,7 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
               [&] {
                   auto tab = [&](const std::string &imagePath, MenuId menu, std::function<void()> onClickFn) -> void {
                       const bool pressed = currentMenu == menu;
-                      const uint8_t flags = pressed ? UI::Flag::Visible : UI::Flag::Visible | UI::Flag::Focusable;
+                      const uint8_t flags = pressed ? 0 : UI::Flag::Focusable;
 
                       b.element({
                                     .flags = flags,

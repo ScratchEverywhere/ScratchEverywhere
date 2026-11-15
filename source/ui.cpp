@@ -98,45 +98,40 @@ uint16_t Builder::scrollAncestor(uint16_t i) {
     return NONE;
 }
 
-static uint16_t nextVisible(const Pool &pool, uint16_t c) {
-    while (c != NONE && !(pool.elements[c].flags & Flag::Visible))
-        c = pool.elements[c].next;
-    return c;
-}
-
-// Wraps p's visible children into rows. Returns the total content height.
-// p.rect.w must already be final.
 static int flowChildren(Pool &pool, Element &p, bool place) {
     const int contentW = p.rect.w - p.padding.left - p.padding.right;
     const int gap = p.childGap;
 
     int y = 0;
     bool anyRow = false;
-    uint16_t c = nextVisible(pool, p.firstChild);
+    uint16_t c = p.firstChild;
 
     while (c != NONE) {
-        // find the extent of this row: children [c, end)
         int rowW = 0, rowH = 0, n = 0;
         uint16_t end = c;
         while (end != NONE) {
             const Element &e = pool.elements[end];
+            if (e.flags & Flag::Floating) {
+                end = e.next;
+                continue;
+            }
             const int needed = e.rect.w + (n > 0 ? gap : 0);
-            if (n > 0 && rowW + needed > contentW) break; // wrap. A row always keeps at least one child
+            if (n > 0 && rowW + needed > contentW) break;
             rowW += needed;
             rowH = std::max<int>(rowH, e.rect.h);
             n++;
-            end = nextVisible(pool, e.next);
+            end = e.next;
         }
 
         if (place) {
-            // center or right-align the whole row using the parent's align
             int x = p.padding.left;
             const int free = std::max(0, contentW - rowW);
             if (p.align == AlignMode::Center) x += free / 2;
             else if (p.align == AlignMode::Right) x += free;
 
-            for (uint16_t r = c; r != end; r = nextVisible(pool, pool.elements[r].next)) {
+            for (uint16_t r = c; r != end; r = pool.elements[r].next) {
                 Element &e = pool.elements[r];
+                if (e.flags & Flag::Floating) continue;
                 e.rect.x = p.rect.x + x;
                 e.rect.y = p.rect.y + p.padding.up + y;
                 x += e.rect.w + gap;
@@ -148,7 +143,7 @@ static int flowChildren(Pool &pool, Element &p, bool place) {
         c = end;
     }
 
-    return anyRow ? y - gap : 0; // drop the trailing gap
+    return anyRow ? y - gap : 0;
 }
 
 void Builder::input() {
@@ -369,7 +364,7 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
             int wrapWidth = 0;
             if (e.parent != NONE) {
                 Element &p = pool->elements[e.parent];
-                if (!(p.flags & Flag::Clip))
+                if (!(p.flags & Flag::ScrollY))
                     wrapWidth = p.rect.w - p.padding.left - p.padding.right;
             } else {
                 wrapWidth = windowWidth;
@@ -436,7 +431,6 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
 
     for (int i = pool->count - 1; i >= 0; i--) {
         Element &e = pool->elements[i];
-        if (!(e.flags & Flag::Visible)) continue;
 
         if (e.childDirection == ChildDir::Grid && e.h.mode == SizeMode::Fit)
             e.rect.h = flowChildren(*pool, e, false);
@@ -478,7 +472,7 @@ void Builder::layout() {
 
     for (uint16_t i = 0; i < pool->count; i++) {
         Element &p = pool->elements[i];
-        if (!(p.flags & Flag::Visible) || p.firstChild == NONE) continue;
+        if (p.firstChild == NONE) continue;
         if (p.childDirection == ChildDir::Grid) {
             flowChildren(*pool, p, true);
             continue;
@@ -502,7 +496,7 @@ void Builder::layout() {
         int visible = 0, used = 0, totalWeight = 0;
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
-            if (!(e.flags & Flag::Visible) || e.flags & Flag::Floating) continue;
+            if (e.flags & Flag::Floating) continue;
             visible++;
 
             Size ms = mainSz(e), cs = crossSz(e);
@@ -518,7 +512,7 @@ void Builder::layout() {
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
             Size ms = mainSz(e);
-            if (!(e.flags & Flag::Visible) || ms.mode != SizeMode::Grow || e.flags & Flag::Floating) continue;
+            if (ms.mode != SizeMode::Grow || e.flags & Flag::Floating) continue;
 
             accWeight += ms.value ? ms.value : 1;
             const int end = leftover * accWeight / totalWeight;
@@ -538,7 +532,7 @@ void Builder::layout() {
 
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
-            if (!(e.flags & Flag::Visible) || e.flags & Flag::Floating) continue;
+            if (e.flags & Flag::Floating) continue;
 
             AlignMode crossAlign = (e.align != AlignMode::Left) ? e.align : p.align;
 
@@ -568,7 +562,6 @@ void Builder::layout() {
 uint16_t Builder::hitTest(int mx, int my, bool focusableOnly) {
     for (int i = pool->count - 1; i >= 0; i--) {
         const Element &e = pool->elements[i];
-        if (!(e.flags & Flag::Visible)) continue;
         if (focusableOnly && !(e.flags & Flag::Focusable)) continue;
 
         if (!contains(screenRect(e), mx, my)) continue;
@@ -609,7 +602,7 @@ void Builder::resolveScroll() {
         const Element &p = pool->elements[e.parent];
         e.ox = p.ox;
         e.oy = p.oy;
-        e.clipOwner = (p.flags & Flag::Clip) ? e.parent : p.clipOwner;
+        e.clipOwner = (p.flags & Flag::ScrollY) ? e.parent : p.clipOwner;
 
         if (p.flags & Flag::ScrollY) {
             const ScrollState *s = findScrollState(p.id);
@@ -624,7 +617,7 @@ void Builder::resolveScroll() {
 void Builder::updateScrollBounds() {
     for (uint16_t i = 0; i < pool->count; i++) {
         const Element &p = pool->elements[i];
-        if (!(p.flags & Flag::Visible) || !(p.flags & Flag::ScrollY)) continue;
+        if (!(p.flags & Flag::ScrollY)) continue;
 
         ScrollState *s = findScrollState(p.id);
         if (!s) continue;
@@ -632,7 +625,6 @@ void Builder::updateScrollBounds() {
         int bottom = 0;
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             const Element &e = pool->elements[c];
-            if (!(e.flags & Flag::Visible)) continue;
             bottom = std::max<int>(bottom, e.rect.y + e.rect.h - p.rect.y);
         }
         s->extentH = (int16_t)(bottom + p.padding.down);
@@ -656,7 +648,7 @@ void Painter::renderScrollbars(Renderer *renderer, const Pool &pool) {
 
     for (uint16_t i = 0; i < pool.count; i++) {
         const Element &e = pool.elements[i];
-        if (!(e.flags & Flag::Visible) || !(e.flags & Flag::ScrollY)) continue;
+        if (!(e.flags & Flag::ScrollY)) continue;
 
         const ScrollState *s = findScrollConst(pool, e.id);
         const int viewH = e.rect.h;
@@ -682,7 +674,6 @@ void Painter::render(const Pool &pool) {
 
     for (uint16_t i = 0; i < pool.count; i++) {
         const Element &e = pool.elements[i];
-        if (!(e.flags & Flag::Visible)) continue;
 
         const Rect sr = screenRect(e);
         const Rect clip = effectiveClip(pool, e.clipOwner, windowRect);

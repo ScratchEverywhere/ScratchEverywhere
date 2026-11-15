@@ -25,7 +25,7 @@ void ProjectMenu::build(UI::Builder &b) {
               [&] {
                   b.text({.text = std::to_string(projectFiles.size()) + " Projects", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
-                  b.element({.flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
+                  b.element({.flags = UI::Flag::ScrollY,
                              .w = UI::Size::grow(),
                              .h = UI::Size::grow(),
                              .childDirection = UI::ChildDir::Grid,
@@ -34,7 +34,7 @@ void ProjectMenu::build(UI::Builder &b) {
                              .id = 6767},
                             [&] {
                                 for (auto &project : projectFiles) {
-                                    b.element({.flags = UI::Flag::Visible | UI::Flag::Focusable,
+                                    b.element({.flags = UI::Flag::Focusable,
                                                .w = UI::Size::fixed(300),
                                                .h = UI::Size::fit(),
                                                .padding = UI::Padding::axis(8, 12),

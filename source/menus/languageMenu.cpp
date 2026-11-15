@@ -22,7 +22,7 @@ void LanguageMenu::build(UI::Builder &b) {
                   b.text({.text = "Language", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
-                                .flags = UI::Flag::Visible | UI::Flag::Clip | UI::Flag::ScrollY,
+                                .flags = UI::Flag::ScrollY,
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
                                 .childDirection = UI::ChildDir::UpDown,
