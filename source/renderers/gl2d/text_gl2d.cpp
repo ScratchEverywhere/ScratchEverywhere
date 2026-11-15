@@ -64,6 +64,13 @@ void TextObjectGL2D::uploadAtlas(FontGeneration &gen) {
     gen.dirty = false;
 }
 
+std::vector<float> TextObjectGL2D::getSize() {
+    if (glyphScale <= 0.0f) return {0.0f, 0.0f};
+    const float effectiveScale = std::max(minScale, glyphScale);
+    const float ratio = effectiveScale / glyphScale;
+    return {layoutWidth * ratio, layoutHeight * ratio};
+}
+
 void TextObjectGL2D::render(int xPos, int yPos) {
     if (!fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
 

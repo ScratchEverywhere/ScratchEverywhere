@@ -16,4 +16,5 @@ class SE_EXPORT TextObjectGL2D : public TextObjectBase {
     ~TextObjectGL2D() override = default;
 
     void render(int xPos, int yPos) override;
+    std::vector<float> getSize() override;
 };
