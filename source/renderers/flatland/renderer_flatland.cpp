@@ -3,6 +3,9 @@
 #include "image_flatland.hpp"
 #include "window.hpp"
 #include <algorithm>
+#ifdef AUDIO_FLATLAND
+#include <audio_flatland.hpp>
+#endif
 #include <image.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -73,6 +76,10 @@ void Renderer_Flatland::preloadProject() {
             }
         }
     }
+
+#ifdef AUDIO_FLATLAND
+    if (SoundPlayer::currentSoundBackend == AudioBackends::Flatland) SoundDevice_Flatland::preloadSounds();
+#endif
 
     backend.seal(Scratch::projectWidth, Scratch::projectHeight);
 }

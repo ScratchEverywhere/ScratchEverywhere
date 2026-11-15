@@ -2,6 +2,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <server.hpp>
@@ -38,6 +39,11 @@ class FlatlandBackend {
 
     int registerTexture(const std::string &name, std::vector<uint8_t> png);
     int findTexture(const std::string &name) const;
+
+    int registerSound(const std::string &name, std::vector<uint8_t> ogg);
+    int findSound(const std::string &name) const;
+    void playSound(int sound, float volume, float pitch);
+    void stopSound(int sound);
     bool isSealed() const { return sealed; }
 
     void seal(int stageWidth, int stageHeight);
@@ -65,6 +71,7 @@ class FlatlandBackend {
     void syncScene(flatland::PlayerSession &session, Scene &scene);
     void moveCursor(double dx, double dy);
     void pressKey(const std::string &key);
+    void broadcast(const std::function<void(flatland::PlayerSession &)> &task);
 
     std::unique_ptr<flatland::Server> server;
     std::thread serverThread;
@@ -73,6 +80,8 @@ class FlatlandBackend {
     std::condition_variable lifecycleChanged;
     std::vector<std::vector<uint8_t>> texturePngs;
     std::unordered_map<std::string, int> textureIds;
+    std::vector<std::vector<uint8_t>> soundOggs;
+    std::unordered_map<std::string, int> soundIds;
     std::vector<flatland::App *> apps;
     std::atomic<bool> sealed{false};
     bool stopping = false;

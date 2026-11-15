@@ -97,6 +97,41 @@ int FlatlandBackend::findTexture(const std::string &name) const {
     return it == textureIds.end() ? -1 : it->second;
 }
 
+int FlatlandBackend::registerSound(const std::string &name, std::vector<uint8_t> ogg) {
+    std::lock_guard<std::mutex> lock(mutex);
+    auto it = soundIds.find(name);
+    if (it != soundIds.end()) return it->second;
+    if (sealed || ogg.empty()) return -1;
+
+    int id = static_cast<int>(soundOggs.size());
+    soundOggs.push_back(std::move(ogg));
+    soundIds[name] = id;
+    return id;
+}
+
+int FlatlandBackend::findSound(const std::string &name) const {
+    std::lock_guard<std::mutex> lock(mutex);
+    auto it = soundIds.find(name);
+    return it == soundIds.end() ? -1 : it->second;
+}
+
+void FlatlandBackend::broadcast(const std::function<void(flatland::PlayerSession &)> &task) {
+    std::vector<flatland::App *> targets;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        targets = apps;
+    }
+    for (flatland::App *app : targets) app->broadcast(task);
+}
+
+void FlatlandBackend::playSound(int sound, float volume, float pitch) {
+    broadcast([sound, volume, pitch](flatland::PlayerSession &session) { session.playSound(sound, volume, pitch); });
+}
+
+void FlatlandBackend::stopSound(int sound) {
+    broadcast([sound](flatland::PlayerSession &session) { session.stopSound(sound); });
+}
+
 void FlatlandBackend::seal(int width, int height) {
     uint8_t cursor[cursorSizePixels * cursorSizePixels * 4] = {};
     for (int y = 0; y < cursorSizePixels; y++) {
@@ -135,6 +170,9 @@ void FlatlandBackend::configureApp(flatland::App &app) {
     app.setViewport({stageWidth, stageHeight});
     for (size_t i = 0; i < texturePngs.size(); i++) {
         app.registerTexture("c" + std::to_string(i), texturePngs[i]);
+    }
+    for (size_t i = 0; i < soundOggs.size(); i++) {
+        app.registerSound("s" + std::to_string(i), soundOggs[i]);
     }
     apps.push_back(&app);
     app.onPlayerJoin([this](flatland::PlayerSession &session) { attachSession(session); });
@@ -254,14 +292,7 @@ std::string FlatlandBackend::ask(const std::string &question) {
         chatMessages.clear();
     }
 
-    std::vector<flatland::App *> targets;
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        targets = apps;
-    }
-    for (flatland::App *app : targets) {
-        app->broadcast([question](flatland::PlayerSession &session) { session.sendChatMessage(question); });
-    }
+    broadcast([question](flatland::PlayerSession &session) { session.sendChatMessage(question); });
 
     std::unique_lock<std::mutex> lock(inputMutex);
     while (chatMessages.empty()) {
