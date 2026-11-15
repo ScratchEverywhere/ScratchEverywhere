@@ -153,7 +153,6 @@ static int flowChildren(Pool &pool, Element &p, bool place) {
 
 void Builder::input() {
     // TODO: Input class changes
-    Input::getInput();
     const int mouseX = Input::mousePointer.rawX;
     const int mouseY = Input::mousePointer.rawY;
     const size_t mouseHeldFrames = Input::mousePointer.heldFrames;
@@ -421,6 +420,8 @@ void Builder::measure(const int windowWidth, const int windowHeight) {
         if (e.w.mode == SizeMode::Fit) e.rect.w += (e.padding.left + e.padding.right);
         if (e.h.mode == SizeMode::Fit) e.rect.h += (e.padding.up + e.padding.down);
 
+        if (e.flags & Flag::Floating) continue;
+
         if (e.parent == NONE) continue;
         Element &p = pool->elements[e.parent];
 
@@ -478,7 +479,7 @@ void Builder::layout() {
         int visible = 0, used = 0, totalWeight = 0;
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
-            if (!(e.flags & Flag::Visible)) continue;
+            if (!(e.flags & Flag::Visible) || e.flags & Flag::Floating) continue;
             visible++;
 
             Size ms = mainSz(e), cs = crossSz(e);
@@ -494,7 +495,7 @@ void Builder::layout() {
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
             Size ms = mainSz(e);
-            if (!(e.flags & Flag::Visible) || ms.mode != SizeMode::Grow) continue;
+            if (!(e.flags & Flag::Visible) || ms.mode != SizeMode::Grow || e.flags & Flag::Floating) continue;
 
             accWeight += ms.value ? ms.value : 1;
             const int end = leftover * accWeight / totalWeight;
@@ -514,7 +515,7 @@ void Builder::layout() {
 
         for (uint16_t c = p.firstChild; c != NONE; c = pool->elements[c].next) {
             Element &e = pool->elements[c];
-            if (!(e.flags & Flag::Visible)) continue;
+            if (!(e.flags & Flag::Visible) || e.flags & Flag::Floating) continue;
 
             AlignMode crossAlign = (e.align != AlignMode::Left) ? e.align : p.align;
 

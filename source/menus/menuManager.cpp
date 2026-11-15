@@ -1,4 +1,5 @@
 #include "menuManager.hpp"
+#include "ingameMenu.hpp"
 #include "languageMenu.hpp"
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
@@ -53,6 +54,9 @@ void MenuManager::changeMenu(MenuId id) {
             loadedMenus[id] = std::make_unique<LanguageMenu>();
             break;
         }
+        case MenuId::Ingame: {
+            loadedMenus[id] = std::make_unique<IngameMenu>();
+        }
         default: {
             // TODO: error message?
             break;
@@ -72,30 +76,40 @@ void MenuManager::unloadMenu(MenuId id) {
 void MenuManager::render() {
     Menu *menu = loadedMenus[currentMenu].get();
 
-    Render::beginFrame(1, 255, 255, 255);
-
     if (builder.shouldRebuild()) {
         builder.begin(elements);
 
-        builder.element({
-                            .w = UI::Size::grow(),
-                            .h = UI::Size::grow(),
-                            .childDirection = UI::ChildDir::UpDown,
-                            .color = {68, 44, 66, 255},
-                        },
-                        [&] {
-                            builder.element({
-                                                .w = UI::Size::grow(),
-                                                .h = UI::Size::grow(),
-                                                .childDirection = UI::ChildDir::UpDown,
-                                                .color = {118, 75, 114, 255},
-                                            },
-                                            [&] {
-                                                menu->build(builder);
-                                            });
-                            if (canChangeTabs)
-                                buildMenuBar(builder);
-                        });
+        if (currentMenu == MenuId::Ingame) {
+            builder.element({
+                                .w = UI::Size::grow(),
+                                .h = UI::Size::grow(),
+                                .childDirection = UI::ChildDir::UpDown,
+                                .color = {0, 0, 0, 0},
+                            },
+                            [&] {
+                                menu->build(builder);
+                            });
+        } else {
+            builder.element({
+                                .w = UI::Size::grow(),
+                                .h = UI::Size::grow(),
+                                .childDirection = UI::ChildDir::UpDown,
+                                .color = {68, 44, 66, 255},
+                            },
+                            [&] {
+                                builder.element({
+                                                    .w = UI::Size::grow(),
+                                                    .h = UI::Size::grow(),
+                                                    .childDirection = UI::ChildDir::UpDown,
+                                                    .color = {118, 75, 114, 255},
+                                                },
+                                                [&] {
+                                                    menu->build(builder);
+                                                });
+                                if (canChangeTabs)
+                                    buildMenuBar(builder);
+                            });
+        }
 
         builder.end();
         builder.layout();
@@ -104,7 +118,6 @@ void MenuManager::render() {
     builder.input();
     UI::Painter::render(elements);
 
-    Render::endFrame(false);
     if (projectPendingLoad) {
         loadProject();
     }
@@ -170,6 +183,7 @@ void MenuManager::loadProject() {
         return;
     }
     isProjectLoaded = true;
+    changeMenu(MenuId::Ingame);
 }
 
 void MenuManager::cleanup() {

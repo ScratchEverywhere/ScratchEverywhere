@@ -1,5 +1,6 @@
 #include "renderer_gl_core.hpp"
 #include "image_gl_core.hpp"
+#include "menuManager.hpp"
 #include "speech_manager_gl_core.hpp"
 #include <algorithm>
 #include <cmath>
@@ -1103,7 +1104,7 @@ void Renderer_GLCore::renderSprites() {
     if (speechManager) speechManager->render();
 
     drawBlackBars(getWidth(), getHeight(), proj);
-    Render::renderMonitors();
+    MenuManager::render();
 
     endFrame(true);
 }

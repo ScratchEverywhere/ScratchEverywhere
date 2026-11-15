@@ -1,6 +1,7 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
+#include "menuManager.hpp"
 #include "parser/parser.hpp"
 #include "runtime.hpp"
 #include "translation.hpp"
@@ -206,6 +207,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #endif
 
             Render::renderSprites();
+            MenuManager::builder.dirty = true; // TODO: way of not having to do this every frame
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));

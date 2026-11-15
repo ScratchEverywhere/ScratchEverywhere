@@ -16,10 +16,11 @@ constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
 extern std::array<std::string, 2> fontPaths;
 
 namespace Flag {
-constexpr uint8_t Visible = 1 << 0;
+constexpr uint8_t Visible = 1 << 0; // TODO: remove this is dumb
 constexpr uint8_t Focusable = 1 << 1;
 constexpr uint8_t ScrollY = 1 << 2;
-constexpr uint8_t Clip = 1 << 6;
+constexpr uint8_t Floating = 1 << 3;
+constexpr uint8_t Clip = 1 << 6; // TODO: lowkey remove
 } // namespace Flag
 
 namespace StateFlag {
@@ -160,6 +161,8 @@ struct ElementProps {
     uint8_t flags = Flag::Visible;
     Size w = Size::fit();
     Size h = Size::fit();
+    // only used if UI::Flag::Floating is set.
+    int16_t x = 0, y = 0;
     ChildDir childDirection = ChildDir::UpDown;
     uint8_t childGap = 0;
     Padding padding = {0, 0, 0, 0};
@@ -181,6 +184,7 @@ struct ElementProps {
         e.color = p.color;
         e.style = p.style;
         e.id = p.id;
+        e.rect = {.x = p.x, .y = p.y, .w = 0, .h = 0};
         return e;
     }
 };

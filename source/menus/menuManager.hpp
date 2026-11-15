@@ -16,6 +16,7 @@ enum class MenuId : uint8_t {
     ProjectSettingsMenu,
     GlobalSettingsMenu,
     LanguageMenu,
+    Ingame,
 };
 
 namespace MenuManager {

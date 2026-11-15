@@ -131,17 +131,6 @@ enum RenderModes {
 };
 
 extern RenderModes renderMode;
-extern std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
-
-struct ListMonitorRenderObjects {
-    std::unique_ptr<TextObject> name;
-    std::unique_ptr<TextObject> length;
-    std::vector<std::unique_ptr<TextObject>> items;
-    std::vector<std::unique_ptr<TextObject>> indices;
-    std::unique_ptr<TextObject> copyLabel;
-};
-extern std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
-
 extern std::unordered_map<std::string, Monitor> monitors;
 
 const std::vector<std::string> getAvailableRenderers();
@@ -198,12 +187,6 @@ std::string getListValueString(Value value);
  * Gets the color for a monitor value background based on opcode
  */
 ColorRGBA getMonitorValueColor(const std::string &opcode);
-
-/**
- * Renders all visible variable and list monitors
- */
-void renderMonitors(const int &offsetX = 0, const int &offsetY = 0);
-bool isPointOverMonitor(int screenX, int screenY);
 
 // --- renderer specific render functions
 

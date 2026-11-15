@@ -65,7 +65,10 @@ bool activateMainMenu() {
     Discord::setInMenu();
 
     while (Render::appShouldRun()) {
+        Input::getInput();
+        Render::beginFrame(1, 255, 255, 255);
         MenuManager::render();
+        Render::endFrame(false);
 
         if (MenuManager::isProjectLoaded) {
             MenuManager::isProjectLoaded = false;

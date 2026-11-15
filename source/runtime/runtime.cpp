@@ -1,8 +1,8 @@
-#include "bytecode_jit.hpp"
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
+#include "bytecode_jit.hpp"
 #include "collision.hpp"
 #include "discord.hpp"
 #include "math.hpp"
@@ -205,8 +205,6 @@ void Scratch::cleanupScratchProject() {
     costumeImages.clear();
     failedCostumeImages.clear();
     Mixer::cleanupAudio();
-    Render::monitorTexts.clear();
-    Render::listMonitors.clear();
     Render::monitors.clear();
 
     TextObject::cleanupText();
