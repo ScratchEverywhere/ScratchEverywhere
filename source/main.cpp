@@ -67,11 +67,10 @@ bool activateMainMenu() {
     while (Render::appShouldRun()) {
         MenuManager::render();
 
-        // if (MenuManager::isProjectLoaded != 0) {
-        //     if (MenuManager::isProjectLoaded == -1) return false;
-        //     MenuManager::isProjectLoaded = 0;
-        //     return true;
-        // }
+        if (MenuManager::isProjectLoaded) {
+            MenuManager::isProjectLoaded = false;
+            return true;
+        }
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);

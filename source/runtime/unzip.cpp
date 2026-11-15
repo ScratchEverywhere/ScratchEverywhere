@@ -510,8 +510,8 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         return nlohmann::json();
     }
 
-    if (json.contains("settings") && json["settings"].contains(settingName)) {
-        return json["settings"][settingName];
+    if (json.contains(settingName)) {
+        return json[settingName];
     }
 
     return nlohmann::json();

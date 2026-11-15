@@ -1,6 +1,8 @@
 #include "projectSettings.hpp"
+#include "menuManager.hpp"
 #include "settings.hpp"
 #include "ui.hpp"
+#include <unzip.hpp>
 
 ProjectSettingsMenu::ProjectSettingsMenu(const std::string &projectPath) {
     json = SettingsManager::getProjectSettings(projectPath.substr(0, projectPath.size() - 4));
@@ -45,6 +47,15 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
 #else
     constexpr bool ramDefault = true;
 #endif
+
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+    const std::string runtimeDefault = "interpreter";
+#elif defined(SE_JIT)
+    const std::string runtimeDefault = "jit";
+#else
+    const std::string runtimeDefault = "bytecode";
+#endif
+
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
@@ -66,12 +77,18 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                             [&] {
                                 b.element({
                                               .flags = UI::Flag::Visible | UI::Flag::Focusable,
-                                              .w = UI::Size::fit(),
+                                              .w = UI::Size::grow(),
                                               .h = UI::Size::fit(),
                                               .childDirection = UI::ChildDir::LeftRight,
                                               .childGap = 5,
                                               .padding = UI::Padding::all(10),
+                                              .align = UI::AlignMode::Center,
                                               .style = UI::StyleId::Button,
+                                              .onClick = [&] {
+                                                  Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+                                                  MenuManager::projectPendingLoad = true;
+                                                  return;
+                                              },
                                           },
                                           [&] {
                                               b.image({.imagePath = "gfx/menu/projects.svg"});
@@ -88,20 +105,21 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                 info(b, "67.67 MB");
 
                                 section(b, "Project Settings");
+
+                                toggle(b, "debugVars", "ui.settings.fps", false);
 #if defined(__3DS__) || defined(__NDS__)
                                 toggle(b, "bottomScreen", "ui.settings.bottom", false);
 #endif
+
+                                dropdown(b, "runtime", "ui.settings.runtime", getRuntimeBackends(), runtimeDefault);
+
                                 toggle(b, "accuratePen", "ui.settings.penMode", true);
 
                                 toggle(b, "accurateCollision", "ui.settings.collisionMode", collisionDefault);
 
-                                toggle(b, "debugVars", "ui.settings.fps", false);
-
-                                toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
-
                                 toggle(b, "warpTimer", "ui.settings.warp", true);
 
-                                dropdown(b, "runtime", "ui.settings.runtime", getRuntimeBackends(), "interpreter");
+                                toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
                             });
               });
 }

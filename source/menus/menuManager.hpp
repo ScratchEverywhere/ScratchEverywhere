@@ -23,9 +23,14 @@ extern UI::Pool elements;
 extern MenuId currentMenu;
 extern std::unordered_map<MenuId, std::unique_ptr<Menu>> loadedMenus;
 extern UI::Builder builder;
+extern bool isProjectLoaded;
+extern bool projectPendingLoad;
+extern bool canChangeTabs;
 bool initMainMenu();
 void render();
 void buildMenuBar(UI::Builder &b);
 void changeMenu(MenuId id);
 void unloadMenu(MenuId id);
+void loadProject();
+void cleanup();
 }; // namespace MenuManager

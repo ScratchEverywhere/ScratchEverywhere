@@ -6,8 +6,15 @@
 #include "renderer.hpp"
 #include "settingsMenu.hpp"
 #include "ui.hpp"
+#include <audio.hpp>
+#include <audiostack.hpp>
+#include <log.hpp>
 #include <memory>
+#include <unzip.hpp>
 
+bool MenuManager::isProjectLoaded = false;
+bool MenuManager::projectPendingLoad = false;
+bool MenuManager::canChangeTabs = true;
 MenuId MenuManager::currentMenu = MenuId::None;
 std::unordered_map<MenuId, std::unique_ptr<Menu>> MenuManager::loadedMenus;
 UI::Builder MenuManager::builder = {};
@@ -86,8 +93,8 @@ void MenuManager::render() {
                                             [&] {
                                                 menu->build(builder);
                                             });
-
-                            buildMenuBar(builder);
+                            if (canChangeTabs)
+                                buildMenuBar(builder);
                         });
 
         builder.end();
@@ -98,6 +105,14 @@ void MenuManager::render() {
     UI::Painter::render(elements);
 
     Render::endFrame(false);
+    if (projectPendingLoad) {
+        loadProject();
+    }
+    static bool oldCanChangeTabs = false;
+    if (canChangeTabs != oldCanChangeTabs) {
+        oldCanChangeTabs = canChangeTabs;
+        builder.dirty = true;
+    }
 }
 
 void MenuManager::buildMenuBar(UI::Builder &b) {
@@ -142,4 +157,21 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
                       MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
                   });
               });
+}
+
+void MenuManager::loadProject() {
+    projectPendingLoad = false;
+    cleanup();
+    Mixer::cleanupAudio();
+
+    if (!Unzip::load()) {
+        Log::logCritical("Could not load project: " + Unzip::filePath + ".", true);
+        isProjectLoaded = false;
+        return;
+    }
+    isProjectLoaded = true;
+}
+
+void MenuManager::cleanup() {
+    loadedMenus.clear();
 }
