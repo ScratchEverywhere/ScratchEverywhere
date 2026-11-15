@@ -136,6 +136,9 @@ void InputDevice_3DS::getInput() {
             Input::clampMouseToStage();
         };
 
+        Input::mousePointer.rawX = touchPos[0];
+        Input::mousePointer.rawY = touchPos[1];
+
         if (Render::renderMode == Render::RenderModes::TOP_SCREEN_ONLY) {
             touchPos[0] *= BOTTOM_SCR_CONVERSION;
         }

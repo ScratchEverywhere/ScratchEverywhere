@@ -392,19 +392,24 @@ void Renderer_C2D::cleanupPen() {
 }
 
 void Renderer_C2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    Window3DS *w = reinterpret_cast<Window3DS *>(window);
+
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         hasFrameBegan = true;
     }
     if (screen == 0) {
+        w->width = 400;
         currentScreen = 0;
         C2D_TargetClear(topScreen, C2D_Color32(colorR, colorG, colorB, 255));
         C2D_SceneBegin(topScreen);
     } else if (!isConsoleInit) {
         currentScreen = 1;
+        w->width = 320;
         C2D_TargetClear(bottomScreen, C2D_Color32(colorR, colorG, colorB, 255));
         C2D_SceneBegin(bottomScreen);
     } else {
+        w->width = 400;
         currentScreen = 0;
         C2D_SceneBegin(topScreen);
     }
@@ -514,7 +519,7 @@ void Renderer_C2D::renderSprites() {
 
         screen_rendering(0, true);
 
-        Render::renderMonitors();
+        // Render::renderMonitors();
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(screenWidth, screenHeight);
         }
@@ -532,7 +537,7 @@ void Renderer_C2D::renderSprites() {
 
             screen_rendering(1, true);
 
-            Render::renderMonitors();
+            // Render::renderMonitors();
             if (Render::renderMode != Render::BOTH_SCREENS) {
                 drawBlackBars(screenWidth, screenHeight);
             }
@@ -549,10 +554,10 @@ void Renderer_C2D::renderSprites() {
         screen_rendering(0, false);
 
         if (Render::renderMode == Render::BOTH_SCREENS) {
-            Render::renderMonitors(-40, -240);
+            // Render::renderMonitors(-40, -240);
         } else {
             drawBlackBars(bottomScreenWidth, screenHeight);
-            Render::renderMonitors();
+            // Render::renderMonitors();
         }
     }
 

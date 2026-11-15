@@ -20,7 +20,6 @@ class SE_EXPORT Window3DS : public WindowSE {
     float getPixelDensity() const override;
     void *getHandle() override;
 
-  private:
     int width = 400;
     int height = 240;
 };
