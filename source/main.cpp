@@ -4,9 +4,11 @@
 
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include "hasdeps.hpp"
+#ifndef SE_NO_LIBDLGMOD
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
+#endif
 #endif
 #include <algorithm>
 #include <climits>
