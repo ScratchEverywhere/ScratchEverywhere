@@ -1,0 +1,17 @@
+FROM gcc:14 AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+
+WORKDIR /app
+
+ARG JOBS=2
+ARG EXT_ARGS=
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libogg-dev libvorbis-dev
+
+COPY . .
+
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=flatland -DSE_AUDIO_ENGINE=flatland ${EXT_ARGS} && cmake --build . -j ${JOBS}
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/scratch-pc /
