@@ -8,6 +8,8 @@
 #include <string>
 #include <text.hpp>
 
+// TODO: separate into different files, and general cleanup
+
 namespace UI {
 
 constexpr uint16_t NONE = 0xFFFF;
