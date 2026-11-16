@@ -22,6 +22,9 @@ static int penHeight = 0;
 static bool penPassActive = false;
 static bool penDirty = false;
 
+static GX2Gfx::Readback penReadback;
+static bool penReadbackStale = true;
+
 static std::vector<float> penBatchVerts;
 static constexpr size_t kPenBatchFlushThreshold = 60000 * 6; // ~60k vertices
 
@@ -237,8 +240,10 @@ static void destroyPenTarget() {
     discardPenBatch();
     if (penPassActive) penPassActive = false;
     GX2Gfx::destroyRenderTarget(penTarget);
+    GX2Gfx::destroyReadback(penReadback);
     penWidth = penHeight = 0;
     penDirty = false;
+    penReadbackStale = true;
 }
 
 static void flushPenTarget(WindowSE *window) {
@@ -257,6 +262,7 @@ static void makePenReadable(WindowSE *window) {
 
 static void penBegin(WindowSE *window) {
     penDirty = true;
+    penReadbackStale = true;
     if (penPassActive) return;
     (void)window;
     GX2Gfx::setRenderTarget(&penTarget.colorBuffer, penWidth, penHeight);
@@ -404,6 +410,7 @@ void Renderer_GX2::penClear() {
 
     penPassActive = false;
     penDirty = true;
+    penReadbackStale = true;
 }
 
 void Renderer_GX2::cleanupPen() {
@@ -582,6 +589,31 @@ void Renderer_GX2::drawRoundedBox(int w, int h, int x, int y, int radius,
     float proj[16];
     GX2Gfx::buildOrtho(proj, 0.0f, static_cast<float>(getWidth()), static_cast<float>(getHeight()), 0.0f);
     drawSolidFan(verts, proj);
+}
+
+void Renderer_GX2::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
+    if (!penTarget.valid) return;
+    if (penReadback.valid && !penReadbackStale) return;
+
+    makePenReadable(window);
+    if (!penReadback.valid && !GX2Gfx::createReadback(penReadback, penWidth, penHeight)) return;
+    GX2Gfx::readTarget(penTarget, penReadback);
+    penReadbackStale = false;
+}
+
+bool Renderer_GX2::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (!penTarget.valid || !penReadback.valid || penReadbackStale) return false;
+    const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
+    const int px = static_cast<int>(std::floor(x * scale + penWidth / 2.0));
+    const int py = static_cast<int>(std::floor(-y * scale + penHeight / 2.0));
+    if (px < 0 || py < 0 || px >= penWidth || py >= penHeight) return false;
+
+    const uint8_t *pixel = static_cast<const uint8_t *>(penReadback.surface.image) + (static_cast<size_t>(py) * penReadback.surface.pitch + px) * 4;
+    r = pixel[0];
+    g = pixel[1];
+    b = pixel[2];
+    a = static_cast<uint8_t>(std::lround(std::sqrt(pixel[3] / 255.0) * 255.0));
+    return a != 0;
 }
 
 void Renderer_GX2::renderPenLayer() {

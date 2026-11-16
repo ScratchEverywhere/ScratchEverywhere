@@ -271,6 +271,25 @@ void Renderer_GDI::penClear() {
     PatBlt(penLayerMask, 0, 0, this->getWidth(), this->getHeight(), BLACKNESS);
 }
 
+bool Renderer_GDI::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
+    if (penLayerQuad == nullptr || penLayerMaskQuad == nullptr) return false;
+
+    const int rW = this->getWidth();
+    const int rH = this->getHeight();
+    const double scale = (rH < rW) ? ((float)Scratch::projectHeight / rH) : ((float)Scratch::projectWidth / rW);
+    const int px = static_cast<int>(std::round(x / scale + rW / 2.0));
+    const int py = static_cast<int>(std::round(-y / scale + rH / 2.0));
+    if (px < 0 || py < 0 || px >= rW || py >= rH) return false;
+
+    const size_t index = static_cast<size_t>(py) * rW + px;
+    if (penLayerMaskQuad[index].rgbRed == 0) return false;
+    r = penLayerQuad[index].rgbRed;
+    g = penLayerQuad[index].rgbGreen;
+    b = penLayerQuad[index].rgbBlue;
+    a = 255;
+    return true;
+}
+
 void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
@@ -295,7 +314,7 @@ void Renderer_GDI::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Renderer_GDI::endFrame(bool shouldFlush) {
-    Sleep(16);
+    // Sleep(16);
     if (this->window) this->window->swapBuffers();
     hasFrameBegan = false;
 }

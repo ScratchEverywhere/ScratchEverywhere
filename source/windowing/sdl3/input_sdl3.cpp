@@ -215,6 +215,7 @@ void InputDevice_SDL3::getInput() {
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
+        Input::clampMouseToStage();
         Input::mousePointer.isPressed = touchActive;
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
 
@@ -233,6 +234,7 @@ void InputDevice_SDL3::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     Input::mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
@@ -260,7 +262,7 @@ std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
     SDL_StartTextInput(window);
@@ -276,7 +278,7 @@ std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
                 // Add text
                 inputText += event.text.text;
                 text->setText(inputText);
-                text->setColor(Math::color(0, 0, 0, 255));
+                text->setColor(Math::color(255, 255, 255, 255));
 
 #if defined(__SWITCH__) || defined(VITA)
                 inputActive = false;

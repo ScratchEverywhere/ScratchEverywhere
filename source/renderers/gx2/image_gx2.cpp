@@ -1,4 +1,5 @@
 #include "image_gx2.hpp"
+#include <pixel_snap.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -37,8 +38,8 @@ static void buildModelMatrix(float out[16],
 void Image_GX2::render(ImageRenderParams &params) {
     if (!texture.valid) return;
 
-    const float x = params.x;
-    const float y = params.y;
+    float x = params.x;
+    float y = params.y;
     const bool centered = params.centered;
     const bool flip = params.flip;
 
@@ -65,10 +66,25 @@ void Image_GX2::render(ImageRenderParams &params) {
     const float pivotX = centered ? 0.5f : 0.0f;
     const float pivotY = centered ? 0.5f : 0.0f;
 
+    float drawW = static_cast<float>(renderWidth) * scaleX;
+    float drawH = static_cast<float>(renderHeight) * scaleY;
+
+    if (PixelSnap::unrotated(params.rotation) && renderWidth > 0 && renderHeight > 0) {
+        const float absW = std::abs(drawW);
+        const float absH = std::abs(drawH);
+        const float leftEdge = centered ? x - absW / 2.0f : (drawW < 0 ? x - absW : x);
+        const float topEdge = centered ? y - absH / 2.0f : (drawH < 0 ? y - absH : y);
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(leftEdge, absW, left, snappedW);
+        PixelSnap::span(topEdge, absH, top, snappedH, true);
+        x = centered ? left + snappedW / 2.0f : (drawW < 0 ? left + snappedW : left);
+        y = centered ? top + snappedH / 2.0f : (drawH < 0 ? top + snappedH : top);
+        drawW = drawW < 0 ? -snappedW : snappedW;
+        drawH = drawH < 0 ? -snappedH : snappedH;
+    }
+
     float model[16];
-    buildModelMatrix(model, x, y,
-                     static_cast<float>(renderWidth) * scaleX,
-                     static_cast<float>(renderHeight) * scaleY,
+    buildModelMatrix(model, x, y, drawW, drawH,
                      params.rotation, pivotX, pivotY);
 
     int viewportWidth, viewportHeight;
@@ -190,7 +206,9 @@ void Image_GX2::setInitialTexture() {
     if (!GX2Gfx::createTexture(texture, imgData.width, imgData.height, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8,
                                imgData.pixels, imgData.pitch)) {
         error = "Failed to create GX2 texture";
+        return;
     }
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GX2::refreshTexture() {
@@ -198,6 +216,7 @@ nonstd::expected<void, std::string> Image_GX2::refreshTexture() {
                                 imgData.pixels, imgData.pitch)) {
         return nonstd::make_unexpected(std::string("Failed to refresh GX2 texture"));
     }
+    discardColorData();
     return {};
 }
 

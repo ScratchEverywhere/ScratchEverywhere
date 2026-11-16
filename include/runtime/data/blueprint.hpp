@@ -438,8 +438,8 @@ class SE_EXPORT Sprite {
     int currentCostume;
     double xPosition;
     double yPosition;
-    float size;
-    float rotation;
+    double rotation;
+    double size;
     int layer;
     RenderInfo renderInfo;
 
@@ -470,6 +470,8 @@ class SE_EXPORT Sprite {
     std::vector<std::pair<double, double>> collisionPoints;
     int spriteWidth = 0;
     int spriteHeight = 0;
+    float spriteWidthExact = 0.0f;
+    float spriteHeightExact = 0.0f;
 
     struct {
         bool down = false;
@@ -491,7 +493,7 @@ class SE_EXPORT Sprite {
     std::unordered_map<std::string, size_t> costumeNameIndex;
     std::unordered_map<std::string, Broadcast> broadcasts;
 
-    std::unordered_map<std::string, std::unordered_set<Block *>> hats;
+    std::unordered_map<std::string, std::vector<Block *>> hats;
     std::unordered_map<std::string, Block *> customHatBlock;
 
     std::unique_ptr<BytecodeChunk> bytecode;

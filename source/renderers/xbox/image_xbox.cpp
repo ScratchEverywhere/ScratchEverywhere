@@ -1,51 +1,79 @@
+#include <sb2_bitmap_layers.hpp>
 #include "image_xbox.hpp"
 #include "nonstd/expected.hpp"
 #include "renderer_xbox.hpp"
-#include <renderers/nv2a/image_nv2a.hpp>
+#include "swizzle.h"
+#include "xgu.h"
+#include <pixel_snap.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <color_effects.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem.hpp>
 #include <image.hpp>
-#include <log.hpp>
-#include <list>
+#include <limits>
 #include <memory>
+#ifdef SE_NV2A_PROFILE
+#include <log.hpp>
+#endif
+#include <math.hpp>
 #include <os.hpp>
 #include <runtime.hpp>
-#include <sb2_bitmap_layers.hpp>
 #include <stb_image.h>
 #include <string>
 #include <translation.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
+#include <utility>
 #include <vector>
 
+#ifdef SE_NV2A_PROFILE
+#define NV2A_LOG(...) Log::log(__VA_ARGS__)
+#else
+#define NV2A_LOG(...) ((void)0)
+#endif
+
+#ifdef __XBOX__
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
+#endif
 
-// Bump this value by one for any changes to the caching system
-constexpr uint32_t XBT_VERSION = 5;
-
-// Images bigger than TILE_THRESHOLD (in either dimension) are split into TILE_SIZE chunks.
-// Small chunks keep each contiguous GPU allocation small (<=256KB at 32bpp, 128KB at 16bpp,
-// 64KB at DXT5, 32KB at DXT1) which is far easier to satisfy on a fragmented 64MB heap,
-// and reduces power-of-two padding waste on edge tiles.
-// The threshold is higher than the tile size so mid-sized sprites stay a single draw call.
+constexpr uint32_t XBT_VERSION = 7;
 static constexpr int TILE_SIZE = 256;
 static constexpr int TILE_THRESHOLD = 512;
-
-// Force an asset to downscale in quality if it exceeds x amount of pixels in either dimension.
 static inline int getMaxTextureDim() { return OS::isEnhancedPlatform() ? 1024 : 512; }
-
-// Non-opaque sprite costumes are only precached (and lose their CPU pixel buffer) at or above this
-// many pixels. Their collision data is kept as a 1-bit alpha mask inside the cache file instead.
 static constexpr int CACHE_MIN_ALPHA_PIXELS = 256 * 256;
+
+static void logHeapStatus(const std::string &label) {
+#if defined(SE_NV2A_PROFILE) && defined(__XBOX__)
+    MM_STATISTICS stats;
+    memset(&stats, 0, sizeof(stats));
+    stats.Length = sizeof(stats);
+    if (NT_SUCCESS(MmQueryStatistics(&stats))) {
+        size_t freePages = stats.AvailablePages;
+        size_t totalPages = stats.TotalPhysicalPages;
+        NV2A_LOG("Physical Memory Stats [" + label + "]: FreePages=" + std::to_string(freePages) +
+                 " TotalPages=" + std::to_string(totalPages) +
+                 " FreeBytes=" + std::to_string(freePages * 4096));
+    }
+#else
+    (void)label;
+#endif
+}
+
+static bool isSvgAssetPath(const std::string &path) {
+    if (path.size() < 4) return false;
+    const size_t n = path.size();
+    return path[n - 4] == '.' &&
+           std::tolower(static_cast<unsigned char>(path[n - 3])) == 's' &&
+           std::tolower(static_cast<unsigned char>(path[n - 2])) == 'v' &&
+           std::tolower(static_cast<unsigned char>(path[n - 1])) == 'g';
+}
 
 #pragma pack(push, 1)
 struct XBTHeader {
@@ -56,180 +84,49 @@ struct XBTHeader {
     uint32_t isTiled;  // 1 if tiled, 0 if single texture
     uint32_t numTiles; // number of tiles
     uint32_t flags;    // bit0: image has alpha
-    uint32_t maskSize; // bytes of 1-bit alpha mask following the header (0 = none)
-    float scale;       // logical scale multiplier (e.g. 1.0 or 2.0)
+    uint32_t maskSize; // bytes of 1-bit alpha mask following header
+    float scale;       // logical scale multiplier
 };
 
 struct XBTTileHeader {
-    int32_t x;         // tile x offset in image
-    int32_t y;         // tile y offset in image
-    int32_t w;         // tile width
-    int32_t h;         // tile height
-    uint32_t dataSize; // byte length of compressed data following
-    uint32_t codec;    // 1 = DXT1, 2 = DXT5
+    int32_t x;
+    int32_t y;
+    int32_t w;
+    int32_t h;
+    uint32_t dataSize;
+    uint32_t codec; // 1 = DXT1, 2 = DXT5, 3 = RGBA32, 4-6 = 16-bit formats
 };
 #pragma pack(pop)
 
-enum : uint32_t { CODEC_DXT1 = 1,
-                  CODEC_DXT5 = 2 };
+enum : uint32_t {
+    CODEC_DXT1 = 1,
+    CODEC_DXT5 = 2,
+    CODEC_RGBA32 = 3,
+    CODEC_RGB565 = 4,
+    CODEC_ARGB1555 = 5,
+    CODEC_ARGB4444 = 6
+};
 
 static size_t getAvailablePhysicalMemory() {
+#ifdef __XBOX__
     MM_STATISTICS stats;
     memset(&stats, 0, sizeof(stats));
     stats.Length = sizeof(stats);
     if (NT_SUCCESS(MmQueryStatistics(&stats))) {
-        return (size_t)stats.AvailablePages * 4096;
+        return static_cast<size_t>(stats.AvailablePages) * 4096;
     }
-    return 0;
+#endif
+    return 64 * 1024 * 1024;
 }
 
 #define STB_DXT_IMPLEMENTATION
 #define STB_DXT_STATIC
 #include <stb_dxt.h>
 
-#ifndef SDL_PIXELFORMAT_DXT1
-#define SDL_PIXELFORMAT_DXT1 static_cast<SDL_PixelFormat>(SDL_DEFINE_PIXELFOURCC('D', 'X', 'T', '1'))
-#endif
-
-#ifndef SDL_PIXELFORMAT_DXT5
-#define SDL_PIXELFORMAT_DXT5 static_cast<SDL_PixelFormat>(SDL_DEFINE_PIXELFOURCC('D', 'X', 'T', '5'))
-#endif
-
-// Per-texture state tracking.
-// Eliminates expensive nxdk/SDL pipeline state changes and fixes transparency.
-// A 1-item MRU cache bypasses the unordered_map lookup for sequential clones,
-// freeing up some CPU time.
-struct TexState {
-    Uint8 alpha = 255;
-    SDL_BlendMode blend = SDL_BLENDMODE_BLEND;
-    Uint8 colorR = 255;
-    Uint8 colorG = 255;
-    Uint8 colorB = 255;
-};
-
-static std::unordered_map<SDL_Texture *, TexState> g_texStates;
-static SDL_Texture *g_mruTexture = nullptr;
-static TexState *g_mruState = nullptr;
-
-static void safeDestroyTexture(SDL_Texture *&tex) {
-    if (tex) {
-        if (tex == g_mruTexture) {
-            g_mruTexture = nullptr;
-            g_mruState = nullptr;
-        }
-        g_texStates.erase(tex);
-        SDL_DestroyTexture(tex);
-        tex = nullptr;
-    }
-}
-
-static TexState &getTexState(SDL_Texture *tex) {
-    if (tex == g_mruTexture) {
-        return *g_mruState;
-    }
-    TexState &state = g_texStates[tex];
-    g_mruTexture = tex;
-    g_mruState = &state;
-    return state;
-}
-
-struct EffectTile {
-    Image_Xbox *owner;
-    int x, y;
-    ScratchColorTransform effect;
-    SDL_Texture *texture;
-    size_t bytes;
-};
-
-// Cache individual tiles, so even a large effected backdrop can stream through
-// the same bounded cache. Untouched costumes allocate no additional textures.
-static std::list<EffectTile> g_effectTiles;
-static size_t g_effectBytes = 0;
-static size_t g_effectPeakBytes = 0;
-static uint32_t g_effectCreated = 0, g_effectEvicted = 0;
-static constexpr size_t EFFECT_CACHE_BYTES = 8 * 1024 * 1024;
-static constexpr size_t EFFECT_CACHE_TILES = 128;
-
-Image_Xbox::EffectCacheStats Image_Xbox::getEffectCacheStats() {
-    return {g_effectBytes, g_effectPeakBytes, g_effectTiles.size(), g_effectCreated, g_effectEvicted};
-}
-
-static void eraseEffectTile(std::list<EffectTile>::iterator entry) {
-    g_effectBytes -= entry->bytes;
-    safeDestroyTexture(entry->texture);
-    g_effectTiles.erase(entry);
-}
-
-static void clearEffectTiles(Image_Xbox *owner) {
-    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end();) {
-        auto entry = it++;
-        if (entry->owner == owner) eraseEffectTile(entry);
-    }
-}
-
-static SDL_Texture *effectTile(Image_Xbox *owner, const ImageData &source,
-                               const Image_Xbox::Tile &tile, const ScratchColorTransform &effect) {
-    for (auto it = g_effectTiles.begin(); it != g_effectTiles.end(); ++it) {
-        if (it->owner == owner && it->x == tile.x && it->y == tile.y &&
-            it->effect.colorEnabled == effect.colorEnabled && it->effect.hue == effect.hue &&
-            it->effect.brightness == effect.brightness) {
-            SDL_Texture *texture = it->texture;
-            g_effectTiles.splice(g_effectTiles.end(), g_effectTiles, it);
-            return texture;
-        }
-    }
-    auto pot = [](size_t n) { size_t size = 1; while (size < n) size *= 2; return size; };
-    const size_t bytes = (pot(tile.w) * pot(tile.h) * 4 + 4095) & ~size_t(4095);
-    while (!g_effectTiles.empty() &&
-           (g_effectBytes + bytes > EFFECT_CACHE_BYTES || g_effectTiles.size() >= EFFECT_CACHE_TILES)) {
-        ++g_effectEvicted;
-        eraseEffectTile(g_effectTiles.begin());
-    }
-    SDL_Texture *texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
-                                             SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-    while (!texture && !g_effectTiles.empty()) {
-        ++g_effectEvicted;
-        eraseEffectTile(g_effectTiles.begin());
-        texture = SDL_CreateTexture(owner->sdlRenderer, SDL_PIXELFORMAT_RGBA32,
-                                    SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-    }
-    if (!texture) return nullptr;
-    std::unique_ptr<uint8_t, decltype(&std::free)> pixels(
-        static_cast<uint8_t *>(std::malloc(static_cast<size_t>(tile.w) * tile.h * 4)), &std::free);
-    if (!pixels) {
-        safeDestroyTexture(texture);
-        return nullptr;
-    }
-    for (int y = 0; y < tile.h; ++y) {
-        const auto *src = static_cast<const uint8_t *>(source.pixels) + (tile.y + y) * source.pitch + tile.x * 4;
-        auto *dst = pixels.get() + static_cast<size_t>(y) * tile.w * 4;
-        for (int x = 0; x < tile.w; ++x, src += 4, dst += 4) {
-            memcpy(dst, src, 4);
-            if (dst[3]) effect.apply(dst[0], dst[1], dst[2]);
-        }
-    }
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
-    if (!SDL_UpdateTexture(texture, nullptr, pixels.get(), tile.w * 4)) {
-        safeDestroyTexture(texture);
-        return nullptr;
-    }
-    g_effectTiles.push_back({owner, tile.x, tile.y, effect, texture, bytes});
-    g_effectBytes += bytes;
-    g_effectPeakBytes = std::max(g_effectPeakBytes, g_effectBytes);
-    ++g_effectCreated;
-    return texture;
-}
-
 static inline int toPowerOfTwo(int v) {
     if (v <= 1) return 1;
     return 1 << (32 - __builtin_clz(v - 1));
 }
-
-// 2x2 Bayer dithering matrix centered around 0 to eliminate color banding on 16-bit conversions
-static const int ditherMatrix[2][2] = {
-    {-3, 1},
-    {3, -1}};
 
 static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
     r = (c >> 11) & 31;
@@ -240,8 +137,6 @@ static inline void unpackRGB565(uint16_t c, int &r, int &g, int &b) {
     b = (b << 3) | (b >> 2);
 }
 
-// Writes exactly 8 bytes (DXT1). Alpha is treated as 1-bit when !isOpaque.
-// NOTE: stb_compress_dxt_block(alpha=1) emits a 16-byte DXT5 block, so it must never be used here.
 static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool isOpaque, bool highQuality) {
     int mode = highQuality ? STB_DXT_HIGHQUAL : STB_DXT_NORMAL;
     if (isOpaque) {
@@ -263,7 +158,6 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
     }
 
     if (count == 0) {
-        // Fully transparent: c0 == c1 (3-colour mode), all indices = 3
         memset(dst_block, 0, 4);
         memset(dst_block + 4, 0xFF, 4);
         return;
@@ -287,7 +181,6 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
     stb_compress_dxt_block(tmp, fixedBlock, 0, mode);
     const uint16_t e0 = static_cast<uint16_t>(tmp[0] | (tmp[1] << 8));
     const uint16_t e1 = static_cast<uint16_t>(tmp[2] | (tmp[3] << 8));
-    // 3-colour mode requires c0 <= c1
     const uint16_t c0 = e0 < e1 ? e0 : e1;
     const uint16_t c1 = e0 < e1 ? e1 : e0;
 
@@ -330,8 +223,30 @@ static void compressDXT1BlockFast(uint8_t *dst_block, const uint8_t *block, bool
 
 static inline int dxtBlockBytes(uint32_t codec) { return codec == CODEC_DXT5 ? 16 : 8; }
 static inline int dxtPitch(int w, uint32_t codec) { return ((toPowerOfTwo(w) + 3) / 4) * dxtBlockBytes(codec); }
+static inline bool isDXTCodec(uint32_t codec) { return codec == CODEC_DXT1 || codec == CODEC_DXT5; }
+static inline bool isRawCodec(uint32_t codec) { return codec >= CODEC_RGBA32 && codec <= CODEC_ARGB4444; }
+static inline size_t rawCodecBytes(uint32_t codec) { return codec == CODEC_RGBA32 ? 4u : 2u; }
 
-// Encodes the region [tx,tx+tw) x [ty,ty+th) of an RGBA image, edge-clamped, POT-padded.
+static size_t expectedCacheDataSize(int w, int h, uint32_t codec) {
+    if (w <= 0 || h <= 0) return 0;
+    const size_t width = static_cast<size_t>(w);
+    const size_t height = static_cast<size_t>(h);
+    if (isDXTCodec(codec)) {
+        const size_t blocksX = (static_cast<size_t>(toPowerOfTwo(w)) + 3) / 4;
+        const size_t blocksY = (static_cast<size_t>(toPowerOfTwo(h)) + 3) / 4;
+        const size_t blockBytes = static_cast<size_t>(dxtBlockBytes(codec));
+        if (blocksX > std::numeric_limits<size_t>::max() / blocksY ||
+            blocksX * blocksY > std::numeric_limits<size_t>::max() / blockBytes) return 0;
+        return blocksX * blocksY * blockBytes;
+    }
+    if (isRawCodec(codec)) {
+        const size_t bpp = rawCodecBytes(codec);
+        if (width > std::numeric_limits<size_t>::max() / height || width * height > std::numeric_limits<size_t>::max() / bpp) return 0;
+        return width * height * bpp;
+    }
+    return 0;
+}
+
 static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int imgW, int imgH,
                                             int tx, int ty, int tw, int th,
                                             uint32_t codec, bool isOpaque, bool highQuality = false) {
@@ -361,59 +276,139 @@ static std::vector<uint8_t> encodeRegionDXT(const uint8_t *src, int pitch, int i
                 }
             }
             uint8_t *dst = out.data() + (by * blocks_x + bx) * bytes;
-            if (codec == CODEC_DXT5) stb_compress_dxt_block(dst, block, 1, mode); // 16-byte block
+            if (codec == CODEC_DXT5) stb_compress_dxt_block(dst, block, 1, mode);
             else compressDXT1BlockFast(dst, block, isOpaque, highQuality);
         }
     }
     return out;
 }
 
-static SDL_Texture *createDXTTexture(SDL_Renderer *r, int w, int h, uint32_t codec, const uint8_t *data) {
-    const SDL_PixelFormat fmt = (codec == CODEC_DXT5) ? SDL_PIXELFORMAT_DXT5 : SDL_PIXELFORMAT_DXT1;
-    SDL_Texture *t = SDL_CreateTexture(r, fmt, SDL_TEXTUREACCESS_STATIC, w, h);
+static NV2ATexture *createDXTTexture(Renderer_Xbox *r, int w, int h, uint32_t codec,
+                                     const uint8_t *data, const Image *keep = nullptr) {
+    if (!r || !data || !isDXTCodec(codec) || expectedCacheDataSize(w, h, codec) == 0) return nullptr;
+    const uint32_t fmt = (codec == CODEC_DXT5) ? XGU_TEXTURE_FORMAT_DXT5 : XGU_TEXTURE_FORMAT_DXT1;
+    NV2ATexture *t = r->createTexture(w, h, fmt, false);
     if (!t) {
-        Scratch::freeUnusedCostumeImages();
-        t = SDL_CreateTexture(r, fmt, SDL_TEXTUREACCESS_STATIC, w, h);
+        Scratch::freeUnusedCostumeImages(keep);
+        t = r->createTexture(w, h, fmt, false);
     }
     if (!t) return nullptr;
-    SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(t, SDL_SCALEMODE_LINEAR);
-    if (!SDL_UpdateTexture(t, nullptr, data, dxtPitch(w, codec))) {
-        safeDestroyTexture(t);
+
+    if (!r->updateTexture(t, data, dxtPitch(w, codec))) {
+        r->destroyTexture(t);
         return nullptr;
     }
     return t;
 }
 
-// SDL_OutOfMemory() sets "Out of memory". Used to tell an allocation failure (retrying with a larger
-// 16-bit format cannot help) from an unsupported format (where the fallback is worthwhile).
-static bool lastSDLErrorWasOOM() {
-    const char *e = SDL_GetError();
-    return e && (strstr(e, "emory") != nullptr);
+static uint32_t rawCodecFormat(uint32_t codec) {
+    switch (codec) {
+    case CODEC_RGBA32:
+        return XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+    case CODEC_RGB565:
+        return XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED;
+    case CODEC_ARGB1555:
+        return XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED;
+    case CODEC_ARGB4444:
+        return XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED;
+    default:
+        return 0;
+    }
 }
 
-static std::string freeMemKB() {
-    return std::to_string(getAvailablePhysicalMemory() / 1024) + " KB free";
+static NV2ATexture *createRawTexture(Renderer_Xbox *r, int w, int h, uint32_t codec,
+                                     const uint8_t *data, const Image *keep = nullptr, int sourcePitch = 0) {
+    if (!r || !data || !isRawCodec(codec) || expectedCacheDataSize(w, h, codec) == 0) return nullptr;
+    const uint32_t fmt = rawCodecFormat(codec);
+    NV2ATexture *t = r->createTexture(w, h, fmt, true);
+    if (!t) {
+        Scratch::freeUnusedCostumeImages(keep);
+        t = r->createTexture(w, h, fmt, true);
+    }
+    if (!t) return nullptr;
+    const int pitch = sourcePitch > 0 ? sourcePitch : w * static_cast<int>(rawCodecBytes(codec));
+    if (!r->updateTexture(t, data, pitch)) {
+        r->destroyTexture(t);
+        return nullptr;
+    }
+    return t;
 }
 
-// Set by loadFromCache when it failed because texture memory ran out rather than because the file was bad.
-static bool g_cacheLoadOOM = false;
+static std::vector<uint8_t> encodeRegionCache(const uint8_t *src, int pitch, int imgW, int imgH,
+                                              int tx, int ty, int tw, int th, uint32_t codec,
+                                              bool isOpaque, bool highQuality) {
+    if (isDXTCodec(codec)) {
+        return encodeRegionDXT(src, pitch, imgW, imgH, tx, ty, tw, th, codec, isOpaque, highQuality);
+    }
+    std::vector<uint8_t> out(expectedCacheDataSize(tw, th, codec));
+    if (out.empty()) return out;
+    if (codec == CODEC_RGBA32) {
+        for (int y = 0; y < th; ++y) {
+            const uint8_t *row = src + static_cast<size_t>(ty + y) * pitch + static_cast<size_t>(tx) * 4;
+            memcpy(out.data() + static_cast<size_t>(y) * tw * 4, row, static_cast<size_t>(tw) * 4);
+        }
+        return out;
+    }
+    for (int y = 0; y < th; ++y) {
+        const uint8_t *row = src + static_cast<size_t>(ty + y) * pitch + static_cast<size_t>(tx) * 4;
+        for (int x = 0; x < tw; ++x) {
+            const uint8_t r = row[x * 4 + 0];
+            const uint8_t g = row[x * 4 + 1];
+            const uint8_t b = row[x * 4 + 2];
+            const uint8_t a = row[x * 4 + 3];
+            uint16_t packed;
+            if (codec == CODEC_RGB565) {
+                packed = static_cast<uint16_t>(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+            } else if (codec == CODEC_ARGB1555) {
+                packed = static_cast<uint16_t>(((a >= 128 ? 1 : 0) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3));
+            } else {
+                packed = static_cast<uint16_t>(((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+            }
+            const size_t offset = (static_cast<size_t>(y) * tw + x) * 2;
+            memcpy(out.data() + offset, &packed, sizeof(packed));
+        }
+    }
+    return out;
+}
 
 void Image_Xbox::destroyTiles() {
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
     for (auto &tile : tiles) {
-        safeDestroyTexture(tile.texture);
+        if (nv2aRenderer) nv2aRenderer->destroyTexture(tile.texture);
     }
     tiles.clear();
 }
 
 nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
     destroyTiles();
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer || !imgData.pixels || imgData.width <= 0 || imgData.height <= 0)
+        return nonstd::make_unexpected("No NV2A renderer or source pixels");
 
-    const int tileSize = TILE_SIZE;
+    const int maxDim = getMaxTextureDim();
+    while (imgData.width > maxDim || imgData.height > maxDim) {
+        int dw, dh;
+        unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
+                                                        imgData.width, imgData.height, dw, dh, this);
+        if (!downscaled) break;
+        imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
+        free(imgData.pixels);
+        imgData.pixels = downscaled;
+        imgData.width = dw;
+        imgData.height = dh;
+        imgData.pitch = dw * 4;
+    }
+
     const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
-
-    std::vector<uint16_t> scratch16;
-    std::vector<uint32_t> scratch32;
+    if (!src) return nonstd::make_unexpected("Missing NV2A source pixels");
+    const int tileSize = TILE_SIZE;
+    const size_t freeMem = getAvailablePhysicalMemory();
+    const bool prefer32Bit = OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u;
+    const bool prefer16Bit = (isSVGImage || imgData.scale <= 1.0f) && freeMem > 8u * 1024u * 1024u;
 
     for (int ty = 0; ty < imgData.height; ty += tileSize) {
         for (int tx = 0; tx < imgData.width; tx += tileSize) {
@@ -423,475 +418,2555 @@ nonstd::expected<void, std::string> Image_Xbox::buildTiles() {
             tile.w = std::min(tileSize, imgData.width - tx);
             tile.h = std::min(tileSize, imgData.height - ty);
 
-            // Analyze transparency characteristics in this tile
-            bool isOpaque = true;
+            bool isOpaqueTile = true;
             bool isBinaryAlpha = true;
             for (int y = 0; y < tile.h; y++) {
-                const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
+                const uint8_t *row = src + static_cast<size_t>(ty + y) * imgData.pitch + tx * 4;
                 for (int x = 0; x < tile.w; x++) {
                     const uint8_t a = row[x * 4 + 3];
                     if (a != 255) {
-                        isOpaque = false;
-                        if (a != 0) {
-                            isBinaryAlpha = false;
-                        }
+                        isOpaqueTile = false;
+                        if (a != 0) isBinaryAlpha = false;
                     }
                 }
             }
 
-            // 32-bit only where RAM is abundant (128MB platform). 64MB consoles go straight to DXT.
-            const size_t freeMem = getAvailablePhysicalMemory();
-            const bool prefer32Bit = OS::isEnhancedPlatform() && freeMem > 20 * 1024 * 1024;
+            const uint32_t codec16 = isOpaqueTile ? CODEC_RGB565 : (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+            const uint32_t codecDXT = (isOpaqueTile || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
+            auto upload16 = [&]() {
+                const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                                      tx, ty, tile.w, tile.h, codec16, isOpaqueTile, false);
+                if (packed.empty()) return static_cast<NV2ATexture *>(nullptr);
+                return createRawTexture(nv2aRenderer, tile.w, tile.h, codec16, packed.data(), this);
+            };
+            auto uploadDXT = [&]() {
+                const auto packed = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                                    tx, ty, tile.w, tile.h, codecDXT, isOpaqueTile,
+                                                    imgData.scale <= 1.0f || isSVGImage);
+                return packed.empty() ? static_cast<NV2ATexture *>(nullptr)
+                                      : createDXTTexture(nv2aRenderer, tile.w, tile.h, codecDXT, packed.data(), this);
+            };
 
             if (prefer32Bit) {
-                tile.texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-                if (tile.texture) {
-                    scratch32.resize(static_cast<size_t>(tile.w) * tile.h);
-                    for (int y = 0; y < tile.h; y++) {
-                        const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
-                        memcpy(scratch32.data() + y * tile.w, row, tile.w * 4);
-                    }
-                    SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_PIXELART);
-                    if (!SDL_UpdateTexture(tile.texture, nullptr, scratch32.data(), tile.w * 4)) {
-                        tiles.push_back(tile);
-                        continue;
-                    }
-                    safeDestroyTexture(tile.texture);
-                }
+                const uint8_t *tilePixels = src + static_cast<size_t>(ty) * imgData.pitch + tx * 4;
+                tile.texture = createRawTexture(nv2aRenderer, tile.w, tile.h, CODEC_RGBA32, tilePixels, this, imgData.pitch);
+            }
+            if (!tile.texture && prefer16Bit) tile.texture = upload16();
+            if (!tile.texture) tile.texture = uploadDXT();
+            if (!tile.texture && !prefer16Bit) tile.texture = upload16();
+            if (!tile.texture && !prefer32Bit) {
+                const uint8_t *tilePixels = src + static_cast<size_t>(ty) * imgData.pitch + tx * 4;
+                tile.texture = createRawTexture(nv2aRenderer, tile.w, tile.h, CODEC_RGBA32, tilePixels, this, imgData.pitch);
             }
 
-            // Compressed path: DXT1 for opaque / cutout tiles, DXT5 for smooth-alpha tiles.
-            // Pixels stay resident in imgData, so alpha-based collision keeps working.
-            {
-                const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
-                const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                                  tx, ty, tile.w, tile.h, codec, isOpaque, false);
-                tile.texture = createDXTTexture(sdlRenderer, tile.w, tile.h, codec, data.data());
-                if (tile.texture) {
-                    tiles.push_back(tile);
-                    continue;
-                }
-                if (lastSDLErrorWasOOM()) {
-                    // 16-bit tiles need 2-4x the memory of DXT, so the fallback cannot succeed here.
-                    const std::string err = "Out of texture memory at tile (" + std::to_string(tx) + "," +
-                                            std::to_string(ty) + ") [" + freeMemKB() + "]";
-                    Log::logError(err);
-                    destroyTiles();
-                    return nonstd::make_unexpected(err);
-                }
-                Log::logWarning("Tile (" + std::to_string(tx) + "," + std::to_string(ty) + ") " +
-                                (codec == CODEC_DXT5 ? "DXT5" : "DXT1") + " failed (" + std::string(SDL_GetError()) +
-                                "); falling back to 16-bit");
-            }
-
-            // 16-bit compressed fallback path:
-            // - Opaque: RGB565 (65,536 colors, dithered)
-            // - Binary alpha (cutout): ARGB1555 (32,768 colors, dithered)
-            // - Multi-level alpha: ARGB4444
-            SDL_PixelFormat fmt;
-            scratch16.resize(static_cast<size_t>(tile.w) * tile.h);
-
-            if (isOpaque) {
-                fmt = SDL_PIXELFORMAT_RGB565;
-                for (int y = 0; y < tile.h; y++) {
-                    const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
-                    uint16_t *out = scratch16.data() + y * tile.w;
-                    for (int x = 0; x < tile.w; x++) {
-                        const int dither = ditherMatrix[y & 1][x & 1];
-                        const int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 3;
-                        const int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + (dither >> 1), 0, 255) >> 2;
-                        const int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 3;
-                        out[x] = static_cast<uint16_t>((r << 11) | (g << 5) | b);
-                    }
-                }
-            } else if (isBinaryAlpha) {
-                fmt = SDL_PIXELFORMAT_ARGB1555;
-                for (int y = 0; y < tile.h; y++) {
-                    const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
-                    uint16_t *out = scratch16.data() + y * tile.w;
-                    for (int x = 0; x < tile.w; x++) {
-                        const int dither = ditherMatrix[y & 1][x & 1];
-                        const int a = (row[x * 4 + 3] >= 128) ? 1 : 0;
-                        const int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 3;
-                        const int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + dither, 0, 255) >> 3;
-                        const int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 3;
-                        out[x] = static_cast<uint16_t>((a << 15) | (r << 10) | (g << 5) | b);
-                    }
-                }
-            } else {
-                fmt = SDL_PIXELFORMAT_ARGB4444;
-                for (int y = 0; y < tile.h; y++) {
-                    const uint8_t *row = src + (ty + y) * imgData.pitch + tx * 4;
-                    uint16_t *out = scratch16.data() + y * tile.w;
-                    for (int x = 0; x < tile.w; x++) {
-                        const int dither = ditherMatrix[y & 1][x & 1] * 2;
-                        const int a = std::clamp(static_cast<int>(row[x * 4 + 3]) + dither, 0, 255) >> 4;
-                        const int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 4;
-                        const int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + dither, 0, 255) >> 4;
-                        const int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 4;
-                        out[x] = static_cast<uint16_t>((a << 12) | (r << 8) | (g << 4) | b);
-                    }
-                }
-            }
-
-            tile.texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
             if (!tile.texture) {
-                Scratch::freeUnusedCostumeImages();
-                tile.texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, tile.w, tile.h);
-            }
-            if (!tile.texture) {
-                const std::string err = "Failed to create texture tile (" + std::to_string(tx) + "," +
-                                        std::to_string(ty) + "): " + std::string(SDL_GetError()) +
-                                        " [" + freeMemKB() + "]";
-                Log::logError(err);
                 destroyTiles();
-                return nonstd::make_unexpected(err);
+                return nonstd::make_unexpected("Failed to allocate texture tile");
             }
-
-            SDL_SetTextureBlendMode(tile.texture, SDL_BLENDMODE_BLEND);
-            SDL_SetTextureScaleMode(tile.texture, SDL_SCALEMODE_PIXELART);
-
-            if (!SDL_UpdateTexture(tile.texture, nullptr, scratch16.data(), tile.w * 2)) {
-                const std::string err = "Failed to update texture tile: " + std::string(SDL_GetError());
-                Log::logError(err);
-                safeDestroyTexture(tile.texture);
-                destroyTiles();
-                return nonstd::make_unexpected(err);
-            }
-
             tiles.push_back(tile);
         }
     }
     return {};
 }
 
-void Image_Xbox::renderTiled(ImageRenderParams &params, bool effects) {
-    if (!effects && tiles.empty()) return;
+void Image_Xbox::renderTiled(ImageRenderParams &params, bool gpuHue) {
+#ifndef SE_XBOX_NV2A_HYBRID_HUE
+    (void)gpuHue;
+#endif
+    if (tiles.empty() || !nv2aRenderer) return;
 
-    const float &x = params.x;
-    const float &y = params.y;
-    const int &brightness = params.brightness;
-    const double rotation = Math::radiansToDegrees(params.rotation);
-    const float &scale = params.scale;
-    const float &opacity = params.opacity;
-    const SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
 
     if (opacity <= 0.001f) return;
-    const Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
     if (alpha == 0) return;
-    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
-    const ScratchColorTransform effect(params.colorEffect, params.brightness);
 
-    SDL_FRect renderRect;
-    renderRect.w = imgData.width / imgData.scale * scale;
-    renderRect.h = imgData.height / imgData.scale * scale;
-    renderRect.x = params.centered ? x - renderRect.w / 2.0f : x;
-    renderRect.y = params.centered ? y - renderRect.h / 2.0f : y;
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
 
-    const double rotMod = std::fmod(std::abs(rotation), 90.0);
-    const bool cardinal = rotMod < 0.001 || rotMod > 89.999;
-    if (cardinal) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
-    SDL_FRect subRect = {0.0f, 0.0f, static_cast<float>(imgData.width), static_cast<float>(imgData.height)};
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
     if (params.subrect != nullptr) {
-        subRect = {static_cast<float>(params.subrect->x), static_cast<float>(params.subrect->y),
-                   static_cast<float>(params.subrect->w), static_cast<float>(params.subrect->h)};
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
     }
-    if (subRect.w <= 0 || subRect.h <= 0) return;
+    if (subW <= 0 || subH <= 0) return;
 
-    const float rx = renderRect.w / subRect.w;
-    const float ry = renderRect.h / subRect.h;
-    // Every tile rotates around the center of the whole image, not its own center.
-    const SDL_FPoint imageCenter = {renderRect.x + renderRect.w / 2.0f, renderRect.y + renderRect.h / 2.0f};
+    const float rx = renderW / subW;
+    const float ry = renderH / subH;
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
 
-    auto drawTile = [&](const Tile &tile, SDL_Texture *renderTexture) {
-        const float ix0 = std::max(static_cast<float>(tile.x), subRect.x);
-        const float iy0 = std::max(static_cast<float>(tile.y), subRect.y);
-        const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subRect.x + subRect.w);
-        const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subRect.y + subRect.h);
-        if (ix1 <= ix0 || iy1 <= iy0) return;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
 
-        const SDL_FRect src = {ix0 - tile.x, iy0 - tile.y, ix1 - ix0, iy1 - iy0};
-
-        float dx0 = (ix0 - subRect.x) * rx;
-        float dx1 = (ix1 - subRect.x) * rx;
-        float dy0 = (iy0 - subRect.y) * ry;
-        float dy1 = (iy1 - subRect.y) * ry;
-        if (params.flip) {
-            const float t = renderRect.w - dx1;
-            dx1 = renderRect.w - dx0;
-            dx0 = t;
-        }
-        SDL_FRect dst = {renderRect.x + dx0, renderRect.y + dy0, dx1 - dx0, dy1 - dy0};
-        if (cardinal) {
-            // Snap shared edges so neighbouring tiles never leave seams.
-            const float l = std::round(dst.x), t = std::round(dst.y);
-            const float r = std::round(dst.x + dst.w), b = std::round(dst.y + dst.h);
-            dst = {l, t, r - l, b - t};
-        }
-        const SDL_FPoint center = {imageCenter.x - dst.x, imageCenter.y - dst.y};
-        SDL_RenderTextureRotated(sdlRenderer, renderTexture, &src, &dst, rotation, &center, flip);
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
     };
-    auto drawAll = [&]() {
-        for (const auto &tile : tiles) drawTile(tile, tile.texture);
+
+    auto drawPass = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
+        nv2aRenderer->setBlendMode(blendMode);
+        for (const auto &tile : tiles) {
+            const float ix0 = std::max(static_cast<float>(tile.x), subX);
+            const float iy0 = std::max(static_cast<float>(tile.y), subY);
+            const float ix1 = std::min(static_cast<float>(tile.x + tile.w), subX + subW);
+            const float iy1 = std::min(static_cast<float>(tile.y + tile.h), subY + subH);
+            if (ix1 <= ix0 || iy1 <= iy0) continue;
+
+            float dx0 = (ix0 - subX) * rx;
+            float dx1 = (ix1 - subX) * rx;
+            float dy0 = (iy0 - subY) * ry;
+            float dy1 = (iy1 - subY) * ry;
+
+            if (params.flip) {
+                float tmp = renderW - dx1;
+                dx1 = renderW - dx0;
+                dx0 = tmp;
+            }
+
+            float px0 = renderX + dx0, py0 = renderY + dy0;
+            float px1 = renderX + dx1, py1 = renderY + dy1;
+
+            if (isCardinalRotation) {
+                px0 = std::round(px0);
+                py0 = std::round(py0);
+                px1 = std::round(px1);
+                py1 = std::round(py1);
+            }
+
+            auto p_tl = rotatePoint(px0, py0);
+            auto p_tr = rotatePoint(px1, py0);
+            auto p_br = rotatePoint(px1, py1);
+            auto p_bl = rotatePoint(px0, py1);
+
+            if (isCardinalRotation) {
+                p_tl.first = std::round(p_tl.first);
+                p_tl.second = std::round(p_tl.second);
+                p_tr.first = std::round(p_tr.first);
+                p_tr.second = std::round(p_tr.second);
+                p_br.first = std::round(p_br.first);
+                p_br.second = std::round(p_br.second);
+                p_bl.first = std::round(p_bl.first);
+                p_bl.second = std::round(p_bl.second);
+            }
+
+            float u0 = (ix0 - tile.x) / static_cast<float>(tile.w) * tile.texture->uScale;
+            float v0 = (iy0 - tile.y) / static_cast<float>(tile.h) * tile.texture->vScale;
+            float u1 = (ix1 - tile.x) / static_cast<float>(tile.w) * tile.texture->uScale;
+            float v1 = (iy1 - tile.y) / static_cast<float>(tile.h) * tile.texture->vScale;
+
+            if (params.flip) std::swap(u0, u1);
+
+            NV2AVertex quad[6] = {
+                {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
+                {{p_tr.first, p_tr.second}, {cr, cg, cb, ca}, {u1, v0}},
+                {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
+                {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
+                {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
+                {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}};
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+            if (gpuHue) {
+                nv2aRenderer->drawHueQuad(tile.texture, tile.texture->scaleMode, quad, params.colorEffect);
+                continue;
+            }
+#endif
+            nv2aRenderer->bindTexture(tile.texture, tile.texture->scaleMode);
+            nv2aRenderer->drawTriangles(quad, 6);
+        }
     };
-    if (effects) {
-        for (int y = 0; y < imgData.height; y += TILE_SIZE) {
-            for (int x = 0; x < imgData.width; x += TILE_SIZE) {
-                Tile tile;
-                tile.x = x; tile.y = y;
-                tile.w = std::min(TILE_SIZE, imgData.width - x);
-                tile.h = std::min(TILE_SIZE, imgData.height - y);
-                if (x >= subRect.x + subRect.w || y >= subRect.y + subRect.h ||
-                    x + tile.w <= subRect.x || y + tile.h <= subRect.y) continue;
-                SDL_Texture *effectTexture = effectTile(this, imgData, tile, effect);
-                if (!effectTexture) {
-                    if (!effectWarningLogged) {
-                        Log::logWarning("Failed to allocate color-effect tile: " + std::string(SDL_GetError()));
-                        effectWarningLogged = true;
-                    }
-                    continue;
-                }
-                auto &state = getTexState(effectTexture);
-                if (state.alpha != alpha) { SDL_SetTextureAlphaMod(effectTexture, alpha); state.alpha = alpha; }
-                if (state.blend != normalBlendMode) { SDL_SetTextureBlendMode(effectTexture, normalBlendMode); state.blend = normalBlendMode; }
-                drawTile(tile, effectTexture);
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            drawPass(255, 255, 255, addA, NV2ABlendMode::Add);
+        }
+    } else if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        drawPass(dim, dim, dim, alpha, NV2ABlendMode::Blend);
+    } else {
+        drawPass(255, 255, 255, alpha, NV2ABlendMode::Blend);
+    }
+}
+
+static void *extractProjectAsset(const std::string &assetName, size_t &outSize);
+static void freeProjectAsset(void *ptr);
+
+static inline void rgb2hsv(float r, float g, float b, float &h, float &s, float &v) {
+    float maxC = std::max({r, g, b});
+    float minC = std::min({r, g, b});
+    float d = maxC - minC;
+    v = maxC;
+    s = (maxC > 1e-6f) ? (d / maxC) : 0.0f;
+    if (d < 1e-6f) {
+        h = 0.0f;
+    } else if (maxC == r) {
+        float seg = (g - b) / d;
+        h = (seg < 0.0f ? seg + 6.0f : seg) / 6.0f;
+    } else if (maxC == g) {
+        h = ((b - r) / d + 2.0f) / 6.0f;
+    } else {
+        h = ((r - g) / d + 4.0f) / 6.0f;
+    }
+}
+
+static inline void hsv2rgb(float h, float s, float v, float &r, float &g, float &b) {
+    if (s <= 1e-6f) {
+        r = g = b = v;
+        return;
+    }
+    h = h - std::floor(h);
+    float h6 = h * 6.0f;
+    int i = static_cast<int>(h6);
+    float f = h6 - static_cast<float>(i);
+    float p = v * (1.0f - s);
+    float q = v * (1.0f - s * f);
+    float t = v * (1.0f - s * (1.0f - f));
+    switch (i % 6) {
+    case 0:
+        r = v;
+        g = t;
+        b = p;
+        break;
+    case 1:
+        r = q;
+        g = v;
+        b = p;
+        break;
+    case 2:
+        r = p;
+        g = v;
+        b = t;
+        break;
+    case 3:
+        r = p;
+        g = q;
+        b = v;
+        break;
+    case 4:
+        r = t;
+        g = p;
+        b = v;
+        break;
+    default:
+        r = v;
+        g = p;
+        b = q;
+        break;
+    }
+}
+
+static void decodeDXT1Block(
+    const uint8_t *block,
+    uint8_t *dstRGBA,
+    int dstPitch,
+    int maxW,
+    int maxH,
+    bool forceFourColor = false) {
+    const uint16_t c0 =
+        static_cast<uint16_t>(block[0]) |
+        (static_cast<uint16_t>(block[1]) << 8);
+
+    const uint16_t c1 =
+        static_cast<uint16_t>(block[2]) |
+        (static_cast<uint16_t>(block[3]) << 8);
+
+    int r0, g0, b0;
+    int r1, g1, b1;
+
+    unpackRGB565(c0, r0, g0, b0);
+    unpackRGB565(c1, r1, g1, b1);
+
+    uint8_t palette[4][4] = {
+        {static_cast<uint8_t>(r0),
+         static_cast<uint8_t>(g0),
+         static_cast<uint8_t>(b0),
+         255},
+        {static_cast<uint8_t>(r1),
+         static_cast<uint8_t>(g1),
+         static_cast<uint8_t>(b1),
+         255},
+        {0, 0, 0, 255},
+        {0, 0, 0, 255}};
+
+    const bool fourColor = forceFourColor || (c0 > c1);
+
+    if (fourColor) {
+        palette[2][0] = static_cast<uint8_t>((2 * r0 + r1) / 3);
+        palette[2][1] = static_cast<uint8_t>((2 * g0 + g1) / 3);
+        palette[2][2] = static_cast<uint8_t>((2 * b0 + b1) / 3);
+
+        palette[3][0] = static_cast<uint8_t>((r0 + 2 * r1) / 3);
+        palette[3][1] = static_cast<uint8_t>((g0 + 2 * g1) / 3);
+        palette[3][2] = static_cast<uint8_t>((b0 + 2 * b1) / 3);
+    } else {
+        palette[2][0] = static_cast<uint8_t>((r0 + r1) / 2);
+        palette[2][1] = static_cast<uint8_t>((g0 + g1) / 2);
+        palette[2][2] = static_cast<uint8_t>((b0 + b1) / 2);
+
+        palette[3][0] = 0;
+        palette[3][1] = 0;
+        palette[3][2] = 0;
+        palette[3][3] = 0;
+    }
+
+    const uint32_t indices =
+        static_cast<uint32_t>(block[4]) |
+        (static_cast<uint32_t>(block[5]) << 8) |
+        (static_cast<uint32_t>(block[6]) << 16) |
+        (static_cast<uint32_t>(block[7]) << 24);
+
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            const int shift = (y * 4 + x) * 2;
+            const int index = static_cast<int>((indices >> shift) & 3);
+
+            memcpy(row + x * 4, palette[index], 4);
+        }
+    }
+}
+
+static void decodeDXT5Block(
+    const uint8_t *block,
+    uint8_t *dstRGBA,
+    int dstPitch,
+    int maxW,
+    int maxH) {
+    const uint8_t a0 = block[0];
+    const uint8_t a1 = block[1];
+
+    uint8_t alphaPalette[8] = {
+        a0, a1, 0, 0, 0, 0, 0, 0};
+
+    if (a0 > a1) {
+        for (int i = 1; i <= 6; ++i) {
+            alphaPalette[1 + i] = static_cast<uint8_t>(
+                ((7 - i) * a0 + i * a1) / 7);
+        }
+    } else {
+        for (int i = 1; i <= 4; ++i) {
+            alphaPalette[1 + i] = static_cast<uint8_t>(
+                ((5 - i) * a0 + i * a1) / 5);
+        }
+
+        alphaPalette[6] = 0;
+        alphaPalette[7] = 255;
+    }
+
+    uint64_t alphaIndices = 0;
+
+    for (int i = 0; i < 6; ++i) {
+        alphaIndices |=
+            static_cast<uint64_t>(block[2 + i]) << (i * 8);
+    }
+
+    // DXT5 always uses four-color interpolation for its color block.
+    decodeDXT1Block(
+        block + 8,
+        dstRGBA,
+        dstPitch,
+        maxW,
+        maxH,
+        true);
+
+    for (int y = 0; y < 4 && y < maxH; ++y) {
+        uint8_t *row = dstRGBA + static_cast<size_t>(y) * dstPitch;
+
+        for (int x = 0; x < 4 && x < maxW; ++x) {
+            const int shift = (y * 4 + x) * 3;
+            const int alphaIndex =
+                static_cast<int>((alphaIndices >> shift) & 7);
+
+            row[x * 4 + 3] = alphaPalette[alphaIndex];
+        }
+    }
+}
+
+static void purgeEffectOwner(Renderer_Xbox *r, const void *owner);
+
+void Image_Xbox::releaseEffects() {
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    purgeEffectOwner(nv2aRenderer, this);
+    for (int i = 0; i < 2; ++i) {
+        if (effectSlots[i].texture) {
+            if (nv2aRenderer) {
+                nv2aRenderer->destroyTexture(effectSlots[i].texture);
+            }
+            effectSlots[i].texture = nullptr;
+        }
+        effectSlots[i].color = 0.0f;
+        effectSlots[i].fisheye = 0.0f;
+        effectSlots[i].whirl = 0.0f;
+        effectSlots[i].pixelate = 0.0f;
+        effectSlots[i].mosaic = 0.0f;
+        effectSlots[i].lastUsedFrame = 0;
+    }
+    std::vector<uint8_t>().swap(effectSource);
+    decltype(hsvCache)().swap(hsvCache);
+    hsvW = 0;
+    hsvH = 0;
+}
+
+static void decodeRawPixel(
+    uint32_t codec,
+    const uint8_t *src,
+    uint8_t *dstRGBA) {
+    switch (codec) {
+    case CODEC_RGBA32:
+        dstRGBA[0] = src[0];
+        dstRGBA[1] = src[1];
+        dstRGBA[2] = src[2];
+        dstRGBA[3] = src[3];
+        break;
+
+    case CODEC_RGB565: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
+
+        int r, g, b;
+        unpackRGB565(p, r, g, b);
+
+        dstRGBA[0] = static_cast<uint8_t>(r);
+        dstRGBA[1] = static_cast<uint8_t>(g);
+        dstRGBA[2] = static_cast<uint8_t>(b);
+        dstRGBA[3] = 255;
+        break;
+    }
+
+    case CODEC_ARGB1555: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
+
+        dstRGBA[0] = static_cast<uint8_t>(
+            ((p >> 10) & 31) * 255 / 31);
+        dstRGBA[1] = static_cast<uint8_t>(
+            ((p >> 5) & 31) * 255 / 31);
+        dstRGBA[2] = static_cast<uint8_t>(
+            (p & 31) * 255 / 31);
+        dstRGBA[3] = (p & 0x8000) ? 255 : 0;
+        break;
+    }
+
+    case CODEC_ARGB4444: {
+        const uint16_t p =
+            static_cast<uint16_t>(src[0]) |
+            (static_cast<uint16_t>(src[1]) << 8);
+
+        dstRGBA[0] = static_cast<uint8_t>(((p >> 8) & 15) * 17);
+        dstRGBA[1] = static_cast<uint8_t>(((p >> 4) & 15) * 17);
+        dstRGBA[2] = static_cast<uint8_t>((p & 15) * 17);
+        dstRGBA[3] = static_cast<uint8_t>(((p >> 12) & 15) * 17);
+        break;
+    }
+
+    default:
+        memset(dstRGBA, 0, 4);
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared, write-once effect-texture cache (color + pixelate)
+// ---------------------------------------------------------------------------
+// Release-safe resolution ceiling: this 128px tier is the previously stable path.
+// Keep pixelation at the same cap; the higher 256px color bake is deferred.
+static constexpr int COLOR_EFFECT_MAX_DIM = 128;
+static constexpr int PIXELATE_MAX_DIM = 128;
+static constexpr int PIXELATE_MESH_MAX_CELLS = 256;
+
+static inline uint32_t div255(uint32_t x) {
+    x += 128;
+    return (x + (x >> 8)) >> 8;
+}
+
+static inline void rgb2hsvEffect(int r, int g, int b, uint16_t &h, uint8_t &s, uint8_t &v) {
+    const int mx = std::max({r, g, b});
+    const int mn = std::min({r, g, b});
+    const int d = mx - mn;
+    int hh = 0;
+    int sat = 0;
+    if (mx > 0) {
+        sat = (d * 255 + mx / 2) / mx;
+        if (d > 0) {
+            if (mx == r) {
+                hh = ((g - b) * 256) / d;
+                if (hh < 0) hh += 1536;
+            } else if (mx == g) {
+                hh = 512 + ((b - r) * 256) / d;
+            } else {
+                hh = 1024 + ((r - g) * 256) / d;
+            }
+            if (hh >= 1536) hh -= 1536;
+        }
+    }
+    int val = mx;
+    if (val * 1000 < 55 * 255) {
+        hh = 0;
+        sat = 255;
+        val = 14;
+    } else if (d * 100 < 9 * mx) {
+        hh = 0;
+        sat = 23;
+    }
+    h = static_cast<uint16_t>(hh);
+    s = static_cast<uint8_t>(sat);
+    v = static_cast<uint8_t>(val);
+}
+
+static inline uint32_t hsv2rgbEffect(uint32_t h, uint32_t s, uint32_t v) {
+    if (s == 0) return v | (v << 8) | (v << 16);
+    const uint32_t seg = h >> 8;
+    const uint32_t f = h & 255;
+    const uint32_t p = div255(v * (255 - s));
+    const uint32_t q = div255(v * (255 - div255(s * f)));
+    const uint32_t t = div255(v * (255 - div255(s * (255 - f))));
+    uint32_t r, g, b;
+    switch (seg) {
+    case 0:
+        r = v;
+        g = t;
+        b = p;
+        break;
+    case 1:
+        r = q;
+        g = v;
+        b = p;
+        break;
+    case 2:
+        r = p;
+        g = v;
+        b = t;
+        break;
+    case 3:
+        r = p;
+        g = q;
+        b = v;
+        break;
+    case 4:
+        r = t;
+        g = p;
+        b = v;
+        break;
+    default:
+        r = v;
+        g = p;
+        b = q;
+        break;
+    }
+    return r | (g << 8) | (b << 16);
+}
+
+static bool computePixelateDims(const ImageRenderParams &params, int srcW, int srcH, float imgScale, int &effW, int &effH) {
+    const float texelScale = params.scale / (imgScale > 0.0f ? imgScale : 1.0f);
+    const float scaleFactor = std::max(1.0f, texelScale);
+    const float amount = (std::abs(params.pixelateEffect) / 10.0f) / scaleFactor;
+    if (amount <= 1.0f) return false;
+
+    effW = std::min(std::max(2, static_cast<int>(std::round(srcW / amount))), srcW);
+    effH = std::min(std::max(2, static_cast<int>(std::round(srcH / amount))), srcH);
+    if (effW > PIXELATE_MAX_DIM || effH > PIXELATE_MAX_DIM) {
+        const float g = std::min(static_cast<float>(PIXELATE_MAX_DIM) / effW, static_cast<float>(PIXELATE_MAX_DIM) / effH);
+        effW = std::max(2, static_cast<int>(std::round(effW * g)));
+        effH = std::max(2, static_cast<int>(std::round(effH * g)));
+    }
+    return true;
+}
+
+static constexpr int EFFECT_HUE_STEPS = 96;
+static constexpr uint16_t EFFECT_NO_HUE = 0xFFFF;
+static constexpr uint32_t EFFECT_IDLE_FRAMES = 150;
+static constexpr uint32_t EFFECT_SWEEP_INTERVAL = 120;
+
+struct EffectKey {
+    const void *owner;
+    uint16_t step;
+    uint16_t effW;
+    uint16_t effH;
+    bool operator==(const EffectKey &o) const {
+        return owner == o.owner && step == o.step && effW == o.effW && effH == o.effH;
+    }
+};
+struct EffectKeyHash {
+    size_t operator()(const EffectKey &k) const {
+        uint64_t h = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(k.owner));
+        h = h * 0x9E3779B1ull + k.step;
+        h = h * 0x9E3779B1ull + k.effW;
+        h = h * 0x9E3779B1ull + k.effH;
+        return static_cast<size_t>(h ^ (h >> 29));
+    }
+};
+struct EffectEntry {
+    NV2ATexture *tex;
+    uint32_t lastUsed;
+};
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+struct HuePersistence {
+    uint32_t lastFrame;
+    uint32_t consecutiveFrames;
+    float hue;
+};
+static constexpr uint32_t HUE_STABLE_FRAMES = 12;
+// Bounded shared tracking: clones sharing an image/effect key contribute at
+// most one observation per frame. No source-specific class-layout changes.
+static std::unordered_map<EffectKey, HuePersistence, EffectKeyHash> s_huePersistence;
+static bool observeHueKey(const EffectKey &key, uint32_t frame, float effect) {
+    float hue = std::fmod(effect, 200.0f);
+    if (hue < 0) hue += 200.0f;
+    auto it = s_huePersistence.find(key);
+    if (it == s_huePersistence.end()) {
+        if (s_huePersistence.size() >= 256) {
+            auto oldest = s_huePersistence.begin();
+            for (auto entry = s_huePersistence.begin(); entry != s_huePersistence.end(); ++entry)
+                if (frame - entry->second.lastFrame > frame - oldest->second.lastFrame) oldest = entry;
+            s_huePersistence.erase(oldest);
+        }
+        it = s_huePersistence.emplace(key, HuePersistence{frame, 1, hue}).first;
+    } else if (it->second.hue != hue) {
+        // Adjacent animated values can share a quantized CPU cache key.
+        // They must not count as an unchanged hue, even within one frame.
+        it->second = HuePersistence{frame, 1, hue};
+    } else if (it->second.lastFrame != frame) {
+        it->second.consecutiveFrames = frame - it->second.lastFrame == 1
+                                           ? std::min(HUE_STABLE_FRAMES, it->second.consecutiveFrames + 1)
+                                           : 1;
+        it->second.lastFrame = frame;
+    }
+    return it->second.consecutiveFrames >= HUE_STABLE_FRAMES;
+}
+// One shared budget for all images/clones, using the existing Xbox TSC rate.
+// Unknown costs stay GPU. Learn warm bake guards from successful production
+// fallback bakes of the same owner/size, rather than importing probe timings.
+static constexpr uint64_t HUE_BUDGET_TICKS = 4ull * 733333;
+struct HueFrameBudget {
+    uint32_t frame = 0;
+    bool initialized = false;
+    uint64_t spent = 0;
+    uint32_t bakes = 0;
+    void begin(uint32_t now) {
+        if (!initialized || now != frame) {
+            frame = now;
+            initialized = true;
+            spent = 0;
+            bakes = 0;
+        }
+    }
+    bool allows(uint64_t estimate) const {
+        return estimate && bakes == 0 && spent <= HUE_BUDGET_TICKS &&
+               estimate <= HUE_BUDGET_TICKS - spent;
+    }
+};
+static HueFrameBudget s_hueBudget;
+static std::unordered_map<EffectKey, uint64_t, EffectKeyHash> s_hueWarmGuards;
+static uint32_t s_hueAdmitted = 0, s_hueUnknown = 0, s_hueBudgetDenied = 0;
+static uint32_t s_hueOverruns = 0;
+static uint64_t s_hueWorstBake = 0;
+struct HueBakeMeasurement {
+    EffectKey key;
+    uint64_t start = __builtin_ia32_rdtsc();
+    bool learnWarm, admitted, success = false;
+    HueBakeMeasurement(EffectKey k, bool learn, bool admission)
+        : key(k), learnWarm(learn), admitted(admission) {}
+    ~HueBakeMeasurement() {
+        const uint64_t elapsed = __builtin_ia32_rdtsc() - start;
+        s_hueBudget.spent += elapsed;
+        ++s_hueBudget.bakes;
+        s_hueWorstBake = std::max(s_hueWorstBake, elapsed);
+        if (admitted && s_hueBudget.spent > HUE_BUDGET_TICKS) ++s_hueOverruns;
+        if (success && learnWarm) {
+            key.step = 0; // Cost belongs to the owner/size, not one hue.
+            if (s_hueWarmGuards.find(key) == s_hueWarmGuards.end() && s_hueWarmGuards.size() >= 256)
+                s_hueWarmGuards.erase(s_hueWarmGuards.begin());
+            auto &guard = s_hueWarmGuards[key];
+            guard = std::max(guard, elapsed + elapsed / 4);
+        }
+    }
+};
+
+#endif
+
+static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash> s_effectCache;
+static size_t s_effectCacheBytes = 0;
+static size_t s_effectPeakBytes = 0;
+static uint32_t s_effectCreated = 0, s_effectEvicted = 0;
+static uint32_t s_lastEffectSweep = 0;
+static size_t s_effectBudgetOverride = 0;
+
+Image_Xbox::EffectCacheStats Image_Xbox::getEffectCacheStats() {
+    return {s_effectCacheBytes, s_effectPeakBytes, s_effectCache.size(), s_effectCreated, s_effectEvicted};
+}
+
+static size_t effectCacheBudget() {
+    if (s_effectBudgetOverride) return s_effectBudgetOverride;
+    return OS::isEnhancedPlatform() ? (12u * 1024u * 1024u) : (4u * 1024u * 1024u);
+}
+
+enum class EffectEvictionReason {
+    Idle,
+    Budget,
+    OwnerReleased,
+    AllocationRetry,
+    Count
+};
+
+static uint32_t s_effectEvictions[static_cast<size_t>(EffectEvictionReason::Count)] = {};
+
+static std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator
+evictEffectEntry(Renderer_Xbox *r, std::unordered_map<EffectKey, EffectEntry, EffectKeyHash>::iterator it, EffectEvictionReason reason) {
+    NV2ATexture *t = it->second.tex;
+    if (t) {
+        s_effectCacheBytes -= std::min(s_effectCacheBytes, t->allocationSize);
+        if (r) r->destroyTexture(t);
+    }
+    ++s_effectEvicted;
+    ++s_effectEvictions[static_cast<size_t>(reason)];
+    return s_effectCache.erase(it);
+}
+
+static bool reclaimEffectCacheMemory(Renderer_Xbox *r, size_t requiredBytes) {
+    if (!r) return false;
+
+    const uint32_t currentFrame = Renderer_Xbox::getFrameCounter();
+
+    while (getAvailablePhysicalMemory() < requiredBytes) {
+        auto oldest = s_effectCache.end();
+        uint32_t oldestAge = 5;
+
+        for (auto it = s_effectCache.begin(); it != s_effectCache.end(); ++it) {
+            const uint32_t age = currentFrame - it->second.lastUsed;
+
+            if (age > oldestAge) {
+                oldest = it;
+                oldestAge = age;
             }
         }
-        freeTimer = maxFreeTimer;
+
+        if (oldest == s_effectCache.end()) {
+            break;
+        }
+
+        evictEffectEntry(r, oldest, EffectEvictionReason::Budget);
+    }
+
+    return getAvailablePhysicalMemory() >= requiredBytes;
+}
+
+static void trimEffectCache(Renderer_Xbox *r, uint32_t now, const EffectKey *keep) {
+    const size_t budget = effectCacheBudget();
+    const bool periodic = (now - s_lastEffectSweep) >= EFFECT_SWEEP_INTERVAL;
+    if (s_effectCacheBytes <= budget && !periodic) return;
+    if (periodic) s_lastEffectSweep = now;
+
+    for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
+        if (now - it->second.lastUsed > EFFECT_IDLE_FRAMES && !(keep && it->first == *keep)) it = evictEffectEntry(r, it, EffectEvictionReason::Idle);
+        else ++it;
+    }
+    if (s_effectCacheBytes <= budget) return;
+
+    std::vector<std::pair<uint32_t, EffectKey>> order;
+    order.reserve(s_effectCache.size());
+    for (const auto &kv : s_effectCache)
+        order.emplace_back(kv.second.lastUsed, kv.first);
+    std::sort(order.begin(), order.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+    const size_t target = budget - budget / 8;
+    for (const auto &o : order) {
+        if (s_effectCacheBytes <= target) break;
+        if (o.first == now || (keep && o.second == *keep)) continue;
+        auto it = s_effectCache.find(o.second);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it, EffectEvictionReason::Budget);
+    }
+    for (const auto &o : order) {
+        if (s_effectCacheBytes <= budget * 2) break;
+        if (keep && o.second == *keep) continue;
+        auto it = s_effectCache.find(o.second);
+        if (it != s_effectCache.end()) evictEffectEntry(r, it, EffectEvictionReason::Budget);
+    }
+}
+
+static void purgeEffectOwner(Renderer_Xbox *r, const void *owner) {
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    for (auto it = s_hueWarmGuards.begin(); it != s_hueWarmGuards.end();) {
+        if (it->first.owner == owner) it = s_hueWarmGuards.erase(it);
+        else ++it;
+    }
+    for (auto it = s_huePersistence.begin(); it != s_huePersistence.end();) {
+        if (it->first.owner == owner) it = s_huePersistence.erase(it);
+        else ++it;
+    }
+#endif
+    for (auto it = s_effectCache.begin(); it != s_effectCache.end();) {
+        if (it->first.owner == owner) it = evictEffectEntry(r, it, EffectEvictionReason::OwnerReleased);
+        else ++it;
+    }
+}
+
+#ifdef SE_NV2A_PROFILE
+static uint32_t s_fxHits = 0, s_fxBakes = 0, s_fxEvictBytes = 0;
+static uint64_t s_fxBakeCycles = 0;
+static inline uint64_t fxTsc() { return __builtin_ia32_rdtsc(); }
+
+static std::string formatNumber(double value) {
+    const int whole = static_cast<int>(value);
+    int milli = static_cast<int>(
+        std::abs(value - whole) * 1000.0 + 0.5);
+
+    int adjustedWhole = whole;
+    if (milli >= 1000) {
+        ++adjustedWhole;
+        milli -= 1000;
+    }
+
+    std::string fraction = std::to_string(milli);
+    while (fraction.size() < 3) {
+        fraction = "0" + fraction;
+    }
+
+    return std::to_string(adjustedWhole) + "." + fraction;
+}
+
+auto formatMs = [](double timeMs) -> std::string {
+    int ms = static_cast<int>(timeMs);
+    int us = static_cast<int>((timeMs - ms) * 1000.0);
+    std::string usStr = std::to_string(std::abs(us));
+    if (usStr.length() == 1) usStr = "00" + usStr;
+    else if (usStr.length() == 2) usStr = "0" + usStr;
+    return std::to_string(ms) + "." + usStr + " ms";
+};
+
+static uint32_t s_fxBakeAttempts = 0;
+static uint32_t s_fxBakeFailures = 0;
+
+struct EffectBakeProfile {
+    uint64_t start;
+    bool success = false;
+
+    EffectBakeProfile() : start(fxTsc()) {}
+
+    ~EffectBakeProfile() {
+        ++s_fxBakeAttempts;
+        s_fxBakeCycles += fxTsc() - start;
+        if (success) {
+            ++s_fxBakes;
+        } else {
+            ++s_fxBakeFailures;
+        }
+    }
+};
+#endif
+
+const uint8_t *Image_Xbox::getEffectSource(int &outPitch) {
+    NV2A_LOG("FX_DEBUG: [A] getEffectSource start - width=" + std::to_string(imgData.width) +
+             " height=" + std::to_string(imgData.height) + " hasPixels=" + (imgData.pixels ? "yes" : "no"));
+    logHeapStatus("getEffectSource_Start");
+
+    if (imgData.pixels) {
+        outPitch = imgData.pitch;
+        return static_cast<const uint8_t *>(imgData.pixels);
+    }
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+
+    const size_t rgbaBytes = static_cast<size_t>(imgData.width) * imgData.height * 4;
+
+    // 1. Try reconstructing from the existing non-tiled texture first
+    if (texture && texture->data) {
+        uint32_t codec = 0;
+
+        if (!texture->isDXT) {
+            if (texture->format == XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED)
+                codec = CODEC_RGBA32;
+            else if (texture->format == XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED)
+                codec = CODEC_RGB565;
+            else if (texture->format == XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED)
+                codec = CODEC_ARGB1555;
+            else if (texture->format == XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED)
+                codec = CODEC_ARGB4444;
+        }
+
+        if (texture->isDXT || codec != 0) {
+            const size_t scratchBytes = (!texture->isDXT && codec != 0) ? texture->allocationSize : 0;
+            const size_t totalNeeded = rgbaBytes + scratchBytes + (2 * 1024 * 1024);
+
+            if (getAvailablePhysicalMemory() < totalNeeded) {
+                reclaimEffectCacheMemory(nv2aRenderer, totalNeeded);
+            }
+
+            const size_t freeBytes = getAvailablePhysicalMemory();
+            constexpr size_t reserveBytes = 2 * 1024 * 1024;
+
+            if (rgbaBytes > freeBytes ||
+                scratchBytes > freeBytes - rgbaBytes ||
+                reserveBytes > freeBytes - rgbaBytes - scratchBytes) {
+                NV2A_LOG("FX_DEBUG: Skipping texture reconstruction: insufficient memory required=" +
+                         std::to_string(rgbaBytes + scratchBytes) + " free=" + std::to_string(freeBytes));
+                return nullptr;
+            }
+
+            NV2A_LOG("FX_DEBUG: [C] Reconstructing from non-tiled texture - isDXT=" + std::string(texture->isDXT ? "yes" : "no") +
+                     " allocSize=" + std::to_string(texture->allocationSize));
+            logHeapStatus("getEffectSource_ReconstructTexture");
+
+            NV2A_LOG("FX_DEBUG: [C1] Before RGBA allocation - bytes=" + std::to_string(rgbaBytes));
+            logHeapStatus("BeforeRGBAAllocation");
+
+            effectSource.assign(rgbaBytes, 0);
+
+            NV2A_LOG("FX_DEBUG: [C2] After RGBA allocation");
+            logHeapStatus("AfterRGBAAllocation");
+
+            if (texture->isDXT) {
+                int blockRows = (imgData.height + 3) / 4;
+                int blockCols = (imgData.width + 3) / 4;
+                bool isDXT5 = (texture->format == XGU_TEXTURE_FORMAT_DXT5);
+                int blockBytes = isDXT5 ? 16 : 8;
+                for (int by = 0; by < blockRows; ++by) {
+                    for (int bx = 0; bx < blockCols; ++bx) {
+                        const uint8_t *block = texture->data + (by * texture->pitch) + (bx * blockBytes);
+                        uint8_t *dst = effectSource.data() + (by * 4 * imgData.width * 4) + (bx * 4 * 4);
+                        int remW = imgData.width - bx * 4;
+                        int remH = imgData.height - by * 4;
+                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+                    }
+                }
+            } else {
+                size_t bpp = rawCodecBytes(codec);
+                NV2A_LOG("FX_DEBUG: [C3] Before unswizzle allocation - bytes=" + std::to_string(texture->allocationSize));
+
+                std::vector<uint8_t> unswizzled(texture->allocationSize);
+
+                NV2A_LOG("FX_DEBUG: [C4] Before unswizzle_box");
+                unswizzle_box(texture->data, texture->texWidth, texture->texHeight, 1, unswizzled.data(), texture->pitch, 0, texture->bytesPerPixel);
+                NV2A_LOG("FX_DEBUG: [C5] After unswizzle_box");
+
+                for (int y = 0; y < imgData.height; ++y) {
+                    for (int x = 0; x < imgData.width; ++x) {
+                        const uint8_t *srcPix = unswizzled.data() + (y * texture->pitch) + (x * bpp);
+                        uint8_t *dstPix = effectSource.data() + (y * imgData.width * 4) + (x * 4);
+                        decodeRawPixel(codec, srcPix, dstPix);
+                    }
+                }
+            }
+        } else {
+            NV2A_LOG("FX_DEBUG: Unsupported non-tiled texture format; trying tiles or asset fallback");
+        }
+    }
+
+    // 2. Try reconstructing from tiled textures next
+    if (effectSource.empty() && !tiles.empty()) {
+        size_t maxTileScratch = 0;
+        for (const auto &tile : tiles) {
+            if (tile.texture && !tile.texture->isDXT && tile.texture->allocationSize > maxTileScratch) {
+                maxTileScratch = tile.texture->allocationSize;
+            }
+        }
+
+        const size_t totalNeededTiled = rgbaBytes + maxTileScratch + (2 * 1024 * 1024);
+        if (getAvailablePhysicalMemory() < totalNeededTiled) {
+            reclaimEffectCacheMemory(nv2aRenderer, totalNeededTiled);
+        }
+
+        const size_t freeBytes = getAvailablePhysicalMemory();
+        constexpr size_t reserveBytes = 2 * 1024 * 1024;
+
+        if (rgbaBytes > freeBytes ||
+            maxTileScratch > freeBytes - rgbaBytes ||
+            reserveBytes > freeBytes - rgbaBytes - maxTileScratch) {
+            NV2A_LOG("FX_DEBUG: Skipping tiled reconstruction: insufficient memory required=" +
+                     std::to_string(rgbaBytes + maxTileScratch) + " free=" + std::to_string(freeBytes));
+            return nullptr;
+        }
+
+        NV2A_LOG("FX_DEBUG: [C] Reconstructing from tiled textures - tileCount=" + std::to_string(tiles.size()));
+        logHeapStatus("getEffectSource_ReconstructTiles");
+
+        NV2A_LOG("FX_DEBUG: [C1] Before RGBA allocation - bytes=" + std::to_string(rgbaBytes));
+        logHeapStatus("BeforeRGBAAllocation");
+
+        effectSource.assign(rgbaBytes, 0);
+
+        NV2A_LOG("FX_DEBUG: [C2] After RGBA allocation");
+        logHeapStatus("AfterRGBAAllocation");
+
+        bool allTilesDecoded = true;
+        for (const auto &tile : tiles) {
+            if (!tile.texture || !tile.texture->data) {
+                allTilesDecoded = false;
+                break;
+            }
+            if (tile.texture->isDXT) {
+                int blockRows = (tile.h + 3) / 4;
+                int blockCols = (tile.w + 3) / 4;
+                bool isDXT5 = (tile.texture->format == XGU_TEXTURE_FORMAT_DXT5);
+                int blockBytes = isDXT5 ? 16 : 8;
+                for (int by = 0; by < blockRows; ++by) {
+                    for (int bx = 0; bx < blockCols; ++bx) {
+                        const uint8_t *block = tile.texture->data + (by * tile.texture->pitch) + (bx * blockBytes);
+                        uint8_t *dst = effectSource.data() + ((tile.y + by * 4) * imgData.width * 4) + ((tile.x + bx * 4) * 4);
+                        int remW = tile.w - bx * 4;
+                        int remH = tile.h - by * 4;
+                        if (isDXT5) decodeDXT5Block(block, dst, imgData.width * 4, remW, remH);
+                        else decodeDXT1Block(block, dst, imgData.width * 4, remW, remH);
+                    }
+                }
+            } else {
+                uint32_t codec = 0;
+                if (tile.texture->format == XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED) codec = CODEC_RGBA32;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED) codec = CODEC_RGB565;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED) codec = CODEC_ARGB1555;
+                else if (tile.texture->format == XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED) codec = CODEC_ARGB4444;
+
+                if (codec != 0) {
+                    size_t bpp = rawCodecBytes(codec);
+                    std::vector<uint8_t> unswizzled(tile.texture->allocationSize);
+                    unswizzle_box(tile.texture->data, tile.texture->texWidth, tile.texture->texHeight, 1, unswizzled.data(), tile.texture->pitch, 0, tile.texture->bytesPerPixel);
+                    for (int y = 0; y < tile.h; ++y) {
+                        for (int x = 0; x < tile.w; ++x) {
+                            const uint8_t *srcPix = unswizzled.data() + (y * tile.texture->pitch) + (x * bpp);
+                            uint8_t *dstPix = effectSource.data() + ((tile.y + y) * imgData.width * 4) + ((tile.x + x) * 4);
+                            decodeRawPixel(codec, srcPix, dstPix);
+                        }
+                    }
+                } else {
+                    allTilesDecoded = false;
+                    break;
+                }
+            }
+        }
+        if (!allTilesDecoded) {
+            std::vector<uint8_t>().swap(effectSource);
+        }
+    }
+
+    // 3. Only fall back to reloading the original project asset if texture/tile reconstruction is unavailable or failed
+    if (effectSource.empty() && !cachedAssetPath.empty()) {
+        NV2A_LOG("FX_DEBUG: [B] Falling back to original asset load: " + cachedAssetPath);
+        logHeapStatus("getEffectSource_BeforeAssetDecode");
+
+        size_t fileSize = 0;
+        void *fileData = extractProjectAsset(cachedAssetPath, fileSize);
+        if (fileData && fileSize > 0) {
+            int rawW = 0, rawH = 0, channels = 0;
+            unsigned char *pix = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
+            freeProjectAsset(fileData);
+            if (!pix || rawW <= 0 || rawH <= 0) {
+                logHeapStatus("Image_Decode_OOM_Failure");
+                const char *failReason = stbi_failure_reason();
+                NV2A_LOG("Physical Memory Stats - Image decode failed: asset=" + cachedAssetPath +
+                         " fileSize=" + std::to_string(fileSize) +
+                         " stbi_reason=" + (failReason ? failReason : "unknown"));
+            }
+            if (pix && rawW > 0 && rawH > 0) {
+                int curW = rawW, curH = rawH;
+                unsigned char *curPixels = pix;
+                while (curW > imgData.width * 2 && curH > imgData.height * 2) {
+                    int dw, dh;
+                    unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
+                    if (!downscaled) break;
+                    if (curPixels == pix) stbi_image_free(curPixels);
+                    else free(curPixels);
+                    curPixels = downscaled;
+                    curW = dw;
+                    curH = dh;
+                }
+                if (curW == imgData.width && curH == imgData.height) {
+                    effectSource.assign(curPixels, curPixels + curW * curH * 4);
+                } else {
+                    effectSource.resize(static_cast<size_t>(imgData.width) * imgData.height * 4);
+                    for (int y = 0; y < imgData.height; ++y) {
+                        int sy = (y * curH) / imgData.height;
+                        const uint8_t *sRow = curPixels + sy * curW * 4;
+                        uint8_t *dRow = effectSource.data() + y * imgData.width * 4;
+                        for (int x = 0; x < imgData.width; ++x) {
+                            int sx = (x * curW) / imgData.width;
+                            memcpy(dRow + x * 4, sRow + sx * 4, 4);
+                        }
+                    }
+                }
+                if (curPixels == pix) stbi_image_free(curPixels);
+                else free(curPixels);
+            }
+        }
+    }
+
+    if (!effectSource.empty()) {
+        outPitch = imgData.width * 4;
+        return effectSource.data();
+    }
+    return nullptr;
+}
+
+static uint32_t s_effectLinear[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
+static uint16_t s_effectPacked16[COLOR_EFFECT_MAX_DIM * COLOR_EFFECT_MAX_DIM];
+
+static uint16_t getColorEffectStep(float colorEffect) {
+    if (!std::isfinite(colorEffect)) {
+        return EFFECT_NO_HUE;
+    }
+
+    const float cs = colorEffect / 200.0f;
+    const float frac = cs - std::floor(cs);
+
+    const int step = std::clamp(
+        static_cast<int>(std::lround(frac * EFFECT_HUE_STEPS)),
+        0,
+        EFFECT_HUE_STEPS - 1);
+
+    // A step of 0 wraps back to the base hue and requires no separate effect texture.
+    return step == 0 ? EFFECT_NO_HUE : static_cast<uint16_t>(step);
+}
+
+NV2ATexture *Image_Xbox::acquireEffectTexture(const ImageRenderParams &params, bool residentOnly) {
+    if (imgData.width <= 0 || imgData.height <= 0) return nullptr;
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) return nullptr;
+
+    const int srcW = imgData.width;
+    const int srcH = imgData.height;
+
+    const uint16_t step = getColorEffectStep(params.colorEffect);
+    const bool hasColor = (step != EFFECT_NO_HUE);
+    const uint32_t shift = hasColor ? static_cast<uint32_t>(step) * (1536u / EFFECT_HUE_STEPS) : 0;
+
+    int effW = 0, effH = 0;
+    int pixW = 0, pixH = 0;
+    const bool hasPixelGrid = (std::abs(params.pixelateEffect) > 0.001f) &&
+                              computePixelateDims(params, srcW, srcH, imgData.scale, pixW, pixH);
+    if (hasPixelGrid) {
+        effW = pixW;
+        effH = pixH;
+    } else if (!hasColor) {
+        return texture;
+    } else {
+        const float isc = (imgData.scale > 0.0f) ? imgData.scale : 1.0f;
+        const float dispMax = std::max((srcW / isc) * params.scale, (srcH / isc) * params.scale);
+        int tier = toPowerOfTwo(std::max(1, static_cast<int>(std::ceil(dispMax))));
+        tier = std::clamp(tier, 16, COLOR_EFFECT_MAX_DIM);
+        const int srcMax = std::max(srcW, srcH);
+        if (tier >= srcMax) {
+            effW = srcW;
+            effH = srcH;
+        } else {
+            const float f = static_cast<float>(tier) / static_cast<float>(srcMax);
+            effW = std::max(1, static_cast<int>(std::lround(srcW * f)));
+            effH = std::max(1, static_cast<int>(std::lround(srcH * f)));
+        }
+    }
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    // Positive brightness still uses CPU hue. Preserve source resolution for
+    // bounded ordinary costumes without increasing the global effect budget.
+    // Fresh linear allocations are filled directly, without a scratch image.
+    bool sourceQuality = false;
+    const bool qualityCandidate = !residentOnly && hasColor && params.brightness > 0 &&
+                                  !hasPixelGrid && std::abs(params.whirlEffect) <= 0.001f &&
+                                  std::abs(params.fisheyeEffect) <= 0.001f && std::abs(params.mosaicEffect) <= 0.001f &&
+                                  params.subrect == nullptr && srcW <= 512 && srcH <= 512;
+    if (qualityCandidate) {
+        const int qualityW = (srcW + 15) & ~15, qualityH = srcH;
+        const size_t count = static_cast<size_t>(qualityW) * qualityH;
+        const size_t textureBytes = count * 4u;
+        const EffectKey fullKey{this, step, static_cast<uint16_t>(srcW), static_cast<uint16_t>(srcH)};
+        const bool cached = s_effectCache.find(fullKey) != s_effectCache.end();
+        if (textureBytes <= effectCacheBudget() / 4 &&
+            (cached || getAvailablePhysicalMemory() >= 12u * 1024u * 1024u)) {
+            effW = srcW;
+            effH = srcH;
+            sourceQuality = true;
+        }
+    }
+#endif
+
+    const uint32_t currentFrame = Renderer_Xbox::getFrameCounter();
+#ifdef SE_NV2A_PROFILE
+    {
+        static uint32_t s_lastLog = 0;
+        if (currentFrame - s_lastLog >= 120) {
+            const double frames = static_cast<double>(currentFrame - s_lastLog);
+            NV2A_LOG("NV2A fx: hits/f=" + formatNumber(s_fxHits / frames) +
+                     " bakes/f=" + formatNumber(s_fxBakes / frames) +
+                     " attempts/f=" + formatNumber(s_fxBakeAttempts / frames) +
+                     " failures/f=" + formatNumber(s_fxBakeFailures / frames) +
+                     " bakeMs/f=" + formatMs(s_fxBakeCycles / 733333.0 / frames) +
+                     " cacheKB=" + std::to_string(s_effectCacheBytes / 1024) +
+                     " entries=" + std::to_string(s_effectCache.size()));
+            s_fxHits = s_fxBakes = s_fxBakeAttempts = s_fxBakeFailures = 0;
+            s_fxBakeCycles = 0;
+            s_lastLog = currentFrame;
+        }
+    }
+#endif
+    effectSlots[0].lastUsedFrame = currentFrame;
+
+    const EffectKey key{this, step, static_cast<uint16_t>(effW), static_cast<uint16_t>(effH)};
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    s_hueBudget.begin(currentFrame);
+    const bool fullResolution = effW >= srcW && effH >= srcH;
+    bool persistent = false;
+    if (residentOnly) {
+        persistent = observeHueKey(key, currentFrame, params.colorEffect);
+#if defined(SE_XBOX_TRACE_RENDERER) && defined(SE_NV2A_PROFILE)
+        static uint32_t resident = 0, suppressed = 0, misses = 0, persistentDraws = 0, qualityGpu = 0, lastReport = 0;
+        if (s_effectCache.find(key) != s_effectCache.end()) {
+            if (persistent && fullResolution) ++resident;
+            else ++suppressed;
+        } else ++misses;
+        if (persistent) ++persistentDraws;
+        if (!fullResolution) ++qualityGpu;
+        if (resident + suppressed + misses == 1 || currentFrame - lastReport >= 120) {
+            NV2A_LOG("NV2A_HYBRID_POLICY: resident=" + std::to_string(resident) +
+                     " misses=" + std::to_string(misses) + " persistentDraws=" + std::to_string(persistentDraws) +
+                     " residentSuppressed=" + std::to_string(suppressed) +
+                     " qualityGpu=" + std::to_string(qualityGpu) +
+                     " stableFrames=" + std::to_string(HUE_STABLE_FRAMES) +
+                     " tracked=" + std::to_string(s_huePersistence.size()) + " coldAdmission=budgeted" +
+                     " admitted=" + std::to_string(s_hueAdmitted) + " unknown=" + std::to_string(s_hueUnknown) +
+                     " budgetDenied=" + std::to_string(s_hueBudgetDenied) + " overruns=" + std::to_string(s_hueOverruns) +
+                     " worstBakeUs=" + std::to_string(s_hueWorstBake * 1000 / 733333));
+            lastReport = currentFrame;
+        }
+#endif
+    }
+    // Gate resident hits and new admissions alike. Even a stable hue must stay
+    // GPU if CPU routing would reduce the logical source resolution. Texture
+    // allocation padding is deliberately excluded from this comparison.
+    if (residentOnly && (!persistent || !fullResolution)) return nullptr;
+#endif
+    auto found = s_effectCache.find(key);
+    if (found != s_effectCache.end()) {
+        found->second.lastUsed = currentFrame;
+#ifdef SE_NV2A_PROFILE
+        ++s_fxHits;
+#endif
+        return found->second.tex;
+    }
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    const bool warmSource = hasColor && !hasPixelGrid && hsvW == effW && hsvH == effH &&
+                            hsvCache.size() == static_cast<size_t>(effW) * effH;
+    bool hybridAdmission = false;
+    if (residentOnly) {
+        if (!persistent) return nullptr;
+        EffectKey costKey = key;
+        costKey.step = 0;
+        const auto cost = s_hueWarmGuards.find(costKey);
+        if (!warmSource || cost == s_hueWarmGuards.end()) {
+            ++s_hueUnknown;
+            return nullptr;
+        }
+        if (!s_hueBudget.allows(cost->second)) {
+            ++s_hueBudgetDenied;
+            return nullptr;
+        }
+        hybridAdmission = true;
+        ++s_hueAdmitted;
+    }
+    // Existing unsupported-effect fallback remains mandatory, but its work
+    // consumes the same budget and prevents further admission this frame.
+    HueBakeMeasurement hueBake(key, warmSource, hybridAdmission);
+#else
+    if (residentOnly) return nullptr;
+#endif
+
+    // Low-memory guard with cache reclamation and rate-limited summary logging
+    constexpr size_t kFxMinFreeBytes = 2 * 1024 * 1024;
+    if (getAvailablePhysicalMemory() < kFxMinFreeBytes) {
+        reclaimEffectCacheMemory(nv2aRenderer, kFxMinFreeBytes);
+    }
+
+    if (getAvailablePhysicalMemory() < kFxMinFreeBytes) {
+        static uint32_t s_skipCount = 0;
+        static uint32_t s_lastSkipLogFrame = 0;
+        ++s_skipCount;
+
+        if (currentFrame - s_lastSkipLogFrame >= 120) {
+            NV2A_LOG("FX_DEBUG: Low-memory effect skips=" + std::to_string(s_skipCount) +
+                     " FreeBytes=" + std::to_string(getAvailablePhysicalMemory()));
+            s_skipCount = 0;
+            s_lastSkipLogFrame = currentFrame;
+        }
+        return
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+            hybridAdmission ? nullptr :
+#endif
+                            texture;
+    }
+
+#ifdef SE_NV2A_PROFILE
+    EffectBakeProfile bakeProfile;
+#endif
+
+    const size_t hsvCount = static_cast<size_t>(effW) * effH;
+    const bool needSource = !hasColor ||
+                            hsvW != effW ||
+                            hsvH != effH ||
+                            hsvCache.size() != hsvCount;
+
+    int srcPitch = 0;
+    const uint8_t *src = nullptr;
+
+    if (needSource) {
+        src = getEffectSource(srcPitch);
+        if (!src) return
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+            hybridAdmission ? nullptr :
+#endif
+                            texture;
+    }
+
+    const bool ownsReconstructedSource = !effectSource.empty() && src == effectSource.data();
+
+    bool linearQuality = false;
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    linearQuality = sourceQuality;
+#endif
+    const int capW = linearQuality ? ((effW + 15) & ~15) : toPowerOfTwo(effW);
+    const int capH = linearQuality ? effH : toPowerOfTwo(effH);
+    const bool compactColor = hasColor && !OS::isEnhancedPlatform()
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+                              && !sourceQuality
+#endif
+        ;
+    const uint32_t effectFormat = linearQuality ? XGU_TEXTURE_FORMAT_A8R8G8B8 : compactColor ? XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED
+                                                                                             : XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED;
+
+    NV2ATexture *tex = nv2aRenderer->createTexture(linearQuality ? effW : capW, linearQuality ? effH : capH, effectFormat, !linearQuality, !linearQuality);
+
+    while (!tex && !s_effectCache.empty()) {
+        auto oldest = s_effectCache.end();
+        uint32_t oldestAge = 0;
+        for (auto it = s_effectCache.begin(); it != s_effectCache.end(); ++it) {
+            const uint32_t age = currentFrame - it->second.lastUsed;
+            if (oldest == s_effectCache.end() || age > oldestAge) {
+                oldest = it;
+                oldestAge = age;
+            }
+        }
+        if (oldest == s_effectCache.end()) break;
+        evictEffectEntry(nv2aRenderer, oldest, EffectEvictionReason::AllocationRetry);
+        tex = nv2aRenderer->createTexture(linearQuality ? effW : capW, linearQuality ? effH : capH, effectFormat, !linearQuality, !linearQuality);
+    }
+
+    if (!tex) {
+        NV2A_LOG("FX_DEBUG: createTexture ultimately failed; falling back to original texture.");
+        if (ownsReconstructedSource) {
+            std::vector<uint8_t>().swap(effectSource);
+        }
+        return
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+            hybridAdmission ? nullptr :
+#endif
+                            texture;
+    }
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    int sxArr[512];
+#else
+    int sxArr[COLOR_EFFECT_MAX_DIM];
+#endif
+    for (int x = 0; x < effW; ++x) {
+        sxArr[x] = std::clamp((x * srcW + (srcW / 2)) / effW, 0, srcW - 1);
+    }
+
+    uint32_t *lin = s_effectLinear;
+    uint16_t *packed16 = s_effectPacked16;
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    // tex was allocated on this cache miss and has not been submitted to GPU.
+    if (linearQuality) lin = reinterpret_cast<uint32_t *>(tex->data);
+#endif
+
+    if (hasColor) {
+        if (hsvW != effW || hsvH != effH || hsvCache.size() != static_cast<size_t>(effW) * effH) {
+            hsvCache.resize(static_cast<size_t>(effW) * effH);
+            for (int y = 0; y < effH; ++y) {
+                const int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
+                const uint8_t *sRow = src + static_cast<size_t>(sy) * srcPitch;
+                EffectHSVA *out = &hsvCache[static_cast<size_t>(y) * effW];
+                for (int x = 0; x < effW; ++x) {
+                    const uint8_t *p = sRow + sxArr[x] * 4;
+                    EffectHSVA &e = out[x];
+                    e.a = p[3];
+                    if (e.a) {
+                        rgb2hsvEffect(p[0], p[1], p[2], e.h, e.s, e.v);
+                    } else {
+                        e.h = 0;
+                        e.s = 0;
+                        e.v = 0;
+                    }
+                }
+            }
+            hsvW = effW;
+            hsvH = effH;
+        }
+
+        for (int y = 0; y < effH; ++y) {
+            uint32_t *row = lin + static_cast<size_t>(y) * capW;
+            const EffectHSVA *hp = &hsvCache[static_cast<size_t>(y) * effW];
+            for (int x = 0; x < effW; ++x) {
+                const EffectHSVA &e = hp[x];
+                if (!e.a) {
+                    row[x] = 0;
+                } else {
+                    uint32_t h2 = e.h + shift;
+                    if (h2 >= 1536) h2 -= 1536;
+                    uint32_t rgb = hsv2rgbEffect(h2, e.s, e.v);
+                    if (linearQuality)
+                        rgb = (rgb & 0x0000ff00u) | ((rgb & 0xffu) << 16) | ((rgb >> 16) & 0xffu);
+                    row[x] = rgb | (static_cast<uint32_t>(e.a) << 24);
+                }
+            }
+        }
+    } else {
+        for (int y = 0; y < effH; ++y) {
+            const int sy = std::clamp((y * srcH + (srcH / 2)) / effH, 0, srcH - 1);
+            const uint8_t *sRow = src + static_cast<size_t>(sy) * srcPitch;
+            uint32_t *row = lin + static_cast<size_t>(y) * capW;
+            for (int x = 0; x < effW; ++x) {
+                memcpy(&row[x], sRow + sxArr[x] * 4, 4);
+            }
+        }
+    }
+
+    if (ownsReconstructedSource) {
+        std::vector<uint8_t>().swap(effectSource);
+    }
+
+    if (!linearQuality) {
+        for (int y = 0; y < effH; ++y) {
+            uint32_t *row = lin + static_cast<size_t>(y) * capW;
+            for (int x = effW; x < capW; ++x)
+                row[x] = row[effW - 1];
+        }
+        for (int y = effH; y < capH; ++y) {
+            memcpy(lin + static_cast<size_t>(y) * capW, lin + static_cast<size_t>(effH - 1) * capW, static_cast<size_t>(capW) * 4);
+        }
+    }
+    if (linearQuality) {
+        // Visible pixels were all written above. Initialize every physical
+        // padding byte too, without clearing the visible region a second time.
+        const size_t rowBytes = static_cast<size_t>(effW) * sizeof(uint32_t);
+        for (int y = 0; y < effH; ++y)
+            std::memset(tex->data + static_cast<size_t>(y) * tex->pitch + rowBytes,
+                        0, static_cast<size_t>(tex->pitch) - rowBytes);
+    }
+
+    bool uploadSucceeded = false;
+
+    if (linearQuality) {
+        nv2aRenderer->commitTextureUpload(tex);
+        uploadSucceeded = true;
+    } else if (compactColor) {
+        for (int y = 0; y < capH; ++y) {
+            const uint8_t *srcRow =
+                reinterpret_cast<const uint8_t *>(lin) +
+                static_cast<size_t>(y) * capW * 4;
+
+            uint16_t *dstRow = packed16 +
+                               static_cast<size_t>(y) * capW;
+
+            for (int x = 0; x < capW; ++x) {
+                const uint8_t *p = srcRow + static_cast<size_t>(x) * 4;
+
+                dstRow[x] = static_cast<uint16_t>(
+                    ((p[3] >> 4) << 12) |
+                    ((p[0] >> 4) << 8) |
+                    ((p[1] >> 4) << 4) |
+                    (p[2] >> 4));
+            }
+        }
+
+        uploadSucceeded =
+            nv2aRenderer->updateTexture(tex, packed16, capW * 2);
+    } else {
+        uploadSucceeded =
+            nv2aRenderer->updateTexture(tex, lin, capW * 4);
+    }
+
+    if (!uploadSucceeded) {
+        nv2aRenderer->destroyTexture(tex);
+        NV2A_LOG("FX_DEBUG: updateTexture failed; skipping effect bake.");
+        return
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+            hybridAdmission ? nullptr :
+#endif
+                            texture;
+    }
+
+    // Linear textures use texel coordinates; swizzled textures use normalized UVs.
+    tex->uScale = linearQuality ? static_cast<float>(effW) : static_cast<float>(effW) / capW;
+    tex->vScale = linearQuality ? static_cast<float>(effH) : static_cast<float>(effH) / capH;
+
+    s_effectCache.emplace(key, EffectEntry{tex, currentFrame});
+    s_effectCacheBytes += tex->allocationSize;
+    if (s_effectCacheBytes > s_effectPeakBytes) s_effectPeakBytes = s_effectCacheBytes;
+    ++s_effectCreated;
+    trimEffectCache(nv2aRenderer, currentFrame, &key);
+
+#ifdef SE_NV2A_PROFILE
+    bakeProfile.success = true;
+#endif
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    hueBake.success = true;
+#endif
+    return tex;
+}
+
+static inline void setNV2AVertexColor(NV2AVertex &v, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    v.color[0] = r;
+    v.color[1] = g;
+    v.color[2] = b;
+    v.color[3] = a;
+}
+
+void Image_Xbox::renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
+    }
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    int N = std::clamp(static_cast<int>(std::round((std::abs(params.mosaicEffect) + 10.0f) / 10.0f + 1e-3f)), 1, 16);
+
+    // If texture is a full POT texture without subrect, use GPU texture WRAP (1 quad, 6 verts!)
+    bool isFullTexture = (params.subrect == nullptr ||
+                          (params.subrect->x == 0 && params.subrect->y == 0 &&
+                           params.subrect->w == imgData.width && params.subrect->h == imgData.height));
+    if (isFullTexture && activeTex->uScale == 1.0f && activeTex->vScale == 1.0f) {
+        auto p_tl = rotatePoint(renderX, renderY);
+        auto p_tr = rotatePoint(renderX + renderW, renderY);
+        auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
+        auto p_bl = rotatePoint(renderX, renderY + renderH);
+
+        if (isCardinalRotation) {
+            p_tl.first = std::round(p_tl.first);
+            p_tl.second = std::round(p_tl.second);
+            p_tr.first = std::round(p_tr.first);
+            p_tr.second = std::round(p_tr.second);
+            p_br.first = std::round(p_br.first);
+            p_br.second = std::round(p_br.second);
+            p_bl.first = std::round(p_bl.first);
+            p_bl.second = std::round(p_bl.second);
+        }
+
+        float u0 = params.flip ? static_cast<float>(N) : 0.0f;
+        float u1 = params.flip ? 0.0f : static_cast<float>(N);
+        float v0 = 0.0f;
+        float v1 = static_cast<float>(N);
+
+        NV2AVertex quadVerts[6] = {
+            {{p_tl.first, p_tl.second}, {255, 255, 255, alpha}, {u0, v0}},
+            {{p_tr.first, p_tr.second}, {255, 255, 255, alpha}, {u1, v0}},
+            {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
+            {{p_tl.first, p_tl.second}, {255, 255, 255, alpha}, {u0, v0}},
+            {{p_br.first, p_br.second}, {255, 255, 255, alpha}, {u1, v1}},
+            {{p_bl.first, p_bl.second}, {255, 255, 255, alpha}, {u0, v1}}};
+
+        const NV2AScaleMode mosaicScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+        nv2aRenderer->bindTexture(activeTex, mosaicScaleMode, /*wrap=*/true);
+
+        if (brightness > 0) {
+            float b = brightness * 0.01f;
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+            uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+            if (addA > 0) {
+                for (int i = 0; i < 6; ++i) {
+                    setNV2AVertexColor(quadVerts[i], 255, 255, 255, addA);
+                }
+                nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+                nv2aRenderer->drawTriangles(quadVerts, 6);
+            }
+        } else if (brightness < 0) {
+            float b = brightness * 0.01f;
+            uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+            for (int i = 0; i < 6; ++i) {
+                setNV2AVertexColor(quadVerts[i], dim, dim, dim, alpha);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+        } else {
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+            nv2aRenderer->drawTriangles(quadVerts, 6);
+        }
         return;
     }
 
-    auto setAlpha = [&](Uint8 a) {
-        for (auto &t : tiles) {
-            TexState &ts = getTexState(t.texture);
-            if (ts.alpha != a) {
-                SDL_SetTextureAlphaMod(t.texture, a);
-                ts.alpha = a;
-            }
-        }
-    };
-    auto setColor = [&](Uint8 c) {
-        for (auto &t : tiles) {
-            TexState &ts = getTexState(t.texture);
-            if (ts.colorR != c || ts.colorG != c || ts.colorB != c) {
-                SDL_SetTextureColorMod(t.texture, c, c, c);
-                ts.colorR = ts.colorG = ts.colorB = c;
-            }
-        }
-    };
-    auto setBlend = [&](SDL_BlendMode m) {
-        for (auto &t : tiles) {
-            TexState &ts = getTexState(t.texture);
-            if (ts.blend != m) {
-                SDL_SetTextureBlendMode(t.texture, m);
-                ts.blend = m;
-            }
-        }
-    };
+    // Fallback for subrect or NPOT texture: grid of quads with step vector affine additions
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
 
-    setAlpha(alpha);
-    setColor(255);
-    setBlend(normalBlendMode);
+    float u0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float u1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(u0, u1);
+    }
+
+    float stepW = renderW / static_cast<float>(N);
+    float stepH = renderH / static_cast<float>(N);
+    float stepUx = stepW * cosA;
+    float stepUy = stepW * sinA;
+    float stepVx = -stepH * sinA;
+    float stepVy = stepH * cosA;
+
+    auto p00 = rotatePoint(renderX, renderY);
+
+    static NV2AVertex s_mosaicVerts[16 * 16 * 6];
+    size_t vertCount = 0;
+
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
+
+    for (int row = 0; row < N; ++row) {
+        float rY_x = p00.first + row * stepVx;
+        float rY_y = p00.second + row * stepVy;
+        float rY1_x = rY_x + stepVx;
+        float rY1_y = rY_y + stepVy;
+
+        for (int col = 0; col < N; ++col) {
+            float p_tl_x = rY_x + col * stepUx;
+            float p_tl_y = rY_y + col * stepUy;
+            float p_tr_x = p_tl_x + stepUx;
+            float p_tr_y = p_tl_y + stepUy;
+            float p_bl_x = rY1_x + col * stepUx;
+            float p_bl_y = rY1_y + col * stepUy;
+            float p_br_x = p_bl_x + stepUx;
+            float p_br_y = p_bl_y + stepUy;
+
+            s_mosaicVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {u0, v0}};
+            s_mosaicVerts[vertCount++] = {{p_tr_x, p_tr_y}, {cr, cg, cb, alpha}, {u1, v0}};
+            s_mosaicVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {u1, v1}};
+
+            s_mosaicVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {u0, v0}};
+            s_mosaicVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {u1, v1}};
+            s_mosaicVerts[vertCount++] = {{p_bl_x, p_bl_y}, {cr, cg, cb, alpha}, {u0, v1}};
+        }
+    }
+
+    const NV2AScaleMode mosaicScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+    nv2aRenderer->bindTexture(activeTex, mosaicScaleMode, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
 
     if (brightness > 0) {
-        const float b = brightness * 0.01f;
-        drawAll();
-        setBlend(SDL_BLENDMODE_ADD);
-        setAlpha(Uint8(255 * b * opacity));
-        drawAll();
-        setBlend(normalBlendMode);
-    } else if (brightness < 0) {
-        const float b = brightness * 0.01f;
-        setColor(Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f)));
-        drawAll();
-        setColor(255);
-    } else {
-        drawAll();
+        float b = brightness * 0.01f;
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            for (size_t i = 0; i < vertCount; ++i) {
+                setNV2AVertexColor(s_mosaicVerts[i], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_mosaicVerts, vertCount);
+        }
     }
-    freeTimer = maxFreeTimer;
+}
+
+void Image_Xbox::renderPixelate(ImageRenderParams &params, NV2ATexture *activeTex) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
+    }
+
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
+
+    float baseU0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float baseU1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(baseU0, baseU1);
+    }
+
+    const float pixelate = params.pixelateEffect;
+    const float absPixelate = std::abs(pixelate);
+    const float texelScale = scale / (imgData.scale > 0.0f ? imgData.scale : 1.0f);
+    const float scaleFactor = std::max(1.0f, texelScale);
+    const float pixelateAmount = absPixelate / 10.0f;
+    const float blockSizeTexels = pixelateAmount / scaleFactor;
+    const float blockSizeScreen = blockSizeTexels * texelScale;
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    float cosA = 1.0f;
+    float sinA = 0.0f;
+    if (rotationRad != 0.0) {
+        cosA = static_cast<float>(std::cos(rotationRad));
+        sinA = static_cast<float>(std::sin(rotationRad));
+    }
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        if (rotationRad == 0.0) return {px, py};
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    auto drawSingleQuad = [&]() {
+        auto p_tl = rotatePoint(renderX, renderY);
+        auto p_tr = rotatePoint(renderX + renderW, renderY);
+        auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
+        auto p_bl = rotatePoint(renderX, renderY + renderH);
+
+        if (isCardinalRotation) {
+            p_tl.first = std::round(p_tl.first);
+            p_tl.second = std::round(p_tl.second);
+            p_tr.first = std::round(p_tr.first);
+            p_tr.second = std::round(p_tr.second);
+            p_br.first = std::round(p_br.first);
+            p_br.second = std::round(p_br.second);
+            p_bl.first = std::round(p_bl.first);
+            p_bl.second = std::round(p_bl.second);
+        }
+
+        uint8_t cr = 255, cg = 255, cb = 255;
+        if (brightness < 0) {
+            float b = brightness * 0.01f;
+            uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+            cr = cg = cb = dim;
+        }
+
+        NV2AVertex quadVerts[6] = {
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, alpha}, {baseU0, baseV0}},
+            {{p_tr.first, p_tr.second}, {cr, cg, cb, alpha}, {baseU1, baseV0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, alpha}, {baseU0, baseV0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, alpha}, {baseU1, baseV1}},
+            {{p_bl.first, p_bl.second}, {cr, cg, cb, alpha}, {baseU0, baseV1}}};
+
+        nv2aRenderer->bindTexture(activeTex, NV2AScaleMode::Nearest, /*wrap=*/false);
+        nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+        nv2aRenderer->drawTriangles(quadVerts, 6);
+
+        if (brightness > 0) {
+            float b = brightness * 0.01f;
+            uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+            if (addA > 0) {
+                for (int i = 0; i < 6; ++i) {
+                    setNV2AVertexColor(quadVerts[i], 255, 255, 255, addA);
+                }
+                nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+                nv2aRenderer->drawTriangles(quadVerts, 6);
+            }
+        }
+    };
+
+    const bool isFinePixelation = (absPixelate <= 10.0f || blockSizeTexels <= 1.0f || blockSizeScreen <= 1.25f);
+    if (isFinePixelation) {
+        drawSingleQuad();
+        return;
+    }
+
+    constexpr int MAX_PIXELATE_GRID = 48;
+    int effW = std::max(2, static_cast<int>(std::round(subW / blockSizeTexels)));
+    int effH = std::max(2, static_cast<int>(std::round(subH / blockSizeTexels)));
+
+    if (effW >= static_cast<int>(subW) && effH >= static_cast<int>(subH)) {
+        drawSingleQuad();
+        return;
+    }
+
+    if (effW > MAX_PIXELATE_GRID || effH > MAX_PIXELATE_GRID) {
+        float gridScale = std::min(static_cast<float>(MAX_PIXELATE_GRID) / effW,
+                                   static_cast<float>(MAX_PIXELATE_GRID) / effH);
+        effW = std::max(2, static_cast<int>(std::round(effW * gridScale)));
+        effH = std::max(2, static_cast<int>(std::round(effH * gridScale)));
+    }
+
+    float stepW = renderW / static_cast<float>(effW);
+    float stepH = renderH / static_cast<float>(effH);
+    float stepUx = stepW * cosA;
+    float stepUy = stepW * sinA;
+    float stepVx = -stepH * sinA;
+    float stepVy = stepH * cosA;
+
+    auto p00 = rotatePoint(renderX, renderY);
+
+    static NV2AVertex s_pixelateVerts[MAX_PIXELATE_GRID * MAX_PIXELATE_GRID * 6];
+    size_t vertCount = 0;
+
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
+
+    const float invEffW = 1.0f / static_cast<float>(effW);
+    const float invEffH = 1.0f / static_cast<float>(effH);
+    const float uSpan = baseU1 - baseU0;
+    const float vSpan = baseV1 - baseV0;
+
+    for (int row = 0; row < effH; ++row) {
+        float rY_x = p00.first + row * stepVx;
+        float rY_y = p00.second + row * stepVy;
+        float rY1_x = rY_x + stepVx;
+        float rY1_y = rY_y + stepVy;
+
+        float vCenter = baseV0 + (static_cast<float>(row) + 0.5f) * invEffH * vSpan;
+
+        for (int col = 0; col < effW; ++col) {
+            float p_tl_x = rY_x + col * stepUx;
+            float p_tl_y = rY_y + col * stepUy;
+            float p_tr_x = p_tl_x + stepUx;
+            float p_tr_y = p_tl_y + stepUy;
+            float p_bl_x = rY1_x + col * stepUx;
+            float p_bl_y = rY1_y + col * stepUy;
+            float p_br_x = p_bl_x + stepUx;
+            float p_br_y = p_bl_y + stepUy;
+
+            float uCenter = baseU0 + (static_cast<float>(col) + 0.5f) * invEffW * uSpan;
+
+            s_pixelateVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_tr_x, p_tr_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+
+            s_pixelateVerts[vertCount++] = {{p_tl_x, p_tl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_br_x, p_br_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+            s_pixelateVerts[vertCount++] = {{p_bl_x, p_bl_y}, {cr, cg, cb, alpha}, {uCenter, vCenter}};
+        }
+    }
+
+    nv2aRenderer->bindTexture(activeTex, NV2AScaleMode::Nearest, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_pixelateVerts, vertCount);
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            for (size_t i = 0; i < vertCount; ++i) {
+                setNV2AVertexColor(s_pixelateVerts[i], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_pixelateVerts, vertCount);
+        }
+    }
+}
+
+void Image_Xbox::renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
+                                    bool hasWhirl, bool hasFisheye, bool hasMosaic) {
+    if (!activeTex || !nv2aRenderer) return;
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
+
+    if (opacity <= 0.001f) return;
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
+    if (alpha == 0) return;
+
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
+
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
+    if (isCardinalRotation) {
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
+    }
+
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
+
+    float baseU0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float baseU1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float baseV1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(baseU0, baseU1);
+    }
+
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    float cosA = 1.0f;
+    float sinA = 0.0f;
+    if (rotationRad != 0.0) {
+        cosA = static_cast<float>(std::cos(rotationRad));
+        sinA = static_cast<float>(std::sin(rotationRad));
+    }
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        if (rotationRad == 0.0) return {px, py};
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    const float mosaic = params.mosaicEffect;
+    const float whirl = params.whirlEffect;
+    const float fisheye = params.fisheyeEffect;
+
+    const float tiles = hasMosaic ? std::clamp(std::round((std::abs(mosaic) + 10.0f) / 10.0f + 1e-3f), 1.0f, 16.0f) : 1.0f;
+    const float whirlRad = whirl * 3.141592653589793f / 180.0f;
+    const float fisheyeAmount = std::max(0.0f, (fisheye + 100.0f) / 100.0f);
+    const bool doFisheye = hasFisheye && (std::abs(fisheyeAmount - 1.0f) > 0.001f);
+
+    constexpr int M = 8;
+    constexpr float invM = 1.0f / static_cast<float>(M);
+    struct GridPt {
+        std::pair<float, float> pos;
+        float u, v;
+    };
+    GridPt grid[M + 1][M + 1];
+
+    // Cache normalized UV grid for whirl and fisheye to avoid 81 sqrt/sin/cos/pow calls per frame
+    static float s_cachedWhirl = -99999.0f;
+    static float s_cachedFisheye = -99999.0f;
+    static float s_cachedMosaic = -99999.0f;
+    static float s_cachedU[M + 1][M + 1];
+    static float s_cachedV[M + 1][M + 1];
+
+    if (whirl != s_cachedWhirl || fisheye != s_cachedFisheye || mosaic != s_cachedMosaic) {
+        for (int j = 0; j <= M; ++j) {
+            float gy = static_cast<float>(j) * invM;
+            for (int i = 0; i <= M; ++i) {
+                float gx = static_cast<float>(i) * invM;
+                float u = gx;
+                float v = gy;
+
+                if (hasMosaic) {
+                    u = u * tiles;
+                    u -= std::floor(u);
+                    v = v * tiles;
+                    v -= std::floor(v);
+                }
+
+                float cx = u - 0.5f;
+                float cy = v - 0.5f;
+                float distSq = cx * cx + cy * cy;
+
+                if (distSq < 0.25f) {
+                    if (hasWhirl) {
+                        float dist = std::sqrt(distSq);
+                        float whirlFactor = 1.0f - (dist * 2.0f);
+                        float whirlActual = whirlRad * whirlFactor * whirlFactor;
+                        float s = std::sin(whirlActual);
+                        float c = std::cos(whirlActual);
+                        float ncx = c * cx - s * cy;
+                        float ncy = s * cx + c * cy;
+                        cx = ncx;
+                        cy = ncy;
+                    }
+
+                    if (doFisheye) {
+                        float vx = cx * 2.0f;
+                        float vy = cy * 2.0f;
+                        float vecLenSq = vx * vx + vy * vy;
+                        if (vecLenSq > 0.000001f) {
+                            float vecLen = std::sqrt(vecLenSq);
+                            float r = std::pow(std::min(vecLen, 1.0f), fisheyeAmount) * std::max(1.0f, vecLen);
+                            float invLen = 1.0f / vecLen;
+                            cx = r * (vx * invLen) * 0.5f;
+                            cy = r * (vy * invLen) * 0.5f;
+                        }
+                    }
+                }
+
+                s_cachedU[j][i] = std::clamp(cx + 0.5f, 0.0f, 1.0f);
+                s_cachedV[j][i] = std::clamp(cy + 0.5f, 0.0f, 1.0f);
+            }
+        }
+        s_cachedWhirl = whirl;
+        s_cachedFisheye = fisheye;
+        s_cachedMosaic = mosaic;
+    }
+
+    float stepUx = (renderW * invM) * cosA;
+    float stepUy = (renderW * invM) * sinA;
+    float stepVx = -(renderH * invM) * sinA;
+    float stepVy = (renderH * invM) * cosA;
+    auto p00 = rotatePoint(renderX, renderY);
+
+    for (int j = 0; j <= M; ++j) {
+        float rY_x = p00.first + j * stepVx;
+        float rY_y = p00.second + j * stepVy;
+
+        for (int i = 0; i <= M; ++i) {
+            grid[j][i].pos = {rY_x + i * stepUx, rY_y + i * stepUy};
+            grid[j][i].u = baseU0 + s_cachedU[j][i] * (baseU1 - baseU0);
+            grid[j][i].v = baseV0 + s_cachedV[j][i] * (baseV1 - baseV0);
+        }
+    }
+
+    static NV2AVertex s_deformedVerts[M * M * 6];
+    size_t vertCount = 0;
+
+    uint8_t cr = 255, cg = 255, cb = 255;
+    if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        cr = cg = cb = dim;
+    }
+
+    for (int j = 0; j < M; ++j) {
+        for (int i = 0; i < M; ++i) {
+            const auto &p00_pt = grid[j][i];
+            const auto &p10_pt = grid[j][i + 1];
+            const auto &p11_pt = grid[j + 1][i + 1];
+            const auto &p01_pt = grid[j + 1][i];
+
+            s_deformedVerts[vertCount++] = {{p00_pt.pos.first, p00_pt.pos.second}, {cr, cg, cb, alpha}, {p00_pt.u, p00_pt.v}};
+            s_deformedVerts[vertCount++] = {{p10_pt.pos.first, p10_pt.pos.second}, {cr, cg, cb, alpha}, {p10_pt.u, p10_pt.v}};
+            s_deformedVerts[vertCount++] = {{p11_pt.pos.first, p11_pt.pos.second}, {cr, cg, cb, alpha}, {p11_pt.u, p11_pt.v}};
+
+            s_deformedVerts[vertCount++] = {{p00_pt.pos.first, p00_pt.pos.second}, {cr, cg, cb, alpha}, {p00_pt.u, p00_pt.v}};
+            s_deformedVerts[vertCount++] = {{p11_pt.pos.first, p11_pt.pos.second}, {cr, cg, cb, alpha}, {p11_pt.u, p11_pt.v}};
+            s_deformedVerts[vertCount++] = {{p01_pt.pos.first, p01_pt.pos.second}, {cr, cg, cb, alpha}, {p01_pt.u, p01_pt.v}};
+        }
+    }
+
+    const NV2AScaleMode meshScaleMode = (std::abs(params.pixelateEffect) > 0.001f) ? NV2AScaleMode::Nearest : activeTex->scaleMode;
+    nv2aRenderer->bindTexture(activeTex, meshScaleMode, /*wrap=*/false);
+    nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+    nv2aRenderer->drawTriangles(s_deformedVerts, vertCount);
+
+    if (brightness > 0) {
+        float b = brightness * 0.01f;
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            for (size_t k = 0; k < vertCount; ++k) {
+                setNV2AVertexColor(s_deformedVerts[k], 255, 255, 255, addA);
+            }
+            nv2aRenderer->setBlendMode(NV2ABlendMode::Add);
+            nv2aRenderer->drawTriangles(s_deformedVerts, vertCount);
+        }
+    }
 }
 
 void Image_Xbox::render(ImageRenderParams &params) {
-    if (params.opacity <= 0.001f) return;
-    const ScratchColorTransform effect(params.colorEffect, params.brightness);
-    if ((effect.colorEnabled || effect.brightness != 0.0f) && ensureColorData()) {
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) return;
+
+    const uint16_t colorStep = getColorEffectStep(params.colorEffect);
+    const bool hasColor = (colorStep != EFFECT_NO_HUE);
+
+    const bool hasWhirl = (std::abs(params.whirlEffect) > 0.001f);
+    const bool hasFisheye = (std::abs(params.fisheyeEffect) > 0.001f);
+    const bool hasMosaic = (std::abs(params.mosaicEffect) > 0.001f);
+    const bool hasPixelate = (std::abs(params.pixelateEffect) > 0.001f);
+    const bool hasEffects = (hasWhirl || hasFisheye || hasMosaic || hasPixelate || hasColor);
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    // Eligibility is independent of the future cache-admission policy. Combined
+    // Positive brightness and geometric effects retain the CPU path. Dimming
+    // uses the existing vertex RGB modulation after the hue transformation.
+    bool gpuHue = hasColor && std::isfinite(params.colorEffect) &&
+                  params.brightness <= 0 && !hasWhirl && !hasFisheye && !hasMosaic && !hasPixelate &&
+                  params.subrect == nullptr;
+    NV2ATexture *residentHueTexture = nullptr;
+    const NV2ATexture *rejectedHueTexture = nullptr;
+    bool hueTextureRejected = false;
+    if (gpuHue) {
+        if (!tiles.empty()) {
+            for (const auto &tile : tiles) {
+                if (!Renderer_Xbox::supportsHueTexture(tile.texture)) {
+                    rejectedHueTexture = tile.texture;
+                    hueTextureRejected = true;
+                    gpuHue = false;
+                    break;
+                }
+            }
+        } else {
+            gpuHue = Renderer_Xbox::supportsHueTexture(texture);
+            hueTextureRejected = !gpuHue;
+            rejectedHueTexture = hueTextureRejected ? texture : nullptr;
+        }
+    }
+    const bool eligibleHue = gpuHue;
+    if (eligibleHue) {
+        residentHueTexture = acquireEffectTexture(params, true);
+        if (residentHueTexture) gpuHue = false;
+    }
+#if defined(SE_XBOX_TRACE_RENDERER) && defined(SE_NV2A_PROFILE)
+    if (hasColor && !eligibleHue) {
+        static uint32_t fallbacks = 0, lastReport = 0;
+        const uint32_t frame = Renderer_Xbox::getFrameCounter();
+        ++fallbacks;
+        if (fallbacks == 1 || frame - lastReport >= 120) {
+            char message[256];
+            std::snprintf(message, sizeof(message),
+                          "NV2A_HYBRID_CPU: draws=%u frame=%u brightness=%d mesh=%d pixelate=%d subrect=%d textureRejected=%d format=%u data=%d width=%d height=%d tiles=%u",
+                          fallbacks, frame, params.brightness, hasWhirl || hasFisheye || hasMosaic,
+                          hasPixelate, params.subrect != nullptr, hueTextureRejected,
+                          rejectedHueTexture ? rejectedHueTexture->format : 0,
+                          rejectedHueTexture && rejectedHueTexture->data != nullptr,
+                          rejectedHueTexture ? rejectedHueTexture->texWidth : 0,
+                          rejectedHueTexture ? rejectedHueTexture->texHeight : 0,
+                          static_cast<unsigned>(tiles.size()));
+            NV2A_LOG(message);
+            lastReport = frame;
+        }
+    }
+#endif
+    if (gpuHue && !tiles.empty()) {
         renderTiled(params, true);
         return;
     }
-    if (!tiles.empty()) {
+#endif
+    const uint32_t currentFrame = Renderer_Xbox::getFrameCounter();
+
+    if (!hasEffects && !tiles.empty()) {
+#ifdef SE_NV2A_PROFILE
+        if (fxTraceWasActive) {
+            char buf[160];
+            std::snprintf(buf, sizeof(buf),
+                          "FX_TRACE_CLEAR: image=%p path=tiled color100=%d pixelate100=%d",
+                          (void *)this,
+                          static_cast<int>(std::lround(params.colorEffect * 100.0f)),
+                          static_cast<int>(std::lround(params.pixelateEffect * 100.0f)));
+            NV2A_LOG(buf);
+        }
+
+        fxTraceWasActive = false;
+        fxTraceLastActiveTex = texture;
+#endif
+
+        if (effectSlots[0].lastUsedFrame != 0 &&
+            currentFrame - effectSlots[0].lastUsedFrame > 60) {
+            releaseEffects();
+        }
+
         renderTiled(params);
         return;
     }
-    if (!texture) return;
 
-    const float &x = params.x;
-    const float &y = params.y;
-    const int &brightness = params.brightness;
-    const double rotation = Math::radiansToDegrees(params.rotation);
-    const float &scale = params.scale;
-    const float &opacity = params.opacity;
-    const bool &centered = params.centered;
-    SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    if (!hasEffects) {
+        if (effectSlots[0].lastUsedFrame != 0 && currentFrame - effectSlots[0].lastUsedFrame > 60) {
+            releaseEffects();
+        }
+    }
+
+    const bool hasMeshEffects = (hasWhirl || hasFisheye || hasMosaic);
+    NV2ATexture *activeTex = texture;
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    if (residentHueTexture) activeTex = residentHueTexture;
+#endif
+    bool needsPixelateTexture = false;
+    bool pixelateBaked = false;
+
+    if (hasPixelate) {
+        int gw = 0, gh = 0;
+        if (computePixelateDims(params, imgData.width, imgData.height, imgData.scale, gw, gh)) {
+            const bool smallGrid = (gw * gh) <= PIXELATE_MESH_MAX_CELLS;
+            if (hasMeshEffects || hasColor || (params.subrect == nullptr && !smallGrid)) {
+                needsPixelateTexture = true;
+            }
+        }
+    }
+
+    if ((hasColor || needsPixelateTexture)
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+        && !gpuHue && !residentHueTexture
+#endif
+    ) {
+        NV2ATexture *effTex = acquireEffectTexture(params);
+        if (effTex) {
+            activeTex = effTex;
+            pixelateBaked = hasPixelate &&
+                            needsPixelateTexture &&
+                            !hasMeshEffects &&
+                            effTex != texture;
+        }
+    }
+
+    // Determine the exact scale mode passed to the standard drawQuad
+    const NV2AScaleMode drawScaleMode =
+        hasPixelate
+            ? NV2AScaleMode::Nearest
+            : ((hasColor && activeTex != texture)
+                   ? NV2AScaleMode::Linear
+                   : (activeTex
+                          ? activeTex->scaleMode
+                          : NV2AScaleMode::PixelArt));
+
+#ifdef SE_NV2A_PROFILE
+    // --- Integer-Only Transition Trace Block ---
+    const bool traceActive = hasPixelate || hasColor;
+    const bool traceChanged =
+        !fxTraceInitialized ||
+        traceActive != fxTraceWasActive ||
+        activeTex != fxTraceLastActiveTex ||
+        drawScaleMode != fxTraceLastScaleMode;
+
+    if (traceChanged && (traceActive || fxTraceWasActive)) {
+        const int color100 = static_cast<int>(std::lround(params.colorEffect * 100.0f));
+        const int pixelate100 = static_cast<int>(std::lround(params.pixelateEffect * 100.0f));
+        const bool activeIsOriginal = (activeTex == texture);
+        const bool usesEffectTexture = (activeTex && activeTex != texture);
+        const int originalScale = texture ? static_cast<int>(texture->scaleMode) : -1;
+        const int requestedScale = static_cast<int>(drawScaleMode);
+        const int effectW = usesEffectTexture
+                                ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texWidth * activeTex->uScale : activeTex->uScale))
+                                : 0;
+        const int effectH = usesEffectTexture
+                                ? static_cast<int>(std::lround(activeTex->swizzled || activeTex->isDXT ? activeTex->texHeight * activeTex->vScale : activeTex->vScale))
+                                : 0;
+        const unsigned int effectBytes = usesEffectTexture
+                                             ? static_cast<unsigned int>(activeTex->allocationSize)
+                                             : 0;
+
+        char buf[384];
+        std::snprintf(buf, sizeof(buf),
+                      "FX_TRACE: image=%p original=%p active=%p "
+                      "src=%dx%d effect=%dx%d effectBytes=%u "
+                      "color100=%d pixelate100=%d hasColor=%d hasPixelate=%d "
+                      "activeOriginal=%d effectTexture=%d pixelateBaked=%d "
+                      "requestedScale=%d originalScale=%d",
+                      (void *)this, (void *)texture, (void *)activeTex,
+                      imgData.width, imgData.height, effectW, effectH, effectBytes,
+                      color100, pixelate100,
+                      (int)hasColor, (int)hasPixelate,
+                      (int)activeIsOriginal, (int)usesEffectTexture,
+                      (int)pixelateBaked, requestedScale, originalScale);
+        NV2A_LOG(buf);
+    }
+
+    fxTraceInitialized = true;
+    fxTraceWasActive = traceActive;
+    fxTraceLastActiveTex = activeTex;
+    fxTraceLastScaleMode = drawScaleMode;
+    // ------------------------------------------
+#endif
+
+    if (!activeTex) {
+        if (!tiles.empty()) {
+            renderTiled(params);
+        }
+        return;
+    }
+
+    if (hasWhirl || hasFisheye) {
+        renderDeformedMesh(params, activeTex, hasWhirl, hasFisheye, hasMosaic);
+        return;
+    }
+
+    if (hasMosaic) {
+        renderMosaic(params, activeTex);
+        return;
+    }
+
+    if (hasPixelate && !pixelateBaked) {
+        renderPixelate(params, activeTex);
+        return;
+    }
+
+    const float x = params.x;
+    const float y = params.y;
+    const int brightness = params.brightness;
+    const double rotationRad = params.rotation;
+    const float scale = params.scale;
+    const float opacity = params.opacity;
 
     if (opacity <= 0.001f) return;
-    const Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    const uint8_t alpha = static_cast<uint8_t>(opacity * 255);
     if (alpha == 0) return;
 
-    SDL_FRect renderRect;
-    renderRect.w = imgData.width / imgData.scale * scale;
-    renderRect.h = imgData.height / imgData.scale * scale;
+    float renderW = (imgData.width / imgData.scale) * scale;
+    float renderH = (imgData.height / imgData.scale) * scale;
+    float renderX = params.centered ? (x - renderW / 2.0f) : x;
+    float renderY = params.centered ? (y - renderH / 2.0f) : y;
 
-    SDL_FRect subRect;
-    if (params.subrect != nullptr) {
-        subRect = {
-            .x = static_cast<float>(params.subrect->x),
-            .y = static_cast<float>(params.subrect->y),
-            .w = static_cast<float>(params.subrect->w),
-            .h = static_cast<float>(params.subrect->h)};
-    } else {
-        subRect = {
-            .x = 0.0f,
-            .y = 0.0f,
-            .w = static_cast<float>(imgData.width),
-            .h = static_cast<float>(imgData.height)};
-    }
-
-    if (centered) {
-        renderRect.x = x - (renderRect.w / 2.0f);
-        renderRect.y = y - (renderRect.h / 2.0f);
-    } else {
-        renderRect.x = x;
-        renderRect.y = y;
-    }
-
-    const bool isCardinalRotation = std::fmod(std::abs(rotation), 90.0) < 0.001 || std::fmod(std::abs(rotation), 90.0) > 89.999;
+    const double rotationDeg = Math::radiansToDegrees(rotationRad);
+    const bool isCardinalRotation = std::fmod(std::abs(rotationDeg), 90.0) < 0.001 || std::fmod(std::abs(rotationDeg), 90.0) > 89.999;
     if (isCardinalRotation) {
-        renderRect.x = std::round(renderRect.x);
-        renderRect.y = std::round(renderRect.y);
-        renderRect.w = std::round(renderRect.w);
-        renderRect.h = std::round(renderRect.h);
+        // snap by edges (not x/w independently) so neighbouring tiles share edges
+        float snapX, snapY, snapW, snapH;
+        PixelSnap::span(renderX, renderW, snapX, snapW);
+        PixelSnap::span(renderY, renderH, snapY, snapH, true);
+        renderW = std::max(1.0f, std::round(snapX + snapW) - std::round(snapX));
+        renderH = std::max(1.0f, std::round(snapY + snapH) - std::round(snapY));
+        renderX = std::round(snapX);
+        renderY = std::round(snapY);
     }
 
-    TexState &state = getTexState(texture);
+    float subX = 0.0f, subY = 0.0f;
+    float subW = static_cast<float>(imgData.width), subH = static_cast<float>(imgData.height);
+    if (params.subrect != nullptr) {
+        subX = static_cast<float>(params.subrect->x);
+        subY = static_cast<float>(params.subrect->y);
+        subW = static_cast<float>(params.subrect->w);
+        subH = static_cast<float>(params.subrect->h);
+    }
+    if (subW <= 0 || subH <= 0) return;
 
-    if (state.alpha != alpha) {
-        SDL_SetTextureAlphaMod(texture, alpha);
-        state.alpha = alpha;
+    float u0 = (subX / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v0 = (subY / static_cast<float>(imgData.height)) * activeTex->vScale;
+    float u1 = ((subX + subW) / static_cast<float>(imgData.width)) * activeTex->uScale;
+    float v1 = ((subY + subH) / static_cast<float>(imgData.height)) * activeTex->vScale;
+
+    if (params.flip) {
+        std::swap(u0, u1);
     }
 
-    const SDL_BlendMode normalBlendMode = (params.blend || alpha < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE;
-    if (state.blend != normalBlendMode) {
-        SDL_SetTextureBlendMode(texture, normalBlendMode);
-        state.blend = normalBlendMode;
+    const float centerX = renderX + renderW / 2.0f;
+    const float centerY = renderY + renderH / 2.0f;
+    const float cosA = static_cast<float>(std::cos(rotationRad));
+    const float sinA = static_cast<float>(std::sin(rotationRad));
+
+    auto rotatePoint = [&](float px, float py) -> std::pair<float, float> {
+        float dx = px - centerX;
+        float dy = py - centerY;
+        return {centerX + dx * cosA - dy * sinA, centerY + dx * sinA + dy * cosA};
+    };
+
+    auto p_tl = rotatePoint(renderX, renderY);
+    auto p_tr = rotatePoint(renderX + renderW, renderY);
+    auto p_br = rotatePoint(renderX + renderW, renderY + renderH);
+    auto p_bl = rotatePoint(renderX, renderY + renderH);
+
+    if (isCardinalRotation) {
+        p_tl.first = std::round(p_tl.first);
+        p_tl.second = std::round(p_tl.second);
+        p_tr.first = std::round(p_tr.first);
+        p_tr.second = std::round(p_tr.second);
+        p_br.first = std::round(p_br.first);
+        p_br.second = std::round(p_br.second);
+        p_bl.first = std::round(p_bl.first);
+        p_bl.second = std::round(p_bl.second);
     }
 
-    const SDL_FPoint center = {renderRect.w / 2.0f, renderRect.h / 2.0f};
+    auto drawQuad = [&](uint8_t cr, uint8_t cg, uint8_t cb, uint8_t ca, NV2ABlendMode blendMode) {
+        NV2AVertex verts[6] = {
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
+            {{p_tr.first, p_tr.second}, {cr, cg, cb, ca}, {u1, v0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
+            {{p_tl.first, p_tl.second}, {cr, cg, cb, ca}, {u0, v0}},
+            {{p_br.first, p_br.second}, {cr, cg, cb, ca}, {u1, v1}},
+            {{p_bl.first, p_bl.second}, {cr, cg, cb, ca}, {u0, v1}}};
 
-    if (brightness != 0) {
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+        if (gpuHue) {
+            nv2aRenderer->drawHueQuad(activeTex, drawScaleMode, verts, params.colorEffect);
+            return;
+        }
+#endif
+        nv2aRenderer->bindTexture(activeTex, drawScaleMode);
+        nv2aRenderer->setBlendMode(blendMode);
+#ifdef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+        if (brightness > 0 && blendMode == NV2ABlendMode::Blend) {
+            const auto amount = static_cast<uint8_t>(255.0f * std::clamp(brightness * 0.01f, 0.0f, 1.0f));
+            nv2aRenderer->drawBrightnessTriangles(verts, 6, amount);
+            return;
+        }
+#endif
+        nv2aRenderer->drawTriangles(verts, 6);
+    };
+
+    if (brightness > 0) {
         float b = brightness * 0.01f;
-        if (brightness > 0.0f) {
-            if (state.colorR != 255 || state.colorG != 255 || state.colorB != 255) {
-                SDL_SetTextureColorMod(texture, 255, 255, 255);
-                state.colorR = state.colorG = state.colorB = 255;
-            }
-
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
-            state.blend = SDL_BLENDMODE_ADD;
-
-            Uint8 addAlpha = Uint8(255 * b * opacity);
-            SDL_SetTextureAlphaMod(texture, addAlpha);
-            state.alpha = addAlpha;
-
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-
-            SDL_SetTextureBlendMode(texture, normalBlendMode);
-            state.blend = normalBlendMode;
-
-            SDL_SetTextureAlphaMod(texture, alpha);
-            state.alpha = alpha;
-
-        } else {
-            Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
-            if (state.colorR != col || state.colorG != col || state.colorB != col) {
-                SDL_SetTextureColorMod(texture, col, col, col);
-                state.colorR = state.colorG = state.colorB = col;
-            }
-
-            SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
-
-            SDL_SetTextureColorMod(texture, 255, 255, 255);
-            state.colorR = state.colorG = state.colorB = 255;
+        drawQuad(255, 255, 255, alpha, NV2ABlendMode::Blend);
+#ifndef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+        uint8_t addA = static_cast<uint8_t>(255.0f * b * opacity);
+        if (addA > 0) {
+            drawQuad(255, 255, 255, addA, NV2ABlendMode::Add);
         }
+#endif
+    } else if (brightness < 0) {
+        float b = brightness * 0.01f;
+        uint8_t dim = static_cast<uint8_t>(255.0f * std::clamp(1.0f + b, 0.0f, 1.0f));
+        drawQuad(dim, dim, dim, alpha, NV2ABlendMode::Blend);
     } else {
-        if (state.colorR != 255 || state.colorG != 255 || state.colorB != 255) {
-            SDL_SetTextureColorMod(texture, 255, 255, 255);
-            state.colorR = state.colorG = state.colorB = 255;
-        }
-        SDL_RenderTextureRotated(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+        drawQuad(255, 255, 255, alpha, NV2ABlendMode::Blend);
     }
-    freeTimer = maxFreeTimer;
 }
 
-// I doubt you want to mess with this...
 void Image_Xbox::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
     if (!texture) return;
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) return;
 
-    const float destX = xPos - (centered ? width / 2.0f : 0);
-    const float destY = yPos - (centered ? height / 2.0f : 0);
-    const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), getWidth() / 2.0f), static_cast<float>(getHeight())) / 2.0f);
+    float destX = static_cast<float>(xPos - (centered ? width / 2.0f : 0));
+    float destY = static_cast<float>(yPos - (centered ? height / 2.0f : 0));
+    destX = std::round(destX);
+    destY = std::round(destY);
+    const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), getWidth() / 2.0f), static_cast<float>(getHeight()) / 2.0f));
 
     const float srcCenterWidth = std::max(0.0f, imgData.width - 2 * srcPadding);
     const float srcCenterHeight = std::max(0.0f, imgData.height - 2 * srcPadding);
 
-    const SDL_FRect srcTopLeft = {0, 0, srcPadding, srcPadding};
-    const SDL_FRect srcTop = {srcPadding, 0, srcCenterWidth, srcPadding};
-    const SDL_FRect srcTopRight = {imgData.width - srcPadding, 0, srcPadding, srcPadding};
-    const SDL_FRect srcLeft = {0, srcPadding, srcPadding, srcCenterHeight};
-    const SDL_FRect srcCenter = {srcPadding, srcPadding, srcCenterWidth, srcCenterHeight};
-    const SDL_FRect srcRight = {imgData.width - srcPadding, srcPadding, srcPadding, srcCenterHeight};
-    const SDL_FRect srcBottomLeft = {0, imgData.height - srcPadding, srcPadding, srcPadding};
-    const SDL_FRect srcBottom = {srcPadding, imgData.height - srcPadding, srcCenterWidth, srcPadding};
-    const SDL_FRect srcBottomRight = {imgData.width - srcPadding, imgData.height - srcPadding, srcPadding, srcPadding};
-
     const float dstCenterWidth = std::max(0.0f, static_cast<float>(width) - 2 * srcPadding);
     const float dstCenterHeight = std::max(0.0f, static_cast<float>(height) - 2 * srcPadding);
 
-    const SDL_FRect dstTopLeft = {destX, destY, srcPadding, srcPadding};
-    const SDL_FRect dstTop = {destX + srcPadding, destY, dstCenterWidth, srcPadding};
-    const SDL_FRect dstTopRight = {destX + srcPadding + dstCenterWidth, destY, srcPadding, srcPadding};
+    float sx[4] = {0, srcPadding, srcPadding + srcCenterWidth, static_cast<float>(imgData.width)};
+    float sy[4] = {0, srcPadding, srcPadding + srcCenterHeight, static_cast<float>(imgData.height)};
 
-    const SDL_FRect dstLeft = {destX, destY + srcPadding, srcPadding, dstCenterHeight};
-    const SDL_FRect dstCenter = {destX + srcPadding, destY + srcPadding, dstCenterWidth, dstCenterHeight};
-    const SDL_FRect dstRight = {destX + srcPadding + dstCenterWidth, destY + srcPadding, srcPadding, dstCenterHeight};
-    const SDL_FRect dstBottomLeft = {destX, destY + srcPadding + dstCenterHeight, srcPadding, srcPadding};
-    const SDL_FRect dstBottom = {destX + srcPadding, destY + srcPadding + dstCenterHeight, dstCenterWidth, srcPadding};
-    const SDL_FRect dstBottomRight = {destX + srcPadding + dstCenterWidth, destY + srcPadding + dstCenterHeight, srcPadding, srcPadding};
+    float dx[4] = {destX, destX + srcPadding, destX + srcPadding + dstCenterWidth, destX + static_cast<float>(width)};
+    float dy[4] = {destY, destY + srcPadding, destY + srcPadding + dstCenterHeight, destY + static_cast<float>(height)};
 
-    SDL_ScaleMode originalScaleMode;
-    SDL_GetTextureScaleMode(texture, &originalScaleMode);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+    std::vector<NV2AVertex> verts;
+    verts.reserve(9 * 6);
 
-    SDL_RenderTexture(sdlRenderer, texture, &srcTopLeft, &dstTopLeft);
-    SDL_RenderTexture(sdlRenderer, texture, &srcTop, &dstTop);
-    SDL_RenderTexture(sdlRenderer, texture, &srcTopRight, &dstTopRight);
-    SDL_RenderTexture(sdlRenderer, texture, &srcLeft, &dstLeft);
-    SDL_RenderTexture(sdlRenderer, texture, &srcCenter, &dstCenter);
-    SDL_RenderTexture(sdlRenderer, texture, &srcRight, &dstRight);
-    SDL_RenderTexture(sdlRenderer, texture, &srcBottomLeft, &dstBottomLeft);
-    SDL_RenderTexture(sdlRenderer, texture, &srcBottom, &dstBottom);
-    SDL_RenderTexture(sdlRenderer, texture, &srcBottomRight, &dstBottomRight);
+    for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col) {
+            float x0 = dx[col], x1 = dx[col + 1];
+            float y0 = dy[row], y1 = dy[row + 1];
+            if (x1 <= x0 || y1 <= y0) continue;
 
-    SDL_SetTextureScaleMode(texture, originalScaleMode);
-    freeTimer = maxFreeTimer;
+            float u0 = (sx[col] / static_cast<float>(imgData.width)) * texture->uScale;
+            float v0 = (sy[row] / static_cast<float>(imgData.height)) * texture->vScale;
+            float u1 = (sx[col + 1] / static_cast<float>(imgData.width)) * texture->uScale;
+            float v1 = (sy[row + 1] / static_cast<float>(imgData.height)) * texture->vScale;
+
+            NV2AVertex quad[6] = {
+                {{x0, y0}, {255, 255, 255, 255}, {u0, v0}},
+                {{x1, y0}, {255, 255, 255, 255}, {u1, v0}},
+                {{x1, y1}, {255, 255, 255, 255}, {u1, v1}},
+                {{x0, y0}, {255, 255, 255, 255}, {u0, v0}},
+                {{x1, y1}, {255, 255, 255, 255}, {u1, v1}},
+                {{x0, y1}, {255, 255, 255, 255}, {u0, v1}}};
+            for (int k = 0; k < 6; ++k)
+                verts.push_back(quad[k]);
+        }
+    }
+
+    if (!verts.empty()) {
+        nv2aRenderer->bindTexture(texture, texture->scaleMode);
+        nv2aRenderer->setBlendMode(NV2ABlendMode::Blend);
+        nv2aRenderer->drawTriangles(verts.data(), verts.size());
+    }
 }
 
 void *Image_Xbox::getNativeTexture() {
@@ -900,11 +2975,18 @@ void *Image_Xbox::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) return nonstd::make_unexpected("No NV2A renderer");
+    if (!imgData.pixels || imgData.width <= 0 || imgData.height <= 0)
+        return nonstd::make_unexpected("Missing NV2A source pixels");
+
     const int maxDim = getMaxTextureDim();
     while (imgData.width > maxDim || imgData.height > maxDim) {
         int dw, dh;
         unsigned char *downscaled = Image::resizeRaster(static_cast<unsigned char *>(imgData.pixels),
-                                                        imgData.width, imgData.height, dw, dh);
+                                                        imgData.width, imgData.height, dw, dh, this);
         if (!downscaled) break;
         imgData.scale *= static_cast<float>(dw) / static_cast<float>(imgData.width);
         free(imgData.pixels);
@@ -916,126 +2998,71 @@ nonstd::expected<void, std::string> Image_Xbox::setInitialTexture() {
 
     if (imgData.width > TILE_THRESHOLD || imgData.height > TILE_THRESHOLD) return buildTiles();
 
-    const bool is64MB = !OS::isEnhancedPlatform();
-    if (!is64MB || (imgData.width * imgData.height <= 128 * 128)) {
-        texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-        if (!texture) {
-            Scratch::freeUnusedCostumeImages();
-            texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-        }
-    }
-
-    if (!texture) {
-        // Fall back to DXT1 (opaque/cutout), DXT5 (smooth alpha), then 16-bit to avoid Out Of Memory
-        bool isOpaque = true;
-        bool isBinaryAlpha = true;
-        const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
-        for (int y = 0; y < imgData.height; y++) {
-            const uint8_t *row = src + y * imgData.pitch;
-            for (int x = 0; x < imgData.width; x++) {
-                uint8_t a = row[x * 4 + 3];
-                if (a != 255) {
-                    isOpaque = false;
-                    if (a != 0) isBinaryAlpha = false;
-                }
-            }
-        }
-
-        bool skip16bit = false;
-
-        // Prevent DXT compression on small textures and pixel art
-        // to avoid 4x4 block bleeding artifacts on sharp transparent edges.
-        if (imgData.width * imgData.height > 128 * 128) {
-            const uint32_t codec = (isOpaque || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
-            const auto data = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
-                                              0, 0, imgData.width, imgData.height, codec, isOpaque, false);
-            texture = createDXTTexture(sdlRenderer, imgData.width, imgData.height, codec, data.data());
-            if (texture) return {};
-            // 16-bit needs 2-4x the memory of DXT; don't bother if DXT failed for lack of memory.
-            skip16bit = lastSDLErrorWasOOM();
-        }
-
-        const SDL_PixelFormat fmt = isOpaque ? SDL_PIXELFORMAT_RGB565 : (isBinaryAlpha ? SDL_PIXELFORMAT_ARGB1555 : SDL_PIXELFORMAT_ARGB4444);
-        texture = skip16bit ? nullptr : SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-        if (!texture && !skip16bit) {
-            Scratch::freeUnusedCostumeImages();
-            texture = SDL_CreateTexture(sdlRenderer, fmt, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
-        }
-
-        if (texture) {
-            std::vector<uint16_t> scratch16(static_cast<size_t>(imgData.width) * imgData.height);
-            if (isOpaque) {
-                for (int y = 0; y < imgData.height; y++) {
-                    const uint8_t *row = src + y * imgData.pitch;
-                    uint16_t *out = scratch16.data() + y * imgData.width;
-                    for (int x = 0; x < imgData.width; x++) {
-                        int dither = ditherMatrix[y & 1][x & 1];
-                        int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 3;
-                        int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + (dither >> 1), 0, 255) >> 2;
-                        int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 3;
-                        out[x] = static_cast<uint16_t>((r << 11) | (g << 5) | b);
-                    }
-                }
-            } else if (isBinaryAlpha) {
-                for (int y = 0; y < imgData.height; y++) {
-                    const uint8_t *row = src + y * imgData.pitch;
-                    uint16_t *out = scratch16.data() + y * imgData.width;
-                    for (int x = 0; x < imgData.width; x++) {
-                        int dither = ditherMatrix[y & 1][x & 1];
-                        int a = (row[x * 4 + 3] >= 128) ? 1 : 0;
-                        int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 3;
-                        int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + dither, 0, 255) >> 3;
-                        int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 3;
-                        out[x] = static_cast<uint16_t>((a << 15) | (r << 10) | (g << 5) | b);
-                    }
-                }
-            } else {
-                for (int y = 0; y < imgData.height; y++) {
-                    const uint8_t *row = src + y * imgData.pitch;
-                    uint16_t *out = scratch16.data() + y * imgData.width;
-                    for (int x = 0; x < imgData.width; x++) {
-                        int dither = ditherMatrix[y & 1][x & 1] * 2;
-                        int a = std::clamp(static_cast<int>(row[x * 4 + 3]) + dither, 0, 255) >> 4;
-                        int r = std::clamp(static_cast<int>(row[x * 4 + 0]) + dither, 0, 255) >> 4;
-                        int g = std::clamp(static_cast<int>(row[x * 4 + 1]) + dither, 0, 255) >> 4;
-                        int b = std::clamp(static_cast<int>(row[x * 4 + 2]) + dither, 0, 255) >> 4;
-                        out[x] = static_cast<uint16_t>((a << 12) | (r << 8) | (g << 4) | b);
-                    }
-                }
-            }
-
-            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-            SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
-            if (!SDL_UpdateTexture(texture, nullptr, scratch16.data(), imgData.width * 2)) {
-                safeDestroyTexture(texture);
-            } else {
-                return {};
+    bool isOpaqueImg = true;
+    bool isBinaryAlpha = true;
+    const uint8_t *src = static_cast<const uint8_t *>(imgData.pixels);
+    for (int y = 0; y < imgData.height; y++) {
+        const uint8_t *row = src + static_cast<size_t>(y) * imgData.pitch;
+        for (int x = 0; x < imgData.width; x++) {
+            const uint8_t a = row[x * 4 + 3];
+            if (a != 255) {
+                isOpaqueImg = false;
+                if (a != 0) isBinaryAlpha = false;
             }
         }
     }
 
-    // Last resort: split into smaller allocations that fit in a fragmented heap.
-    if (!texture && (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE)) {
-        Scratch::freeUnusedCostumeImages();
+    const size_t area = static_cast<size_t>(imgData.width) * imgData.height;
+    const size_t freeMem = getAvailablePhysicalMemory();
+    // Keep small textures crisp; use 32-bit surfaces on enhanced consoles when memory allows.
+    const bool prefer32Bit = area <= 128u * 128u ||
+                             (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u);
+    // DXT saves memory but introduces visible blocks. For 1:1/upscaled content and SVGs, prefer
+    // a 16-bit swizzled surface when the contiguous heap has room for it.
+    const bool prefer16Bit = (isSVGImage || imgData.scale <= 1.0f) &&
+                             freeMem > 8u * 1024u * 1024u;
+    const uint32_t codec16 = isOpaqueImg ? CODEC_RGB565 : (isBinaryAlpha ? CODEC_ARGB1555 : CODEC_ARGB4444);
+    const uint32_t codecDXT = (isOpaqueImg || isBinaryAlpha) ? CODEC_DXT1 : CODEC_DXT5;
+
+    if (prefer32Bit) {
+        texture = createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                   CODEC_RGBA32, src, this, imgData.pitch);
+        if (texture) return {};
+    }
+
+    if (prefer16Bit) {
+        const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                              0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height, codec16, packed.data(), this);
+        if (texture) return {};
+    }
+
+    // DXT is the compact path for textures that are being downscaled at render time or when
+    // the contiguous heap is tight. Spend more encoder effort on SVGs and 1:1 textures.
+    const auto dxtData = encodeRegionDXT(src, imgData.pitch, imgData.width, imgData.height,
+                                         0, 0, imgData.width, imgData.height, codecDXT,
+                                         isOpaqueImg, imgData.scale <= 1.0f || isSVGImage);
+    texture = dxtData.empty() ? nullptr : createDXTTexture(nv2aRenderer, imgData.width, imgData.height, codecDXT, dxtData.data(), this);
+    if (texture) return {};
+
+    if (!prefer16Bit) {
+        const auto packed = encodeRegionCache(src, imgData.pitch, imgData.width, imgData.height,
+                                              0, 0, imgData.width, imgData.height, codec16, isOpaqueImg, false);
+        texture = packed.empty() ? nullptr : createRawTexture(nv2aRenderer, imgData.width, imgData.height, codec16, packed.data(), this);
+        if (texture) return {};
+    }
+
+    if (!prefer32Bit) {
+        texture = createRawTexture(nv2aRenderer, imgData.width, imgData.height,
+                                   CODEC_RGBA32, src, this, imgData.pitch);
+        if (texture) return {};
+    }
+
+    if (imgData.width > TILE_SIZE || imgData.height > TILE_SIZE) {
+        Scratch::freeUnusedCostumeImages(this);
         return buildTiles();
     }
-
-    if (!texture) {
-        const std::string err = "Failed to create texture: " + std::string(SDL_GetError()) + " [" + freeMemKB() + "]";
-        Log::logError(err);
-        return nonstd::make_unexpected(err);
-    }
-
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
-
-    if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
-        const std::string err = "Failed to update texture: " + std::string(SDL_GetError());
-        Log::logError(err);
-        return nonstd::make_unexpected(err);
-    }
-
-    return {};
+    return nonstd::make_unexpected("Failed to create NV2A texture");
 }
 
 static std::string getProjectCacheKey() {
@@ -1044,23 +3071,32 @@ static std::string getProjectCacheKey() {
         key = "embedded";
     } else {
         size_t lastSlash = key.find_last_of("/\\");
-        if (lastSlash != std::string::npos) {
-            key = key.substr(lastSlash + 1);
-        }
+        if (lastSlash != std::string::npos) key = key.substr(lastSlash + 1);
         size_t dot = key.find_last_of('.');
-        if (dot != std::string::npos) {
-            key = key.substr(0, dot);
-        }
+        if (dot != std::string::npos) key = key.substr(0, dot);
     }
     std::string clean;
     for (char c : key) {
-        if (isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') {
-            clean += c;
-        }
+        if (isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') clean += c;
     }
     if (clean.empty()) clean = "project";
     if (clean.length() > 24) clean = clean.substr(0, 24);
     return clean;
+}
+
+// Read compatible caches produced by the removed SDL3-based Xbox renderer.
+// Keep this naming-only helper independent of that backend.
+static std::string getLegacyXboxTextureCachePath(const std::string &assetName) {
+    if (assetName.empty() || Sb2BitmapLayers::split(assetName)) return "";
+    std::string base = assetName;
+    const auto slash = base.find_last_of("/\\");
+    if (slash != std::string::npos) base = base.substr(slash + 1);
+    const auto dot = base.find_last_of('.');
+    if (dot != std::string::npos) base = base.substr(0, dot);
+    if (base.empty()) return "";
+    if (base.length() > 36) base.resize(36);
+    return OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
+        "_xbox_v5_" + (OS::isEnhancedPlatform() ? "128m" : "64m") + "\\" + base + ".xbt";
 }
 
 std::string Image_Xbox::getTextureCacheDir() {
@@ -1069,178 +3105,160 @@ std::string Image_Xbox::getTextureCacheDir() {
         cachedProjectPath = Unzip::filePath;
         std::string ramMode = OS::isEnhancedPlatform() ? "128m" : "64m";
         cachedDir = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey() +
-                    "_xbox_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
+                    "_nv2a_v" + std::to_string(XBT_VERSION) + "_" + ramMode + "\\";
     }
     return cachedDir;
 }
 
 std::string Image_Xbox::getTextureCachePath(const std::string &assetName) {
     if (assetName.empty()) return "";
-    // The disk precacher reads individual archive members. Layered SB2
-    // costumes are composed at load time and retain their own RAM cache key.
-    if (Sb2BitmapLayers::split(assetName)) return "";
     std::string base = assetName;
     size_t lastSlash = base.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        base = base.substr(lastSlash + 1);
-    }
+    if (lastSlash != std::string::npos) base = base.substr(lastSlash + 1);
     size_t lastDot = base.find_last_of('.');
-    if (lastDot != std::string::npos) {
-        base = base.substr(0, lastDot);
-    }
+    if (lastDot != std::string::npos) base = base.substr(0, lastDot);
     if (base.empty()) return "";
     if (base.length() > 36) base = base.substr(0, 36);
     return getTextureCacheDir() + base + ".xbt";
 }
 
-static bool writeCompressedTextureCache(const std::string &cachePath, int width, int height,
-                                        const uint8_t *src, int pitch, bool isOpaque, uint32_t codec, float logicalScale) {
-    const std::string tempPath = cachePath + ".tmp";
-    FILE *f = fopen(tempPath.c_str(), "wb");
-    if (!f) return false;
-    auto fail = [&]() {
-        fclose(f);
-        remove(tempPath.c_str());
-        return false;
-    };
-
-    const bool isTiled = (width > TILE_THRESHOLD || height > TILE_THRESHOLD);
-    const int stepX = isTiled ? TILE_SIZE : width;
-    const int stepY = isTiled ? TILE_SIZE : height;
-
-    uint32_t numTiles = 0;
-    for (int ty = 0; ty < height; ty += stepY)
-        for (int tx = 0; tx < width; tx += stepX)
-            numTiles++;
-
-    XBTHeader header;
-    memcpy(header.magic, "XBTX", 4);
-    header.version = XBT_VERSION;
-    header.width = width;
-    header.height = height;
-    header.isTiled = isTiled ? 1 : 0;
-    header.numTiles = numTiles;
-    header.flags = isOpaque ? 0 : 1;
-    header.scale = logicalScale; // Save the scale!
-
-    // 1 bit per pixel, LSB first within each byte. Bit set = alpha > 0.
-    std::vector<uint8_t> alphaMask;
-    if (!isOpaque) {
-        const int maskPitch = (width + 7) / 8;
-        alphaMask.assign(static_cast<size_t>(maskPitch) * height, 0);
-        for (int y = 0; y < height; y++) {
-            const uint8_t *row = src + static_cast<size_t>(y) * pitch;
-            uint8_t *maskRow = alphaMask.data() + static_cast<size_t>(y) * maskPitch;
-            for (int x = 0; x < width; x++) {
-                if (row[x * 4 + 3] != 0) maskRow[x >> 3] |= static_cast<uint8_t>(1u << (x & 7));
-            }
-        }
-    }
-    header.maskSize = static_cast<uint32_t>(alphaMask.size());
-
-    if (fwrite(&header, sizeof(header), 1, f) != 1) return fail();
-    if (!alphaMask.empty() && fwrite(alphaMask.data(), 1, alphaMask.size(), f) != alphaMask.size()) return fail();
-
-    for (int ty = 0; ty < height; ty += stepY) {
-        for (int tx = 0; tx < width; tx += stepX) {
-            const int tw = std::min(stepX, width - tx);
-            const int th = std::min(stepY, height - ty);
-            const auto data = encodeRegionDXT(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque, true);
-
-            XBTTileHeader tileHeader;
-            tileHeader.x = tx;
-            tileHeader.y = ty;
-            tileHeader.w = tw;
-            tileHeader.h = th;
-            tileHeader.dataSize = static_cast<uint32_t>(data.size());
-            tileHeader.codec = codec;
-            if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
-                fwrite(data.data(), 1, data.size(), f) != data.size()) return fail();
-        }
-    }
-
-    fclose(f);
-    remove(cachePath.c_str());
-    return rename(tempPath.c_str(), cachePath.c_str()) == 0;
-}
-
 bool Image_Xbox::loadFromCache(const std::string &cachePath) {
-    g_cacheLoadOOM = false;
     FILE *f = fopen(cachePath.c_str(), "rb");
     if (!f) return false;
 
-    XBTHeader header;
-    if (fread(&header, sizeof(header), 1, f) != 1 ||
-        (memcmp(header.magic, "XBTX", 4) != 0 &&
-         memcmp(header.magic, "XBTN", 4) != 0 &&
-         memcmp(header.magic, "XBT1", 4) != 0) ||
-        (header.version != XBT_VERSION && header.version != 6) ||
-        header.numTiles == 0) {
+    XBTHeader header{};
+    const bool headerRead = fread(&header, sizeof(header), 1, f) == 1;
+    const bool supportedVersion = header.version == XBT_VERSION || header.version == 6 || header.version == 5;
+    const bool validMagic = memcmp(header.magic, "XBTN", 4) == 0 ||
+                            memcmp(header.magic, "XBTX", 4) == 0 ||
+                            memcmp(header.magic, "XBT1", 4) == 0;
+    const bool dimensionsValid = header.width > 0 && header.height > 0 &&
+                                 header.width <= static_cast<uint32_t>(getMaxTextureDim()) &&
+                                 header.height <= static_cast<uint32_t>(getMaxTextureDim());
+    const uint64_t maskPitch = (static_cast<uint64_t>(header.width) + 7) / 8;
+    const uint64_t expectedMaskSize = maskPitch * header.height;
+    const uint64_t expectedTileCount = header.isTiled
+                                           ? ((static_cast<uint64_t>(header.width) + TILE_SIZE - 1) / TILE_SIZE) *
+                                                 ((static_cast<uint64_t>(header.height) + TILE_SIZE - 1) / TILE_SIZE)
+                                           : 1;
+    const bool validHeader = headerRead && validMagic && supportedVersion && dimensionsValid &&
+                             header.isTiled <= 1 && header.numTiles > 0 &&
+                             header.numTiles == expectedTileCount &&
+                             (header.maskSize == 0 || header.maskSize == expectedMaskSize) &&
+                             std::isfinite(header.scale) && header.scale >= 0.0f;
+    if (!validHeader) {
         fclose(f);
         remove(cachePath.c_str());
         return false;
     }
 
-    // Any failure after this point must leave no partial state behind.
-    auto bail = [&]() {
-        destroyTiles();
-        safeDestroyTexture(texture);
-        alphaMask.clear();
-        alphaMaskPitch = 0;
+    if (!nv2aRenderer && Render::getGlobalRenderer()) {
+        nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    }
+    if (!nv2aRenderer) {
         fclose(f);
-        remove(cachePath.c_str());
+        return false;
+    }
+
+    std::vector<uint8_t> loadedAlphaMask;
+    if (header.maskSize != 0) {
+        loadedAlphaMask.resize(header.maskSize);
+        if (fread(loadedAlphaMask.data(), 1, header.maskSize, f) != header.maskSize) {
+            fclose(f);
+            remove(cachePath.c_str());
+            return false;
+        }
+    }
+
+    NV2ATexture *loadedTexture = nullptr;
+    std::vector<Tile> loadedTiles;
+    if (header.isTiled) loadedTiles.reserve(header.numTiles);
+    auto destroyLoaded = [&]() {
+        if (loadedTexture) nv2aRenderer->destroyTexture(loadedTexture);
+        for (auto &tile : loadedTiles)
+            nv2aRenderer->destroyTexture(tile.texture);
+        loadedTiles.clear();
+    };
+    auto fail = [&](bool corrupt) {
+        destroyLoaded();
+        fclose(f);
+        if (corrupt) remove(cachePath.c_str());
         return false;
     };
 
-    imgData.width = header.width;
-    imgData.height = header.height;
-    imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
-    imgData.pitch = header.width * 4;
-    freePixels(); // A previous color query may have restored the CPU buffer.
-    isOpaque = !(header.flags & 1);
+    const int columns = header.isTiled ? static_cast<int>((header.width + TILE_SIZE - 1) / TILE_SIZE) : 1;
+    const size_t imagePixels = static_cast<size_t>(header.width) * header.height;
+    const size_t freeMem = getAvailablePhysicalMemory();
+    const bool allowRGBA32 = imagePixels <= 128u * 128u ||
+                             (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u);
+    const bool allowRaw16 = imagePixels <= 128u * 128u || freeMem > 8u * 1024u * 1024u;
 
-    alphaMask.clear();
-    alphaMaskPitch = 0;
-    if (header.maskSize > 0) {
-        const uint32_t pitchBytes = (header.width + 7) / 8;
-        if (header.maskSize != pitchBytes * header.height) return bail();
-        alphaMask.resize(header.maskSize);
-        if (fread(alphaMask.data(), 1, header.maskSize, f) != header.maskSize) return bail();
-        alphaMaskPitch = static_cast<int>(pitchBytes);
-    }
+    for (uint32_t i = 0; i < header.numTiles; ++i) {
+        XBTTileHeader th{};
+        if (fread(&th, sizeof(th), 1, f) != 1) return fail(true);
 
-    destroyTiles();
-    for (uint32_t i = 0; i < header.numTiles; i++) {
-        XBTTileHeader th;
-        if (fread(&th, sizeof(th), 1, f) != 1 ||
-            (th.codec != CODEC_DXT1 && th.codec != CODEC_DXT5) ||
-            th.dataSize > 4 * 1024 * 1024) {
-            return bail();
+        const int expectedX = header.isTiled ? static_cast<int>(i % columns) * TILE_SIZE : 0;
+        const int expectedY = header.isTiled ? static_cast<int>(i / columns) * TILE_SIZE : 0;
+        const int expectedW = std::min<int>(header.isTiled ? TILE_SIZE : header.width, static_cast<int>(header.width) - expectedX);
+        const int expectedH = std::min<int>(header.isTiled ? TILE_SIZE : header.height, static_cast<int>(header.height) - expectedY);
+        const bool codecValid = isDXTCodec(th.codec) || (header.version == XBT_VERSION && isRawCodec(th.codec));
+        // Validate untrusted cache dimensions against the expected tile layout before using
+        // them in any power-of-two or size calculation.
+        if (!codecValid || th.x != expectedX || th.y != expectedY ||
+            th.w != expectedW || th.h != expectedH) {
+            return fail(true);
         }
+        const size_t expectedSize = expectedCacheDataSize(expectedW, expectedH, th.codec);
+        if (expectedSize == 0 || expectedSize > 4u * 1024u * 1024u || th.dataSize != expectedSize) {
+            return fail(true);
+        }
+
+        // Raw formats are higher quality but can fragment the 64MB contiguous heap. If the
+        // current memory budget no longer permits one, let normal runtime selection choose DXT.
+        if ((th.codec == CODEC_RGBA32 && !allowRGBA32) ||
+            (isRawCodec(th.codec) && th.codec != CODEC_RGBA32 && !allowRaw16)) {
+            return fail(false);
+        }
+
         std::vector<uint8_t> data(th.dataSize);
-        if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return bail();
+        if (fread(data.data(), 1, th.dataSize, f) != th.dataSize) return fail(true);
 
-        SDL_Texture *t = createDXTTexture(sdlRenderer, th.w, th.h, th.codec, data.data());
-        if (!t) {
-            g_cacheLoadOOM = lastSDLErrorWasOOM();
-            Log::logWarning("Cache load failed (" + std::string(SDL_GetError()) + ") [" + freeMemKB() + "]: " + cachePath);
-            return bail();
-        }
+        NV2ATexture *t = isDXTCodec(th.codec)
+                             ? createDXTTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this)
+                             : createRawTexture(nv2aRenderer, th.w, th.h, th.codec, data.data(), this);
+        if (!t) return fail(false);
 
         if (!header.isTiled) {
-            texture = t;
-            fclose(f);
-            return true;
+            loadedTexture = t;
+        } else {
+            Tile tile;
+            tile.x = th.x;
+            tile.y = th.y;
+            tile.w = th.w;
+            tile.h = th.h;
+            tile.texture = t;
+            loadedTiles.push_back(tile);
         }
-        Tile tile;
-        tile.x = th.x;
-        tile.y = th.y;
-        tile.w = th.w;
-        tile.h = th.h;
-        tile.texture = t;
-        tiles.push_back(tile);
     }
+
+    // Commit only after the whole cache has been validated and allocated. A corrupt/truncated
+    // cache must never null out or leak the still-usable source pixels during refreshTexture().
     fclose(f);
+    if (texture) nv2aRenderer->destroyTexture(texture);
+    destroyTiles();
+    if (imgData.pixels) {
+        free(imgData.pixels);
+        imgData.pixels = nullptr;
+    }
+    imgData.width = static_cast<int>(header.width);
+    imgData.height = static_cast<int>(header.height);
+    imgData.scale = header.scale > 0.0f ? header.scale : 1.0f;
+    imgData.pitch = imgData.width * 4;
+    isOpaque = !(header.flags & 1);
+    alphaMask = std::move(loadedAlphaMask);
+    alphaMaskPitch = alphaMask.empty() ? 0 : static_cast<int>((header.width + 7) / 8);
+    texture = loadedTexture;
+    tiles = std::move(loadedTiles);
     return true;
 }
 
@@ -1286,9 +3304,80 @@ static void freeProjectAsset(void *ptr) {
     free(ptr);
 }
 
+static bool writeCompressedTextureCache(const std::string &cachePath, int width, int height,
+                                        const uint8_t *src, int pitch, bool isOpaque, uint32_t codec, float logicalScale) {
+    const std::string tempPath = cachePath + ".tmp";
+    FILE *f = fopen(tempPath.c_str(), "wb");
+    if (!f) return false;
+    auto fail = [&]() {
+        fclose(f);
+        remove(tempPath.c_str());
+        return false;
+    };
+
+    const bool isTiled = (width > TILE_THRESHOLD || height > TILE_THRESHOLD);
+    const int stepX = isTiled ? TILE_SIZE : width;
+    const int stepY = isTiled ? TILE_SIZE : height;
+
+    uint32_t numTiles = 0;
+    for (int ty = 0; ty < height; ty += stepY)
+        for (int tx = 0; tx < width; tx += stepX)
+            numTiles++;
+
+    XBTHeader header;
+    memcpy(header.magic, "XBTN", 4);
+    header.version = XBT_VERSION;
+    header.width = width;
+    header.height = height;
+    header.isTiled = isTiled ? 1 : 0;
+    header.numTiles = numTiles;
+    header.flags = isOpaque ? 0 : 1;
+    header.scale = logicalScale;
+
+    std::vector<uint8_t> alphaMask;
+    if (!isOpaque) {
+        const int maskPitch = (width + 7) / 8;
+        alphaMask.assign(static_cast<size_t>(maskPitch) * height, 0);
+        for (int y = 0; y < height; y++) {
+            const uint8_t *row = src + static_cast<size_t>(y) * pitch;
+            uint8_t *maskRow = alphaMask.data() + static_cast<size_t>(y) * maskPitch;
+            for (int x = 0; x < width; x++) {
+                if (row[x * 4 + 3] != 0) maskRow[x >> 3] |= static_cast<uint8_t>(1u << (x & 7));
+            }
+        }
+    }
+    header.maskSize = static_cast<uint32_t>(alphaMask.size());
+
+    if (fwrite(&header, sizeof(header), 1, f) != 1) return fail();
+    if (!alphaMask.empty() && fwrite(alphaMask.data(), 1, alphaMask.size(), f) != alphaMask.size()) return fail();
+
+    for (int ty = 0; ty < height; ty += stepY) {
+        for (int tx = 0; tx < width; tx += stepX) {
+            const int tw = std::min(stepX, width - tx);
+            const int th = std::min(stepY, height - ty);
+            const auto data = encodeRegionCache(src, pitch, width, height, tx, ty, tw, th, codec, isOpaque, true);
+            if (data.empty()) return fail();
+
+            XBTTileHeader tileHeader;
+            tileHeader.x = tx;
+            tileHeader.y = ty;
+            tileHeader.w = tw;
+            tileHeader.h = th;
+            tileHeader.dataSize = static_cast<uint32_t>(data.size());
+            tileHeader.codec = codec;
+            if (fwrite(&tileHeader, sizeof(tileHeader), 1, f) != 1 ||
+                fwrite(data.data(), 1, data.size(), f) != data.size()) return fail();
+        }
+    }
+
+    fclose(f);
+    remove(cachePath.c_str());
+    return rename(tempPath.c_str(), cachePath.c_str()) == 0;
+}
+
 // Describes how a cache was built. Stored in .complete: a cache built under different settings is rebuilt.
 static std::string textureCacheSignature() {
-    return "xbox_xbt=" + std::to_string(XBT_VERSION) +
+    return "nv2a_xbt=" + std::to_string(XBT_VERSION) +
            " ram=" + (OS::isEnhancedPlatform() ? "128" : "64") +
            " tile=" + std::to_string(TILE_SIZE) + "/" + std::to_string(TILE_THRESHOLD) +
            " maxdim=" + std::to_string(getMaxTextureDim());
@@ -1314,26 +3403,12 @@ static bool writeTextFile(const std::string &path, const std::string &text) {
     return ok;
 }
 
-// Deletes every file in a cache folder so it will be rebuilt from scratch.
 static void clearTextureCacheDir(const std::string &dir) {
     auto files = FileSystem::listDirectory(dir);
     if (!files.has_value()) return;
     for (const std::string &name : files.value()) {
         if (name == "." || name == "..") continue;
         remove((dir + name).c_str());
-    }
-}
-
-// Removes this project's cache folders from older cache versions. Early builds named folders "_v<N>\",
-// later ones "_v<N>h\" and "_v<N>f\", so all three forms are tried.
-static void removeStaleTextureCaches() {
-    const std::string base = OS::getScratchFolderLocation() + "cache\\" + getProjectCacheKey();
-    const char *suffixes[] = {"", "h", "f", "_64m", "_128m"};
-    for (uint32_t v = 1; v < XBT_VERSION; v++) {
-        for (const char *suffix : suffixes) {
-            auto result = FileSystem::removeDirectory(base + "_v" + std::to_string(v) + suffix + "\\");
-            (void)result; // folders that don't exist just return an error
-        }
     }
 }
 
@@ -1348,12 +3423,10 @@ void Image_Xbox::precacheProjectTextures() {
         const std::string builtFor = readTextFile(completeFile);
         if (builtFor == signature) return;
 
-        Log::log("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
+        NV2A_LOG("Texture cache was built for different settings; rebuilding. Built: [" + builtFor +
                  "] Current: [" + signature + "]");
         clearTextureCacheDir(cacheDir);
     }
-
-    removeStaleTextureCaches();
 
     bool cachingStateSet = false;
     auto ensureCachingState = [&]() {
@@ -1365,9 +3438,6 @@ void Image_Xbox::precacheProjectTextures() {
 
     bool allSucceeded = true;
 
-    // Opaque costumes are always cached. Non-opaque costumes are cached when they are stage backdrops,
-    // or sprites large enough (CACHE_MIN_ALPHA_PIXELS) that dropping the RGBA buffer matters. Cached
-    // images have no CPU pixels, so their collision data is stored as a 1-bit alpha mask instead.
     auto precacheCostume = [&](const Costume &costume, bool isStage) {
         if (costume.isSVG) return;
         const std::string &name = costume.fullName;
@@ -1379,26 +3449,26 @@ void Image_Xbox::precacheProjectTextures() {
             if (vf) {
                 XBTHeader vhdr;
                 bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
-                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
-                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                           (memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTX", 4) == 0 ||
                             memcmp(vhdr.magic, "XBT1", 4) == 0) &&
-                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 5) &&
                            vhdr.numTiles > 0);
                 fclose(vf);
                 if (ok) return;
                 remove(cachePath.c_str());
             }
         }
-        std::string altCachePath = Image_NV2A::getTextureCachePath(name);
+        std::string altCachePath = getLegacyXboxTextureCachePath(name);
         if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
             FILE *vf = fopen(altCachePath.c_str(), "rb");
             if (vf) {
                 XBTHeader vhdr;
                 bool ok = (fread(&vhdr, sizeof(vhdr), 1, vf) == 1 &&
-                           (memcmp(vhdr.magic, "XBTX", 4) == 0 ||
-                            memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                           (memcmp(vhdr.magic, "XBTN", 4) == 0 ||
+                            memcmp(vhdr.magic, "XBTX", 4) == 0 ||
                             memcmp(vhdr.magic, "XBT1", 4) == 0) &&
-                           (vhdr.version == XBT_VERSION || vhdr.version == 6) &&
+                           (vhdr.version == XBT_VERSION || vhdr.version == 5) &&
                            vhdr.numTiles > 0);
                 fclose(vf);
                 if (ok) return;
@@ -1408,7 +3478,6 @@ void Image_Xbox::precacheProjectTextures() {
         size_t fileSize = 0;
         void *fileData = extractProjectAsset(name, fileSize);
         if (!fileData || fileSize == 0) {
-            Log::logWarning("Precache: failed to extract " + name);
             allSucceeded = false;
             return;
         }
@@ -1416,41 +3485,31 @@ void Image_Xbox::precacheProjectTextures() {
         int rawW = 0, rawH = 0, channels = 0;
         unsigned char *pixels = stbi_load_from_memory(static_cast<const unsigned char *>(fileData), fileSize, &rawW, &rawH, &channels, 4);
         freeProjectAsset(fileData);
-
         if (!pixels || rawW <= 0 || rawH <= 0) {
-            const char *reason = stbi_failure_reason();
-            Log::logWarning("Precache: failed to decode " + name + ": " + (reason ? reason : "unknown"));
-            allSucceeded = false;
             if (pixels) stbi_image_free(pixels);
+            allSucceeded = false;
             return;
         }
 
-        int curW = rawW;
-        int curH = rawH;
+        int curW = rawW, curH = rawH;
         unsigned char *curPixels = pixels;
+        float logicalScale = 1.0f;
 
-        float logicalScale = 1.0f; // the runtime handles bitmapResolution / half-quality itself
-
-        // Skip DXT caching for very small sprites to prevent 4x4 block interpolation artifacts.
-        // They consume negligible memory and load instantly on the fly anyway.
         if (curW * curH <= 128 * 128) {
             if (curPixels == pixels) stbi_image_free(curPixels);
             else free(curPixels);
             return;
         }
 
-        // Instead of the global runtime dictating half-quality,
-        // the Xbox renderer decides based on available memory and asset dimensions.
-        // We only downscale "Retina" (resolution == 2) assets on 64MB consoles IF
-        // they are relatively large. Small pixel-art sprites are left untouched
-        // to prevent uneven blocky scaling artifacts.
+        ensureCachingState();
+
+        // Downscale Retina (resolution == 2) assets on 64MB consoles if large (> 256x256)
         if (!OS::isEnhancedPlatform() && costume.bitmapResolution == 2) {
-            // Only downscale if it takes up significant VRAM (e.g. > 256x256)
             if (curW * curH > 256 * 256) {
                 int dw, dh;
                 unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
                 if (downscaled) {
-                    logicalScale /= 2.0f; // Track the scale so it still renders at the correct size
+                    logicalScale /= 2.0f;
                     if (curPixels == pixels) stbi_image_free(curPixels);
                     else free(curPixels);
                     curPixels = downscaled;
@@ -1460,15 +3519,12 @@ void Image_Xbox::precacheProjectTextures() {
             }
         }
 
-        // Downscale if too large in either dimension, adjusting logical scale to match
         const int maxDim = getMaxTextureDim();
         while (curW > maxDim || curH > maxDim) {
             int dw, dh;
             unsigned char *downscaled = Image::resizeRaster(curPixels, curW, curH, dw, dh);
             if (!downscaled) break;
-
             logicalScale *= static_cast<float>(dw) / static_cast<float>(curW);
-
             if (curPixels == pixels) stbi_image_free(curPixels);
             else free(curPixels);
             curPixels = downscaled;
@@ -1476,16 +3532,14 @@ void Image_Xbox::precacheProjectTextures() {
             curH = dh;
         }
 
-        // Classify alpha: opaque, binary (cutout), or smooth
         bool isOpaque = true, isBinary = true;
         const int pitch = curW * 4;
         for (int y = 0; y < curH && isBinary; y++) {
             const uint8_t *row = curPixels + y * pitch;
             for (int x = 0; x < curW; x++) {
-                const uint8_t a = row[x * 4 + 3];
-                if (a != 255) {
+                if (row[x * 4 + 3] != 255) {
                     isOpaque = false;
-                    if (a != 0) {
+                    if (row[x * 4 + 3] != 0) {
                         isBinary = false;
                         break;
                     }
@@ -1493,32 +3547,32 @@ void Image_Xbox::precacheProjectTextures() {
             }
         }
 
-        uint32_t codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
-
-        if (codec) {
-            ensureCachingState();
-            if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec, logicalScale)) {
-                allSucceeded = false;
-            }
+        const size_t freeMem = getAvailablePhysicalMemory();
+        uint32_t codec;
+        if (OS::isEnhancedPlatform() && freeMem > 20u * 1024u * 1024u) {
+            // Keep 32-bit color/alpha on the 128MB model while the contiguous heap has headroom.
+            codec = CODEC_RGBA32;
+        } else if (logicalScale <= 1.0f && freeMem > 8u * 1024u * 1024u) {
+            codec = isOpaque ? CODEC_RGB565 : (isBinary ? CODEC_ARGB1555 : CODEC_ARGB4444);
+        } else {
+            codec = isBinary ? CODEC_DXT1 : CODEC_DXT5;
+        }
+        if (!writeCompressedTextureCache(cachePath, curW, curH, curPixels, pitch, isOpaque, codec, logicalScale)) {
+            allSucceeded = false;
         }
 
         if (curPixels == pixels) stbi_image_free(curPixels);
         else free(curPixels);
     };
 
-    // 1. Stage backdrops (critical for memory and background rendering)
     if (Scratch::stageSprite) {
-        for (const auto &costume : Scratch::stageSprite->costumes) {
+        for (const auto &costume : Scratch::stageSprite->costumes)
             precacheCostume(costume, true);
-        }
     }
-
-    // 2. Sprite costumes (opaque, or large with an alpha mask)
     for (auto *sprite : Scratch::sprites) {
         if (sprite == Scratch::stageSprite) continue;
-        for (const auto &costume : sprite->costumes) {
+        for (const auto &costume : sprite->costumes)
             precacheCostume(costume, false);
-        }
     }
 
     if (allSucceeded) {
@@ -1527,90 +3581,46 @@ void Image_Xbox::precacheProjectTextures() {
 }
 
 nonstd::expected<void, std::string> Image_Xbox::refreshTexture() {
-    clearEffectTiles(this);
+    releaseEffects();
     destroyTiles();
-    safeDestroyTexture(texture);
-    if (!cachedAssetPath.empty()) {
+
+    if (texture) {
+        if (!nv2aRenderer && Render::getGlobalRenderer()) {
+            nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+        }
+        if (!nv2aRenderer) {
+            return nonstd::make_unexpected("No NV2A renderer");
+        }
+        nv2aRenderer->destroyTexture(texture);
+        texture = nullptr;
+    }
+
+    if (!cachedAssetPath.empty() && !isSVGImage && !isSvgAssetPath(cachedAssetPath)) {
         std::string cachePath = getTextureCachePath(cachedAssetPath);
         if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
-            if (loadFromCache(cachePath)) {
-                return {};
-            }
-            if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
+            if (loadFromCache(cachePath)) return {};
         }
-        std::string altCachePath = Image_NV2A::getTextureCachePath(cachedAssetPath);
+        std::string altCachePath = getLegacyXboxTextureCachePath(cachedAssetPath);
         if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
-            if (loadFromCache(altCachePath)) {
-                return {};
-            }
-            if (g_cacheLoadOOM) return nonstd::make_unexpected("Out of texture memory reloading " + cachedAssetPath);
+            if (loadFromCache(altCachePath)) return {};
         }
     }
     return setInitialTexture();
 }
 
-bool Image_Xbox::ensureColorData() {
-    if (imgData.pixels) return true;
-    if (colorDataUnavailable || cachedAssetPath.empty()) return false;
-
-    // DXT caches retain only alpha for collisions, and backdrop uploads free
-    // their pixels. Decode the original asset on first color query: compressed
-    // GPU colors are lossy and cannot be used for Scratch's color comparisons.
-    const ImageData saved = imgData;
-    auto result = (Unzip::loader || Unzip::zipArchive)
-        ? init(cachedAssetPath, Unzip::zipArchive ? Unzip::zipArchive.get() : nullptr, false, saved.scale)
-        : init(cachedAssetPath, true, false, saved.scale);
-    while (result.has_value() && (imgData.width > saved.width || imgData.height > saved.height)) {
-        int width = 0, height = 0;
-        unsigned char *pixels = resizeRaster(static_cast<const unsigned char *>(imgData.pixels),
-                                             imgData.width, imgData.height, width, height);
-        if (!pixels) break;
-        freePixels();
-        imgData.pixels = pixels;
-        imgData.width = width;
-        imgData.height = height;
-        imgData.pitch = width * 4;
-    }
-    if (!result.has_value() || imgData.width != saved.width || imgData.height != saved.height || !imgData.pixels) {
-        freePixels();
-        imgData = saved;
-        colorDataUnavailable = true;
-        Log::logWarning("Unable to restore collision colors: " + cachedAssetPath);
-        return false;
-    }
-    // Preserve the existing texture's coordinate system and all GPU resources.
-    imgData.scale = saved.scale;
-    imgData.format = IMAGE_FORMAT_RGBA32;
-    freeTimer = maxFreeTimer;
-    Log::log("Restored collision colors: " + cachedAssetPath);
-    return true;
-}
-
 Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
-    sdlRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer())->Sdlrenderer;
-
-    const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(sdlRenderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
-    maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
-
+    nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    maxTextureSize = {1024, 1024};
     cachedAssetPath = filePath;
-    std::string cachePath = getTextureCachePath(filePath);
-    if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
-        if (loadFromCache(cachePath)) {
-            return;
+
+    if (!isSvgAssetPath(filePath)) {
+        std::string cachePath = getTextureCachePath(filePath);
+        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+            if (loadFromCache(cachePath)) return;
         }
-        if (g_cacheLoadOOM) {
-            error = "Out of texture memory loading " + filePath;
-            return;
-        }
-    }
-    std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
-    if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
-        if (loadFromCache(altCachePath)) {
-            return;
-        }
-        if (g_cacheLoadOOM) {
-            error = "Out of texture memory loading " + filePath;
-            return;
+        std::string altCachePath = getLegacyXboxTextureCachePath(filePath);
+        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+            if (loadFromCache(altCachePath)) return;
         }
     }
 
@@ -1619,37 +3629,24 @@ Image_Xbox::Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
         error = initResult.error();
         return;
     }
-
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
-    sdlRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer())->Sdlrenderer;
-
-    const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(sdlRenderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
-    maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
+    nv2aRenderer = static_cast<Renderer_Xbox *>(Render::getGlobalRenderer());
+    maxTextureSize = {1024, 1024};
 
     if (fromScratchProject) {
         cachedAssetPath = filePath;
-        std::string cachePath = getTextureCachePath(filePath);
-        if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
-            if (loadFromCache(cachePath)) {
-                return;
+        if (!isSvgAssetPath(filePath)) {
+            std::string cachePath = getTextureCachePath(filePath);
+            if (!cachePath.empty() && FileSystem::fileExists(cachePath)) {
+                if (loadFromCache(cachePath)) return;
             }
-            if (g_cacheLoadOOM) {
-                error = "Out of texture memory loading " + filePath;
-                return;
-            }
-        }
-        std::string altCachePath = Image_NV2A::getTextureCachePath(filePath);
-        if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
-            if (loadFromCache(altCachePath)) {
-                return;
-            }
-            if (g_cacheLoadOOM) {
-                error = "Out of texture memory loading " + filePath;
-                return;
+            std::string altCachePath = getLegacyXboxTextureCachePath(filePath);
+            if (!altCachePath.empty() && FileSystem::fileExists(altCachePath)) {
+                if (loadFromCache(altCachePath)) return;
             }
         }
     }
@@ -1659,13 +3656,15 @@ Image_Xbox::Image_Xbox(std::string filePath, bool fromScratchProject, bool bitma
         error = initResult.error();
         return;
     }
-
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_Xbox::~Image_Xbox() {
-    clearEffectTiles(this);
+    releaseEffects();
     destroyTiles();
-    safeDestroyTexture(texture);
+    if (texture && nv2aRenderer) {
+        nv2aRenderer->destroyTexture(texture);
+        texture = nullptr;
+    }
 }

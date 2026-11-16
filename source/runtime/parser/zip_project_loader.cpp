@@ -1,6 +1,11 @@
 #include "zip_project_loader.hpp"
+#include <cstdio>
+#include <cstdlib>
 #include <istream>
 #include <log.hpp>
+#ifdef SE_JIT
+#include <bytecode_jit.hpp>
+#endif
 #include <parser.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
@@ -375,15 +380,56 @@ bool ZipProjectLoader::load(std::istream *file) {
         return false;
     }
 
-    auto useBytecodeSetting = Unzip::getSetting("useBytecode");
-    if (useBytecodeSetting.is_null()) {
+    const auto runtimeSetting = Unzip::getSetting("runtime");
+    const auto useBytecodeSetting = Unzip::getSetting("useBytecode");
+    Scratch::useJit = false;
+    if (runtimeSetting.is_string()) {
+        const std::string runtime = runtimeSetting.get<std::string>();
+        Scratch::useBytecode = runtime != "interpreter";
+        Scratch::useJit = runtime == "jit";
+    } else if (useBytecodeSetting.is_null()) {
 #if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
         Scratch::useBytecode = false;
 #else
         Scratch::useBytecode = true;
+#ifdef SE_JIT
+        Scratch::useJit = true;
+#endif
 #endif
     } else {
         Scratch::useBytecode = useBytecodeSetting.get<bool>();
+#ifdef SE_JIT
+        Scratch::useJit = Scratch::useBytecode;
+#endif
+    }
+
+    {
+        const char *active = Scratch::useBytecode ? "bytecode VM" : "interpreter";
+        std::string note;
+#ifdef SE_JIT
+        if (Scratch::useBytecode) {
+            if (BytecodeJit::enabled()) {
+                active = "bytecode VM + JIT";
+            } else if (Scratch::useJit) {
+                note = " (JIT requested but unavailable)";
+            }
+        } else if (Scratch::useJit) {
+            note = " (JIT requested but unavailable)";
+        }
+#else
+        if (Scratch::useJit) note = " (JIT requested but this build has no JIT)";
+#endif
+        Log::log(std::string("Runtime: ") + active + note);
+#if defined(__XBOX__)
+        Log::log(std::string("[runtime select] setting='") +
+                 (runtimeSetting.is_string() ? runtimeSetting.get<std::string>() : "(none)") +
+                 "' useBytecode=" + (Scratch::useBytecode ? "true" : "false") +
+                 " useJit=" + (Scratch::useJit ? "true" : "false")
+#ifdef SE_JIT
+                 + " jitEnabled=" + (BytecodeJit::enabled() ? "true" : "false")
+#endif
+        );
+#endif
     }
 
     Log::log("Loading project extensions and sprites...");
@@ -395,6 +441,35 @@ bool ZipProjectLoader::load(std::istream *file) {
 }
 
 void *ZipProjectLoader::getAsset(const std::string &name, size_t *outSize) {
+    if (Unzip::UnpackedInSD) {
+        const std::string path = Unzip::filePath + name;
+        FILE *file = std::fopen(path.c_str(), "rb");
+        if (!file) {
+            Log::logWarning("Asset not found on disk: " + path);
+            return nullptr;
+        }
+        std::fseek(file, 0, SEEK_END);
+        const long size = std::ftell(file);
+        std::fseek(file, 0, SEEK_SET);
+        if (size < 0) {
+            std::fclose(file);
+            return nullptr;
+        }
+        void *data = std::malloc(static_cast<size_t>(size));
+        if (!data) {
+            std::fclose(file);
+            return nullptr;
+        }
+        const size_t read = std::fread(data, 1, static_cast<size_t>(size), file);
+        std::fclose(file);
+        if (read != static_cast<size_t>(size)) {
+            std::free(data);
+            return nullptr;
+        }
+        if (outSize != nullptr) *outSize = static_cast<size_t>(size);
+        return data;
+    }
+
 #if defined(__XBOX__)
     // Reuse the active global archive to fetch assets efficiently on Xbox
     if (Unzip::zipArchive) {

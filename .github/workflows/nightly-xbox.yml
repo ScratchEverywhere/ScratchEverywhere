@@ -5,19 +5,20 @@ on:
     paths:
       - CMakeLists.txt
       - cmake/platforms/xbox.cmake
-      - cmake/renderers/sdl3.cmake
-      - cmake/windowing/sdl3.cmake
+      - cmake/renderers/xbox.cmake
+      - cmake/windowing/xbox.cmake
       - cmake/audio/sdl3.cmake
+      - cmake/audio/xbox.cmake
       - cmake/deps/*
       - cmake/patches/*
       - source/runtime/**
-      - source/renderers/sdl3/**
-      - source/windowing/sdl3/**
+      - source/renderers/xbox/**
+      - source/windowing/xbox/**
       - source/*
       - source/platforms/
       - source/platforms/xbox/**
       - source/menus/**
-      - source/audio/sdl3/**
+      - source/audio/xbox/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-xbox.yml

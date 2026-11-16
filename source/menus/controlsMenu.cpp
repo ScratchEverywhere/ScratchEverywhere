@@ -97,7 +97,7 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/controlsButton.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 1.0;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
@@ -211,9 +211,9 @@ void ControlsMenu::render() {
 
         // Highlight selected
         if (settingsControl->selectedObject == controlButton.button)
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
         else
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
     }
 
     // Render UI elements

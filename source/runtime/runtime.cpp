@@ -1,8 +1,10 @@
+#include "bytecode_jit.hpp"
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
 #include "collision.hpp"
+#include "discord.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -92,6 +94,7 @@ bool Scratch::useBytecode = false;
 #else
 bool Scratch::useBytecode = true;
 #endif
+bool Scratch::useJit = false;
 bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);
@@ -170,6 +173,7 @@ bool Scratch::startScratchProject() {
 
     std::pair<bool, bool> code;
     initializeScratchProject();
+    Discord::setPlaying(Unzip::filePath);
     ScriptThread monitorDisplayThread;
     toggleDebugVars(debugVars);
     while (true) {
@@ -185,6 +189,9 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+#ifdef SE_JIT
+    BytecodeJit::shutdownBackground();
+#endif
 #ifdef ENABLE_CUSTOM_EXTENSIONS
     extensions::cleanup();
 #endif

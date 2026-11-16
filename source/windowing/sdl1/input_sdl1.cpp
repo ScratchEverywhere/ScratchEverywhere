@@ -180,6 +180,7 @@ void InputDevice_SDL1::getInput() {
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
     Input::mousePointer.y = coords.second;
+    Input::clampMouseToStage();
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
@@ -207,7 +208,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
 
     std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(0, 0, 0, 255));
+    enterText->setColor(Math::color(219, 145, 219, 255));
 
     std::string inputText = "";
     bool inputActive = true;
@@ -223,7 +224,7 @@ std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
                     event.key.keysym.unicode >= ' ') {          // Only printable characters
                     inputText += event.key.keysym.unicode;
                     text->setText(inputText);
-                    text->setColor(Math::color(0, 0, 0, 255));
+                    text->setColor(Math::color(255, 255, 255, 255));
                 }
 
                 switch (event.key.keysym.sym) {

@@ -1,7 +1,12 @@
+#ifdef __XBOX__
+#include <platforms/xbox/backend_names.hpp>
+#endif
 #include "renderer.hpp"
 #include "settings.hpp"
+#include <cmath>
 #include <log.hpp>
 #include <memory>
+#include <pixel_snap.hpp>
 
 #ifdef RENDERER_OPENGL_CORE
 #include "renderer_gl_core.hpp"
@@ -11,9 +16,6 @@
 #endif
 #ifdef RENDERER_XBOX
 #include "renderer_xbox.hpp"
-#endif
-#ifdef RENDERER_NV2A
-#include "renderer_nv2a.hpp"
 #endif
 #ifdef RENDERER_GX2
 #include "renderer_gx2.hpp"
@@ -41,6 +43,9 @@
 #endif
 #ifdef RENDERER_HEADLESS
 #include "renderer_headless.hpp"
+#endif
+#ifdef RENDERER_FLATLAND
+#include "renderer_flatland.hpp"
 #endif
 
 Renderer *globalRenderer = nullptr;
@@ -78,9 +83,6 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_D3D9
     add(Renderers::D3D9);
 #endif
-#ifdef RENDERER_NV2A
-    add(Renderers::NV2A);
-#endif
 #ifdef RENDERER_XBOX
     add(Renderers::Xbox);
 #endif
@@ -108,6 +110,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_HEADLESS
     add(Renderers::Headless);
 #endif
+#ifdef RENDERER_FLATLAND
+    add(Renderers::Flatland);
+#endif
 
     return renderers;
 }
@@ -126,9 +131,8 @@ bool Render::init() {
 
     if (!found && j.contains("Renderer") && j["Renderer"].is_string()) {
         std::string rendererString = j["Renderer"].get<std::string>();
-#if defined(RENDERER_XBOX) && !defined(RENDERER_SDL3)
-        // Settings saved before the dedicated Xbox renderer existed still say "SDL3".
-        if (rendererString == "SDL3") rendererString = "Xbox";
+#ifdef __XBOX__
+        rendererString = XboxBackend::rendererName(rendererString);
 #endif
         for (auto &r : RendererNames) {
             if (r == rendererString) {
@@ -172,15 +176,6 @@ bool Render::init() {
 #ifdef RENDERER_D3D9
             Render::currentRenderer = Renderers::D3D9;
             globalRenderer = new Renderer_D3D9;
-            break;
-#else
-            continue;
-#endif
-        }
-        case Renderers::NV2A: {
-#ifdef RENDERER_NV2A
-            Render::currentRenderer = Renderers::NV2A;
-            globalRenderer = new Renderer_NV2A;
             break;
 #else
             continue;
@@ -262,6 +257,15 @@ bool Render::init() {
 #ifdef RENDERER_HEADLESS
             Render::currentRenderer = Renderers::Headless;
             globalRenderer = new Renderer_Headless;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::Flatland: {
+#ifdef RENDERER_FLATLAND
+            Render::currentRenderer = Renderers::Flatland;
+            globalRenderer = new Renderer_Flatland;
             break;
 #else
             continue;
@@ -498,18 +502,20 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
 
         float renderX;
         float renderY;
-        float spriteX = sprite->xPosition;
-        float spriteY = sprite->yPosition;
+        float spriteX = std::round(sprite->xPosition);
+        float spriteY = std::round(sprite->yPosition);
 
         float rotCenterX = costume.rotationCenterX * 2;
         float rotCenterY = costume.rotationCenterY * 2;
 
-        // Handle if the sprite's image is not centered in the costume editor
-        if (sprite->spriteWidth - rotCenterX != 0.0f ||
-            sprite->spriteHeight - rotCenterY != 0.0f) {
+        const float costumeW = sprite->spriteWidthExact > 0.0f ? sprite->spriteWidthExact : static_cast<float>(sprite->spriteWidth);
+        const float costumeH = sprite->spriteHeightExact > 0.0f ? sprite->spriteHeightExact : static_cast<float>(sprite->spriteHeight);
 
-            float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
-            float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
+        if (costumeW - rotCenterX != 0.0f ||
+            costumeH - rotCenterY != 0.0f) {
+
+            float offsetX = (costumeW - rotCenterX) * 0.5f;
+            float offsetY = (costumeH - rotCenterY) * 0.5f;
 
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
                 offsetX *= -1;
@@ -561,6 +567,8 @@ void Render::setRenderScale() {
     renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                            static_cast<float>(screenHeight) / Scratch::projectHeight);
     if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
+    if (renderMode == BOTH_SCREENS) PixelSnap::setGrid(1.0f, 0.0f, 0.0f);
+    else PixelSnap::setGrid(renderScale, screenWidth * 0.5f, screenHeight * 0.5f);
     forceUpdateSpritePosition();
 }
 

@@ -39,7 +39,8 @@ class SE_EXPORT WindowWin32 : public WindowSE {
     HWND hWnd;
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     HGLRC hGLRC;
-#else
+#endif
+#if defined(RENDERER_GDI)
     HBITMAP hBitmap;
 #endif
 

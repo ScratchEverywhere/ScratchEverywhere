@@ -75,7 +75,7 @@ class SE_EXPORT Scratch {
     static void cleanupSprites();
 
     static void gotoXY(Sprite *sprite, double x, double y);
-    static void fenceSpriteWithinBounds(Sprite *sprite);
+    static void fenceSpriteWithinBounds(Sprite *sprite, double &x, double &y);
     static bool isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, const std::string &targetName = "");
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
@@ -119,6 +119,7 @@ class SE_EXPORT Scratch {
     static bool debugVars;
     static bool sb3InRam;
     static bool useBytecode;
+    static bool useJit;
     static bool bytecodeCacheTooNew;
 
     static double counter;

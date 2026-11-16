@@ -12,4 +12,5 @@ set(CATALOG_RECIPES
     mbedtls:mbedtls.cmake
     cafeglsl:cafeglsl.cmake
     nxaudio:nxaudio.cmake
+    sljit:sljit.cmake
 )

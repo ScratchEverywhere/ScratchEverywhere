@@ -19,9 +19,6 @@
 #ifdef RENDERER_XBOX
 #include <renderers/xbox/text_xbox.hpp>
 #endif
-#ifdef RENDERER_NV2A
-#include <renderers/nv2a/text_nv2a.hpp>
-#endif
 #ifdef RENDERER_SDL3
 #include <renderers/sdl3/text_sdl3.hpp>
 #endif
@@ -49,6 +46,9 @@
 #ifdef RENDERER_HEADLESS
 #include <renderers/headless/text_headless.hpp>
 #endif
+#ifdef RENDERER_FLATLAND
+#include <renderers/flatland/text_flatland.hpp>
+#endif
 
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
     x = posX;
@@ -69,10 +69,6 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_XBOX
     case Renderers::Xbox:
         return std::make_unique<TextObjectXbox>(txt, posX, posY, fontPath);
-#endif
-#ifdef RENDERER_NV2A
-    case Renderers::NV2A:
-        return std::make_unique<TextObjectNV2A>(txt, posX, posY, fontPath);
 #endif
 #ifdef RENDERER_SDL3
     case Renderers::SDL3:
@@ -109,6 +105,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_HEADLESS
     case Renderers::Headless:
         return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_FLATLAND
+    case Renderers::Flatland:
+        return std::make_unique<TextObjectFlatland>(txt, posX, posY, fontPath);
 #endif
     default: {
         Log::logCritical("You forgot to add this renderer to createTextObject :grin: :grin:", true);
@@ -184,13 +184,14 @@ std::string TextObject::wrap(int maxWidth) {
 }
 
 void TextObject::cleanupText() {
-    if (Render::currentRenderer != Renderers::Headless)
+    if (Render::currentRenderer != Renderers::Headless && Render::currentRenderer != Renderers::Flatland)
         TextObjectBase::cleanupText();
 }
 
 static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
 #ifdef USE_BUNDLE
-    auto entry = Bundle::assets().find(fullPath);
+    const auto assets = Bundle::assets();
+    auto entry = assets.find(fullPath);
     if (!entry) {
         Log::logError("Failed to open font file: " + fullPath);
         return {};

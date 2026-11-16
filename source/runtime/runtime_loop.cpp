@@ -7,6 +7,7 @@
 #include "unzip.hpp"
 #include "xbox_variable_watch.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <input.hpp>
 #include <iostream>
 #include <os.hpp>
@@ -131,8 +132,39 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             Input::getInput();
             BlockExecutor::executeWhenGreaterThanHats();
         }
+        static const bool diagStall = std::getenv("SE_DIAG_STALL") != nullptr;
+        Timer diagTimer(false);
+        if (diagStall) diagTimer.start();
         BlockExecutor::runThreads();
         BytecodeExecutor::runThreads();
+        if (checkFPS && !forcedStep && Scratch::FPS > 0) {
+            const double workMs = 0.75 * 1000.0 / Scratch::FPS;
+            Timer work(false);
+            work.start();
+            while ((!forceRedraw || Scratch::turbo) && !shouldStop && work.getTimeMsDouble() < workMs && (!BytecodeExecutor::threads.empty() || !BlockExecutor::threads.empty())) {
+                forceRedraw = false;
+                BlockExecutor::runThreads();
+                BytecodeExecutor::runThreads();
+            }
+        }
+        if (diagStall) {
+            static double average = 0, atOnset = 0;
+            static int lightStreak = 0, cooldown = 0;
+            const double ms = diagTimer.getTimeMsDouble();
+            if (cooldown > 0) cooldown--;
+            if (ms < 1.5) {
+                if (lightStreak == 0) atOnset = average;
+                lightStreak++;
+                if (lightStreak == 20 && atOnset > 4.0 && cooldown == 0) {
+                    std::fprintf(stderr, "[diag] script time collapsed from ~%.1f ms to %.2f ms per frame for 20 frames\n", atOnset, ms);
+                    BytecodeExecutor::dumpThreads();
+                    cooldown = 600;
+                }
+            } else {
+                lightStreak = 0;
+            }
+            average = average * 0.9 + ms * 0.1;
+        }
         // Bytecode scripts can mark clones for deletion after BlockExecutor's own
         // cleanup pass. Reconcile the sprite list again before rendering so a stale
         // frame of clones is not drawn behind the freshly generated ones.

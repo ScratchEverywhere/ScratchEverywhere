@@ -133,6 +133,7 @@ void InputDevice_3DS::getInput() {
         auto set_mouse_pointer_values = [&](std::pair<float, float> coords) {
             Input::mousePointer.x = coords.first;
             Input::mousePointer.y = coords.second;
+            Input::clampMouseToStage();
         };
 
         if (Render::renderMode == Render::RenderModes::TOP_SCREEN_ONLY) {

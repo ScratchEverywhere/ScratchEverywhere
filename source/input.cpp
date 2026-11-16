@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <log.hpp>
 #include <renderer.hpp>
 
@@ -52,6 +53,7 @@ void Input::getInput() {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
+    if (const char *automatic = std::getenv("SE_AUTOANSWER"); automatic != nullptr) return automatic;
     if (globalInputDevice) return globalInputDevice->openSoftwareKeyboard(hintText);
     return "";
 }
@@ -91,6 +93,11 @@ void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int rend
     y = std::clamp(y, 0, renderHeight);
 }
 
+void Input::clampMouseToStage() {
+    mousePointer.x = std::clamp(static_cast<float>(mousePointer.x), -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+    mousePointer.y = std::clamp(static_cast<float>(mousePointer.y), -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+}
+
 void *Input::inputWindowHandleOverride = nullptr;
 
 void Input::setInputWindowHandle(void *handle) {
@@ -126,7 +133,8 @@ void Input::applyControls(std::string controlsFilePath) {
                         Log::log("Loaded control: " + key + " -> " + name);
                     };
                     if (value.is_array()) {
-                        for (const auto &button : value) bind(button);
+                        for (const auto &button : value)
+                            bind(button);
                     } else {
                         bind(value);
                     }

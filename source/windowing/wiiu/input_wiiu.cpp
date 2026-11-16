@@ -172,6 +172,7 @@ void InputDevice_WiiU::getInput() {
             const auto coords = Scratch::screenToScratchCoords(pos[0], pos[1], Render::getWidth(), Render::getHeight());
             Input::mousePointer.x = coords.first;
             Input::mousePointer.y = coords.second;
+            Input::clampMouseToStage();
         }
         Input::mousePointer.isPressed = true;
         Input::mousePointer.isMoving = true;

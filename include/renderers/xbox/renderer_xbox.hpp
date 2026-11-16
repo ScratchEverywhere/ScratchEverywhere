@@ -1,10 +1,9 @@
 #pragma once
 #include "nonstd/expected.hpp"
-#include <SDL3/SDL.h>
 #include <renderer.hpp>
 #include <se_export.hpp>
-
 #include <cstdint>
+#include <vector>
 
 #ifndef AV_PACK_NONE
 #define AV_PACK_NONE 0
@@ -28,9 +27,58 @@
 #ifndef VENC_MODE_480P
 #define VENC_MODE_480P VIDEO_MODE_480P
 #endif
-#ifndef VENC_MODE_LETTERBOX
-#define VENC_MODE_LETTERBOX VIDEO_LETTERBOX
+
+#ifndef NV_PFB_WC_CACHE
+#define NV_PFB_WC_CACHE 0x00100410
 #endif
+#ifndef NV_PFB_WC_CACHE_FLUSH_TRIGGER
+#define NV_PFB_WC_CACHE_FLUSH_TRIGGER 0x00010000
+#endif
+#ifndef NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS
+#define NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS 0x00010000
+#endif
+#ifndef NV097_BREAK_VERTEX_BUFFER_CACHE
+#define NV097_BREAK_VERTEX_BUFFER_CACHE 0x00001710
+#endif
+
+enum class NV2AScaleMode {
+    Nearest,
+    Linear,
+    PixelArt,
+};
+
+struct NV2ATexture {
+    int texWidth = 0;
+    int texHeight = 0;
+    int dataWidth = 0;
+    int dataHeight = 0;
+    int bytesPerPixel = 4;
+    int pitch = 0;
+    bool swizzled = false;
+    bool isDXT = false;
+    uint32_t format = 0;
+    float uScale = 1.0f;
+    float vScale = 1.0f;
+    NV2AScaleMode scaleMode = NV2AScaleMode::PixelArt;
+    uint8_t *data = nullptr;
+    uint8_t *dataPhysicalAddress = nullptr;
+    size_t allocationSize = 0;
+};
+
+struct NV2AVertex {
+    float pos[2];     // x, y
+    uint8_t color[4]; // r, g, b, a
+    float tex[2];     // u, v
+};
+
+enum class NV2ABlendMode {
+    None,
+    Blend,
+    // Additive, using the *vertex* RGB scaled by (texture alpha * vertex alpha). The texture's own colour is not
+    // added; this is what the brightness effect needs (adds white shaped by the sprite's alpha).
+    Add,
+    Premultiplied,
+};
 
 class SE_EXPORT Renderer_Xbox : public Renderer {
   public:
@@ -47,8 +95,6 @@ class SE_EXPORT Renderer_Xbox : public Renderer {
         uint32_t avPackType = 0;
     };
 
-    SDL_Renderer *Sdlrenderer = nullptr;
-
     Renderer_Xbox();
     ~Renderer_Xbox() override;
 
@@ -63,17 +109,55 @@ class SE_EXPORT Renderer_Xbox : public Renderer {
     static bool supports480p();
     static bool supports1080i();
     static void getVideoMode(int &width, int &height, int &bpp, int &refresh);
+    static float getViewportScaleX();
+    static float getViewportScaleY();
+    static float getViewportOffsetX();
+    static float getViewportOffsetY();
+    static bool isPenTargetActive();
 
     void applyVideoSettings();
     void applyOverscan(float overscanRatio);
     void applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen);
 
-    static void applyVideoSettings(SDL_Renderer *renderer);
-    static void applyOverscan(SDL_Renderer *renderer, float overscanRatio);
-    static void applyAspectRatio(SDL_Renderer *renderer, int logicalWidth, int logicalHeight, bool isWidescreen);
+    // NV2A Direct GPU Texture Management
+    // Disabling clearing requires complete caller initialization before binding.
+    NV2ATexture *createTexture(int width, int height, uint32_t format, bool swizzled, bool clearStorage = true);
+    void destroyTexture(NV2ATexture *&texture);
+    bool updateTexture(NV2ATexture *texture, const void *pixels, int pitch);
+    // Complete CPU writes to fresh or GPU-idle storage; does not wait for readers.
+    void commitTextureUpload(NV2ATexture *texture);
+    void setTextureScaleMode(NV2ATexture *texture, NV2AScaleMode scaleMode);
+    NV2AScaleMode getTextureScaleMode(const NV2ATexture *texture) const;
 
+    // Direct GPU Rendering Helpers
+    void bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleMode, bool wrap = false);
+    void bindTexture(const NV2ATexture *texture, bool linear, bool wrap = false);
+    void bindTexture(const NV2ATexture *texture);
+    void unbindTexture();
+    void setBlendMode(NV2ABlendMode mode);
+    void setScissor(int x, int y, int w, int h);
+    void clearScissor();
+    void setViewport(int x, int y, int w, int h);
+    void drawTriangles(const NV2AVertex *vertices, size_t count);
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+    static bool supportsHueTexture(const NV2ATexture *texture);
+    void drawHueQuad(const NV2ATexture *texture, NV2AScaleMode scaleMode,
+                     const NV2AVertex *vertices, double effect);
+#endif
+    void drawIndexedTriangles(const NV2AVertex *vertices, const uint16_t *indices, size_t count);
+    void drawColorTriangles(const NV2AVertex *vertices, size_t count);
+    NV2AVertex *beginDirectVertices(size_t maxCount);
+    void endDirectVertices(size_t actualCount);
+#ifdef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+    // Experimental ordinary-quad path; restores the standard textured combiner after drawing.
+    void drawBrightnessTriangles(const NV2AVertex *vertices, size_t count, uint8_t brightness);
+#endif
+
+    // Incremented once per beginFrame(); textures used during the current frame must not be overwritten.
+    static uint32_t getFrameCounter();
+
+    // Renderer Interface
     bool initPen() override;
-
     void setRenderTarget(void *renderTarget, int width, int height) override;
     void clearRenderTarget() override;
 

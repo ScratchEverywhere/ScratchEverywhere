@@ -4,9 +4,11 @@
 
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include "hasdeps.hpp"
+#ifndef SE_NO_LIBDLGMOD
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
+#endif
 #endif
 #include <algorithm>
 #include <climits>
@@ -15,6 +17,7 @@
 #include <sys/stat.h>
 #endif
 
+#include <discord.hpp>
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
@@ -23,6 +26,9 @@
 #include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <renderer.hpp>
+#ifdef RENDERER_FLATLAND
+#include <flatland_backend.hpp>
+#endif
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -45,6 +51,7 @@
 #endif
 
 static void exitApp() {
+    Discord::shutdown();
 #ifdef ENABLE_AUDIO
     SoundPlayer::deinit();
 #endif
@@ -59,6 +66,7 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+    Discord::setInMenu();
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -244,16 +252,24 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::GDI;
         } else if (arg == "--headless") {
             Render::currentRenderer = Renderers::Headless;
-        } else if (arg == "--sdl1") {
+        }
+#ifdef RENDERER_FLATLAND
+        else if (arg == "--flatland") {
+            Render::currentRenderer = Renderers::Flatland;
+        } else if (arg == "--flatland-port" && i + 1 < argc) {
+            FlatlandBackend::port = static_cast<uint16_t>(std::atoi(argv[++i]));
+            Render::currentRenderer = Renderers::Flatland;
+        }
+#endif
+        else if (arg == "--sdl1") {
             Render::currentRenderer = Renderers::SDL1;
         } else if (arg == "--sdl2") {
             Render::currentRenderer = Renderers::SDL2;
         } else if (arg == "--sdl3") {
             Render::currentRenderer = Renderers::SDL3;
-        } else if (arg == "--xbox") {
+        } else if (arg == "--xbox" || arg == "--nv2a") {
+            // Keep the former command-line name as a compatibility alias.
             Render::currentRenderer = Renderers::Xbox;
-        } else if (arg == "--nv2a") {
-            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {
@@ -273,6 +289,8 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+
+    Discord::init();
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
@@ -334,17 +352,20 @@ int main(int argc, char **argv) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3,.sb2,.sb", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
-                *(bool *)userdata = true;
                 if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
-                std::ofstream f(OS::getScratchFolderLocation() + filename);
-                f << buffer;
+                std::ofstream f(OS::getScratchFolderLocation() + filename, std::ios::binary);
+                f.write(buffer.data(), buffer.size());
                 f.close();
                 Unzip::filePath = OS::getScratchFolderLocation() + filename;
-                Unzip::load(); // TODO: Error handling
-            },
-                                            &uploadComplete);
+                *(bool *)userdata = true; }, &uploadComplete);
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
+
+            if (uploadComplete && !Unzip::load()) {
+                Log::logCritical("Failed to load uploaded project.", false);
+                exitApp();
+                return 0;
+            }
 #else
             if (!activateMainMenu()) {
                 exitApp();

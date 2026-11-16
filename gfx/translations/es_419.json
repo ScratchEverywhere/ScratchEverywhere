@@ -45,6 +45,8 @@
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Lanzamiento candidato",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Versión de desarrollo"
+  "version.prefix.dev": "Versión de desarrollo",
+  "ui.settings.runtime": "",
+  "ui.loading.caching": "",
+  "ui.popup.bytecodeCacheTooNew": ""
 }
-

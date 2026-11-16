@@ -8,7 +8,11 @@
 
 class SE_EXPORT PauseMenu : public Menu {
   private:
-    enum class Action { None, Resume, Exit, GreenFlag, Stop };
+    enum class Action { None,
+                        Resume,
+                        Exit,
+                        GreenFlag,
+                        Stop };
     Action pendingAction = Action::None;
     void requestAction(Action action);
     void finishAction(Action action);

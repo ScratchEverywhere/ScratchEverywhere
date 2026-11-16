@@ -126,6 +126,8 @@ jobs:
           file: docker/Dockerfile.linux
           target: exporter
           outputs: type=local,dest=.
+          secrets: |
+            discord_app_id=${{ secrets.DISCORD_APP_ID }}
           build-args: ${{ matrix.build-args }}
 
       - name: Upload Artifact
@@ -179,6 +181,8 @@ jobs:
           file: docker/Dockerfile.windows
           target: exporter
           outputs: type=local,dest=.
+          secrets: |
+            discord_app_id=${{ secrets.DISCORD_APP_ID }}
           build-args: ${{ matrix.build-args }}
 
       - name: Upload Artifact
@@ -206,6 +210,8 @@ jobs:
           file: docker/Dockerfile.macos
           target: exporter
           outputs: type=local,dest=.
+          secrets: |
+            discord_app_id=${{ secrets.DISCORD_APP_ID }}
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
@@ -230,6 +236,8 @@ jobs:
           file: docker/Dockerfile.macos
           target: exporter
           outputs: type=local,dest=.
+          secrets: |
+            discord_app_id=${{ secrets.DISCORD_APP_ID }}
           build-args: ARCH=arm64
 
       - name: Upload Artifact

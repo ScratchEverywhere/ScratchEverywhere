@@ -386,43 +386,43 @@ SCRATCH_BYTECODE_BLOCK(looks, gotofrontback) {
     return true;
 }
 
-SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, setsizeto) {
-    const Value &size = value;
+void setClampedSize(Sprite *sprite, double requestedPercent) {
+    if (sprite->isStage) return;
 
     if (!Scratch::fencing) {
-        sprite->size = size.get<double>();
-
+        sprite->size = requestedPercent;
         Render::resizeSVGs(sprite);
         return;
     }
 
-    if (size.isNumeric()) {
-        const double inputSizePercent = size.get<double>();
-
-        double minScale;
-        double maxScale;
-        if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
-            minScale = 1.0;
-            maxScale = 1800.0;
-        } else {
-            const Costume &costume = sprite->costumes[sprite->currentCostume];
+    double minScale;
+    double maxScale;
+    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+        minScale = 0.01;
+        maxScale = 18.0;
+    } else {
+        const Costume &costume = sprite->costumes[sprite->currentCostume];
+        const double exactWidth = sprite->spriteWidthExact;
+        const double exactHeight = sprite->spriteHeightExact;
 #ifdef __XBOX__
-            const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
-            const int sprWidth = isHalved ? sprite->spriteWidth : (sprite->spriteWidth / costume.bitmapResolution);
-            const int sprHeight = isHalved ? sprite->spriteHeight : (sprite->spriteHeight / costume.bitmapResolution);
+        const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
+        const double sprWidth = isHalved ? exactWidth : exactWidth / costume.bitmapResolution;
+        const double sprHeight = isHalved ? exactHeight : exactHeight / costume.bitmapResolution;
 #else
-            const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
-            const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+        const double sprWidth = exactWidth / costume.bitmapResolution;
+        const double sprHeight = exactHeight / costume.bitmapResolution;
 #endif
-            minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
-            maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
-        }
-
-        sprite->size = std::clamp(inputSizePercent, minScale, maxScale);
-        Render::resizeSVGs(sprite);
+        minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight));
+        maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight);
     }
+
+    sprite->size = std::clamp(requestedPercent / 100.0, minScale, maxScale) * 100.0;
+    Render::resizeSVGs(sprite);
     if (sprite->visible) Scratch::forceRedraw = true;
-    return;
+}
+
+SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, setsizeto) {
+    setClampedSize(sprite, value.get<double>());
 }
 SCRATCH_BLOCK(looks, setsizeto) {
     Value size;
@@ -433,44 +433,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
 SCRATCH_BLOCK_SIGNATURE(looks, setsizeto, {"SIZE", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_POSITIONAL_V_VOID(looks, changesizeby) {
-    const Value &size = value;
-
-    if (!Scratch::fencing) {
-        sprite->size += size.get<double>();
-
-        Render::resizeSVGs(sprite);
-        return;
-    }
-
-    if (size.isNumeric()) {
-        sprite->size += size.get<double>();
-
-        double minScale;
-        double maxScale;
-
-        if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
-            minScale = 1.0;
-            maxScale = 1800.0;
-        } else {
-            const Costume &costume = sprite->costumes[sprite->currentCostume];
-#ifdef __XBOX__
-            const bool isHalved = Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2;
-            const int sprWidth = isHalved ? sprite->spriteWidth : (sprite->spriteWidth / costume.bitmapResolution);
-            const int sprHeight = isHalved ? sprite->spriteHeight : (sprite->spriteHeight / costume.bitmapResolution);
-#else
-            const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
-            const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
-#endif
-            minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
-            maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
-        }
-
-        sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
-
-        Render::resizeSVGs(sprite);
-    }
-    if (sprite->visible) Scratch::forceRedraw = true;
-    return;
+    setClampedSize(sprite, sprite->size + value.get<double>());
 }
 SCRATCH_BLOCK(looks, changesizeby) {
     Value size;
@@ -486,8 +449,6 @@ SCRATCH_BLOCK(looks, seteffectto) {
 
     std::string effect = Scratch::getFieldValue(*block, "EFFECT");
     std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
-
-    if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
         sprite->colorEffect = amount.get<double>();
@@ -580,6 +541,10 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
+    sprite->fisheyeEffect = 0.0f;
+    sprite->whirlEffect = 0.0f;
+    sprite->pixelateEffect = 0.0f;
+    sprite->mosaicEffect = 0.0f;
 
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -589,6 +554,10 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, cleargraphiceffects) {
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
+    sprite->fisheyeEffect = 0.0f;
+    sprite->whirlEffect = 0.0f;
+    sprite->pixelateEffect = 0.0f;
+    sprite->mosaicEffect = 0.0f;
 
     if (sprite->visible) Scratch::forceRedraw = true;
 }
@@ -605,14 +574,14 @@ SCRATCH_BLOCK_SIGNATURE(looks, size);
 SCRATCH_BLOCK(looks, costumenumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
 
-    if (value == "name") *outValue = Value(sprite->costumes[sprite->currentCostume].name);
-    else if (value == "number") *outValue = Value(sprite->currentCostume + 1);
+    if (value == "number") *outValue = Value(sprite->currentCostume + 1);
+    else *outValue = Value(sprite->costumes[sprite->currentCostume].name);
 
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(looks, costumenumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
-    BytecodeIndex which = (value == "name") ? 0 : 1;
+    BytecodeIndex which = (value == "number") ? 1 : 0;
 
     outFirstInstr = compiler.emit(BytecodeOp::CostumeNumberName, invalidBytecodeIndex, which);
     return true;
@@ -621,14 +590,14 @@ SCRATCH_BYTECODE_BLOCK(looks, costumenumbername) {
 SCRATCH_BLOCK(looks, backdropnumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
 
-    if (value == "name") *outValue = Value(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
     if (value == "number") *outValue = Value(Scratch::stageSprite->currentCostume + 1);
+    else *outValue = Value(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
 
     return BlockResult::CONTINUE;
 }
 SCRATCH_BYTECODE_BLOCK(looks, backdropnumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
-    BytecodeIndex which = (value == "name") ? 0 : 1;
+    BytecodeIndex which = (value == "number") ? 1 : 0;
 
     outFirstInstr = compiler.emit(BytecodeOp::BackdropNumberName, invalidBytecodeIndex, which);
     return true;

@@ -21,6 +21,7 @@ SE_EXPORT size_t utf16Length(const std::shared_ptr<const std::string> &str);
 SE_EXPORT std::string utf16CharAt(const std::shared_ptr<const std::string> &str, size_t utf16Index);
 
 SE_EXPORT std::string toLowerCaseJs(std::string_view str);
+SE_EXPORT bool containsCaseInsensitive(std::string_view haystack, std::string_view needle);
 
 SE_EXPORT bool caseInsensitiveEqual(std::string_view a, std::string_view b);
 SE_EXPORT bool caseInsensitiveLess(std::string_view a, std::string_view b);
@@ -28,6 +29,8 @@ SE_EXPORT bool caseInsensitiveLess(std::string_view a, std::string_view b);
 SE_EXPORT std::string toString(double number);
 
 SE_EXPORT int color(int r, int g, int b, int a);
+
+SE_EXPORT double jsRound(double value);
 
 SE_EXPORT double degreesToRadians(double degrees);
 

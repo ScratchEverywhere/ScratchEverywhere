@@ -107,7 +107,7 @@ SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
         }
     }
 
-    if (!original) return;
+    if (!original || original->isStage) return;
     Sprite *spriteToClone = new Sprite();
     spriteToClone->name = original->name;
     spriteToClone->isStage = false;
@@ -125,11 +125,16 @@ SCRATCH_BLOCK_POSITIONAL_S_VOID(control, create_clone_of) {
     spriteToClone->rotationStyle = original->rotationStyle;
     spriteToClone->spriteWidth = original->spriteWidth;
     spriteToClone->spriteHeight = original->spriteHeight;
+    spriteToClone->spriteWidthExact = original->spriteWidthExact;
+    spriteToClone->spriteHeightExact = original->spriteHeightExact;
     spriteToClone->instrument = original->instrument;
     spriteToClone->ghostEffect = original->ghostEffect;
     spriteToClone->brightnessEffect = original->brightnessEffect;
     spriteToClone->colorEffect = original->colorEffect;
-    spriteToClone->volume = original->volume;
+    spriteToClone->fisheyeEffect = original->fisheyeEffect;
+    spriteToClone->whirlEffect = original->whirlEffect;
+    spriteToClone->pixelateEffect = original->pixelateEffect;
+    spriteToClone->mosaicEffect = original->mosaicEffect;
     spriteToClone->pitch = original->pitch;
     spriteToClone->pan = original->pan;
     spriteToClone->penData = original->penData;
@@ -217,11 +222,6 @@ SCRATCH_BLOCK(control, stop) {
             if (t->sprite != sprite || t->id == thread->id || t->legacyThreadId == thread->id) continue;
             t->finished = true;
         }
-        // Scratch's "stop other scripts in sprite" only halts scripts - it does NOT stop sounds (only "stop all
-        // sounds" / the stop-all button do). Stopping them here silenced anything the sprite had just started,
-        // e.g. `play sound [Bell Toll]` immediately followed by `stop other scripts in sprite` (Hopper Heroes'
-        // death sound). Streams that belonged to a killed "play until done" thread are not paused any more, so mark
-        // them auto-clean instead; the mixer then frees them once they finish on their own.
         for (Sound sound : sprite->sounds)
             Mixer::setAutoClean(sound.fullName, true);
     }
@@ -488,14 +488,27 @@ SCRATCH_BLOCK(control, for_each) {
 SCRATCH_BYTECODE_BLOCK(control, for_each) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     outFirstInstr = compiler.here();
-    compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
-    compiler.emit(BytecodeOp::ConvertNumberToValue);
+
+    const ParsedInput *valueInput = Scratch::getInput(block, "VALUE");
+    const bool constantBound = valueInput != nullptr && valueInput->inputType == ParsedInput::VALUE;
+    if (constantBound) {
+        compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
+        compiler.emit(BytecodeOp::ConvertNumberToValue);
+    } else {
+        BytecodeIndex placeholder = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
+        compiler.chunk().constants.push_back(Value(0.0));
+        compiler.emit(BytecodeOp::PushConstValue, placeholder);
+    }
 
     BytecodeIndex zeroIdx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
     compiler.chunk().constants.push_back(Value(0.0));
     compiler.emit(BytecodeOp::PushConstValue, zeroIdx);
 
     BytecodeIndex loopCheck = compiler.here();
+    if (!constantBound) {
+        compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
+        compiler.emit(BytecodeOp::SetForEachBound);
+    }
     BytecodeIndex exitJump = compiler.emit(BytecodeOp::ForEachCheck, invalidBytecodeIndex, compiler.variableSlot(varId));
 
     BytecodeIndex ignored;

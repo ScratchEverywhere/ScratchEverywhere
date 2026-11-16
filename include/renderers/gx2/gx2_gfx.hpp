@@ -41,6 +41,13 @@ struct RenderTarget {
     bool valid = false;
 };
 
+struct Readback {
+    GX2Surface surface{};
+    int width = 0;
+    int height = 0;
+    bool valid = false;
+};
+
 struct Program {
     GX2VertexShader *vertexShader = nullptr;
     GX2PixelShader *pixelShader = nullptr;
@@ -95,6 +102,10 @@ bool createRenderTarget(RenderTarget &out, int width, int height);
 void destroyRenderTarget(RenderTarget &target);
 
 void makeReadable(RenderTarget &target);
+
+bool createReadback(Readback &out, int width, int height);
+void destroyReadback(Readback &readback);
+void readTarget(RenderTarget &source, Readback &readback);
 
 void waitIdle();
 
