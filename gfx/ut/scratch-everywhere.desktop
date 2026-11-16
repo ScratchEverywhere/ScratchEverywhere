@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Scratch Everywhere!
 Exec=scratch-ut %U
-Icon=assets/logo.svg
+Icon=assets/logo.png
 Terminal=false
 Type=Application
 X-Ubuntu-Touch=true
