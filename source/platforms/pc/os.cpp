@@ -77,6 +77,10 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
+#elif defined(__UBUNTUTOUCH__)
+    path = "/home/phablet/.config/scratch-everywhere/";
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
@@ -120,6 +124,11 @@ std::string OS::getScratchFolderLocation() {
     }
     CoTaskMemFree(documentsPath);
     return portablePath;
+#elif defined(__UBUNTUTOUCH__)
+    const std::string path = "/home/phablet/.local/share/scratch-everywhere/";
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    return path;
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     const char *path = std::getenv("PATH");
     if (path && path[0] != '\0') {
