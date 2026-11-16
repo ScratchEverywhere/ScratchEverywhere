@@ -290,15 +290,24 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     }
 #elif defined(__ANDROID__)
     } else {
-        AAsset *asset = AAssetManager_open(g_assetManager, (prefix + path).c_str(), AASSET_MODE_BUFFER);
+        AAsset *entry = AAssetManager_open(g_assetManager, (prefix + path).c_str(), AASSET_MODE_BUFFER);
+
         this->name = path;
         commonInit();
 
-        if (asset) {
-            this->buffer_size = AAsset_getLength(asset);
-            this->buffer = static_cast<unsigned char*>(malloc(this->buffer_size));
-            if (!AAsset_read(asset, this->buffer, this->buffer_size)) {
-                AAsset_close(asset);
+        if (!entry) {
+            // Fallback to disk if not in bundle archive (Streams from file)
+            if (loadFromFile(fullAudioPath)) {
+                prepareResampler();
+                Mixer::registerStream(path, this);
+                return {};
+            }
+            return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+        } else {
+            // Bundle assets must remain loaded via memory buffer
+            this->buffer_size = AAsset_getLength(entry);
+            this->buffer = (unsigned char *)malloc(this->buffer_size);
+            if (AAsset_read(entry, this->buffer, this->buffer_size) < 0) {
                 free(this->buffer);
                 this->buffer = nullptr;
                 return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
@@ -307,21 +316,10 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
             if (!loadFromBuffer()) {
                 return nonstd::make_unexpected("Failed to load bundled sound.");
             }
+            prepareResampler();
 
-            AAsset_close(asset);
-            Mixer::mutex.lock();
-            Mixer::streams[path] = this;
-            Mixer::mutex.unlock();
+            Mixer::registerStream(path, this);
             return {};
-        } else {
-            // Fallback to disk if not in bundle archive (Streams from file)
-            if (loadFromFile(fullAudioPath)) {
-                Mixer::mutex.lock();
-                Mixer::streams[path] = this;
-                Mixer::mutex.unlock();
-                return {};
-            }
-            return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
         }
     }
 #endif

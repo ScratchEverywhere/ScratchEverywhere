@@ -28,6 +28,14 @@ static bool readAsset(const std::string &path, std::string &out) {
     if (!found) return false;
     out = assets.load_text(found.value());
     return true;
+#elif defined(__ANDROID__)
+    AAsset *asset = AAssetManager_open(g_assetManager, path.c_str(), AASSET_MODE_BUFFER);
+    if (!asset) return false;
+    size_t length = AAsset_getLength(asset);
+    out.resize(length);
+    AAsset_read(asset, out.data(), length);
+    AAsset_close(asset);
+    return true;
 #else
     std::ifstream file(path);
     if (!file.is_open()) return false;

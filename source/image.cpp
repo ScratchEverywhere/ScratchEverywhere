@@ -148,11 +148,11 @@ bool Image::loadFont(const std::string &family) {
     if (!fontData) return false;
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) return false;
 #elif defined(__ANDROID__)
-    AAsset *asset = AAssetManager_open(g_assetManager, (path + ".ttf").c_str(), AASSET_MODE_BUFFER);
+    AAsset *asset = AAssetManager_open(g_assetManager, (OS::getRomFSLocation() + path + ".ttf").c_str(), AASSET_MODE_BUFFER);
     if (!asset) return false;
     size_t fontSize = AAsset_getLength(asset);
-    void *fontData = const_cast<void*>(AAsset_getBuffer(asset));
-    if (!fontData) {
+    void *fontData = malloc(fontSize);
+    if (!AAsset_read(asset, fontData, fontSize)) {
         AAsset_close(asset);
         return false;
     };
@@ -407,7 +407,7 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
             AAsset_close(asset);
             return nonstd::make_unexpected("Failed to decompress file: " + filePath);
         }
-        buffer[AAsset_getLength(asset)] = '\0';
+        buffer[buffer.size()] = '\0';
         AAsset_close(asset);
         return buffer;
     }

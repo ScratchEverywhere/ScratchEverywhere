@@ -233,6 +233,8 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             holdingPauseStart = false;
         }
         if (pauseRequested) holdingPauseStart = false;
+#elif defined(__ANDROID__)
+        const bool pauseRequested = browserProject && Input::keyHeldDuration["back"] > (FPS / 30.0f);
 #else
         const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
 #endif
