@@ -135,6 +135,13 @@ void Renderer_Flatland::drawBox(int w, int h, int x, int y, uint8_t colorR, uint
 
 void Renderer_Flatland::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {}
 
+// oh gradylink.gif
+void Renderer_Flatland::setClip(int x, int y, int w, int h) {
+}
+
+void Renderer_Flatland::clearClip() {
+}
+
 bool Renderer_Flatland::appShouldRun() {
     return true;
 }
