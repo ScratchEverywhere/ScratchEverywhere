@@ -31,7 +31,7 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL2);
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-#elif defined(__UBUNTUTOUCH__)
+#elif defined(__UT1604__)
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "mir");
 #endif
 

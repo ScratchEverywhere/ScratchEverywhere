@@ -90,9 +90,17 @@ function(_recipe_SDL2_source)
       "SDL_PTHREADS_SEM" "ON")
   endif()
 
+  set(SDL2_PATCHES "")
+  if(UBUNTU_TOUCH_1604)
+    set(SDL2_PATCHES PATCHES
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-ut-mir-destroywindow.patch"
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-ut-mir-singleconnection.patch")
+  endif()
+
   cl_import_source(
     NAME SDL2
     URL ${SDL_URL}
+    ${SDL2_PATCHES}
     OPTIONS "SDL_SHARED" "${SDL_BUILD_SHARED}" "SDL_STATIC" "${SDL_BUILD_STATIC}" "SDL_TEST" "OFF" ${SDL_PLATFORM_OPTIONS}
   )
 endfunction()

@@ -746,7 +746,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
     }
     imgData.pitch = width * 4;
 
-#if defined(__OGC__) || defined(__UBUNTUTOUCH__) // may break getPixels()
+#if defined(__OGC__) || defined(__UBUNTUTOUCH__) && !defined(__UT1604__) // may break getPixels()
     stbi__vertical_flip(pixels, width, height, 4);
 #endif
 

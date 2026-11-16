@@ -118,6 +118,9 @@ Renderer_SDL2::Renderer_SDL2() {
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
+#elif defined(__UT1604__)
+    int windowWidth = 1080;
+    int windowHeight = 1920;
 
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
