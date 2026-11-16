@@ -15,7 +15,6 @@ enum class SE_EXPORT Renderers : uint8_t {
     D3D9,
     OpenGLCore,
     OpenGL,
-    NV2A,
     Xbox,
     GX2,
     SDL3,
@@ -25,6 +24,7 @@ enum class SE_EXPORT Renderers : uint8_t {
     SDL1,
     GDI,
     Headless,
+    Flatland,
     _count,
 };
 
@@ -32,7 +32,6 @@ constexpr std::array RendererNames = {
     "Direct3D 9",
     "OpenGL Core",
     "OpenGL Legacy",
-    "NV2A",
     "Xbox",
     "GX2",
     "SDL3",
@@ -41,7 +40,8 @@ constexpr std::array RendererNames = {
     "GL2D",
     "SDL1",
     "GDI",
-    "Headless"};
+    "Headless",
+    "Flatland"};
 
 struct RendererInfo {
     uint8_t id;

@@ -1,12 +1,28 @@
 #include "renderer_xbox.hpp"
+#include "image_xbox.hpp"
 #include "speech_manager_xbox.hpp"
-#ifdef WINDOWING_SDL3
-#include "window_sdl3.hpp"
-#endif
-#include <os.hpp>
-#include <window.hpp>
+#include "swizzle.h"
+#include "xgu.h"
+#include "xgux.h"
 
-#ifdef __XBOX__
+#include <algorithm>
+#include <audio.hpp>
+#include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <downloader.hpp>
+#include <image.hpp>
+#include <input.hpp>
+#include <log.hpp>
+#include <math.hpp>
+#include <menuManager.hpp>
+#include <os.hpp>
+#include <runtime.hpp>
+#include <string>
+#include <text.hpp>
+#include <types.hpp>
+#include <vector>
+
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -16,99 +32,554 @@
 
 #undef min
 #undef max
+
+#include "dxt_layout.hpp"
+
+// Ring buffer arena size for direct vertex streaming (3 partitions for triple-buffering)
+static constexpr size_t ARENA_PER_FRAME_SIZE = 1024 * 1024;
+static constexpr size_t VERTEX_ARENA_SIZE = ARENA_PER_FRAME_SIZE * 3;
+// Must be a multiple of 6 so triangles (3) and quads (6) are never split across flushes
+static constexpr size_t PEN_FLUSH_THRESHOLD = 4092;
+
+static uint8_t *s_vertexArena = nullptr;
+static uint32_t s_vertexArenaPhys = 0;
+static size_t s_arenaBase = 0;
+static size_t s_arenaOffset = 0;
+static uint32_t s_frameIndex = 0;
+
+static void flushRetiredTextures(bool syncGpu); // deferred texture frees, defined below
+
+#ifdef SE_NV2A_PROFILE
+// 733.33 MHz Xbox CPU: cycles -> ms = cycles / 733333.
+static inline uint64_t nv2aTsc() { return __builtin_ia32_rdtsc(); }
+struct NV2AProf {
+    uint64_t logic = 0, vbl = 0, idle = 0, build = 0, gpuWait = 0, flush = 0;
+    uint64_t tEndExit = 0, tBuildStart = 0;
+    uint32_t draws = 0, verts = 0, binds = 0, frames = 0;
+};
+static NV2AProf s_prof;
+// Bypasses the NXDK's broken std::to_string(double) implementation
+auto formatMs = [](double timeMs) -> std::string {
+    int ms = static_cast<int>(timeMs);
+    int us = static_cast<int>((timeMs - ms) * 1000.0);
+    std::string usStr = std::to_string(std::abs(us));
+    if (usStr.length() == 1) usStr = "00" + usStr;
+    else if (usStr.length() == 2) usStr = "0" + usStr;
+    return std::to_string(ms) + "." + usStr + " ms";
+};
+#define NV2A_PROF(x) x
+#else
+#define NV2A_PROF(x)
 #endif
 
-#include <algorithm>
-#include <audio.hpp>
-#include <cmath>
-#include <cstdlib>
-#include <downloader.hpp>
-#include <image.hpp>
-#include <image_xbox.hpp>
-#include <input.hpp>
-#include <log.hpp>
-#include <math.hpp>
-#include <runtime.hpp>
-#include <string>
-#include <text.hpp>
-#include <types.hpp>
-#include <unordered_map>
-#include <vector>
-
-static SDL_Texture *mainRenderTarget = nullptr;
-static bool hasOverrideTarget = false;
-static int overrideWidth = 0;
-static int overrideHeight = 0;
-static SDL_Texture *penTexture = nullptr;
-static SDL_Surface *penColorSurface = nullptr;
-static SDL_Rect penColorRect = {};
-static bool penColorDirty = true;
-static bool penColorReadFailed = false;
-
-static void clearPenColorReadback() {
-    SDL_DestroySurface(penColorSurface);
-    penColorSurface = nullptr;
-    penColorDirty = true;
-    penColorReadFailed = false;
-}
-
-static std::vector<SDL_Vertex> penVerts;
-
-// Flush pending pen geometry once this many vertices have accumulated.
-static constexpr size_t PEN_FLUSH_THRESHOLD = 6144;
-
-// Stamps queued since SDL's command queue was last flushed.
-static constexpr unsigned PEN_STAMP_FLUSH_INTERVAL = 16;
-static unsigned stampsSinceFlush = 0;
-
-// Pen texture metrics, cached when the texture is (re)created instead of queried on every pen call.
-static float penTexW = 640.0f;
-static float penTexH = 480.0f;
-static double penScaleY = 1.0;
-
-static void refreshPenMetrics() {
-    if (!penTexture) return;
-    SDL_GetTextureSize(penTexture, &penTexW, &penTexH);
-    penScaleY = penTexH / static_cast<double>(Scratch::projectHeight);
-}
-
-// Render target handling.
-// Switching SDL render targets flushes SDL's command queue and makes the GPU wait for idle, so it is
-// expensive. The pen texture therefore stays the active target across consecutive pen operations
-// (lines, dots, stamps) and the main target is restored lazily, before anything else draws.
-static bool penTargetActive = false;
-
-static void ensurePenTarget(SDL_Renderer *renderer) {
-    if (penTargetActive || !penTexture) return;
-    SDL_SetRenderTarget(renderer, penTexture);
-    penTargetActive = true;
-    stampsSinceFlush = 0; // switching targets flushes the queue
-}
-
-static void ensureMainTarget(SDL_Renderer *renderer) {
-    if (!penTargetActive) return;
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
-    penTargetActive = false;
-    stampsSinceFlush = 0;
-}
-
-// Draws any queued pen geometry into the pen texture. Leaves the pen texture as the active target.
-static void flushPenVerts(SDL_Renderer *renderer) {
-    if (penVerts.empty() || !penTexture) return;
-    ensurePenTarget(renderer);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    constexpr size_t BATCH_SIZE = 2048 * 3; // 6144 vertices
-    for (size_t i = 0; i < penVerts.size(); i += BATCH_SIZE) {
-        size_t count = std::min(BATCH_SIZE, penVerts.size() - i);
-        SDL_RenderGeometry(renderer, nullptr, &penVerts[i], static_cast<int>(count), nullptr, 0);
-        SDL_FlushRenderer(renderer);
+static inline void nv2a_cache_flush() {
+#ifdef __XBOX__
+    NV2A_PROF(const uint64_t t0 = nv2aTsc());
+    __asm__ __volatile__("sfence" ::: "memory");
+    VIDEOREG(NV_PFB_WC_CACHE) |= NV_PFB_WC_CACHE_FLUSH_TRIGGER;
+    while (VIDEOREG(NV_PFB_WC_CACHE) & NV_PFB_WC_CACHE_FLUSH_IN_PROGRESS) {
+        __asm__ __volatile__("pause");
     }
-    penVerts.clear();
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-    stampsSinceFlush = 0;
+    NV2A_PROF(s_prof.flush += nv2aTsc() - t0);
+#endif
 }
 
-// Pen circle geometry. cos/sin of the circle points are computed once per segment count.
+extern "C" unsigned int pb_ColorFmt;
+
+static inline uint32_t npot2pot(uint32_t num) {
+    if (num <= 1) return 1;
+    return 1 << (32 - __builtin_clz(num - 1));
+}
+
+static Renderer_Xbox::VideoDisplaySettings s_nv2aVideoSettings = {
+    640, 480, 32, 60, false, false, false, false, 0.04f, 0};
+static bool s_videoInitialized = false;
+
+static uint32_t mapSmcToAvPack(uint32_t smcVal) {
+    switch (smcVal & 0x07) {
+    case 0x00:
+        return AV_PACK_SCART;
+    case 0x01:
+        return AV_PACK_HDTV;
+    case 0x02:
+        return AV_PACK_VGA;
+    case 0x03:
+        return AV_PACK_RFU;
+    case 0x04:
+        return AV_PACK_SVIDEO;
+    case 0x06:
+        return AV_PACK_STANDARD;
+    case 0x07:
+        return AV_PACK_NONE;
+    default:
+        return AV_PACK_NONE;
+    }
+}
+
+void Renderer_Xbox::initVideo() {
+    if (s_videoInitialized) return;
+    s_videoInitialized = true;
+
+#ifdef __XBOX__
+    ULONG encoderSettings = XVideoGetEncoderSettings();
+    bool isWidescreen = (encoderSettings & VENC_MODE_WIDESCREEN) != 0;
+    bool supports720p = (encoderSettings & VENC_MODE_720P) != 0;
+    bool supports480p = (encoderSettings & VENC_MODE_480P) != 0;
+    bool supports1080i = (encoderSettings & VENC_MODE_1080I) != 0;
+
+    s_nv2aVideoSettings.isWidescreen = isWidescreen;
+    s_nv2aVideoSettings.supports720p = supports720p;
+    s_nv2aVideoSettings.supports480p = supports480p;
+    s_nv2aVideoSettings.supports1080i = supports1080i;
+
+    ULONG smcAvPack = 0;
+    NTSTATUS smbStatus = HalReadSMBusValue(0x20, 0x04, FALSE, &smcAvPack);
+    uint32_t resolvedPack = AV_PACK_NONE;
+    if (NT_SUCCESS(smbStatus)) {
+        resolvedPack = mapSmcToAvPack(smcAvPack);
+    }
+    if (resolvedPack == AV_PACK_NONE) {
+        resolvedPack = static_cast<uint32_t>(encoderSettings & VIDEO_ADAPTER_MASK);
+    }
+    s_nv2aVideoSettings.avPackType = resolvedPack;
+
+    bool can720p = false;
+    if (supports720p && (s_nv2aVideoSettings.avPackType == AV_PACK_HDTV || s_nv2aVideoSettings.avPackType == AV_PACK_VGA)) {
+        VIDEO_MODE testMode;
+        void *p = NULL;
+        while (XVideoListModes(&testMode, 32, 60, &p)) {
+            if (testMode.width == 1280 && testMode.height == 720) {
+                can720p = true;
+                break;
+            }
+        }
+    }
+
+#ifdef SE_XBOX_FORCE_480P
+    can720p = false;
+#endif
+    s_nv2aVideoSettings.width = can720p ? 1280 : 640;
+    s_nv2aVideoSettings.height = can720p ? 720 : 480;
+    s_nv2aVideoSettings.bpp = 32;
+    s_nv2aVideoSettings.refresh = 60;
+
+    float autoOverscan = 0.0f;
+    switch (s_nv2aVideoSettings.avPackType) {
+    case AV_PACK_VGA:
+        autoOverscan = 0.0f;
+        break;
+    case AV_PACK_HDTV:
+        if (s_nv2aVideoSettings.width == 640 && s_nv2aVideoSettings.height == 480 && !s_nv2aVideoSettings.supports480p) {
+            autoOverscan = 0.05f;
+        } else {
+            autoOverscan = 0.0f;
+        }
+        break;
+    default:
+        if (s_nv2aVideoSettings.width == 640 && s_nv2aVideoSettings.height == 480) {
+            autoOverscan = 0.05f;
+        } else {
+            autoOverscan = 0.0f;
+        }
+        break;
+    }
+    s_nv2aVideoSettings.overscanRatio = autoOverscan;
+
+    char vidLog[256];
+    snprintf(vidLog, sizeof(vidLog),
+             "NV2A Video: %s cable detected. Mode %dx%d@%dHz (widescreen: %s, 720p: %s, overscan: %d%%)",
+             getAVPackName(), s_nv2aVideoSettings.width, s_nv2aVideoSettings.height, s_nv2aVideoSettings.refresh,
+             s_nv2aVideoSettings.isWidescreen ? "yes" : "no",
+             s_nv2aVideoSettings.supports720p ? "yes" : "no",
+             static_cast<int>(s_nv2aVideoSettings.overscanRatio * 100.0f));
+    Log::log(vidLog);
+#endif
+}
+
+Renderer_Xbox::VideoDisplaySettings Renderer_Xbox::getVideoDisplaySettings() {
+    initVideo();
+    return s_nv2aVideoSettings;
+}
+
+uint32_t Renderer_Xbox::getAVPackType() {
+    initVideo();
+    return s_nv2aVideoSettings.avPackType;
+}
+
+const char *Renderer_Xbox::getAVPackName() {
+    initVideo();
+    switch (s_nv2aVideoSettings.avPackType) {
+    case AV_PACK_STANDARD:
+        return "Composite (Standard)";
+    case AV_PACK_RFU:
+        return "RF Adapter";
+    case AV_PACK_SCART:
+        return "SCART (RGB)";
+    case AV_PACK_HDTV:
+        return "HDTV (Component)";
+    case AV_PACK_VGA:
+        return "VGA";
+    case AV_PACK_SVIDEO:
+        return "S-Video";
+    default:
+        return "None / Unknown";
+    }
+}
+
+static float s_mainViewportScaleX = 1.0f;
+static float s_mainViewportScaleY = 1.0f;
+static float s_mainViewportOffsetX = 0.0f;
+static float s_mainViewportOffsetY = 0.0f;
+static bool s_penTargetActive = false;
+static int s_stageScissorX = 0;
+static int s_stageScissorY = 0;
+static int s_stageScissorW = 640;
+static int s_stageScissorH = 480;
+static bool s_stageScissorActive = false;
+
+static void updateViewportOverscan();
+
+void Renderer_Xbox::applyVideoSettings() {
+    applyOverscan(s_nv2aVideoSettings.overscanRatio);
+}
+
+void Renderer_Xbox::applyOverscan(float overscanRatio) {
+    s_nv2aVideoSettings.overscanRatio = overscanRatio;
+    updateViewportOverscan();
+}
+
+void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen) {
+    (void)logicalWidth;
+    (void)logicalHeight;
+    s_nv2aVideoSettings.isWidescreen = isWidescreen;
+}
+
+void Renderer_Xbox::setOverscanRatio(float ratio) {
+    s_nv2aVideoSettings.overscanRatio = ratio;
+    updateViewportOverscan();
+}
+
+float Renderer_Xbox::getOverscanRatio() {
+    return s_nv2aVideoSettings.overscanRatio;
+}
+
+bool Renderer_Xbox::isWidescreen() {
+    initVideo();
+    return s_nv2aVideoSettings.isWidescreen;
+}
+
+bool Renderer_Xbox::supports720p() {
+    initVideo();
+    return s_nv2aVideoSettings.supports720p;
+}
+
+bool Renderer_Xbox::supports480p() {
+    initVideo();
+    return s_nv2aVideoSettings.supports480p;
+}
+
+bool Renderer_Xbox::supports1080i() {
+    initVideo();
+    return s_nv2aVideoSettings.supports1080i;
+}
+
+float Renderer_Xbox::getViewportScaleX() {
+    return s_mainViewportScaleX;
+}
+
+float Renderer_Xbox::getViewportScaleY() {
+    return s_mainViewportScaleY;
+}
+
+float Renderer_Xbox::getViewportOffsetX() {
+    return s_mainViewportOffsetX;
+}
+
+float Renderer_Xbox::getViewportOffsetY() {
+    return s_mainViewportOffsetY;
+}
+
+bool Renderer_Xbox::isPenTargetActive() {
+    return s_penTargetActive;
+}
+
+void Renderer_Xbox::getVideoMode(int &width, int &height, int &bpp, int &refresh) {
+    initVideo();
+#ifdef __XBOX__
+    VIDEO_MODE currentMode = XVideoGetMode();
+    width = currentMode.width > 0 ? currentMode.width : s_nv2aVideoSettings.width;
+    height = currentMode.height > 0 ? currentMode.height : s_nv2aVideoSettings.height;
+    bpp = currentMode.bpp > 0 ? currentMode.bpp : s_nv2aVideoSettings.bpp;
+    refresh = currentMode.refresh > 0 ? currentMode.refresh : s_nv2aVideoSettings.refresh;
+#else
+    width = s_nv2aVideoSettings.width;
+    height = s_nv2aVideoSettings.height;
+    bpp = s_nv2aVideoSettings.bpp;
+    refresh = s_nv2aVideoSettings.refresh;
+#endif
+}
+
+// Combiner helpers for NV2A registers
+static inline void combinerInit() {
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT,
+                 XGU_MASK(NV097_SET_SHADER_OTHER_STAGE_INPUT_STAGE1, 0) |
+                     XGU_MASK(NV097_SET_SHADER_OTHER_STAGE_INPUT_STAGE2, 0) |
+                     XGU_MASK(NV097_SET_SHADER_OTHER_STAGE_INPUT_STAGE3, 0));
+    p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM,
+                 XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE0, NV097_SET_SHADER_STAGE_PROGRAM_STAGE0_PROGRAM_NONE) |
+                     XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE1, NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_PROGRAM_NONE) |
+                     XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE2, NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_PROGRAM_NONE) |
+                     XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE3, NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PROGRAM_NONE));
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_MAP, 0x1) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_MAP, 0x1) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_CONTROL,
+                 XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, NV097_SET_COMBINER_CONTROL_FACTOR0_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR1, NV097_SET_COMBINER_CONTROL_FACTOR1_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, 1));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_SPECULAR_CLAMP, 0));
+    pb_end(p);
+}
+
+static bool s_activePremultiply = false;
+
+// "Flat" texture combiner (used by NV2ABlendMode::Add): RGB comes from the vertex colour only and the texture just
+// supplies the alpha mask. Brightness is drawn as an additive pass of white * (texAlpha * vertexAlpha); the plain
+// textured combiner (tex.rgb * vertex.rgb) would add the sprite's *own* colour instead, so a dark UI never flashed
+// to white and bright-to-dark fades were invisible.
+static bool s_activeFlatColor = false;  // wanted by the current blend mode
+static bool s_appliedFlatColor = false; // flavour baked into the combiner currently loaded on the GPU
+
+static inline void unlitCombinerApply() {
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
+    p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_MAP, 0x1) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_MAP, 0x1) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_CONTROL,
+                 XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, NV097_SET_COMBINER_CONTROL_FACTOR0_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR1, NV097_SET_COMBINER_CONTROL_FACTOR1_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, 1));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_SPECULAR_CLAMP, 0));
+    pb_end(p);
+}
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+#include "hue_combiners.inc"
+#endif
+
+static inline void textureCombinerApply() {
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
+    p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, XGU_MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE0, NV097_SET_SHADER_STAGE_PROGRAM_STAGE0_2D_PROJECTIVE));
+
+    // Normal:  rgb = tex.rgb * V0.rgb          (A = texture0, B = diffuse)
+    // Flat:    rgb = V0.rgb * 1                (A = diffuse,  B = constant 1 via "invert zero", as in unlitCombinerApply)
+    const uint32_t colorA = s_activeFlatColor ? 0x4 : 0x8;
+    const uint32_t colorBSource = s_activeFlatColor ? 0x0 : 0x4;
+    const uint32_t colorBMap = s_activeFlatColor ? 0x1 : 0x6;
+    s_appliedFlatColor = s_activeFlatColor;
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, colorA) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, colorBSource) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_MAP, colorBMap) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_ICW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_SOURCE, 0x8) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_A_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_B_MAP, 0x6) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_C_MAP, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_ALPHA_ICW_D_MAP, 0x0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_ALPHA_OCW + 0 * 4,
+                 XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_AB_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_SUM_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_ALPHA_OCW_OP, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_CONTROL,
+                 XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, NV097_SET_COMBINER_CONTROL_FACTOR0_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_FACTOR1, NV097_SET_COMBINER_CONTROL_FACTOR1_SAME_FACTOR_ALL) |
+                     XGU_MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, 1));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_E_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_SOURCE, 0x0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_ALPHA, 0) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_F_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_SOURCE, 0x4) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_ALPHA, 1) | XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_G_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_SPECULAR_CLAMP, 0));
+    pb_end(p);
+}
+
+// Pen & RenderTarget State
+static NV2ATexture s_penTexture;
+static bool s_hasPenTexture = false;
+static s_CtxDma s_penDmaCtx;
+static float s_penScaleY = 1.0f;
+static std::vector<NV2AVertex> s_penVerts;
+static bool s_lastCapValid = false;
+static float s_lastCapX = 0.0f, s_lastCapY = 0.0f, s_lastCapRadius = 0.0f;
+static uint32_t s_lastCapColor = 0;
+
+static void updateViewportOverscan() {
+    float ratio = s_nv2aVideoSettings.overscanRatio;
+    int width = 0, height = 0;
+#ifdef __XBOX__
+    width = pb_back_buffer_width();
+    height = pb_back_buffer_height();
+#endif
+    if (width <= 0) width = s_nv2aVideoSettings.width;
+    if (height <= 0) height = s_nv2aVideoSettings.height;
+
+    if (ratio <= 0.0f) {
+        s_mainViewportScaleX = 1.0f;
+        s_mainViewportScaleY = 1.0f;
+        s_mainViewportOffsetX = 0.0f;
+        s_mainViewportOffsetY = 0.0f;
+    } else {
+        float totalW = static_cast<float>(width);
+        float totalH = static_cast<float>(height);
+        float offsetX = std::floor(totalW * ratio);
+        float offsetY = std::floor(totalH * ratio);
+        float safeW = totalW - (offsetX * 2.0f);
+        float safeH = totalH - (offsetY * 2.0f);
+        s_mainViewportScaleX = safeW / totalW;
+        s_mainViewportScaleY = safeH / totalH;
+        s_mainViewportOffsetX = offsetX;
+        s_mainViewportOffsetY = offsetY;
+    }
+
+    float screenW = static_cast<float>(width);
+    float screenH = static_cast<float>(height);
+    float screenAspect = screenW / screenH;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float stageX = 0, stageY = 0, stageW = screenW, stageH = screenH;
+    if (screenAspect > projectAspect) {
+        float scale = screenH / Scratch::projectHeight;
+        stageW = Scratch::projectWidth * scale;
+        stageX = (screenW - stageW) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scale = screenW / Scratch::projectWidth;
+        stageH = Scratch::projectHeight * scale;
+        stageY = (screenH - stageH) / 2.0f;
+    }
+
+    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+}
+
+// Circle calculation table
 struct CirclePoint {
     float c, s;
 };
@@ -132,343 +603,1026 @@ static unsigned int circleSegmentsFor(double base, double penSize) {
     return std::min(static_cast<unsigned int>(wanted), 128u);
 }
 
-static void emitCircle(float cx, float cy, float radius, const SDL_FColor &color, const CirclePoint *table, unsigned int segments) {
-    for (unsigned int i = 0; i < segments; ++i) {
-        penVerts.push_back({{cx, cy}, color, {0.0f, 0.0f}});
-        penVerts.push_back({{cx + table[i].c * radius, cy + table[i].s * radius}, color, {0.0f, 0.0f}});
-        penVerts.push_back({{cx + table[i + 1].c * radius, cy + table[i + 1].s * radius}, color, {0.0f, 0.0f}});
-    }
-}
-
-// The end cap of the last accurate pen move. When the next move continues from the same point with the
-// same opaque color and size, its start cap would only repaint the same pixels, so it is skipped.
-static bool lastCapValid = false;
-static float lastCapX = 0.0f, lastCapY = 0.0f, lastCapRadius = 0.0f;
-static SDL_FColor lastCapColor = {0, 0, 0, 0};
-
-static inline bool sameColor(const SDL_FColor &a, const SDL_FColor &b) {
-    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
-}
-
-static void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
-    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    if (screenAspect > projectAspect) {
-        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_FRect leftBar = {0, 0, std::ceil(barWidth), static_cast<float>(screenHeight)};
-        SDL_FRect rightBar = {std::floor(screenWidth - barWidth), 0, std::ceil(barWidth), static_cast<float>(screenHeight)};
-
-        SDL_RenderFillRect(renderer, &leftBar);
-        SDL_RenderFillRect(renderer, &rightBar);
-    } else if (screenAspect < projectAspect) {
-        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_FRect topBar = {0, 0, static_cast<float>(screenWidth), std::ceil(barHeight)};
-        SDL_FRect bottomBar = {0, std::floor(screenHeight - barHeight), static_cast<float>(screenWidth), std::ceil(barHeight)};
-
-        SDL_RenderFillRect(renderer, &topBar);
-        SDL_RenderFillRect(renderer, &bottomBar);
-    }
-}
-
-static bool videoInitialized = false;
-static Renderer_Xbox::VideoDisplaySettings xboxVideoSettings = {
-    640, 480, 32, 60, false, false, false, false, 0.04f, 0};
-
-// Errata: Map raw SMC register 0x04 values (from hardware ID pins on Xbox AV connector)
-// to standard AV_PACK_* constants due to incorrect mappings:
-// 0x00: SCART
-// 0x01: HDTV (Component)
-// 0x02: VGA
-// 0x03: RFU
-// 0x04: S-Video
-// 0x06: Standard (Composite)
-// 0x07: Missing / Disconnected
-static uint32_t mapSmcToAvPack(uint32_t smcVal) {
-    switch (smcVal & 0x07) {
-    case 0x00:
-        return AV_PACK_SCART;
-    case 0x01:
-        return AV_PACK_HDTV;
-    case 0x02:
-        return AV_PACK_VGA;
-    case 0x03:
-        return AV_PACK_RFU;
-    case 0x04:
-        return AV_PACK_SVIDEO;
-    case 0x06:
-        return AV_PACK_STANDARD;
-    case 0x07:
-        return AV_PACK_NONE;
-    default:
-        return AV_PACK_NONE;
-    }
-}
-
-void Renderer_Xbox::initVideo() {
-    if (videoInitialized) return;
-    videoInitialized = true;
-
-#ifdef __XBOX__
-    // Read video display settings from Xbox EEPROM / MS Dashboard
-    ULONG encoderSettings = XVideoGetEncoderSettings();
-    bool isWidescreen = (encoderSettings & VENC_MODE_WIDESCREEN) != 0;
-    bool supports720p = (encoderSettings & VENC_MODE_720P) != 0;
-    bool supports480p = (encoderSettings & VENC_MODE_480P) != 0;
-    bool supports1080i = (encoderSettings & VENC_MODE_1080I) != 0;
-
-    xboxVideoSettings.isWidescreen = isWidescreen;
-    xboxVideoSettings.supports720p = supports720p;
-    xboxVideoSettings.supports480p = supports480p;
-    xboxVideoSettings.supports1080i = supports1080i;
-
-    // Detect physical AV cable / display device from SMC over SMBus (address 0x20, register 0x04)
-    ULONG smcAvPack = 0;
-    NTSTATUS smbStatus = HalReadSMBusValue(0x20, 0x04, FALSE, &smcAvPack);
-    uint32_t resolvedPack = AV_PACK_NONE;
-    if (NT_SUCCESS(smbStatus)) {
-        resolvedPack = mapSmcToAvPack(smcAvPack);
-    }
-    if (resolvedPack == AV_PACK_NONE) {
-        // Fallback to AV pack bits in encoder settings if SMBus read was unsuccessful
-        resolvedPack = static_cast<uint32_t>(encoderSettings & VIDEO_ADAPTER_MASK);
-    }
-    xboxVideoSettings.avPackType = resolvedPack;
-
-    // Automatic resolution detection:
-    // If 720p is supported by the dashboard EEPROM settings and the connected AV pack
-    // (HDTV Component or VGA), request 1280x720; otherwise fall back to 640x480.
-    bool can720p = false;
-    if (supports720p && (xboxVideoSettings.avPackType == AV_PACK_HDTV || xboxVideoSettings.avPackType == AV_PACK_VGA)) {
-        VIDEO_MODE testMode;
-        void *p = NULL;
-        while (XVideoListModes(&testMode, 32, 60, &p)) {
-            if (testMode.width == 1280 && testMode.height == 720) {
-                can720p = true;
-                break;
-            }
-        }
-    }
-
-#ifdef SE_XBOX_FORCE_480P
-    can720p = false;
+#ifdef SE_XBOX_TRACE_RENDERER
+static void traceEffectCache();
 #endif
-    xboxVideoSettings.width = can720p ? 1280 : 640;
-    xboxVideoSettings.height = can720p ? 720 : 480;
-    xboxVideoSettings.bpp = 32;
-    xboxVideoSettings.refresh = 60;
 
-    // Automatically determine overscan adjustment based on the hardware environment
-    float autoOverscan = 0.0f;
-    switch (xboxVideoSettings.avPackType) {
-    case AV_PACK_VGA:
-        // PC monitors display edge-to-edge with 1:1 pixel mapping (0% overscan)
-        autoOverscan = 0.0f;
-        break;
-
-    case AV_PACK_HDTV:
-        // Component (HDTV):
-        // 720p and 1080i are digital/HDTV modes without CRT raster crop (0% overscan).
-        // Standard 480i through component may be on early HD CRTs with overscan (5%).
-        if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480 && !xboxVideoSettings.supports480p) {
-            autoOverscan = 0.05f;
-        } else {
-            autoOverscan = 0.0f;
-        }
-        break;
-
-    case AV_PACK_STANDARD: // Composite Stereo
-    case AV_PACK_SVIDEO:   // S-Video
-    case AV_PACK_RFU:      // RF Adapter
-    case AV_PACK_SCART:    // Advanced SCART (RGB)
-    default:
-        // Standard-definition analog CRT formats:
-        // Almost all consumer CRTs crop borders by ~3-5%. Apply 5% centered safe margin.
-        if (xboxVideoSettings.width == 640 && xboxVideoSettings.height == 480) {
-            autoOverscan = 0.05f;
-        } else {
-            autoOverscan = 0.0f;
-        }
-        break;
-    }
-    xboxVideoSettings.overscanRatio = autoOverscan;
-
-    char vidLog[256];
-    snprintf(vidLog, sizeof(vidLog),
-             "Xbox Video: %s cable detected. Mode %dx%d@%dHz (bpp: %d, widescreen: %s, 720p: %s, overscan: %d%%)",
-             getAVPackName(), xboxVideoSettings.width, xboxVideoSettings.height, xboxVideoSettings.refresh,
-             xboxVideoSettings.bpp, xboxVideoSettings.isWidescreen ? "yes" : "no",
-             xboxVideoSettings.supports720p ? "yes" : "no",
-             static_cast<int>(xboxVideoSettings.overscanRatio * 100.0f));
-    Log::log(vidLog);
-#endif
-}
-
-Renderer_Xbox::VideoDisplaySettings Renderer_Xbox::getVideoDisplaySettings() {
+Renderer_Xbox::Renderer_Xbox() {
     initVideo();
-    return xboxVideoSettings;
-}
+    int windowWidth = s_nv2aVideoSettings.width;
+    int windowHeight = s_nv2aVideoSettings.height;
 
-uint32_t Renderer_Xbox::getAVPackType() {
-    initVideo();
-    return xboxVideoSettings.avPackType;
-}
-
-const char *Renderer_Xbox::getAVPackName() {
-    initVideo();
-    switch (xboxVideoSettings.avPackType) {
-    case AV_PACK_STANDARD:
-        return "Composite (Standard)";
-    case AV_PACK_RFU:
-        return "RF Adapter";
-    case AV_PACK_SCART:
-        return "SCART (RGB)";
-    case AV_PACK_HDTV:
-        return "HDTV (Component)";
-    case AV_PACK_VGA:
-        return "VGA";
-    case AV_PACK_SVIDEO:
-        return "S-Video";
-    default:
-        return "None / Unknown";
-    }
-}
-
-void Renderer_Xbox::setOverscanRatio(float ratio) {
-    xboxVideoSettings.overscanRatio = ratio;
-}
-
-float Renderer_Xbox::getOverscanRatio() {
-    return xboxVideoSettings.overscanRatio;
-}
-
-bool Renderer_Xbox::isWidescreen() {
-    initVideo();
-    return xboxVideoSettings.isWidescreen;
-}
-
-bool Renderer_Xbox::supports720p() {
-    initVideo();
-    return xboxVideoSettings.supports720p;
-}
-
-bool Renderer_Xbox::supports480p() {
-    initVideo();
-    return xboxVideoSettings.supports480p;
-}
-
-bool Renderer_Xbox::supports1080i() {
-    initVideo();
-    return xboxVideoSettings.supports1080i;
-}
-
-void Renderer_Xbox::getVideoMode(int &width, int &height, int &bpp, int &refresh) {
-    initVideo();
-#ifdef __XBOX__
-    VIDEO_MODE currentMode = XVideoGetMode();
-    width = currentMode.width > 0 ? currentMode.width : xboxVideoSettings.width;
-    height = currentMode.height > 0 ? currentMode.height : xboxVideoSettings.height;
-    bpp = currentMode.bpp > 0 ? currentMode.bpp : xboxVideoSettings.bpp;
-    refresh = currentMode.refresh > 0 ? currentMode.refresh : xboxVideoSettings.refresh;
-#else
-    width = xboxVideoSettings.width;
-    height = xboxVideoSettings.height;
-    bpp = xboxVideoSettings.bpp;
-    refresh = xboxVideoSettings.refresh;
-#endif
-}
-
-void Renderer_Xbox::applyAspectRatio(SDL_Renderer *renderer, int logicalWidth, int logicalHeight, bool isWidescreen) {
-    if (!renderer) return;
-    if (logicalWidth <= 0 || logicalHeight <= 0) {
-        logicalWidth = xboxVideoSettings.width;
-        logicalHeight = xboxVideoSettings.height;
-    }
-
-    if (isWidescreen && logicalWidth == 640 && logicalHeight == 480) {
-        // If the Xbox dashboard is outputting 16:9, but canvas is 4:3 (anamorphic 480p/480i),
-        // SDL3 can pillarbox it to preserve the 4:3 aspect ratio.
-        SDL_SetRenderLogicalPresentation(
-            renderer,
-            logicalWidth,
-            logicalHeight,
-            SDL_LOGICAL_PRESENTATION_LETTERBOX);
-    } else {
-        // Render natively at full window resolution without extra scaling overhead
-        SDL_SetRenderLogicalPresentation(
-            renderer,
-            logicalWidth,
-            logicalHeight,
-            SDL_LOGICAL_PRESENTATION_DISABLED);
-    }
-}
-
-void Renderer_Xbox::applyOverscan(SDL_Renderer *renderer, float overscanRatio) {
-    if (!renderer) return;
-    if (overscanRatio <= 0.0f) {
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-        SDL_SetRenderViewport(renderer, NULL);
+    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::Xbox);
+    if (!window || window->error.has_value()) {
+        error = "Failed to create NV2A window";
         return;
     }
 
-    int modeW = xboxVideoSettings.width;
-    int modeH = xboxVideoSettings.height;
 #ifdef __XBOX__
-    VIDEO_MODE currentMode = XVideoGetMode();
-    if (currentMode.width > 0 && currentMode.height > 0) {
-        modeW = currentMode.width;
-        modeH = currentMode.height;
+    pb_size(1024 * 1024);
+    pb_set_color_format(NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8, false);
+
+    int pb_res = pb_init();
+    if (pb_res < 0 && pb_res != -8) {
+        error = "pb_init failed: " + std::to_string(pb_res);
+        return;
     }
+
+    XVideoSetVideoEnable(true);
+    pb_show_front_screen();
+    pb_target_back_buffer();
+
+    // Allocate vertex ring buffer in write-combined memory (3MB triple-buffered)
+    s_vertexArena = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(VERTEX_ARENA_SIZE, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    if (s_vertexArena) {
+        s_vertexArenaPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(MmGetPhysicalAddress(s_vertexArena)));
+    } else {
+        s_vertexArenaPhys = 0;
+    }
+    s_arenaBase = 0;
+    s_arenaOffset = 0;
+    s_frameIndex = 0;
+
+    const float m_identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+
+    uint32_t *p = pb_begin();
+    p = xgu_set_blend_enable(p, true);
+    p = xgu_set_depth_test_enable(p, false);
+    p = xgu_set_dither_enable(p, false);
+    p = xgu_set_blend_func_sfactor(p, XGU_FACTOR_SRC_ALPHA);
+    p = xgu_set_blend_func_dfactor(p, XGU_FACTOR_ONE_MINUS_SRC_ALPHA);
+    p = xgu_set_skin_mode(p, XGU_SKIN_MODE_OFF);
+    p = xgu_set_normalization_enable(p, false);
+    p = xgu_set_lighting_enable(p, false);
+    p = xgu_set_cull_face_enable(p, false);
+    p = xgu_set_transform_execution_mode(p, XGU_FIXED, XGU_RANGE_MODE_PRIVATE);
+    p = xgu_set_projection_matrix(p, m_identity);
+    p = xgu_set_composite_matrix(p, m_identity);
+    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+    p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    pb_end(p);
+
+    for (int i = 0; i < 4; i++) {
+        p = pb_begin();
+        p = xgu_set_texgen_s(p, i, XGU_TEXGEN_DISABLE);
+        p = xgu_set_texgen_t(p, i, XGU_TEXGEN_DISABLE);
+        p = xgu_set_texgen_r(p, i, XGU_TEXGEN_DISABLE);
+        p = xgu_set_texgen_q(p, i, XGU_TEXGEN_DISABLE);
+        p = xgu_set_texture_matrix_enable(p, i, false);
+        p = xgu_set_texture_matrix(p, i, m_identity);
+        pb_end(p);
+    }
+
+    for (int i = 0; i < 4; i++) {
+        p = pb_begin();
+        p = xgu_set_model_view_matrix(p, i, m_identity);
+        p = xgu_set_inverse_model_view_matrix(p, i, m_identity);
+        pb_end(p);
+    }
+
+    p = pb_begin();
+    p = push_command(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
+    for (int i = 0; i < 16; i++) {
+        p = push_parameter(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F);
+    }
+    pb_end(p);
+
+    combinerInit();
+    unlitCombinerApply();
+
+    // Create DMA channel for off-screen pen rendering (channel 3)
+    pb_create_dma_ctx(3, DMA_CLASS_3D, 0, MAXRAM, &s_penDmaCtx);
+    pb_bind_channel(&s_penDmaCtx);
+
+    applyVideoSettings();
+
+    uint32_t *pInit = pb_begin();
+    pInit = pb_push1(pInit, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+    pb_end(pInit);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+
+    Log::log("Renderer_Xbox hardware initialized: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+#endif
+}
+
+Renderer_Xbox::~Renderer_Xbox() {
+    cleanupPen();
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+    TextObject::cleanupText();
+
+#ifdef __XBOX__
+    flushRetiredTextures(true);
+    if (s_vertexArena) {
+        MmFreeContiguousMemory(s_vertexArena);
+        s_vertexArena = nullptr;
+        s_vertexArenaPhys = 0;
+    }
+    pb_kill();
 #endif
 
-    const float totalW = static_cast<float>(modeW);
-    const float totalH = static_cast<float>(modeH);
-
-    const int offsetX = static_cast<int>(totalW * overscanRatio);
-    const int offsetY = static_cast<int>(totalH * overscanRatio);
-    const int safeW = static_cast<int>(totalW - (offsetX * 2));
-    const int safeH = static_cast<int>(totalH - (offsetY * 2));
-
-    const float scaleX = static_cast<float>(safeW) / totalW;
-    const float scaleY = static_cast<float>(safeH) / totalH;
-
-    // In SDL3, view->viewport coordinates are in render units and multiplied by current_scale
-    // when computing the hardware pixel viewport. To position the hardware pixel viewport at
-    // (offsetX, offsetY) with dimensions (safeW, safeH):
-    SDL_Rect renderViewport;
-    renderViewport.x = static_cast<int>(std::ceil(offsetX / scaleX));
-    renderViewport.y = static_cast<int>(std::ceil(offsetY / scaleY));
-    renderViewport.w = modeW;
-    renderViewport.h = modeH;
-
-    SDL_SetRenderScale(renderer, scaleX, scaleY);
-    SDL_SetRenderViewport(renderer, &renderViewport);
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
+    }
 }
 
-void Renderer_Xbox::applyVideoSettings(SDL_Renderer *renderer) {
-    if (!renderer) return;
-    applyAspectRatio(renderer, xboxVideoSettings.width, xboxVideoSettings.height, xboxVideoSettings.isWidescreen);
-    applyOverscan(renderer, xboxVideoSettings.overscanRatio);
+// ---------------------------------------------------------------------------
+// Deferred texture destruction.
+// destroyTexture() used to push WAIT_FOR_IDLE and spin until the whole GPU drained - on *every* destroy
+// (costume changes, font atlas rebuilds, effect textures...). Instead, textures are retired and their memory is
+// released at the start of the next frame (the GPU is already idle there), or immediately - with a full sync -
+// if an allocation fails or the list grows large.
+// ---------------------------------------------------------------------------
+static std::vector<NV2ATexture *> s_retiredTextures;
+
+static void freeTextureStorage(NV2ATexture *t) {
+#ifdef __XBOX__
+    if (t->data) {
+        MmFreeContiguousMemory(t->data);
+        t->data = nullptr;
+    }
+#endif
+    delete t;
 }
 
-void Renderer_Xbox::applyVideoSettings() {
-    applyVideoSettings(Sdlrenderer);
+static void flushRetiredTextures(bool syncGpu) {
+    if (s_retiredTextures.empty()) return;
+
+#ifdef __XBOX__
+    if (syncGpu) {
+
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        pb_end(p);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+    }
+#else
+    (void)syncGpu;
+#endif
+    for (NV2ATexture *t : s_retiredTextures)
+        freeTextureStorage(t);
+    s_retiredTextures.clear();
 }
 
-void Renderer_Xbox::applyOverscan(float overscanRatio) {
-    applyOverscan(Sdlrenderer, overscanRatio);
+NV2ATexture *Renderer_Xbox::createTexture(int width, int height, uint32_t format, bool swizzled, bool clearStorage) {
+    if (width <= 0 || height <= 0) return nullptr;
+
+    auto *tex = new NV2ATexture();
+    tex->texWidth = width;
+    tex->texHeight = height;
+    tex->format = format;
+    tex->swizzled = swizzled;
+
+    tex->isDXT = (format == XGU_TEXTURE_FORMAT_DXT1 || format == XGU_TEXTURE_FORMAT_DXT5);
+
+    if (tex->isDXT) {
+        tex->swizzled = false;
+        const auto layout = NV2ADxtLayout::make(width, height, format == XGU_TEXTURE_FORMAT_DXT5);
+        tex->dataWidth = layout.width;
+        tex->dataHeight = layout.height;
+        tex->uScale = static_cast<float>(width) / static_cast<float>(tex->dataWidth);
+        tex->vScale = static_cast<float>(height) / static_cast<float>(tex->dataHeight);
+        tex->pitch = layout.pitch;
+        tex->bytesPerPixel = 1;
+        tex->allocationSize = ((tex->dataHeight + 3) / 4) * tex->pitch;
+    } else {
+        if (format == XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED || format == XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED || format == XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED) {
+            tex->bytesPerPixel = 2;
+        } else {
+            tex->bytesPerPixel = 4;
+        }
+
+        if (swizzled) {
+            tex->dataWidth = npot2pot(width);
+            tex->dataHeight = npot2pot(height);
+            tex->uScale = static_cast<float>(width) / static_cast<float>(tex->dataWidth);
+            tex->vScale = static_cast<float>(height) / static_cast<float>(tex->dataHeight);
+        } else {
+            tex->dataWidth = (width + (64 / tex->bytesPerPixel) - 1) & ~((64 / tex->bytesPerPixel) - 1);
+            tex->dataHeight = height;
+            tex->uScale = static_cast<float>(width);
+            tex->vScale = static_cast<float>(height);
+        }
+        tex->pitch = tex->dataWidth * tex->bytesPerPixel;
+        tex->allocationSize = tex->dataHeight * tex->pitch;
+    }
+
+#ifdef __XBOX__
+
+    tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    if (!tex->data && !s_retiredTextures.empty()) {
+        flushRetiredTextures(true); // reclaim memory held by deferred frees
+        tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    }
+    if (!tex->data) {
+        // Eviction belongs at the image-level caller: this allocator cannot know whether
+        // its source pixels belong to an image being evicted. Retired GPU textures are safe
+        // to reclaim here, so retry that path without touching CPU-side costume ownership.
+        flushRetiredTextures(true);
+        tex->data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(tex->allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    }
+    if (!tex->data) {
+        delete tex;
+        return nullptr;
+    }
+
+    tex->dataPhysicalAddress = reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(MmGetPhysicalAddress(tex->data)));
+    if (clearStorage) {
+
+        memset(tex->data, 0, tex->allocationSize);
+    }
+#endif
+    return tex;
 }
 
-void Renderer_Xbox::applyAspectRatio(int logicalWidth, int logicalHeight, bool isWidescreen) {
-    applyAspectRatio(Sdlrenderer, logicalWidth, logicalHeight, isWidescreen);
+static const NV2ATexture *s_activeTexture = nullptr;
+static uint32_t s_frameCounter = 1;
+
+uint32_t Renderer_Xbox::getFrameCounter() {
+    return s_frameCounter;
+}
+static NV2AScaleMode s_activeScaleMode = NV2AScaleMode::Nearest;
+static bool s_activeWrap = false;
+static NV2ABlendMode s_activeBlendMode = NV2ABlendMode::None;
+static int s_activeShader = -1; // 0 = unlit, 1 = texture
+
+void Renderer_Xbox::setTextureScaleMode(NV2ATexture *texture, NV2AScaleMode scaleMode) {
+    if (texture) {
+        texture->scaleMode = scaleMode;
+    }
+}
+
+NV2AScaleMode Renderer_Xbox::getTextureScaleMode(const NV2ATexture *texture) const {
+    return texture ? texture->scaleMode : NV2AScaleMode::PixelArt;
+}
+
+void Renderer_Xbox::destroyTexture(NV2ATexture *&texture) {
+    if (!texture) return;
+    if (s_activeTexture == texture) {
+        s_activeTexture = nullptr;
+    }
+#ifdef __XBOX__
+    // The GPU may still be reading this texture from commands already queued this frame: retire it instead of
+    // freeing now. (The struct stays allocated until the flush, so the pointer can't be recycled under us.)
+    s_retiredTextures.push_back(texture);
+    if (s_retiredTextures.size() > 512) {
+        flushRetiredTextures(true);
+    }
+#else
+    freeTextureStorage(texture);
+#endif
+    texture = nullptr;
+}
+
+bool Renderer_Xbox::updateTexture(NV2ATexture *texture, const void *pixels, int pitch) {
+    if (!texture || !texture->data || !pixels) return false;
+
+    if (texture->isDXT) {
+        const NV2ADxtLayout::Layout layout{texture->dataWidth, texture->dataHeight, texture->pitch};
+        if (!NV2ADxtLayout::upload(texture->data, layout, static_cast<const uint8_t *>(pixels), pitch,
+                                   texture->texWidth, texture->texHeight,
+                                   texture->format == XGU_TEXTURE_FORMAT_DXT5)) return false;
+    } else if (texture->swizzled) {
+        static uint8_t *s_stage = nullptr;
+        static size_t s_stageCap = 0;
+        const size_t bytes = texture->allocationSize;
+        if (s_stageCap < bytes) {
+            free(s_stage);
+            s_stage = static_cast<uint8_t *>(malloc(bytes));
+            s_stageCap = s_stage ? bytes : 0;
+        }
+
+        const uint8_t *srcPixels = static_cast<const uint8_t *>(pixels);
+        const int w = texture->texWidth;
+        const int h = texture->texHeight;
+        const int dw = texture->dataWidth;
+        const int dh = texture->dataHeight;
+        const int bpp = texture->bytesPerPixel;
+
+        if (s_stage) {
+            memset(s_stage, 0, bytes);
+
+            // Copy rows and pad/replicate outer edges if NPOT
+            for (int y = 0; y < dh; ++y) {
+                int sy = std::min(y, h - 1);
+                const uint8_t *srcRow = srcPixels + static_cast<size_t>(sy) * pitch;
+                uint8_t *dstRow = s_stage + static_cast<size_t>(y) * (dw * bpp);
+
+                for (int x = 0; x < dw; ++x) {
+                    int sx = std::min(x, w - 1);
+                    memcpy(dstRow + x * bpp, srcRow + sx * bpp, bpp);
+                }
+            }
+
+            swizzle_subrect(s_stage,
+                            dw, dh,
+                            dw, dh,
+                            texture->data, dw * bpp, bpp);
+
+            if (s_stageCap > 256 * 1024) {
+                free(s_stage);
+                s_stage = nullptr;
+                s_stageCap = 0;
+            }
+        } else {
+            // Fallback path without staging buffer (reuses same replication logic via temporary row buffer if needed)
+            swizzle_subrect(srcPixels,
+                            w, h,
+                            dw, dh,
+                            texture->data, pitch, bpp);
+        }
+    } else {
+        for (int r = 0; r < texture->texHeight; ++r) {
+            memcpy(texture->data + static_cast<size_t>(r) * texture->pitch,
+                   static_cast<const uint8_t *>(pixels) + static_cast<size_t>(r) * pitch,
+                   texture->texWidth * texture->bytesPerPixel);
+        }
+    }
+
+    commitTextureUpload(texture);
+    return true;
+}
+
+void Renderer_Xbox::commitTextureUpload(NV2ATexture *texture) {
+#ifdef __XBOX__
+    nv2a_cache_flush();
+    // Re-emitting the offset made in-place uploads visible in the Xbox probe.
+    // Only refresh an already-bound allocation; a later bind handles others.
+    // This does not make it safe to overwrite memory used by queued draws.
+    if (s_activeTexture == texture) {
+        uint32_t *p = pb_begin();
+        p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
+        pb_end(p);
+    }
+#endif
+}
+
+void Renderer_Xbox::bindTexture(const NV2ATexture *texture) {
+    if (!texture) return;
+    bindTexture(texture, texture->scaleMode, false);
+}
+
+void Renderer_Xbox::bindTexture(const NV2ATexture *texture, bool linear, bool wrap) {
+    bindTexture(texture, linear ? NV2AScaleMode::Linear : NV2AScaleMode::Nearest, wrap);
+}
+
+void Renderer_Xbox::bindTexture(const NV2ATexture *texture, NV2AScaleMode scaleMode, bool wrap) {
+    if (!texture || !texture->data) return;
+
+    if (s_activeShader != 1 || s_appliedFlatColor != s_activeFlatColor) {
+        textureCombinerApply();
+        s_activeShader = 1;
+    }
+
+    if (s_activeTexture != texture || s_activeScaleMode != scaleMode || s_activeWrap != wrap) {
+        NV2A_PROF(++s_prof.binds);
+        uint32_t *p = pb_begin();
+        p = xgu_set_texture_offset(p, 0, texture->dataPhysicalAddress);
+        p = xgu_set_texture_format(p, 0, 2, false, XGU_SOURCE_COLOR, 2,
+                                   static_cast<XguTexFormatColor>(texture->format), 1,
+                                   static_cast<uint8_t>(__builtin_ctz(npot2pot(texture->dataWidth))),
+                                   static_cast<uint8_t>(__builtin_ctz(npot2pot(texture->dataHeight))), 0);
+        p = xgu_set_texture_control0(p, 0, true, 0, 0);
+        p = xgu_set_texture_control1(p, 0, std::max(64, texture->pitch));
+        p = xgu_set_texture_image_rect(p, 0, texture->texWidth, texture->texHeight);
+
+        XguTexFilter filterMin = XGU_TEXTURE_FILTER_NEAREST;
+        XguTexFilter filterMag = XGU_TEXTURE_FILTER_NEAREST;
+
+        switch (scaleMode) {
+        case NV2AScaleMode::Linear:
+            filterMin = XGU_TEXTURE_FILTER_LINEAR;
+            filterMag = XGU_TEXTURE_FILTER_LINEAR;
+            break;
+        case NV2AScaleMode::PixelArt:
+            filterMin = XGU_TEXTURE_FILTER_LINEAR;
+            filterMag = XGU_TEXTURE_FILTER_NEAREST;
+            break;
+        case NV2AScaleMode::Nearest:
+        default:
+            filterMin = XGU_TEXTURE_FILTER_NEAREST;
+            filterMag = XGU_TEXTURE_FILTER_NEAREST;
+            break;
+        }
+
+        p = xgu_set_texture_filter(p, 0, 0, XGU_TEXTURE_CONVOLUTION_GAUSSIAN,
+                                   filterMin, filterMag, false, false, false, false);
+        XguTextureAddress addr = wrap ? XGU_WRAP : XGU_CLAMP_TO_EDGE;
+        p = xgu_set_texture_address(p, 0, addr, false, addr, false, addr, false, false);
+        pb_end(p);
+        s_activeTexture = texture;
+        s_activeScaleMode = scaleMode;
+        s_activeWrap = wrap;
+    }
+}
+
+void Renderer_Xbox::unbindTexture() {
+    if (s_activeShader != 0) {
+        unlitCombinerApply();
+        s_activeShader = 0;
+    }
+    s_activeTexture = nullptr;
+}
+
+void Renderer_Xbox::setBlendMode(NV2ABlendMode mode) {
+    if (s_activeBlendMode == mode) return;
+    s_activeBlendMode = mode;
+
+    XguBlendFactor sfactor = XGU_FACTOR_ONE;
+    XguBlendFactor dfactor = XGU_FACTOR_ZERO;
+    s_activePremultiply = false;
+    s_activeFlatColor = (mode == NV2ABlendMode::Add);
+
+    switch (mode) {
+    case NV2ABlendMode::None:
+        sfactor = XGU_FACTOR_ONE;
+        dfactor = XGU_FACTOR_ZERO;
+        s_activePremultiply = false;
+        break;
+    case NV2ABlendMode::Blend:
+        sfactor = XGU_FACTOR_ONE;
+        dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+        s_activePremultiply = true;
+        break;
+    case NV2ABlendMode::Premultiplied:
+        sfactor = XGU_FACTOR_ONE;
+        dfactor = XGU_FACTOR_ONE_MINUS_SRC_ALPHA;
+        s_activePremultiply = false;
+        break;
+    case NV2ABlendMode::Add:
+        sfactor = XGU_FACTOR_SRC_ALPHA;
+        dfactor = XGU_FACTOR_ONE;
+        s_activePremultiply = false;
+        break;
+    }
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,
+                 XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_ALPHA, s_activePremultiply ? 1 : 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_A_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_SOURCE, s_activePremultiply ? 0x4 : 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_B_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_SOURCE, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_C_INVERSE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_SOURCE, s_activePremultiply ? 0x0 : 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_ALPHA, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW0_D_INVERSE, 0));
+    p = xgu_set_blend_func_sfactor(p, sfactor);
+    p = xgu_set_blend_func_dfactor(p, dfactor);
+    pb_end(p);
+
+    // Callers bind the texture first and pick the blend mode second, so the combiner flavour may have to change now.
+    if (s_activeShader == 1 && s_appliedFlatColor != s_activeFlatColor) {
+        textureCombinerApply();
+    }
+}
+
+#ifdef SE_XBOX_NV2A_HYBRID_HUE
+bool Renderer_Xbox::supportsHueTexture(const NV2ATexture *texture) {
+    if (!texture || !texture->data || texture->texWidth <= 0 || texture->texHeight <= 0)
+        return false;
+    switch (texture->format) {
+    case XGU_TEXTURE_FORMAT_DXT1:
+    case XGU_TEXTURE_FORMAT_DXT5:
+    case XGU_TEXTURE_FORMAT_A8R8G8B8:
+    case XGU_TEXTURE_FORMAT_A8B8G8R8_SWIZZLED:
+    // Smart compression also chooses these existing sampled RGB(A) formats.
+    // The hue combiners consume texture0 after decoding, with the same alpha
+    // and premultiplication path; no upload or texture conversion is needed.
+    case XGU_TEXTURE_FORMAT_R5G6B5_SWIZZLED:
+    case XGU_TEXTURE_FORMAT_A1R5G5B5_SWIZZLED:
+    case XGU_TEXTURE_FORMAT_A4R4G4B4_SWIZZLED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Renderer_Xbox::drawHueQuad(const NV2ATexture *texture, NV2AScaleMode scaleMode,
+                                const NV2AVertex *vertices, double effect) {
+    // The image checks eligibility before bypassing CPU effect acquisition.
+    // Split RGB weights, not opacity: the second pass must add no alpha.
+    double position = std::fmod(effect, 200.0) * 6.0 / 200.0;
+    if (position < 0) position += 6.0;
+    const int endpoint = std::min(5, static_cast<int>(position));
+    const double weight = position - endpoint;
+    NV2AVertex first[6], second[6];
+    for (int i = 0; i < 6; ++i) {
+        first[i] = second[i] = vertices[i];
+        for (int c = 0; c < 3; ++c) {
+            const int amount = static_cast<int>(vertices[i].color[c] * weight + 0.5);
+            first[i].color[c] -= amount;
+            second[i].color[c] = static_cast<uint8_t>(amount);
+        }
+    }
+    auto blend = [](bool additive) {
+        uint32_t *p = pb_begin();
+        p = xgu_set_blend_func_sfactor(p, XGU_FACTOR_ONE);
+        p = xgu_set_blend_func_dfactor(p, additive ? XGU_FACTOR_ONE : XGU_FACTOR_ONE_MINUS_SRC_ALPHA);
+        pb_end(p);
+    };
+    auto program = [](int k, bool zeroAlpha) {
+        textureCombinerApply();
+        if (k == 1) hueEndpointsCombinerApply(0);
+        else if (k == 2) hue120CombinerApply();
+        else if (k == 3) hue180EndpointCombinerApply();
+        else if (k == 4) rgbRotationCombinerApply();
+        else if (k == 5) hueEndpointsCombinerApply(1);
+        if (zeroAlpha) {
+            uint32_t *p = pb_begin();
+            p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1, k % 2 ? 0x0c040000 : 0);
+            pb_end(p);
+        }
+    };
+    bindTexture(texture, scaleMode);
+    setBlendMode(NV2ABlendMode::Blend);
+    blend(false);
+    program(endpoint, false);
+    drawTriangles(first, 6);
+    blend(true);
+    program((endpoint + 1) % 6, true);
+    drawTriangles(second, 6);
+    // Cached blend/shader enums still describe ordinary textured blending.
+    // Restore the actual registers explicitly before any later ordinary draw.
+    blend(false);
+    textureCombinerApply();
+#ifdef SE_XBOX_TRACE_RENDERER
+    static uint32_t quads = 0, lastReport = 0;
+    ++quads;
+    const uint32_t frame = getFrameCounter();
+    if (quads == 1 || frame - lastReport >= 120) {
+        Log::log("NV2A_HYBRID_HUE: gpuQuads=" + std::to_string(quads) +
+                 " frame=" + std::to_string(frame) + " format=" + std::to_string(texture->format) +
+                 " endpoint=" + std::to_string(endpoint) +
+                 " vertexR=" + std::to_string(vertices[0].color[0]));
+        lastReport = frame;
+    }
+#endif
+}
+#endif
+
+#ifdef SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
+void Renderer_Xbox::drawBrightnessTriangles(const NV2AVertex *vertices, size_t count, uint8_t brightness) {
+    // Caller binds the source texture first. Blend sets up the existing final
+    // combiner to premultiply RGB by texture alpha * vertex alpha.
+    setBlendMode(NV2ABlendMode::Blend);
+    uint32_t *p = pb_begin();
+    const uint32_t factor = static_cast<uint32_t>(brightness) * 0x00010101u;
+    p = pb_push1(p, NV097_SET_COMBINER_FACTOR0, factor);
+    // Stage 0: clamp(texture.rgb * vertex.rgb + factor0.rgb * 1).
+    // Sources: texture0=8, diffuse=4, factor0=1, zero=0.
+    // Maps: unsigned identity=0, unsigned invert=1 (invert zero gives one).
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_A_SOURCE, 0x8) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_B_SOURCE, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_C_SOURCE, 0x1) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_SOURCE, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_ICW_D_MAP, 0x1));
+    // Write AB+CD to diffuse (4), consumed by the existing final combiner.
+    // Discard the individual products; use a sum, with no dot products,
+    // bias, or scaling. These explicit zero fields preserve the same word.
+    p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW,
+                 XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DST, 0x0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_SUM_DST, 0x4) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE, 0) |
+                     XGU_MASK(NV097_SET_COMBINER_COLOR_OCW_OP, 0));
+    pb_end(p);
+    drawTriangles(vertices, count);
+    // Restore even when the next sprite binds the same texture/blend mode;
+    // those setters may otherwise skip their cached state updates.
+    textureCombinerApply();
+}
+#endif
+
+void Renderer_Xbox::setViewport(int x, int y, int w, int h) {
+    uint32_t *p = pb_begin();
+    p = xgu_set_viewport_offset(p, static_cast<float>(x), static_cast<float>(y), 0.0f, 0.0f);
+    pb_end(p);
+}
+
+void Renderer_Xbox::setScissor(int x, int y, int w, int h) {
+    uint32_t *p = pb_begin();
+    if (s_penTargetActive) {
+        p = xgu_set_scissor_rect(p, false, x, y, w, h);
+    } else {
+        int sx = static_cast<int>(std::round(x * s_mainViewportScaleX + s_mainViewportOffsetX));
+        int sy = static_cast<int>(std::round(y * s_mainViewportScaleY + s_mainViewportOffsetY));
+        int sw = static_cast<int>(std::round(w * s_mainViewportScaleX));
+        int sh = static_cast<int>(std::round(h * s_mainViewportScaleY));
+        if (s_stageScissorActive) {
+            int x1 = std::max(sx, s_stageScissorX);
+            int y1 = std::max(sy, s_stageScissorY);
+            int x2 = std::min(sx + sw, s_stageScissorX + s_stageScissorW);
+            int y2 = std::min(sy + sh, s_stageScissorY + s_stageScissorH);
+            int fw = std::max(0, x2 - x1);
+            int fh = std::max(0, y2 - y1);
+            p = xgu_set_scissor_rect(p, false, x1, y1, fw, fh);
+        } else {
+            p = xgu_set_scissor_rect(p, false, sx, sy, sw, sh);
+        }
+    }
+    pb_end(p);
+}
+
+void Renderer_Xbox::clearScissor() {
+    uint32_t *p = pb_begin();
+    if (s_penTargetActive) {
+        p = xgu_set_scissor_rect(p, false, 0, 0, s_penTexture.texWidth, s_penTexture.texHeight);
+    } else if (s_stageScissorActive) {
+        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    } else {
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    }
+    pb_end(p);
+}
+
+void Renderer_Xbox::drawTriangles(const NV2AVertex *vertices, size_t count) {
+    if (!vertices || count == 0 || !s_vertexArena) return;
+    NV2A_PROF(++s_prof.draws; s_prof.verts += static_cast<uint32_t>(count));
+
+    size_t byteSize = count * sizeof(NV2AVertex);
+    byteSize = (byteSize + 63) & ~63;
+
+    if (s_arenaOffset + byteSize > s_arenaBase + ARENA_PER_FRAME_SIZE) {
+#ifdef __XBOX__
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+        pb_end(p);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+#endif
+        s_arenaOffset = s_arenaBase;
+    }
+
+    const size_t vertOffset = s_arenaOffset;
+    auto *dstVerts = reinterpret_cast<NV2AVertex *>(s_vertexArena + vertOffset);
+    if (!s_penTargetActive && (s_mainViewportScaleX != 1.0f || s_mainViewportScaleY != 1.0f || s_mainViewportOffsetX != 0.0f || s_mainViewportOffsetY != 0.0f)) {
+        for (size_t i = 0; i < count; ++i) {
+            dstVerts[i].pos[0] = vertices[i].pos[0] * s_mainViewportScaleX + s_mainViewportOffsetX;
+            dstVerts[i].pos[1] = vertices[i].pos[1] * s_mainViewportScaleY + s_mainViewportOffsetY;
+            dstVerts[i].color[0] = vertices[i].color[0];
+            dstVerts[i].color[1] = vertices[i].color[1];
+            dstVerts[i].color[2] = vertices[i].color[2];
+            dstVerts[i].color[3] = vertices[i].color[3];
+            dstVerts[i].tex[0] = vertices[i].tex[0];
+            dstVerts[i].tex[1] = vertices[i].tex[1];
+        }
+    } else {
+        memcpy(dstVerts, vertices, count * sizeof(NV2AVertex));
+    }
+    s_arenaOffset += byteSize;
+
+#ifdef __XBOX__
+    nv2a_cache_flush();
+    const uint32_t memMask = OS::isEnhancedPlatform() ? 0x07FFFFFF : 0x03FFFFFF;
+    const uint32_t curPhys = (s_vertexArenaPhys + static_cast<uint32_t>(vertOffset)) & memMask;
+#else
+    const uint32_t memMask = 0x03FFFFFF;
+    const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset)) & memMask;
+#endif
+
+    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & memMask;
+    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & memMask;
+    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & memMask;
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+    p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_VERTEX_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(posAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_COLOR_ARRAY, XGU_UNSIGNED_BYTE_OGL, 4, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_COLOR_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(colAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_TEXCOORD0_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_TEXCOORD0_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(texAddr)));
+
+    p = xgu_begin(p, XGU_TRIANGLES);
+    unsigned int curStart = 0;
+    unsigned int remaining = static_cast<unsigned int>(count);
+    while (remaining > 0) {
+        unsigned int batch = std::min(remaining, static_cast<unsigned int>(MAX_BATCH));
+        p = xgu_draw_arrays(p, curStart, batch);
+        curStart += batch;
+        remaining -= batch;
+        if (remaining > 0) {
+            pb_end(p);
+            p = pb_begin();
+        }
+    }
+    p = xgu_end(p);
+    pb_end(p);
+}
+
+void Renderer_Xbox::drawColorTriangles(const NV2AVertex *vertices, size_t count) {
+    unbindTexture();
+    drawTriangles(vertices, count);
+}
+
+NV2AVertex *Renderer_Xbox::beginDirectVertices(size_t maxCount) {
+    if (!s_vertexArena || maxCount == 0) return nullptr;
+    size_t byteSize = maxCount * sizeof(NV2AVertex);
+    byteSize = (byteSize + 63) & ~63;
+
+    if (s_arenaOffset + byteSize > s_arenaBase + ARENA_PER_FRAME_SIZE) {
+#ifdef __XBOX__
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+        pb_end(p);
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+#endif
+        s_arenaOffset = s_arenaBase;
+    }
+
+    return reinterpret_cast<NV2AVertex *>(s_vertexArena + s_arenaOffset);
+}
+
+void Renderer_Xbox::endDirectVertices(size_t actualCount) {
+    if (!s_vertexArena || actualCount == 0) return;
+    NV2A_PROF(++s_prof.draws; s_prof.verts += static_cast<uint32_t>(actualCount));
+
+    const size_t vertOffset = s_arenaOffset;
+    size_t byteSize = actualCount * sizeof(NV2AVertex);
+    byteSize = (byteSize + 63) & ~63;
+    s_arenaOffset += byteSize;
+
+#ifdef __XBOX__
+    nv2a_cache_flush();
+    const uint32_t memMask = OS::isEnhancedPlatform() ? 0x07FFFFFF : 0x03FFFFFF;
+    const uint32_t curPhys = (s_vertexArenaPhys + static_cast<uint32_t>(vertOffset)) & memMask;
+#else
+    const uint32_t memMask = 0x03FFFFFF;
+    const uint32_t curPhys = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_vertexArena + vertOffset)) & memMask;
+#endif
+
+    const uint32_t posAddr = (curPhys + offsetof(NV2AVertex, pos)) & memMask;
+    const uint32_t colAddr = (curPhys + offsetof(NV2AVertex, color)) & memMask;
+    const uint32_t texAddr = (curPhys + offsetof(NV2AVertex, tex)) & memMask;
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+    p = xgu_set_vertex_data_array_format(p, XGU_VERTEX_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_VERTEX_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(posAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_COLOR_ARRAY, XGU_UNSIGNED_BYTE_OGL, 4, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_COLOR_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(colAddr)));
+    p = xgu_set_vertex_data_array_format(p, XGU_TEXCOORD0_ARRAY, XGU_FLOAT, 2, sizeof(NV2AVertex));
+    p = xgu_set_vertex_data_array_offset(p, XGU_TEXCOORD0_ARRAY, reinterpret_cast<const void *>(static_cast<uintptr_t>(texAddr)));
+
+    p = xgu_begin(p, XGU_TRIANGLES);
+    unsigned int curStart = 0;
+    unsigned int remaining = static_cast<unsigned int>(actualCount);
+    while (remaining > 0) {
+        unsigned int batch = std::min(remaining, static_cast<unsigned int>(MAX_BATCH));
+        p = xgu_draw_arrays(p, curStart, batch);
+        curStart += batch;
+        remaining -= batch;
+        if (remaining > 0) {
+            pb_end(p);
+            p = pb_begin();
+        }
+    }
+    p = xgu_end(p);
+    pb_end(p);
+}
+
+static void ensureMainTarget() {
+    if (!s_penTargetActive) return;
+    s_penTargetActive = false;
+
+#ifdef __XBOX__
+    uint32_t *pWait = pb_begin();
+    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWait);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
+
+    pb_target_back_buffer();
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, DMA_CHANNEL_PIXEL_RENDERER);
+    p = pb_push1(p, NV097_SET_SURFACE_PITCH,
+                 XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pb_back_buffer_pitch()) |
+                     XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
+    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0);
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, pb_back_buffer_width()) |
+                     XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, pb_back_buffer_height()) |
+                     XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
+                 XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, pb_ColorFmt) |
+                     XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
+                     XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+    if (s_stageScissorActive) {
+        p = xgu_set_scissor_rect(p, false, s_stageScissorX, s_stageScissorY, s_stageScissorW, s_stageScissorH);
+    } else {
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+    }
+    pb_end(p);
+
+    s_activeTexture = nullptr;
+    s_activeShader = -1;
+}
+
+static void ensurePenTarget() {
+    if (s_penTargetActive || !s_hasPenTexture) return;
+    s_penTargetActive = true;
+
+#ifdef __XBOX__
+    uint32_t *pWaitPen = pb_begin();
+    pWaitPen = pb_push1(pWaitPen, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWaitPen);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
+
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_SET_CONTEXT_DMA_COLOR, s_penDmaCtx.ChannelID);
+    p = pb_push1(p, NV097_SET_SURFACE_PITCH,
+                 XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, s_penTexture.pitch) |
+                     XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
+    p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s_penTexture.dataPhysicalAddress)));
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, s_penTexture.texWidth) |
+                     XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
+                 XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, s_penTexture.texHeight) |
+                     XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
+    p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
+                 XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8) |
+                     XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
+                     XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
+    p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+    p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+    p = xgu_set_scissor_rect(p, false, 0, 0, s_penTexture.texWidth, s_penTexture.texHeight);
+    pb_end(p);
+
+    s_activeTexture = nullptr;
+    s_activeShader = -1;
+}
+
+static void flushPenVerts(Renderer_Xbox *r) {
+    if (s_penVerts.empty() || !s_hasPenTexture) return;
+    ensurePenTarget();
+    r->unbindTexture();
+    r->setBlendMode(NV2ABlendMode::Blend);
+    r->drawTriangles(s_penVerts.data(), s_penVerts.size());
+    s_penVerts.clear();
+}
+
+static inline void pushPenTri(Renderer_Xbox *r, const NV2AVertex &v0, const NV2AVertex &v1, const NV2AVertex &v2) {
+    if (s_penVerts.size() + 3 > PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(r);
+    }
+    s_penVerts.push_back(v0);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v2);
+}
+
+static inline void pushPenQuad(Renderer_Xbox *r, const NV2AVertex &v0, const NV2AVertex &v1, const NV2AVertex &v2, const NV2AVertex &v3) {
+    if (s_penVerts.size() + 6 > PEN_FLUSH_THRESHOLD) {
+        flushPenVerts(r);
+    }
+    s_penVerts.push_back(v0);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v2);
+    s_penVerts.push_back(v1);
+    s_penVerts.push_back(v3);
+    s_penVerts.push_back(v2);
+}
+
+bool Renderer_Xbox::initPen() {
+    if (s_hasPenTexture) return true;
+
+    int penW = Scratch::projectWidth > 0 ? Scratch::projectWidth : 480;
+    int penH = Scratch::projectHeight > 0 ? Scratch::projectHeight : 360;
+    if (Scratch::hqpen) {
+        penW = getWidth();
+        penH = getHeight();
+    }
+
+    s_penTexture.texWidth = penW;
+    s_penTexture.texHeight = penH;
+    s_penTexture.bytesPerPixel = 4;
+    s_penTexture.pitch = (penW * 4 + 63) & ~63;
+    s_penTexture.dataWidth = s_penTexture.pitch / 4;
+    s_penTexture.dataHeight = penH;
+    s_penTexture.uScale = static_cast<float>(penW);
+    s_penTexture.vScale = static_cast<float>(penH);
+    s_penTexture.swizzled = false;
+    s_penTexture.isDXT = false;
+    s_penTexture.format = XGU_TEXTURE_FORMAT_A8R8G8B8;
+    s_penTexture.allocationSize = s_penTexture.pitch * penH;
+
+#ifdef __XBOX__
+    s_penTexture.data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(s_penTexture.allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    if (!s_penTexture.data) {
+        Scratch::freeUnusedCostumeImages();
+        s_penTexture.data = static_cast<uint8_t *>(MmAllocateContiguousMemoryEx(s_penTexture.allocationSize, 0, MAXRAM, 0, PAGE_WRITECOMBINE | PAGE_READWRITE));
+    }
+    if (!s_penTexture.data) {
+        return false;
+    }
+    s_penTexture.dataPhysicalAddress = reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(MmGetPhysicalAddress(s_penTexture.data)));
+    memset(s_penTexture.data, 0, s_penTexture.allocationSize);
+#endif
+
+    s_hasPenTexture = true;
+    s_penScaleY = static_cast<float>(penH) / static_cast<float>(Scratch::projectHeight > 0 ? Scratch::projectHeight : 360);
+    s_penVerts.clear();
+    s_penVerts.reserve(PEN_FLUSH_THRESHOLD + 1024);
+    s_lastCapValid = false;
+
+    return true;
+}
+
+void Renderer_Xbox::cleanupPen() {
+    if (s_hasPenTexture) {
+        ensureMainTarget();
+#ifdef __XBOX__
+        if (s_penTexture.data) {
+            MmFreeContiguousMemory(s_penTexture.data);
+            s_penTexture.data = nullptr;
+        }
+#endif
+        s_hasPenTexture = false;
+        s_lastCapValid = false;
+    }
+    s_penTargetActive = false;
+    s_penVerts.clear();
+    s_penVerts.shrink_to_fit();
+}
+
+void Renderer_Xbox::setRenderTarget(void *renderTarget, int width, int height) {
+    (void)renderTarget;
+    (void)width;
+    (void)height;
+}
+
+void Renderer_Xbox::clearRenderTarget() {
+    ensureMainTarget();
+}
+
+bool Renderer_Xbox::createSpeechManager() {
+    if (!speechManager) speechManager = new SpeechManagerXbox();
+    return speechManager != nullptr;
+}
+
+SpeechManager *Renderer_Xbox::getSpeechManager() {
+    if (!speechManager) speechManager = new SpeechManagerXbox();
+    return speechManager;
+}
+
+void Renderer_Xbox::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+int Renderer_Xbox::getWidth() {
+    if (window) return window->getWidth();
+    return 640;
+}
+
+int Renderer_Xbox::getHeight() {
+    if (window) return window->getHeight();
+    return 480;
+}
+
+float Renderer_Xbox::getPixelDensity() {
+    return 1.0f;
 }
 
 #ifdef SE_XBOX_TRACE_RENDERER
@@ -481,496 +1635,364 @@ static void traceEffectCache() {
              " created=" + std::to_string(stats.created) + " evicted=" + std::to_string(stats.evicted));
 }
 
-static bool traceStartupPixels(SDL_Renderer *renderer) {
-    // Exercise the actual GPU path, including state changes used by games.
-    bool passed = true;
-    SDL_Rect savedViewport;
-    float savedScaleX = 1.0f, savedScaleY = 1.0f;
-    SDL_GetRenderViewport(renderer, &savedViewport);
-    SDL_GetRenderScale(renderer, &savedScaleX, &savedScaleY);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-    SDL_SetRenderViewport(renderer, nullptr);
-    auto pixel = [&](SDL_Surface *surface, const char *test, int x, int y,
-                     int expectedR, int expectedG, int expectedB, int tolerance = 0, int expectedA = -1) {
-        Uint8 r = 0, g = 0, b = 0, a = 0;
-        bool read = surface && SDL_ReadSurfacePixel(surface, x, y, &r, &g, &b, &a);
-        bool matches = read && std::abs(int(r) - expectedR) <= tolerance &&
-                       std::abs(int(g) - expectedG) <= tolerance && std::abs(int(b) - expectedB) <= tolerance &&
-                       (expectedA < 0 || std::abs(int(a) - expectedA) <= tolerance);
-        Log::log(std::string("GPU probe ") + test + "=" + (matches ? "pass" : "FAIL") +
-                 " rgba=" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + std::to_string(a));
-        passed &= matches;
-    };
-    auto clearBlue = [&] {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-        passed &= SDL_RenderClear(renderer);
-    };
-    const SDL_FColor red = {1, 0, 0, 1};
-    const SDL_Vertex triangle[] = {
-        {{0, 0}, red, {0, 0}}, {{64, 0}, red, {0, 0}}, {{0, 64}, red, {0, 0}}};
-    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 2, 2);
-    const Uint32 green[] = {0xff00ff00, 0xff00ff00, 0xff00ff00, 0xff00ff00};
-    passed &= texture && SDL_UpdateTexture(texture, nullptr, green, 8);
-    const SDL_FRect destination = {64, 0, 64, 64};
-    clearBlue();
-    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
-    if (texture) passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
-    SDL_Surface *pixels = SDL_RenderReadPixels(renderer, nullptr);
-    pixel(pixels, "solid", 8, 8, 255, 0, 0);
-    pixel(pixels, "textured", 72, 8, 0, 255, 0);
-    pixel(pixels, "clear", 144, 8, 0, 0, 255);
-    SDL_DestroySurface(pixels);
-
-    clearBlue();
-    const SDL_Rect viewport = {32, 32, 64, 64};
-    passed &= SDL_SetRenderViewport(renderer, &viewport);
-    passed &= SDL_RenderGeometry(renderer, nullptr, triangle, 3, nullptr, 0);
-    passed &= SDL_SetRenderViewport(renderer, nullptr);
-    pixels = SDL_RenderReadPixels(renderer, nullptr);
-    pixel(pixels, "viewport-offset", 40, 40, 255, 0, 0);
-    pixel(pixels, "viewport-outside", 8, 8, 0, 0, 255);
-    SDL_DestroySurface(pixels);
-
-    clearBlue();
-    SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 64, 64);
-    passed &= target != nullptr;
-    if (target) {
-        passed &= SDL_SetRenderTarget(renderer, target);
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        passed &= SDL_RenderClear(renderer);
-        passed &= SDL_SetRenderTarget(renderer, nullptr);
-        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_NONE);
-        const SDL_FRect targetDestination = {128, 0, 64, 64};
-        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
-        pixels = SDL_RenderReadPixels(renderer, nullptr);
-        pixel(pixels, "target-restore", 136, 8, 0, 255, 0);
-        pixel(pixels, "target-outside", 208, 8, 0, 0, 255);
-        SDL_DestroySurface(pixels);
-    }
-    clearBlue();
-    if (texture) {
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureAlphaMod(texture, 128);
-        passed &= SDL_RenderTexture(renderer, texture, nullptr, &destination);
-        pixels = SDL_RenderReadPixels(renderer, nullptr);
-        pixel(pixels, "alpha", 72, 8, 0, 128, 127, 1, 255);
-        SDL_DestroySurface(pixels);
-    }
-    if (texture && target) {
-        passed &= SDL_SetRenderTarget(renderer, target);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-        passed &= SDL_RenderClear(renderer);
-        const SDL_FRect entireTarget = {0, 0, 64, 64};
-        passed &= SDL_RenderTexture(renderer, texture, nullptr, &entireTarget);
-        const SDL_FColor halfRed = {1, 0, 0, 128.0f / 255.0f};
-        const SDL_Vertex halfTriangle[] = {
-            {{0, 0}, halfRed, {0, 0}}, {{64, 0}, halfRed, {0, 0}}, {{0, 64}, halfRed, {0, 0}}};
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        passed &= SDL_RenderGeometry(renderer, nullptr, halfTriangle, 3, nullptr, 0);
-        pixels = SDL_RenderReadPixels(renderer, nullptr);
-        pixel(pixels, "target-alpha", 52, 52, 0, 128, 0, 1, 128);
-        pixel(pixels, "target-alpha-overlap", 8, 8, 128, 64, 0, 1, 192);
-        SDL_DestroySurface(pixels);
-        const SDL_Rect targetSample = {8, 8, 4, 4};
-        pixels = SDL_RenderReadPixels(renderer, &targetSample);
-        pixel(pixels, "target-subrect", 0, 0, 128, 64, 0, 1, 192);
-        SDL_DestroySurface(pixels);
-        passed &= SDL_SetRenderTarget(renderer, nullptr);
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-        clearBlue();
-        SDL_SetTextureBlendMode(target, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
-        const SDL_FRect targetDestination = {128, 0, 64, 64};
-        passed &= SDL_RenderTexture(renderer, target, nullptr, &targetDestination);
-        pixels = SDL_RenderReadPixels(renderer, nullptr);
-        pixel(pixels, "target-alpha-composite", 180, 52, 0, 128, 127, 1, 255);
-        pixel(pixels, "target-alpha-overlap-composite", 136, 8, 128, 64, 63, 1, 255);
-        SDL_DestroySurface(pixels);
-        const SDL_Rect mainSample = {136, 8, 4, 4};
-        pixels = SDL_RenderReadPixels(renderer, &mainSample);
-        pixel(pixels, "main-subrect", 0, 0, 128, 64, 63, 1, 255);
-        SDL_DestroySurface(pixels);
-    }
-    SDL_DestroyTexture(target);
-    SDL_DestroyTexture(texture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
-    SDL_SetRenderScale(renderer, savedScaleX, savedScaleY);
-    SDL_SetRenderViewport(renderer, &savedViewport);
-    Log::log(passed ? "GPU startup probe passed." : "GPU startup probe FAILED.");
-    return passed;
-}
 #endif
 
-Renderer_Xbox::Renderer_Xbox() {
-    initVideo();
-    int windowWidth = xboxVideoSettings.width;
-    int windowHeight = xboxVideoSettings.height;
+void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    (void)screen;
+    if (!hasFrameBegan) {
 
-#ifdef WINDOWING_SDL3
-    window = createWindow(windowWidth, windowHeight, "Scratch Everywhere!", WindowingBackends::SDL3);
-    if (window->error.has_value()) {
-        error = "Failed to init window: " + window->error.value();
-        delete window;
-        window = nullptr;
-        return;
-    }
-    Sdlrenderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(window)->getRenderer());
-    if (Sdlrenderer == nullptr) {
-        error = "Could not create renderer: " + std::string(SDL_GetError());
-        return;
-    }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    if (SDL_GetRenderOutputSize(Sdlrenderer, &outputWidth, &outputHeight)) {
-        Log::log("Xbox renderer output: " + std::to_string(outputWidth) + "x" + std::to_string(outputHeight));
-    }
+        NV2A_PROF(const uint64_t tBegin = nv2aTsc(); if (s_prof.tEndExit) s_prof.logic += tBegin - s_prof.tEndExit);
+        ensureMainTarget();
+        ++s_frameCounter;
+
 #ifdef __XBOX__
-    VIDEO_MODE actualMode = XVideoGetMode();
-    Log::log("Xbox active video mode: " + std::to_string(actualMode.width) + "x" + std::to_string(actualMode.height));
+        NV2A_PROF(const uint64_t tVbl0 = nv2aTsc());
+        pb_wait_for_vbl();
+
+        NV2A_PROF(const uint64_t tVbl1 = nv2aTsc(); s_prof.vbl += tVbl1 - tVbl0);
+
+        // Wait for prior pushbuffer DMA and graphics pipeline to be completely idle before resetting pushbuffer head
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
+
+        flushRetiredTextures(false); // GPU is idle here: safe to release textures retired last frame
+
+        pb_reset();
+        pb_target_back_buffer();
+        pb_erase_depth_stencil_buffer(0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+
+        uint32_t clearColor = (static_cast<uint32_t>(colorR) << 16) |
+                              (static_cast<uint32_t>(colorG) << 8) |
+                              (static_cast<uint32_t>(colorB)) |
+                              0xFF000000;
+        pb_fill(0, 0, pb_back_buffer_width(), pb_back_buffer_height(), clearColor);
+
+        uint32_t *p = pb_begin();
+        p = pb_push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+        p = xgu_set_viewport_scale(p, 1.0f, 1.0f, 1.0f, 1.0f);
+        p = xgu_set_viewport_offset(p, 0.0f, 0.0f, 0.0f, 0.0f);
+        p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+        pb_end(p);
+
+        // Wait for 2D clear operations to complete before 3D vertex processing begins
+        while (pb_busy()) {
+            __asm__ __volatile__("pause");
+        }
+        pb_wait_until_gr_not_busy();
 #endif
-    applyVideoSettings();
+
+        s_activeTexture = nullptr;
+        s_activeShader = -1;
+        s_activeBlendMode = NV2ABlendMode::None;
+        s_activePremultiply = false;
+        s_activeFlatColor = false;
+        s_appliedFlatColor = false;
+        s_activeWrap = false;
+        s_activeScaleMode = NV2AScaleMode::Nearest;
+        s_frameIndex = (s_frameIndex + 1) % 3;
+        s_arenaBase = s_frameIndex * ARENA_PER_FRAME_SIZE;
+        s_arenaOffset = s_arenaBase;
+
+        NV2A_PROF(s_prof.idle += nv2aTsc() - tVbl1; s_prof.tBuildStart = nv2aTsc());
+
+        hasFrameBegan = true;
+    }
+}
+
+void Renderer_Xbox::endFrame(bool shouldFlush) {
+    (void)shouldFlush;
+    if (!hasFrameBegan) return;
+
+    NV2A_PROF(const uint64_t tEnd0 = nv2aTsc(); s_prof.build += tEnd0 - s_prof.tBuildStart);
+    ensureMainTarget();
+
+#ifdef __XBOX__
+    uint32_t *p = pb_begin();
+    p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(p);
+
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+
+    while (pb_finished()) {
+        __asm__ __volatile__("pause");
+    }
+
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
+    }
+    pb_wait_until_gr_not_busy();
+#endif
+
+#ifdef SE_NV2A_PROFILE
+    const uint64_t tGpuDone = nv2aTsc();
+    s_prof.gpuWait += tGpuDone - tEnd0;
+    s_prof.tEndExit = tGpuDone;
+#endif
+
+    hasFrameBegan = false;
+
 #ifdef SE_XBOX_TRACE_RENDERER
-    traceStartupPixels(Sdlrenderer);
+    traceEffectCache();
 #endif
-#else
-    error = "Renderer_Xbox requires SDL3 windowing backend (WINDOWING_SDL3)";
+
+#ifdef SE_NV2A_PROFILE
+    if (++s_prof.frames >= 60) {
+        const double f = s_prof.frames, c = 733333.0;
+        Log::log("NV2A prof (ms/frame): logic=" + formatMs(s_prof.logic / c / f) +
+                 " vbl=" + formatMs(s_prof.vbl / c / f) +
+                 " beginWait=" + formatMs(s_prof.idle / c / f) +
+                 " build=" + formatMs(s_prof.build / c / f) +
+                 " (cacheFlush=" + formatMs(s_prof.flush / c / f) + ")" +
+                 " gpuWait+flip=" + formatMs(s_prof.gpuWait / c / f) +
+                 " | draws=" + std::to_string(s_prof.draws / s_prof.frames) +
+                 " verts=" + std::to_string(s_prof.verts / s_prof.frames) +
+                 " texBinds=" + std::to_string(s_prof.binds / s_prof.frames));
+        s_prof = NV2AProf{};
+    }
 #endif
 }
 
-Renderer_Xbox::~Renderer_Xbox() {
-    clearPenColorReadback();
-    if (speechManager) {
-        delete speechManager;
-        speechManager = nullptr;
-    }
-    if (penTexture != nullptr) {
-        ensureMainTarget(Sdlrenderer);
-        SDL_DestroyTexture(penTexture);
-        penTexture = nullptr;
-    }
+void Renderer_Xbox::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    ensureMainTarget();
+    float x0 = static_cast<float>(x - w / 2.0f);
+    float y0 = static_cast<float>(y - h / 2.0f);
+    float x1 = x0 + static_cast<float>(w);
+    float y1 = y0 + static_cast<float>(h);
 
-    TextObject::cleanupText();
-    SDL_DestroyRenderer(Sdlrenderer);
+    NV2AVertex verts[6] = {
+        {{x0, y0}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}},
+        {{x1, y0}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}},
+        {{x1, y1}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}},
+        {{x0, y0}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}},
+        {{x1, y1}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}},
+        {{x0, y1}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}}};
 
-    if (window) {
-        window->cleanup();
-        delete window;
-        window = nullptr;
-    }
-
-    SDL_Quit();
+    setBlendMode(colorA < 255 ? NV2ABlendMode::Blend : NV2ABlendMode::None);
+    drawColorTriangles(verts, 6);
 }
 
-void Renderer_Xbox::setRenderTarget(void *renderTarget, int width, int height) {
-    mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
-    overrideWidth = width;
-    overrideHeight = height;
-    hasOverrideTarget = true;
-    penTargetActive = false; // the line below makes the main target current
-    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-}
-
-void Renderer_Xbox::clearRenderTarget() {
-    mainRenderTarget = nullptr;
-    hasOverrideTarget = false;
-    penTargetActive = false;
-    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-}
-
-bool Renderer_Xbox::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerXbox();
-    return speechManager != nullptr;
-}
-
-void Renderer_Xbox::destroySpeechManager() {
-    delete speechManager;
-    speechManager = nullptr;
-}
-
-SpeechManager *Renderer_Xbox::getSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerXbox();
-    return speechManager;
-}
-
-int Renderer_Xbox::getWidth() {
-    if (hasOverrideTarget) return overrideWidth;
-    if (window) return window->getWidth();
-    return 480;
-}
-
-int Renderer_Xbox::getHeight() {
-    if (hasOverrideTarget) return overrideHeight;
-    if (window) return window->getHeight();
-    return 360;
-}
-
-float Renderer_Xbox::getPixelDensity() {
-    if (window) return window->getPixelDensity();
-    return 1.0f;
-}
-
-bool Renderer_Xbox::initPen() {
-    if (penTexture != nullptr) return true;
-    clearPenColorReadback();
-
-    constexpr auto penFormat = SDL_PIXELFORMAT_ARGB8888;
-
-    if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-            penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
-        else
-            penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-    } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
-
-    if (!penTexture) {
-        Scratch::freeUnusedCostumeImages();
-        if (Scratch::hqpen) {
-            if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
-            else
-                penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-        } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
-    }
-    if (!penTexture) {
-        Log::logError(std::string("Failed to create pen texture: ") + SDL_GetError());
-        return false;
+void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
     }
 
-    // Clear the texture
-    // Drawing into a transparent target stores premultiplied RGB. Composite it
-    // without multiplying that RGB by alpha a second time.
-    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
-    SDL_SetTextureScaleMode(penTexture, SDL_SCALEMODE_NEAREST);
-    SDL_SetRenderTarget(Sdlrenderer, penTexture);
-    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
-    SDL_RenderClear(Sdlrenderer);
-    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-    penTargetActive = false;
+    ensureMainTarget();
 
-    refreshPenMetrics();
-    lastCapValid = false;
-    penVerts.clear();
-    penVerts.reserve(PEN_FLUSH_THRESHOLD + 1024);
+    const float left = x - w / 2.0f, right = x + w / 2.0f;
+    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
+    const float r = static_cast<float>(radius);
 
-    return true;
+    constexpr int cornerSegments = 4;
+    std::vector<std::pair<float, float>> outline;
+    outline.reserve((cornerSegments + 1) * 4);
+
+    auto addArc = [&](float cx, float cy, float startAngle) {
+        for (int i = 0; i <= cornerSegments; ++i) {
+            float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
+            outline.push_back({cx + std::cos(a) * r, cy + std::sin(a) * r});
+        }
+    };
+
+    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
+    addArc(right - r, bottom - r, 0.0f);
+    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
+    addArc(left + r, top + r, static_cast<float>(M_PI));
+
+    std::vector<NV2AVertex> verts;
+    verts.reserve((outline.size() - 2) * 3);
+    for (size_t i = 1; i + 1 < outline.size(); ++i) {
+        verts.push_back({{outline[0].first, outline[0].second}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}});
+        verts.push_back({{outline[i].first, outline[i].second}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}});
+        verts.push_back({{outline[i + 1].first, outline[i + 1].second}, {colorR, colorG, colorB, colorA}, {0.0f, 0.0f}});
+    }
+
+    setBlendMode(colorA < 255 ? NV2ABlendMode::Blend : NV2ABlendMode::None);
+    drawColorTriangles(verts.data(), verts.size());
 }
 
-void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    if (!penTexture) return;
-    penColorDirty = true;
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
-
-    const double scale = penScaleY;
-
-    const float sx1 = static_cast<float>(x1 * scale + penTexW / 2.0);
-    const float sy1 = static_cast<float>(-y1 * scale + penTexH / 2.0);
-    const float sx2 = static_cast<float>(x2 * scale + penTexW / 2.0);
-    const float sy2 = static_cast<float>(-y2 * scale + penTexH / 2.0);
-
-    const double dx = sx2 - sx1;
-    const double dy = sy2 - sy1;
-
-    const double length = sqrt(dx * dx + dy * dy);
-    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
-
-    const SDL_FColor sdlColor = {
-        rgbColor.r / 255.0f,
-        rgbColor.g / 255.0f,
-        rgbColor.b / 255.0f,
-        alpha};
-
-    if (length > 0) {
-        const float nx = static_cast<float>((-dy / length) * drawWidth);
-        const float ny = static_cast<float>((dx / length) * drawWidth);
-
-        const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}};
-        const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}};
-
-        penVerts.push_back(v0);
-        penVerts.push_back(v1);
-        penVerts.push_back(v2);
-
-        penVerts.push_back(v1);
-        penVerts.push_back(v3);
-        penVerts.push_back(v2);
-    }
-
-    const unsigned int circleSegments = circleSegmentsFor(8.0, sprite->penData.size);
-    const CirclePoint *table = getCircleTable(circleSegments);
-    const float radius = static_cast<float>(drawWidth);
-
-    // Skip the start cap when this move continues the previous one (opaque pens only).
-    const bool continuesChain = alpha >= 1.0f && lastCapValid && lastCapX == sx1 && lastCapY == sy1 &&
-                                lastCapRadius == radius && sameColor(lastCapColor, sdlColor);
-    if (!continuesChain) emitCircle(sx1, sy1, radius, sdlColor, table, circleSegments);
-    emitCircle(sx2, sy2, radius, sdlColor, table, circleSegments);
-
-    lastCapValid = true;
-    lastCapX = sx2;
-    lastCapY = sy2;
-    lastCapRadius = radius;
-    lastCapColor = sdlColor;
-
-    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(Sdlrenderer);
-    }
+// TODO: should probably delete duplicate scissor() funcs
+void Renderer_NV2A::setClip(int x, int y, int w, int h) {
+    setScissor(x, y, w, h);
 }
 
-void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
-    penColorDirty = true;
-    if (!penTexture) return;
-    lastCapValid = false;
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
-
-    const double scale = penScaleY;
-
-    const float sx = static_cast<float>(sprite->xPosition * scale + penTexW / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penTexH / 2.0);
-
-    const float radius = static_cast<float>((sprite->penData.size / 2.0f) * scale);
-
-    const SDL_FColor sdlColor = {
-        rgbColor.r / 255.0f,
-        rgbColor.g / 255.0f,
-        rgbColor.b / 255.0f,
-        alpha};
-
-    const unsigned int circleSegments = circleSegmentsFor(16.0, sprite->penData.size);
-    emitCircle(sx, sy, radius, sdlColor, getCircleTable(circleSegments), circleSegments);
-
-    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(Sdlrenderer);
-    }
+void Renderer_NV2A::clearClip() {
+    clearScissor();
 }
 
 void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penColorDirty = true;
-    if (!penTexture) return;
-    lastCapValid = false;
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
+    if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
+    const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
+    float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
-    const double scale = penScaleY;
+    const double scale = s_penScaleY;
+    float sx1 = static_cast<float>(x1 * scale + s_penTexture.texWidth / 2.0);
+    float sy1 = static_cast<float>(-y1 * scale + s_penTexture.texHeight / 2.0);
+    float sx2 = static_cast<float>(x2 * scale + s_penTexture.texWidth / 2.0);
+    float sy2 = static_cast<float>(-y2 * scale + s_penTexture.texHeight / 2.0);
 
-    const float sx1 = static_cast<float>(x1 * scale + penTexW / 2.0);
-    const float sy1 = static_cast<float>(-y1 * scale + penTexH / 2.0);
-    const float sx2 = static_cast<float>(x2 * scale + penTexW / 2.0);
-    const float sy2 = static_cast<float>(-y2 * scale + penTexH / 2.0);
+    double dx = sx2 - sx1, dy = sy2 - sy1;
+    double len = std::sqrt(dx * dx + dy * dy);
+    if (len <= 0) return;
 
-    const double dx = sx2 - sx1;
-    const double dy = sy2 - sy1;
+    double drawW = (sprite->penData.size / 2.0) * scale;
+    float nx = static_cast<float>((-dy / len) * drawW);
+    float ny = static_cast<float>((dx / len) * drawW);
 
-    const double length = sqrt(dx * dx + dy * dy);
-    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+    uint8_t ca = static_cast<uint8_t>(alpha * 255);
+    uint8_t cr = static_cast<uint8_t>(std::clamp(col.r, 0.0f, 255.0f));
+    uint8_t cg = static_cast<uint8_t>(std::clamp(col.g, 0.0f, 255.0f));
+    uint8_t cb = static_cast<uint8_t>(std::clamp(col.b, 0.0f, 255.0f));
 
-    if (length <= 0) return;
+    NV2AVertex v0 = {{sx1 + nx, sy1 + ny}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v1 = {{sx1 - nx, sy1 - ny}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v2 = {{sx2 + nx, sy2 + ny}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v3 = {{sx2 - nx, sy2 - ny}, {cr, cg, cb, ca}, {0, 0}};
 
-    const float nx = static_cast<float>((-dy / length) * drawWidth);
-    const float ny = static_cast<float>((dx / length) * drawWidth);
+    pushPenQuad(this, v0, v1, v2, v3);
+}
 
-    const SDL_FColor sdlColor = {
-        static_cast<float>(rgbColor.r / 255.0f),
-        static_cast<float>(rgbColor.g / 255.0f),
-        static_cast<float>(rgbColor.b / 255.0f),
-        static_cast<float>(alpha)};
+void Renderer_Xbox::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    if (!s_hasPenTexture) return;
+    const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
+    float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
+    uint8_t ca = static_cast<uint8_t>(alpha * 255);
+    uint8_t cr = static_cast<uint8_t>(std::clamp(col.r, 0.0f, 255.0f));
+    uint8_t cg = static_cast<uint8_t>(std::clamp(col.g, 0.0f, 255.0f));
+    uint8_t cb = static_cast<uint8_t>(std::clamp(col.b, 0.0f, 255.0f));
 
-    const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}};
+    const double scale = s_penScaleY;
+    float sx1 = static_cast<float>(x1 * scale + s_penTexture.texWidth / 2.0);
+    float sy1 = static_cast<float>(-y1 * scale + s_penTexture.texHeight / 2.0);
+    float sx2 = static_cast<float>(x2 * scale + s_penTexture.texWidth / 2.0);
+    float sy2 = static_cast<float>(-y2 * scale + s_penTexture.texHeight / 2.0);
 
-    penVerts.push_back(v0);
-    penVerts.push_back(v1);
-    penVerts.push_back(v2);
+    double dx = sx2 - sx1, dy = sy2 - sy1;
+    double len = std::sqrt(dx * dx + dy * dy);
+    double drawW = (sprite->penData.size / 2.0) * scale;
 
-    penVerts.push_back(v1);
-    penVerts.push_back(v3);
-    penVerts.push_back(v2);
+    if (len > 0) {
+        float nx = static_cast<float>((-dy / len) * drawW);
+        float ny = static_cast<float>((dx / len) * drawW);
 
-    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(Sdlrenderer);
+        NV2AVertex v0 = {{sx1 + nx, sy1 + ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v1 = {{sx1 - nx, sy1 - ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v2 = {{sx2 + nx, sy2 + ny}, {cr, cg, cb, ca}, {0, 0}};
+        NV2AVertex v3 = {{sx2 - nx, sy2 - ny}, {cr, cg, cb, ca}, {0, 0}};
+
+        pushPenQuad(this, v0, v1, v2, v3);
     }
+
+    float radius = static_cast<float>(drawW);
+    unsigned int segments = circleSegmentsFor(8.0, sprite->penData.size);
+    const CirclePoint *table = getCircleTable(segments);
+
+    auto addCircle = [&](float cx, float cy) {
+        for (unsigned int i = 0; i < segments; ++i) {
+            pushPenTri(this,
+                       {{cx, cy}, {cr, cg, cb, ca}, {0, 0}},
+                       {{cx + table[i].c * radius, cy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}},
+                       {{cx + table[i + 1].c * radius, cy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
+        }
+    };
+
+    const uint32_t colorPacked = (static_cast<uint32_t>(ca) << 24) |
+                                 (static_cast<uint32_t>(cr) << 16) |
+                                 (static_cast<uint32_t>(cg) << 8) |
+                                 static_cast<uint32_t>(cb);
+
+    const bool continuesChain = alpha >= 1.0f && s_lastCapValid &&
+                                s_lastCapX == sx1 && s_lastCapY == sy1 &&
+                                s_lastCapRadius == radius && s_lastCapColor == colorPacked;
+
+    if (!continuesChain) addCircle(sx1, sy1);
+    addCircle(sx2, sy2);
+
+    s_lastCapValid = true;
+    s_lastCapX = sx2;
+    s_lastCapY = sy2;
+    s_lastCapRadius = radius;
+    s_lastCapColor = colorPacked;
 }
 
 void Renderer_Xbox::penDotFast(Sprite *sprite) {
-    penColorDirty = true;
-    if (!penTexture) return;
-    lastCapValid = false;
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
+    if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
+    const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
+    float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
+    uint8_t ca = static_cast<uint8_t>(alpha * 255);
+    uint8_t cr = static_cast<uint8_t>(std::clamp(col.r, 0.0f, 255.0f));
+    uint8_t cg = static_cast<uint8_t>(std::clamp(col.g, 0.0f, 255.0f));
+    uint8_t cb = static_cast<uint8_t>(std::clamp(col.b, 0.0f, 255.0f));
 
-    const double scale = penScaleY;
+    const double scale = s_penScaleY;
+    float sx = static_cast<float>(sprite->xPosition * scale + s_penTexture.texWidth / 2.0);
+    float sy = static_cast<float>(-sprite->yPosition * scale + s_penTexture.texHeight / 2.0);
+    float halfSize = static_cast<float>((sprite->penData.size / 2.0) * scale);
 
-    const float sx = static_cast<float>(sprite->xPosition * scale + penTexW / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penTexH / 2.0);
+    NV2AVertex v0 = {{sx - halfSize, sy - halfSize}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v1 = {{sx - halfSize, sy + halfSize}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v2 = {{sx + halfSize, sy - halfSize}, {cr, cg, cb, ca}, {0, 0}};
+    NV2AVertex v3 = {{sx + halfSize, sy + halfSize}, {cr, cg, cb, ca}, {0, 0}};
 
-    const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+    pushPenQuad(this, v0, v1, v2, v3);
+}
 
-    const SDL_FColor sdlColor = {
-        static_cast<float>(rgbColor.r / 255.0f),
-        static_cast<float>(rgbColor.g / 255.0f),
-        static_cast<float>(rgbColor.b / 255.0f),
-        alpha};
+void Renderer_Xbox::penDotAccurate(Sprite *sprite) {
+    if (!s_hasPenTexture) return;
+    s_lastCapValid = false;
+    const ColorRGBA col = CSBT2RGBA(sprite->penData.color);
+    float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
+    uint8_t ca = static_cast<uint8_t>(alpha * 255);
+    uint8_t cr = static_cast<uint8_t>(std::clamp(col.r, 0.0f, 255.0f));
+    uint8_t cg = static_cast<uint8_t>(std::clamp(col.g, 0.0f, 255.0f));
+    uint8_t cb = static_cast<uint8_t>(std::clamp(col.b, 0.0f, 255.0f));
 
-    const SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}};
-    const SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}};
+    const double scale = s_penScaleY;
+    float sx = static_cast<float>(sprite->xPosition * scale + s_penTexture.texWidth / 2.0);
+    float sy = static_cast<float>(-sprite->yPosition * scale + s_penTexture.texHeight / 2.0);
+    float radius = static_cast<float>((sprite->penData.size / 2.0) * scale);
 
-    penVerts.push_back(v0);
-    penVerts.push_back(v1);
-    penVerts.push_back(v2);
+    unsigned int segments = circleSegmentsFor(16.0, sprite->penData.size);
+    const CirclePoint *table = getCircleTable(segments);
 
-    penVerts.push_back(v1);
-    penVerts.push_back(v3);
-    penVerts.push_back(v2);
-
-    if (penVerts.size() >= PEN_FLUSH_THRESHOLD) {
-        flushPenVerts(Sdlrenderer);
+    for (unsigned int i = 0; i < segments; ++i) {
+        pushPenTri(this,
+                   {{sx, sy}, {cr, cg, cb, ca}, {0, 0}},
+                   {{sx + table[i].c * radius, sy + table[i].s * radius}, {cr, cg, cb, ca}, {0, 0}},
+                   {{sx + table[i + 1].c * radius, sy + table[i + 1].s * radius}, {cr, cg, cb, ca}, {0, 0}});
     }
 }
 
 void Renderer_Xbox::penStamp(Sprite *sprite) {
-    if (!penTexture) return;
-    penColorDirty = true;
-    lastCapValid = false;
-
-    // Queued lines must be drawn first so the stamp lands on top of them.
-    flushPenVerts(Sdlrenderer);
+    if (!s_hasPenTexture) return;
+    flushPenVerts(this);
+    s_lastCapValid = false;
 
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image for Stamp");
-        return;
-    }
+    if (imgFind == Scratch::costumeImages.end()) return;
 
     const Costume &costume = sprite->costumes[sprite->currentCostume];
-
-    //  The NV2A Xbox GPU corrupts the texture cache if multiple different
-    // textures are stamped into a render target without unbinding it. We must explicitly
-    // bind, draw, and immediately unbind back to the main target for EVERY stamp.
-    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    ensurePenTarget();
 
     Image_Xbox *image = reinterpret_cast<Image_Xbox *>(imgFind->second.get());
+    Render::calculateRenderPosition(sprite, costume.isSVG);
 
-    const bool isSVG = costume.isSVG;
-    Render::calculateRenderPosition(sprite, isSVG);
-
-    // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    float penX = cords.first + Scratch::projectWidth / 2.0f;
-    float penY = -cords.second + Scratch::projectHeight / 2.0f;
+    const auto &coords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
+    float penX = coords.first + Scratch::projectWidth / 2.0f;
+    float penY = -coords.second + Scratch::projectHeight / 2.0f;
 
     float penScale;
     if (Scratch::hqpen) {
-        const double scale = penScaleY;
-        penX *= scale;
-        penY *= scale;
+        penX *= s_penScaleY;
+        penY *= s_penScaleY;
         penScale = sprite->renderInfo.renderScaleY;
     } else {
         penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
@@ -989,183 +2011,157 @@ void Renderer_Xbox::penStamp(Sprite *sprite) {
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
     params.colorEffect = sprite->colorEffect;
+    params.fisheyeEffect = sprite->fisheyeEffect;
+    params.whirlEffect = sprite->whirlEffect;
+    params.pixelateEffect = sprite->pixelateEffect;
+    params.mosaicEffect = sprite->mosaicEffect;
 
     image->render(params);
-
-    // Force the Xbox GPU to resolve the render target immediately
-    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-    penTargetActive = false;
-    stampsSinceFlush = 0;
 }
 
 void Renderer_Xbox::penClear() {
-    if (!penTexture) return;
-    penColorDirty = true;
-    penVerts.clear(); // pending lines would be erased by the clear anyway
-    lastCapValid = false;
+    if (!s_hasPenTexture) return;
+    s_penVerts.clear();
+    s_lastCapValid = false;
 
-    SDL_SetRenderTarget(Sdlrenderer, penTexture);
-    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
-    SDL_RenderClear(Sdlrenderer);
-
-    // Force the Xbox GPU to resolve the render target immediately
-    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
-    penTargetActive = false;
-}
-
-void Renderer_Xbox::cleanupPen() {
-    clearPenColorReadback();
-    if (penTexture != nullptr) {
-        ensureMainTarget(Sdlrenderer);
-        SDL_DestroyTexture(penTexture);
-        penTexture = nullptr;
+    ensurePenTarget();
+    pb_fill(0, 0, s_penTexture.texWidth, s_penTexture.texHeight, 0x00000000);
+#ifdef __XBOX__
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
     }
-    penTargetActive = false;
-    lastCapValid = false;
-    penVerts.clear();
-    penVerts.shrink_to_fit();
+    pb_wait_until_gr_not_busy();
+#endif
 }
 
 void Renderer_Xbox::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
-    if (!penTexture || penColorReadFailed) return;
-    // Match the line/stamp mapping, including HQ-pen resolution. Read only the
-    // source sprite's query area, rather than synchronizing the whole canvas
-    // for each color in a nested touching-color expression.
-    const int width = static_cast<int>(penTexW);
-    const int height = static_cast<int>(penTexH);
-    const int x0 = std::clamp(static_cast<int>(std::floor(minX * penScaleY + penTexW / 2)) - 1, 0, width);
-    const int y0 = std::clamp(static_cast<int>(std::floor(-maxY * penScaleY + penTexH / 2)) - 1, 0, height);
-    const int x1 = std::clamp(static_cast<int>(std::ceil(maxX * penScaleY + penTexW / 2)) + 2, 0, width);
-    const int y1 = std::clamp(static_cast<int>(std::ceil(-minY * penScaleY + penTexH / 2)) + 2, 0, height);
-    if (!penColorDirty && penColorSurface && x0 >= penColorRect.x && y0 >= penColorRect.y &&
-        x1 <= penColorRect.x + penColorRect.w && y1 <= penColorRect.y + penColorRect.h) return;
+    if (!s_hasPenTexture) return;
+    flushPenVerts(this);
 
-    SDL_DestroySurface(penColorSurface);
-    penColorSurface = nullptr;
-    penColorRect = {x0, y0, x1 - x0, y1 - y0};
-    penColorDirty = false;
-    if (penColorRect.w <= 0 || penColorRect.h <= 0) return;
-
-    flushPenVerts(Sdlrenderer);
-    SDL_Texture *previous = SDL_GetRenderTarget(Sdlrenderer);
-    SDL_SetRenderTarget(Sdlrenderer, penTexture);
-    penColorSurface = SDL_RenderReadPixels(Sdlrenderer, &penColorRect);
-    SDL_SetRenderTarget(Sdlrenderer, previous);
-    penTargetActive = previous == penTexture;
-    stampsSinceFlush = 0;
-    if (!penColorSurface) {
-        penColorReadFailed = true;
-        Log::logError(std::string("Failed to read pen colors: ") + SDL_GetError());
+#ifdef __XBOX__
+    uint32_t *pWait = pb_begin();
+    pWait = pb_push1(pWait, NV097_WAIT_FOR_IDLE, 0);
+    pb_end(pWait);
+    while (pb_busy()) {
+        __asm__ __volatile__("pause");
     }
+    pb_wait_until_gr_not_busy();
+#endif
 }
 
 bool Renderer_Xbox::samplePenColor(float x, float y, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a) {
-    if (!penColorSurface || penColorDirty || penColorReadFailed) return false;
-    const int px = static_cast<int>(std::floor(x * penScaleY + penTexW / 2)) - penColorRect.x;
-    const int py = static_cast<int>(std::floor(-y * penScaleY + penTexH / 2)) - penColorRect.y;
-    if (px < 0 || py < 0 || px >= penColorRect.w || py >= penColorRect.h) return false;
-    return SDL_ReadSurfacePixel(penColorSurface, px, py, &r, &g, &b, &a) && a != 0;
+    if (!s_hasPenTexture || s_penTexture.data == nullptr) return false;
+    const int px = static_cast<int>(std::floor(x * s_penScaleY + s_penTexture.texWidth / 2.0));
+    const int py = static_cast<int>(std::floor(-y * s_penScaleY + s_penTexture.texHeight / 2.0));
+    if (px < 0 || py < 0 || px >= s_penTexture.texWidth || py >= s_penTexture.texHeight) return false;
+
+    const uint8_t *pixel = s_penTexture.data + static_cast<size_t>(py) * s_penTexture.pitch + static_cast<size_t>(px) * 4;
+    b = pixel[0];
+    g = pixel[1];
+    r = pixel[2];
+    a = static_cast<uint8_t>(std::lround(std::sqrt(pixel[3] / 255.0) * 255.0));
+    return a != 0;
 }
 
-void Renderer_Xbox::beginFrame(int screen, int colorR, int colorG, int colorB) {
-    if (!hasFrameBegan) {
-        ensureMainTarget(Sdlrenderer);
-        SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, 255);
-        SDL_RenderClear(Sdlrenderer);
-        hasFrameBegan = true;
-    }
-}
+void Renderer_Xbox::renderPenLayer() {
+    if (!s_hasPenTexture) return;
+    flushPenVerts(this);
+    ensureMainTarget();
 
-void Renderer_Xbox::endFrame(bool shouldFlush) {
-    ensureMainTarget(Sdlrenderer);
-    SDL_RenderPresent(Sdlrenderer);
-#ifdef SE_XBOX_TRACE_RENDERER
-    traceEffectCache();
-#endif
-    SDL_Delay(16);
-    hasFrameBegan = false;
-}
+    float screenW = static_cast<float>(getWidth());
+    float screenH = static_cast<float>(getHeight());
+    float renderX = 0, renderY = 0, renderW = screenW, renderH = screenH;
 
-void Renderer_Xbox::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    ensureMainTarget(Sdlrenderer);
-    SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, colorA);
-    SDL_FRect rect = {x - (w / 2.0f), y - (h / 2.0f), static_cast<float>(w), static_cast<float>(h)};
-    SDL_RenderFillRect(Sdlrenderer, &rect);
-}
-
-void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    radius = std::clamp(radius, 0, std::min(w, h) / 2);
-    if (radius <= 0) {
-        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
-        return;
+    if (screenW / screenH > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderX = std::ceil((screenW - Scratch::projectWidth * (screenH / Scratch::projectHeight)) / 2.0f);
+        renderW = screenW - renderX * 2;
+    } else {
+        renderY = std::ceil((screenH - Scratch::projectHeight * (screenW / Scratch::projectWidth)) / 2.0f);
+        renderH = screenH - renderY * 2;
     }
 
-    ensureMainTarget(Sdlrenderer);
+    float u0 = 0.0f;
+    float v0 = 0.0f;
+    float u1 = s_penTexture.uScale;
+    float v1 = s_penTexture.vScale;
 
-    const SDL_FColor col = {colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, colorA / 255.0f};
-    const float left = x - w / 2.0f, right = x + w / 2.0f;
-    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
-    const float r = static_cast<float>(radius);
+    NV2AVertex quad[6] = {
+        {{renderX, renderY}, {255, 255, 255, 255}, {u0, v0}},
+        {{renderX + renderW, renderY}, {255, 255, 255, 255}, {u1, v0}},
+        {{renderX + renderW, renderY + renderH}, {255, 255, 255, 255}, {u1, v1}},
+        {{renderX, renderY}, {255, 255, 255, 255}, {u0, v0}},
+        {{renderX + renderW, renderY + renderH}, {255, 255, 255, 255}, {u1, v1}},
+        {{renderX, renderY + renderH}, {255, 255, 255, 255}, {u0, v1}}};
 
-    constexpr int cornerSegments = 4;
-    std::vector<SDL_FPoint> outline;
-    outline.reserve((cornerSegments + 1) * 4);
+    bindTexture(&s_penTexture, false);
+    setBlendMode(NV2ABlendMode::Blend);
+    drawTriangles(quad, 6);
+}
 
-    auto addArc = [&](float cx, float cy, float startAngle) {
-        for (int i = 0; i <= cornerSegments; ++i) {
-            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
-            outline.push_back({cx + std::cos(a) * r, cy + std::sin(a) * r});
-        }
-    };
+static void drawBlackBarsNV2A(Renderer_Xbox *r, int screenWidth, int screenHeight) {
+    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
 
-    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
-    addArc(right - r, bottom - r, 0.0f);
-    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
-    addArc(left + r, top + r, static_cast<float>(M_PI));
+    if (screenAspect > projectAspect) {
+        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
 
-    std::vector<SDL_Vertex> verts;
-    verts.reserve((outline.size() - 2) * 3);
-    for (size_t i = 1; i + 1 < outline.size(); ++i) {
-        verts.push_back({outline[0], col, {0.0f, 0.0f}});
-        verts.push_back({outline[i], col, {0.0f, 0.0f}});
-        verts.push_back({outline[i + 1], col, {0.0f, 0.0f}});
+        r->drawBox(static_cast<int>(std::ceil(barWidth)), screenHeight, static_cast<int>(barWidth / 2.0f), screenHeight / 2, 0, 0, 0, 255);
+        r->drawBox(static_cast<int>(std::ceil(barWidth)), screenHeight, static_cast<int>(screenWidth - barWidth / 2.0f), screenHeight / 2, 0, 0, 0, 255);
+    } else if (screenAspect < projectAspect) {
+        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
+
+        r->drawBox(screenWidth, static_cast<int>(std::ceil(barHeight)), screenWidth / 2, static_cast<int>(barHeight / 2.0f), 0, 0, 0, 255);
+        r->drawBox(screenWidth, static_cast<int>(std::ceil(barHeight)), screenWidth / 2, static_cast<int>(screenHeight - barHeight / 2.0f), 0, 0, 0, 255);
     }
-
-    SDL_RenderGeometry(Sdlrenderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
 }
 
 void Renderer_Xbox::renderSprites() {
-    // Everything below draws to the main target; pen operations may have left the pen texture active.
-    ensureMainTarget(Sdlrenderer);
+    int expectedPenW = Scratch::hqpen ? getWidth() : Scratch::projectWidth;
+    int expectedPenH = Scratch::hqpen ? getHeight() : Scratch::projectHeight;
+    if (s_hasPenTexture && (s_penTexture.texWidth != expectedPenW || s_penTexture.texHeight != expectedPenH)) {
+        cleanupPen();
+        initPen();
+    }
 
-    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 255);
-    SDL_RenderClear(Sdlrenderer);
+    beginFrame(0, 0, 0, 0);
 
     float screenW = static_cast<float>(getWidth());
     float screenH = static_cast<float>(getHeight());
     float screenAspect = screenW / screenH;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-    SDL_FRect stageRect = {0, 0, screenW, screenH};
+
+    float stageX = 0, stageY = 0, stageW = screenW, stageH = screenH;
     if (screenAspect > projectAspect) {
         float scale = screenH / Scratch::projectHeight;
-        float scaledW = Scratch::projectWidth * scale;
-        stageRect.x = (screenW - scaledW) / 2.0f;
-        stageRect.w = scaledW;
+        stageW = Scratch::projectWidth * scale;
+        stageX = (screenW - stageW) / 2.0f;
     } else if (screenAspect < projectAspect) {
         float scale = screenW / Scratch::projectWidth;
-        float scaledH = Scratch::projectHeight * scale;
-        stageRect.y = (screenH - scaledH) / 2.0f;
-        stageRect.h = scaledH;
+        stageH = Scratch::projectHeight * scale;
+        stageY = (screenH - stageH) / 2.0f;
     }
-    SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
-    SDL_RenderFillRect(Sdlrenderer, &stageRect);
+
+    s_stageScissorX = static_cast<int>(std::round(stageX * s_mainViewportScaleX + s_mainViewportOffsetX));
+    s_stageScissorY = static_cast<int>(std::round(stageY * s_mainViewportScaleY + s_mainViewportOffsetY));
+    s_stageScissorW = static_cast<int>(std::round(stageW * s_mainViewportScaleX));
+    s_stageScissorH = static_cast<int>(std::round(stageH * s_mainViewportScaleY));
+
+    s_stageScissorActive = true;
+    clearScissor();
+
+    drawBox(static_cast<int>(stageW), static_cast<int>(stageH),
+            static_cast<int>(stageX + stageW / 2.0f), static_cast<int>(stageY + stageH / 2.0f),
+            255, 255, 255, 255);
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
         auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
         if (imgFind != Scratch::costumeImages.end()) {
             Image *image = imgFind->second.get();
-
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             Render::calculateRenderPosition(currentSprite, isSVG);
             if (!currentSprite->visible) continue;
@@ -1180,6 +2176,10 @@ void Renderer_Xbox::renderSprites() {
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
             params.colorEffect = currentSprite->colorEffect;
+            params.fisheyeEffect = currentSprite->fisheyeEffect;
+            params.whirlEffect = currentSprite->whirlEffect;
+            params.pixelateEffect = currentSprite->pixelateEffect;
+            params.mosaicEffect = currentSprite->mosaicEffect;
 
             image->render(params);
         }
@@ -1191,72 +2191,30 @@ void Renderer_Xbox::renderSprites() {
         speechManager->render();
     }
 
-    drawBlackBars(Sdlrenderer, getWidth(), getHeight());
-    Render::renderMonitors();
+    s_stageScissorActive = false;
+    clearScissor();
+
+    drawBlackBarsNV2A(this, getWidth(), getHeight());
+    MenuManager::render();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
-        SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 255, 255);
-        SDL_FRect rect;
-        rect.w = rect.h = 5;
-        rect.x = (Input::mousePointer.x * Render::renderScale) + (window->getWidth() * 0.5);
-        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (window->getHeight() * 0.5);
         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
-        SDL_RenderRect(Sdlrenderer, &rect);
+        int mx = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (getWidth() * 0.5f));
+        int my = static_cast<int>((Input::mousePointer.y * -1 * Render::renderScale) + (getHeight() * 0.5f));
+        drawBox(6, 6, mx, my, 0, 120, 255, 255);
     }
 #endif
 
-    SDL_RenderPresent(Sdlrenderer);
-#ifdef SE_XBOX_TRACE_RENDERER
-    traceEffectCache();
-#endif
-}
-
-void Renderer_Xbox::renderPenLayer() {
-    if (!penTexture) return;
-    flushPenVerts(Sdlrenderer);
-    ensureMainTarget(Sdlrenderer);
-
-    SDL_FRect renderRect = {0, 0, 0, 0};
-
-    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
-        renderRect.w = getWidth() - renderRect.x * 2;
-        renderRect.h = getHeight();
-    } else {
-        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
-        renderRect.h = getHeight() - renderRect.y * 2;
-        renderRect.w = getWidth();
-    }
-
-    SDL_RenderTexture(Sdlrenderer, penTexture, nullptr, &renderRect);
+    endFrame(true);
 }
 
 bool Renderer_Xbox::appShouldRun() {
     if (OS::toExit) return false;
     if (window) {
-        // Make sure nothing outside the pen code draws into the pen texture.
-        ensureMainTarget(Sdlrenderer);
-
+        ensureMainTarget();
         window->pollEvents();
-
-        static int lastW = 0, lastH = 0;
-        int currentW = getWidth();
-        int currentH = getHeight();
-
-        if (lastW != currentW || lastH != currentH) {
-            lastW = currentW;
-            lastH = currentH;
-
-            if (Scratch::hqpen) {
-                // Recreate pen texture
-                SDL_DestroyTexture(penTexture);
-                penTexture = nullptr;
-                initPen();
-            }
-        }
-
         return !window->shouldClose();
     }
     return false;

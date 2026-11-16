@@ -95,9 +95,11 @@ class SE_EXPORT SoundStream {
 #ifndef __NDS__
     std::atomic<bool> paused{false};
     std::atomic<bool> auto_clean{false};
+    std::atomic<bool> userPaused{false};
 #else
     volatile bool paused = false;
     volatile bool auto_clean = false;
+    volatile bool userPaused = false;
 #endif
 
     /**
@@ -135,11 +137,13 @@ class SE_EXPORT Mixer {
     static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;
     static bool musicInitialized;
+    static std::atomic<bool> musicPaused;
     static void initMusic();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void registerStream(const std::string &name, SoundStream *stream);
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);
+    static void setAllStreamsPaused(bool paused);
     static void setPitch(std::string name, float pitch);
     static void setPan(std::string name, float pan);
     static void setSoundVolume(std::string name, float volume);

@@ -413,6 +413,7 @@ void *Mixer::sf2_buffer = nullptr;
 int Mixer::sf2_seq = 0;
 std::unordered_map<int, float> Mixer::notes;
 bool Mixer::musicInitialized = false;
+std::atomic<bool> Mixer::musicPaused{false};
 
 namespace {
 #ifdef __NDS__
@@ -553,9 +554,9 @@ void Mixer::requestSound(short *output, int frames) {
         // Clamp here as well so malformed settings cannot trigger callback-time allocation.
         snapshot.pitch = std::clamp(s->config.pitch, 0.125f, 8.0f);
 #ifndef __NDS__
-        snapshot.initiallyPaused = s->paused.load(std::memory_order_relaxed);
+        snapshot.initiallyPaused = s->paused.load(std::memory_order_relaxed) || s->userPaused.load(std::memory_order_relaxed);
 #else
-        snapshot.initiallyPaused = s->paused;
+        snapshot.initiallyPaused = s->paused || s->userPaused;
 #endif
     }
     Mixer::mutex.unlock();
@@ -569,7 +570,7 @@ void Mixer::requestSound(short *output, int frames) {
 
 #ifndef NO_MUSIC
         Mixer::mutex.lock();
-        if (Mixer::hTsf) {
+        if (Mixer::hTsf && !Mixer::musicPaused.load(std::memory_order_relaxed)) {
             tsf_render_float(Mixer::hTsf, mixerBuffer.data(), chunkFrames, 0);
             for (auto it = notes.begin(); it != notes.end();) {
                 it->second -= static_cast<float>(chunkFrames) / Mixer::rate;
@@ -751,6 +752,23 @@ void Mixer::stopSound(std::string name) {
     FIND({});
     e->second->paused = true;
     END;
+#endif
+}
+
+void Mixer::setAllStreamsPaused(bool paused) {
+#ifdef ENABLE_AUDIO
+    Mixer::musicPaused.store(paused, std::memory_order_relaxed);
+
+    Mixer::mutex.lock();
+    for (auto &entry : Mixer::streams) {
+        if (!entry.second) continue;
+#ifndef __NDS__
+        entry.second->userPaused.store(paused, std::memory_order_relaxed);
+#else
+        entry.second->userPaused = paused;
+#endif
+    }
+    Mixer::mutex.unlock();
 #endif
 }
 

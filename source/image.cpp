@@ -48,9 +48,6 @@ static bool hasSVGExtension(const std::string &path) {
 #if defined(RENDERER_XBOX)
 #include <image_xbox.hpp>
 #endif
-#if defined(RENDERER_NV2A)
-#include <image_nv2a.hpp>
-#endif
 #if defined(RENDERER_SDL3)
 #include <image_sdl3.hpp>
 #endif
@@ -74,6 +71,9 @@ static bool hasSVGExtension(const std::string &path) {
 #endif
 #if defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
+#endif
+#if defined(RENDERER_FLATLAND)
+#include <image_flatland.hpp>
 #endif
 #if defined(RENDERER_D3D9)
 #include <image_d3d9.hpp>
@@ -196,11 +196,6 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
-#if defined(RENDERER_NV2A)
-    case Renderers::NV2A:
-        rawImg = new Image_NV2A(filePath, fromScratchProject, bitmapHalfQuality, scale);
-        break;
-#endif
 #if defined(RENDERER_SDL3)
     case Renderers::SDL3:
         rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -244,6 +239,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
 #if defined(RENDERER_HEADLESS)
     case Renderers::Headless:
         rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_FLATLAND)
+    case Renderers::Flatland:
+        rawImg = new Image_Flatland(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
     default: {
@@ -296,11 +296,6 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
         rawImg = new Image_Xbox(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
-#if defined(RENDERER_NV2A)
-    case Renderers::NV2A:
-        rawImg = new Image_NV2A(filePath, zip, bitmapHalfQuality, scale);
-        break;
-#endif
 #if defined(RENDERER_SDL3)
     case Renderers::SDL3:
         rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
@@ -344,6 +339,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_HEADLESS)
     case Renderers::Headless:
         rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_FLATLAND)
+    case Renderers::Flatland:
+        rawImg = new Image_Flatland(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
     default: {
