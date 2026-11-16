@@ -235,7 +235,13 @@ bool SoundPlayer::init() {
     }
 
     if (!globalSoundDevice) {
-        Log::logCritical("Failed to init audio: no available audio devices worked.", true);
+        Log::logCritical("Failed to init audio: no available audio devices worked.", false);
+
+#ifndef ENABLE_AUDIO
+        currentSoundBackend = AudioBackends::Disabled;
+        return true;
+#endif
+
         return false;
     }
 

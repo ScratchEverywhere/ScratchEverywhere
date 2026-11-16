@@ -129,7 +129,6 @@ bool Scratch::initializeRuntime() {
         return false;
     }
 #endif
-#ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
@@ -137,7 +136,6 @@ bool Scratch::initializeRuntime() {
         Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
-#endif
     return true;
 }
 
