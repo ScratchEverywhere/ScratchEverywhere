@@ -6,8 +6,8 @@ build_args:
     - -B ${BUILD_DIR}
     - -S ${SRC_DIR}
     - -DCMAKE_BUILD_TYPE=Release
-    - -DSE_CLOUDVARS=OFF
-    - -DSE_DOWNLOAD=OFF
+    - -DSE_CLOUDVARS=ON
+    - -DSE_DOWNLOAD=ON
     - -DUBUNTU_TOUCH=ON
     - -DSE_CUSTOM_EXTENSIONS=ON
     - -DSE_CMAKERC=OFF
@@ -40,3 +40,5 @@ dependencies_target:
     - libudev-dev
     - libthai-dev
     - libfreetype6-dev
+    - libnghttp2-dev
+    - libpsl-dev
