@@ -1,8 +1,17 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 # Apparently setting these flags like this makes both xemu and real hardware work...
-set(SE_RENDERER_VALID_OPTIONS "xbox" "nv2a")
-set(SE_WINDOWING_VALID_OPTIONS "sdl3" "nv2a")
+# Only the direct hardware backend is supported. Migrate existing build caches.
+if(SE_RENDERER STREQUAL "nv2a")
+    message(STATUS "Renaming cached Xbox renderer nv2a -> xbox")
+    set(SE_RENDERER "xbox" CACHE STRING "Select the desired renderer backend." FORCE)
+endif()
+if(SE_WINDOWING STREQUAL "nv2a" OR SE_WINDOWING STREQUAL "sdl3")
+    message(STATUS "Migrating cached Xbox windowing backend -> xbox")
+    set(SE_WINDOWING "xbox" CACHE STRING "Select the desired windowing backend." FORCE)
+endif()
+set(SE_RENDERER_VALID_OPTIONS "xbox")
+set(SE_WINDOWING_VALID_OPTIONS "xbox")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3" "xbox")
 set(SE_AUDIO_ENGINE_DEFAULT "xbox")
 
@@ -34,7 +43,7 @@ set(SE_PLATFORM "xbox")
 
 # Debugging flags
 option(SE_XBOX_NV2A_FRAME_CAPTURE "Capture 600 runtime frames in memory with routine Xbox logging suppressed" OFF)
-option(SE_XBOX_LOG_TO_DISK "Append Xbox log messages to E:/ScratchEverywhere/debug.txt" ON)
+option(SE_XBOX_LOG_TO_DISK "Append Xbox log messages to E:/ScratchEverywhere/debug.txt" OFF)
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/log.cpp"
     APPEND PROPERTY COMPILE_DEFINITIONS "SE_XBOX_LOG_TO_DISK=$<BOOL:${SE_XBOX_LOG_TO_DISK}>")
 option(SE_NV2A_PROFILE "Enable NV2A profiling" OFF)
@@ -124,18 +133,18 @@ if(SE_XBOX_TRACE_MENU_INPUT)
         "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/projectMenu.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/menus/pauseMenu.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/input_sdl3.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/nv2a/input_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/xbox/input_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_MENU_INPUT)
 endif()
 
 if(SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/sdl3/window_sdl3.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/nv2a/window_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/windowing/xbox/window_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_TRACE_RENDERER)
 endif()
 
@@ -151,19 +160,19 @@ endif()
 if(SE_XBOX_NV2A_TEST_SUITE)
     # Only these two sources see test interfaces. No runtime feature is enabled.
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_TEST_SUITE SE_XBOX_TRACE_RENDERER)
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/tests/nv2a/xbox")
 endif()
 
 if(SE_XBOX_NV2A_HYBRID_HUE)
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_HYBRID_HUE)
 endif()
 
@@ -173,8 +182,8 @@ if(SE_XBOX_NV2A_FRAME_CAPTURE)
     endif()
     set_property(SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/log.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_FRAME_CAPTURE)
 endif()
 
@@ -186,16 +195,16 @@ endif()
 
 if(SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS)
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_XBOX_NV2A_HARDWARE_COLOR_ADJUSTMENTS
     )
 endif()
 
 if(SE_NV2A_PROFILE)
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/renderer_nv2a.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/nv2a/image_nv2a.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/renderer_xbox.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/xbox/image_xbox.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS SE_NV2A_PROFILE
     )
 endif()

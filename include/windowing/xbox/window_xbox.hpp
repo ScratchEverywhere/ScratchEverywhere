@@ -3,10 +3,10 @@
 #include <string>
 #include <window.hpp>
 
-class SE_EXPORT WindowNV2A : public WindowSE {
+class SE_EXPORT WindowXbox : public WindowSE {
   public:
-    WindowNV2A(int width, int height, const std::string &title);
-    ~WindowNV2A() override = default;
+    WindowXbox(int width, int height, const std::string &title);
+    ~WindowXbox() override = default;
 
     void cleanup() override;
     bool shouldClose() override;

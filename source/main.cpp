@@ -265,10 +265,9 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::VFlash;
         } else if (arg == "--sdl3") {
             Render::currentRenderer = Renderers::SDL3;
-        } else if (arg == "--xbox") {
+        } else if (arg == "--xbox" || arg == "--nv2a") {
+            // Keep the former command-line name as a compatibility alias.
             Render::currentRenderer = Renderers::Xbox;
-        } else if (arg == "--nv2a") {
-            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {

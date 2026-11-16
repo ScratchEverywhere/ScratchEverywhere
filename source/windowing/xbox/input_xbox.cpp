@@ -1,4 +1,4 @@
-#include "input_nv2a.hpp"
+#include "input_xbox.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cstdint>
@@ -80,15 +80,15 @@ static void ensureUsbStack() {
 }
 #endif
 
-InputDevice_NV2A::InputDevice_NV2A() {
+InputDevice_Xbox::InputDevice_Xbox() {
 #ifdef __XBOX__
     ensureUsbStack();
 #endif
 }
 
-InputDevice_NV2A::~InputDevice_NV2A() = default;
+InputDevice_Xbox::~InputDevice_Xbox() = default;
 
-std::array<int, 2> InputDevice_NV2A::getTouchPosition() {
+std::array<int, 2> InputDevice_Xbox::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
     if (Input::mousePointer.isMoving) {
         pos[0] = static_cast<int>((Input::mousePointer.x * Render::renderScale) + (Render::getWidth() * 0.5f));
@@ -98,7 +98,7 @@ std::array<int, 2> InputDevice_NV2A::getTouchPosition() {
     return pos;
 }
 
-void InputDevice_NV2A::getInput() {
+void InputDevice_Xbox::getInput() {
     Input::inputButtons.clear();
     Input::inputKeys.clear();
     Input::mousePointer.isPressed = false;
@@ -237,11 +237,11 @@ void InputDevice_NV2A::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string InputDevice_NV2A::openSoftwareKeyboard(const char *hintText) {
+std::string InputDevice_Xbox::openSoftwareKeyboard(const char *hintText) {
     (void)hintText;
     return "";
 }
 
-void InputDevice_NV2A::setClipboardText(const std::string &text) {
+void InputDevice_Xbox::setClipboardText(const std::string &text) {
     (void)text;
 }

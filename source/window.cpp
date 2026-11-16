@@ -1,3 +1,6 @@
+#ifdef __XBOX__
+#include <platforms/xbox/backend_names.hpp>
+#endif
 #include "window.hpp"
 #include "log.hpp"
 #include "renderer.hpp"
@@ -7,8 +10,8 @@
 #ifdef WINDOWING_SDL2
 #include <window_sdl2.hpp>
 #endif
-#ifdef WINDOWING_NV2A
-#include <window_nv2a.hpp>
+#ifdef WINDOWING_XBOX
+#include <window_xbox.hpp>
 #endif
 #ifdef WINDOWING_SDL1
 #include <window_sdl1.hpp>
@@ -50,7 +53,11 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 
     if (backend == WindowingBackends::_default && j.contains("Windowing") && j["Windowing"].is_string()) {
         unsigned int i = 0;
-        const std::string windowingString = j["Windowing"].get<std::string>();
+        std::string windowingString = j["Windowing"].get<std::string>();
+#ifdef __XBOX__
+        if (Render::currentRenderer == Renderers::Xbox)
+            windowingString = XboxBackend::windowingName(windowingString);
+#endif
         for (auto &w : WindowingBackendNames) {
             if (w == windowingString) {
                 Log::log("Initializing " + windowingString + " windowing backend from settings...");
@@ -74,11 +81,10 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
             b = WindowingBackends::SDL1;
             break;
         case Renderers::SDL3:
-        case Renderers::Xbox:
             b = WindowingBackends::SDL1;
             break;
-        case Renderers::NV2A:
-            b = WindowingBackends::NV2A;
+        case Renderers::Xbox:
+            b = WindowingBackends::Xbox;
             break;
         case Renderers::Headless:
             b = WindowingBackends::Headless;
@@ -152,10 +158,10 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #endif
         break;
     }
-    case WindowingBackends::NV2A: {
-#ifdef WINDOWING_NV2A
-        WindowSE::currentWindowingBackend = WindowingBackends::NV2A;
-        window = new WindowNV2A(width, height, title);
+    case WindowingBackends::Xbox: {
+#ifdef WINDOWING_XBOX
+        WindowSE::currentWindowingBackend = WindowingBackends::Xbox;
+        window = new WindowXbox(width, height, title);
         break;
 #endif
         break;
@@ -256,8 +262,8 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #ifdef WINDOWING_SDL2
     add(WindowingBackends::SDL2);
 #endif
-#ifdef WINDOWING_NV2A
-    add(WindowingBackends::NV2A);
+#ifdef WINDOWING_XBOX
+    add(WindowingBackends::Xbox);
 #endif
 #ifdef WINDOWING_SDL1
     add(WindowingBackends::SDL1);
