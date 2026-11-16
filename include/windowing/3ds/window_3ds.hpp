@@ -7,7 +7,7 @@
 
 class SE_EXPORT Window3DS : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    Window3DS(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;

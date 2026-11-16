@@ -1,7 +1,9 @@
 #include "image_sdl2.hpp"
 #include "nonstd/expected.hpp"
-#include "render_sdl2.hpp"
+#include "renderer_sdl2.hpp"
 #include <algorithm>
+#include <cmath>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -20,9 +22,20 @@ void Image_SDL2::render(ImageRenderParams &params) {
     const bool &centered = params.centered;
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
+    const float floatW = imgData.width / imgData.scale * scale;
+    const float floatH = imgData.height / imgData.scale * scale;
+    const float floatX = centered ? x - (floatW / 2.0f) : x;
+    const float floatY = centered ? y - (floatH / 2.0f) : y;
+
+    float snapLeft, snapTop, snapW, snapH;
+    PixelSnap::span(floatX, floatW, snapLeft, snapW);
+    PixelSnap::span(floatY, floatH, snapTop, snapH, true);
+
     SDL_Rect renderRect;
-    renderRect.w = static_cast<int>(imgData.width / imgData.scale * scale);
-    renderRect.h = static_cast<int>(imgData.height / imgData.scale * scale);
+    renderRect.x = static_cast<int>(std::round(snapLeft));
+    renderRect.y = static_cast<int>(std::round(snapTop));
+    renderRect.w = std::max(1, static_cast<int>(std::round(snapLeft + snapW)) - renderRect.x);
+    renderRect.h = std::max(1, static_cast<int>(std::round(snapTop + snapH)) - renderRect.y);
 
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
@@ -39,14 +52,6 @@ void Image_SDL2::render(ImageRenderParams &params) {
             .h = imgData.height};
     }
 
-    if (centered) {
-        renderRect.x = x - (renderRect.w / 2);
-        renderRect.y = y - (renderRect.h / 2);
-    } else {
-        renderRect.x = x;
-        renderRect.y = y;
-    }
-
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
     SDL_SetTextureAlphaMod(texture, alpha);
 
@@ -56,12 +61,12 @@ void Image_SDL2::render(ImageRenderParams &params) {
         float b = brightness * 0.01f;
         if (brightness > 0.0f) {
             // render the normal image first
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -69,14 +74,14 @@ void Image_SDL2::render(ImageRenderParams &params) {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
 
-            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
             // reset for next frame
             SDL_SetTextureColorMod(texture, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
+        SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
     freeTimer = maxFreeTimer;
 }
@@ -123,15 +128,15 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     SDL_SetTextureScaleMode(originalTexture, SDL_ScaleModeNearest);
 #endif
 
-    SDL_RenderCopy(renderer, originalTexture, &srcTopLeft, &dstTopLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcTop, &dstTop);
-    SDL_RenderCopy(renderer, originalTexture, &srcTopRight, &dstTopRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcLeft, &dstLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcCenter, &dstCenter);
-    SDL_RenderCopy(renderer, originalTexture, &srcRight, &dstRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottom, &dstBottom);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTopLeft, &dstTopLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTop, &dstTop);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcTopRight, &dstTopRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcLeft, &dstLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcCenter, &dstCenter);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcRight, &dstRight);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottom, &dstBottom);
+    SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottomRight, &dstBottomRight);
 
 #if SDL_VERSION_ATLEAST(2,0,12)
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
@@ -160,10 +165,10 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     SDL_FreeSurface(surface);
     surface = convert;
 
-    texture = SDL_CreateTextureFromSurface(renderer, surface);
+    texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
     SDL_FreeSurface(surface);
 #else
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+    texture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
     if (!texture) {
         return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
@@ -177,11 +182,7 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     }
 #endif
 
-    /** some platforms may need this to be freed due to RAM limits,
-     *  but they then wont be able to support Image::getPixels()
-     *  */
-    // free(imgData.pixels);
-    // imgData.pixels = nullptr;
+    discardColorData();
 
     return {};
 }
@@ -195,8 +196,10 @@ nonstd::expected<void, std::string> Image_SDL2::refreshTexture() {
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    sdlRenderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
+
     SDL_RendererInfo info;
-    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+    if (SDL_GetRendererInfo(sdlRenderer, &info) == 0) {
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
@@ -211,8 +214,10 @@ Image_SDL2::Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    sdlRenderer = static_cast<Renderer_SDL2 *>(Render::getGlobalRenderer())->Sdlrenderer;
+
     SDL_RendererInfo info;
-    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+    if (SDL_GetRendererInfo(sdlRenderer, &info) == 0) {
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 

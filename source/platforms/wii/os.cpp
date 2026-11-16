@@ -1,3 +1,4 @@
+#include <fat.h>
 #include <gccore.h>
 #include <ogc/conf.h>
 #include <os.hpp>
@@ -10,6 +11,7 @@ std::string *customProjectsPath = nullptr;
 
 bool OS::init() {
     SYS_STDIO_Report(true);
+    if (!fatInitDefault()) return false;
     return true;
 }
 
@@ -39,7 +41,7 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     return "";
 #else
     return "assets/";

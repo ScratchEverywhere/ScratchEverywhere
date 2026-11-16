@@ -1,5 +1,5 @@
 #include "speech_manager.hpp"
-#include "render.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include <algorithm>
 #include <math.hpp>
@@ -12,7 +12,6 @@ void SpeechManager::createSpeechObject(Sprite *sprite, const std::string &messag
     SpeechTextConfig config = getSpeechTextConfig();
 
     auto obj = createTextObject(message, 0, 0, config.fontPath);
-    obj->setRenderer(Render::getRenderer());
     obj->setColor(Math::color(0, 0, 0, 255));
     obj->setCenterAligned(false);
     obj->setScale(config.initialScale);
@@ -162,8 +161,15 @@ void SpeechManager::render(int offsetX, int offsetY) {
         int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2));
         int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (screenHeight / 2));
 
+#ifdef __XBOX__
+        const Costume &costume = sprite->costumes[sprite->currentCostume];
+        const double resScale = (Scratch::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) ? 1.0 : costume.bitmapResolution;
+        int spriteWidth = static_cast<int>(((sprite->spriteWidth / resScale) * sprite->size / 100.0) * scale);
+        int spriteHeight = static_cast<int>(((sprite->spriteHeight / resScale) * sprite->size / 100.0) * scale);
+#else
         int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) * scale);
         int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) * scale);
+#endif
 
         int spriteTop = spriteCenterY - (spriteHeight / 2);
         int spriteLeft = spriteCenterX - (spriteWidth / 2);

@@ -19,6 +19,13 @@
 #include <sys/types.h>
 #include <vector>
 
+#ifdef RENDERER_XBOX
+#include <renderers/xbox/image_xbox.hpp>
+#endif
+#ifdef RENDERER_NV2A
+#include <renderers/nv2a/image_nv2a.hpp>
+#endif
+
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -30,22 +37,44 @@
 #include <thread.hpp>
 #endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #include <sstream>
-
-CMRC_DECLARE(romfs);
 #endif
 
-volatile int Unzip::projectOpened = 0;
-std::string Unzip::loadingState = "";
-volatile bool Unzip::threadFinished = false;
+SE_Mutex &unzipStateMutex() {
+    static SE_Mutex mutex;
+    return mutex;
+}
+
+UnzipShared<int> Unzip::projectOpened = 0;
+static std::string s_loadingState;
+
+void Unzip::setLoadingState(const std::string &state) {
+    unzipStateMutex().lock();
+    s_loadingState = state;
+    unzipStateMutex().unlock();
+}
+
+std::string Unzip::getLoadingState() {
+    unzipStateMutex().lock();
+    const std::string copy = s_loadingState;
+    unzipStateMutex().unlock();
+    return copy;
+}
+
+UnzipShared<bool> Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
+#ifdef __XBOX__
+std::vector<char, DefaultInitAllocator<char>> Unzip::zipBuffer;
+#else
 std::vector<char> Unzip::zipBuffer;
+#endif
 std::unique_ptr<ProjectLoader> Unzip::loader;
 std::optional<ProjectFormat> Unzip::unpackedFormatHint;
-bool Unzip::UnpackedInSD = false;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
+UnzipShared<bool> Unzip::UnpackedInSD = false;
 
 ProjectFormat Unzip::detectFormat(const std::string &path) {
     if (Unzip::unpackedFormatHint.has_value()) {
@@ -91,16 +120,14 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#ifdef USE_CMAKERC
-    const auto &fs = cmrc::romfs::get_filesystem();
+#ifdef USE_BUNDLE
+    auto project = Bundle::project();
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef USE_CMAKERC
-    if (fs.exists(unzippedPath)) {
-        const auto &romfsFile = fs.open(unzippedPath);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+#ifdef USE_BUNDLE
+    if (auto entry = project.find(unzippedPath)) {
+        file = new std::istringstream(project.load_text(*entry));
     }
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
@@ -116,11 +143,9 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
-#ifdef USE_CMAKERC
-    if (fs.exists(embeddedFilename)) {
-        const auto &romfsFile = fs.open(embeddedFilename);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+#ifdef USE_BUNDLE
+    if (auto entry = project.find(embeddedFilename)) {
+        file = new std::istringstream(project.load_text(*entry));
         file->seekg(0, std::ios::end);
     }
 #else
@@ -184,11 +209,27 @@ void projectLoaderThread(void *data) {
 }
 
 void loadInitialImages() {
-    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
+#ifdef __XBOX__
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    const std::string missingName = "SE__Missingno";
+    if (Scratch::costumeImages.find(missingName) == Scratch::costumeImages.end()) {
+        auto missingImg = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (missingImg.has_value()) {
+            Scratch::costumeImages[missingName] = missingImg.value();
+        }
+    }
     for (auto &currentSprite : Scratch::sprites) {
-
+        if (Scratch::costumeImages.size() >= (Scratch::sprites.size() + 2)) {
+            Scratch::freeUnusedCostumeImages();
+        }
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
+#else
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#endif
 }
 
 bool Unzip::load() {
@@ -198,25 +239,54 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
+	constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
         while (!Unzip::threadFinished) {
             loading.render();
+#ifdef __XBOX__
+            SE_Thread::sleep(10);
+#endif
         }
 
         projectThread.join();
-        loading.cleanup();
 
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+
+#ifdef __XBOX__
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+#else
+        loadInitialImages();
+#endif
+        loading.cleanup();
+        return true;
     } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
+            loading.cleanup();
             return false;
         }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
+        return true;
     }
 
 #else
@@ -225,17 +295,18 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1) {
         return false;
     }
-#endif
     loadInitialImages();
     return true;
+#endif
 }
 
 void Unzip::openScratchProject(void *arg) {
-    loadingState = TranslationManager::getTranslation("ui.loading.opening");
+    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
     ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
 
     int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
@@ -249,16 +320,33 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
-    loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
+    setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
     Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
     bool loaded = Unzip::loader->load(file);
     delete file;
+    file = nullptr;
     if (!loaded) {
         Log::logCritical("Failed to load Scratch project.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
     }
+
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Log::log("Precaching project textures...");
+		Image_Xbox::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
+#ifdef RENDERER_NV2A
+    if (Render::currentRenderer == Renderers::NV2A) {
+		Log::log("Precaching project textures...");
+        Image_NV2A::precacheProjectTextures();
+		Log::log("Project texture precache finished.");
+    }
+#endif
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -348,6 +436,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 }
 
 bool Unzip::deleteProjectFolder(const std::string &directory) {
+#if !defined(__XBOX__)
     struct stat st;
     if (stat(directory.c_str(), &st) != 0) {
         Log::logWarning("Directory does not exist: " + directory);
@@ -358,6 +447,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         Log::logWarning("Path is not a directory: " + directory);
         return false;
     }
+#endif
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {
@@ -372,17 +462,26 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
     std::string content;
 
-    if (Scratch::projectType != ProjectType::UNEMBEDDED) {
-#ifdef USE_CMAKERC
-        const auto &fs = cmrc::romfs::get_filesystem();
-
-        if (!fs.exists(folderPath)) {
+    if (UnpackedInSD) {
+        std::string folder = filePath;
+        while (!folder.empty() && folder.back() == '/')
+            folder.pop_back();
+        std::ifstream file(folder + ".sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folder + ".sb3.json");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    } else if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+#ifdef USE_BUNDLE
+        auto project = Bundle::project();
+        auto entry = project.find(folderPath);
+        if (!entry) {
             Log::logWarning("Project settings file not found: romfs:/" + folderPath);
             return nlohmann::json();
         }
 
-        const auto &file = fs.open(folderPath);
-        content.assign(file.begin(), file.end());
+        content = project.load_text(*entry);
 #else
         std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
         if (!file.is_open()) {

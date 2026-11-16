@@ -1,12 +1,16 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
 
-cl_add_dep(renderer_interface SDL2)
+if(VITA)
+    cl_add_dep(renderer_interface SDL2 OPTIONS
+        "CMAKE_POLICY_DEFAULT_CMP0077" "NEW"
+        "CMAKE_POLICY_DEFAULT_CMP0069" "NEW"
+        "VIDEO_VITA_PIB" "ON"
+    )
+else()
+    cl_add_dep(renderer_interface SDL2)
+endif()
 cl_add_dep(renderer_interface stb_truetype)
 
-set(SE_WINDOWING_VALID_OPTIONS "sdl2")
+list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 
 if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")

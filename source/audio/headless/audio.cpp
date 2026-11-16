@@ -1,8 +1,8 @@
-#include <audio.hpp>
+#include <audio_headless.hpp>
 #include <audiostack.hpp>
 
-bool SoundPlayer::init() { return true; }
-void SoundPlayer::deinit() {
+SoundDevice_Headless::SoundDevice_Headless() {}
+SoundDevice_Headless::~SoundDevice_Headless() {
 #ifdef ENABLE_AUDIO
     Mixer::cleanupAudio();
 #endif

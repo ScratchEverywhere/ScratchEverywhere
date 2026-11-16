@@ -5,7 +5,7 @@
 
 class SE_EXPORT WindowSDL3 : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    WindowSDL3(int width, int height, const std::string &title);
     void cleanup() override;
 
     bool shouldClose() override;
@@ -17,8 +17,14 @@ class SE_EXPORT WindowSDL3 : public WindowSE {
     int getHeight() const override;
     float getPixelDensity() const override;
     void *getHandle() override;
+#if defined(__XBOX__)
+    void *getRenderer();
+#endif
 
   private:
+#if defined(__XBOX__)
+    SDL_Renderer *sdlRenderer = nullptr;
+#endif
     SDL_Window *window = nullptr;
     SDL_GLContext context = nullptr;
     int width = 0;

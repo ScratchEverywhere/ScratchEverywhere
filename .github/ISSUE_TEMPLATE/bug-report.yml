@@ -50,6 +50,7 @@ body:
               - Web
               - PS4
               - Libretro
+              - Original Xbox
     - type: textarea
       id: additional-context
       attributes:

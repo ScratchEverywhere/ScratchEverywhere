@@ -1,7 +1,8 @@
 #include "image_gdi.hpp"
 #include "nonstd/expected.hpp"
-#include "render_gdi.hpp"
+#include "renderer_gdi.hpp"
 #include <algorithm>
+#include <pixel_snap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -12,21 +13,33 @@ void Image_GDI::render(ImageRenderParams &params) {
 void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
-    const int renderWidth = this->imgData.width / this->imgData.scale * params.scale;
-    const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
+    float renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    float renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
 
-    p[0].x = params.x;
-    p[0].y = params.y;
-    p[1].x = params.x + renderWidth;
-    p[1].y = params.y;
-    p[2].x = params.x;
-    p[2].y = params.y + renderHeight;
+    float px = params.x;
+    float py = params.y;
+    if (PixelSnap::unrotated(params.rotation)) {
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(params.centered ? px - renderWidth / 2 : px, renderWidth, left, snappedW);
+        PixelSnap::span(params.centered ? py - renderHeight / 2 : py, renderHeight, top, snappedH, true);
+        renderWidth = snappedW;
+        renderHeight = snappedH;
+        px = params.centered ? left + snappedW / 2 : left;
+        py = params.centered ? top + snappedH / 2 : top;
+    }
+
+    p[0].x = px;
+    p[0].y = py;
+    p[1].x = px + renderWidth;
+    p[1].y = py;
+    p[2].x = px;
+    p[2].y = py + renderHeight;
 
     for (i = 0; i < 3; i++) {
-        int sx = params.x;
-        int sy = params.y;
+        float sx = px;
+        float sy = py;
         int x;
         int y;
 
@@ -35,7 +48,7 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
             p[i].y -= renderHeight / 2;
 
             if (params.flip) {
-                p[i].x = sx + renderWidth - (p[i].x - sx);
+                p[i].x = sx + (renderWidth - (p[i].x - sx)) - renderWidth;
             }
         }
 
@@ -56,11 +69,11 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
     double wP[] = {padding, width - padding * 2, padding};
     double hP[] = {padding, height - padding * 2, padding};
     int x, y;
-    int ySrc = 0, xSrc;
-    int yIncr = yPos, xIncr;
+    double ySrc = 0, xSrc;
+    double yIncr = yPos, xIncr;
 
     for (y = 0; y < 3; y++) {
-        int h = padding;
+        double h = padding;
 
         xIncr = xPos;
         xSrc = 0;
@@ -68,7 +81,7 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
         if (y == 1) h = this->imgData.height - padding * 2;
 
         for (x = 0; x < 3; x++) {
-            int w = padding;
+            double w = padding;
 
             if (x == 1) w = this->imgData.width - padding * 2;
 
@@ -119,6 +132,8 @@ void Image_GDI::setInitialTexture() {
     }
 
     SelectObject(this->hDC, this->hBitmap);
+
+    discardColorData();
 }
 
 nonstd::expected<void, std::string> Image_GDI::refreshTexture() {
@@ -215,11 +230,15 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     PatBlt(hDC, 0, 0, cxDest, cyDest, BLACKNESS);
 
+#if 0
     if (p3.x == p[1].x && p3.y == p[2].y) {
         StretchBlt(hDC, 0, 0, cxDest, cyDest, src, x, y, cx, cy, SRCCOPY);
     } else {
         PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
     }
+#else
+    PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
+#endif
     GdiAlphaBlend(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, bf);
     // StretchBlt(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, SRCCOPY);
 

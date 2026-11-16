@@ -52,6 +52,7 @@ Port PS4 de la PwLDev!
 Port SDL1 de la Leap!
 Port OpenGL de la Leap!
 Port libretro de la Nishi!
+Port Xbox de la MikeDEV!
 Muzică de la Dogo6647!
 De la 2025!
 C++!

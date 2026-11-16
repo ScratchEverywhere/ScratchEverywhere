@@ -4,16 +4,16 @@
 
 class SE_EXPORT WindowHeadless : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override { return true; }
-    void cleanup() override {}
+    WindowHeadless(int width, int height, const std::string &title);
+    void cleanup() override;
 
-    bool shouldClose() override { return false; }
-    void pollEvents() override {}
-    void swapBuffers() override {}
-    void resize(int width, int height) override {}
+    bool shouldClose() override;
+    void pollEvents() override;
+    void swapBuffers() override;
+    void resize(int width, int height) override;
 
-    int getWidth() const override { return 0; }
-    int getHeight() const override { return 0; }
-    float getPixelDensity() const override { return 1.0f; }
-    void *getHandle() override { return nullptr; }
+    int getWidth() const override;
+    int getHeight() const override;
+    float getPixelDensity() const override;
+    void *getHandle() override;
 };

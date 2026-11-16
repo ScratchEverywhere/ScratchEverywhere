@@ -112,6 +112,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(text2speech, speakAndWait, {"WORDS", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(text2speech, setVoice) {
     std::string voice;
@@ -126,9 +127,11 @@ SCRATCH_BLOCK(text2speech, setVoice) {
     sprite->textToSpeechData.gender = voice;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(text2speech, setVoice, {"VOICE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(text2speech, setLanguage) {
     if (!Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, sprite->textToSpeechData.language)) return BlockResult::REPEAT;
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(text2speech, setLanguage, {"LANGUAGE", BytecodeStackKind::String});

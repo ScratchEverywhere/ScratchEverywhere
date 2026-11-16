@@ -13,6 +13,22 @@
 
 #include <input_strings.hpp>
 
+class SE_EXPORT InputDevice {
+  public:
+    InputDevice() = default;
+    virtual ~InputDevice() = default;
+
+    virtual std::array<int, 2> getTouchPosition() = 0;
+
+    virtual void getInput() = 0;
+
+    virtual std::string openSoftwareKeyboard(const char *hintText) { return ""; };
+
+    virtual void setClipboardText(const std::string &text) {};
+};
+
+extern InputDevice *globalInputDevice;
+
 class SE_EXPORT Input {
   public:
     struct Mouse {
@@ -31,6 +47,8 @@ class SE_EXPORT Input {
     static Mouse mousePointer;
     static Sprite *draggingSprite;
 
+    static int mouseScrollDelta;
+
     static std::pair<float, float> leftJoystick;
     static std::pair<float, float> rightJoystick;
 
@@ -41,10 +59,11 @@ class SE_EXPORT Input {
     static std::unordered_map<std::string, int> keyHeldDuration;
     static std::unordered_set<Block *> codePressedBlockOpcodes;
 
-    // static std::vector<int> getTouchPosition();
-    static std::array<int, 2> getTouchPosition();
+    static InputDevice *getGlobalInputDevice();
+    static void setGlobalInputDevice(InputDevice *device);
+    static void destroyGlobalInputDevice();
 
-    static void getInput();
+    static void applyControls(std::string controlsFilePath = "");
 
     static int inputViewportX, inputViewportY, inputViewportW, inputViewportH;
     static void setInputViewport(int x, int y, int w, int h);
@@ -57,10 +76,20 @@ class SE_EXPORT Input {
     static void setInputWindowHandle(void *handle);
     static void clearInputWindowHandle();
 
-    static void applyControls(std::string controlsFilePath = "");
+    static void clampMouseToStage();
+
     static void buttonPress(std::string button);
     static std::string convertToKey(const Value keyName, const bool uppercaseKeys = false);
     static bool checkSequenceMatch(const std::vector<std::string> sequence);
 
+    // input device specific functions
+    // TODO: remove these and rely on getInputDevice to access functions
+
+    static std::array<int, 2> getTouchPosition();
+
+    static void getInput();
+
     static std::string openSoftwareKeyboard(const char *hintText);
+
+    static void setClipboardText(const std::string &text);
 };

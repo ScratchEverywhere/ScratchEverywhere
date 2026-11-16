@@ -173,6 +173,7 @@ SCRATCH_BLOCK(nishiowoDectalk, speakAndWait) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(nishiowoDectalk, speakAndWait, {"WORDS", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(nishiowoDectalk, stopAll) {
 #ifdef ENABLE_AUDIO
@@ -191,3 +192,4 @@ SCRATCH_BLOCK(nishiowoDectalk, stopAll) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(nishiowoDectalk, stopAll);

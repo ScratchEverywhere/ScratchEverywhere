@@ -52,6 +52,7 @@ Portage PS4 par PwLDev!
 Portage SDL1 par Leap!
 Portage OpenGL par Leap!
 Portage libretro par Nishi!
+Portage Xbox par MikeDEV!
 Musique du menu par Dogo6647!
 Depuis 2025!
 C++!

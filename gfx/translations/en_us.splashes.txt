@@ -52,6 +52,7 @@ PS4 port by PwLDev!
 SDL1 port by Leap!
 OpenGL port by Leap!
 libretro port by Nishi!
+Xbox port by MikeDEV!
 Menu music by Dogo6647!
 Since 2025!
 C++!

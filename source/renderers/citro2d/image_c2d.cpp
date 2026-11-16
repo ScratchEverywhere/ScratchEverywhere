@@ -1,8 +1,10 @@
 #include "image_c2d.hpp"
 #include "nonstd/expected.hpp"
 #include <algorithm>
+#include <cmath>
 #include <math.hpp>
 #include <os.hpp>
+#include <pixel_snap.hpp>
 #include <string>
 #include <unzip.hpp>
 #include <vector>
@@ -77,7 +79,22 @@ void Image_C2D::render(ImageRenderParams &params) {
             C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
     } else C2D_AlphaImageTint(&tinty, 1.0f);
 
-    C2D_DrawImageAtRotated({texture.tex, &subtex}, x, y, 1, rotation, &tinty, scaleX / imgData.scale, scaleY / imgData.scale);
+    float finalScaleX = scaleX / imgData.scale;
+    float finalScaleY = scaleY / imgData.scale;
+
+    if (PixelSnap::unrotated(rotation) && drawW > 0 && drawH > 0) {
+        const float w = drawW * std::abs(finalScaleX);
+        const float h = drawH * std::abs(finalScaleY);
+        float left, top, snappedW, snappedH;
+        PixelSnap::span(x - w / 2.0f, w, left, snappedW);
+        PixelSnap::span(y - h / 2.0f, h, top, snappedH, true);
+        x = left + snappedW / 2.0f;
+        y = top + snappedH / 2.0f;
+        finalScaleX = (finalScaleX < 0 ? -snappedW : snappedW) / drawW;
+        finalScaleY = (finalScaleY < 0 ? -snappedH : snappedH) / drawH;
+    }
+
+    C2D_DrawImageAtRotated({texture.tex, &subtex}, x, y, 1, rotation, &tinty, finalScaleX, finalScaleY);
     freeTimer = maxFreeTimer;
 }
 

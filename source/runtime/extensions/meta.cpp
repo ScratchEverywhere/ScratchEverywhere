@@ -24,7 +24,7 @@ nonstd::expected<std::unique_ptr<extensions::Extension>, std::string> extensions
     if (!std::equal(magicBuffer.begin(), magicBuffer.end(), magicString.begin())) return nonstd::make_unexpected("Invalid magic string: " + std::string(magicBuffer.begin(), magicBuffer.end()));
 
     // Version Stuff
-    char formatVersion;
+    char formatVersion; // current version is 1 which is inherently backwards compatible with version 0, no special handling yet.
     if (!data.read(&formatVersion, 1)) return nonstd::make_unexpected("Could not read 1 byte for file format version. File too short or I/O error.");
     if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.major), 1)) return nonstd::make_unexpected("Could not read 1 byte for major API version. File too short or I/O error.");
     if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.minor), 1)) return nonstd::make_unexpected("Could not read 1 byte for minor API version. File too short or I/O error.");
@@ -57,7 +57,7 @@ nonstd::expected<std::unique_ptr<extensions::Extension>, std::string> extensions
     // Platforms
     char platformBytes[2];
     if (!data.read(platformBytes, 2)) return nonstd::make_unexpected("Could not read 2 bytes for supported platforms. Fille too short or I/O error.");
-    for (unsigned int i = 0; i < 12; i++) // Update as more platforms are added
+    for (unsigned int i = 0; i < 13; i++) // Update as more platforms are added
         if ((((platformBytes[0] << 8) | platformBytes[1]) >> i) & 1) out->platforms.push_back(static_cast<ExtensionPlatform>(i));
 
     // Settings

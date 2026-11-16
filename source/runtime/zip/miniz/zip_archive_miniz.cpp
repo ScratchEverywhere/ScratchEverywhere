@@ -2,7 +2,13 @@
 
 #include <cstring>
 #include <istream>
+#include <log.hpp>
 #include <miniz.h>
+
+#if defined(__XBOX__)
+#include <mutex>
+static std::mutex s_minizArchiveMutex;
+#endif
 
 namespace {
 
@@ -33,10 +39,50 @@ class MinizZipArchive : public ZipArchive {
     }
 
     void *extractToHeap(const std::string &name, size_t *outSize) override {
+#if defined(__XBOX__)
+        std::lock_guard<std::mutex> lock(s_minizArchiveMutex);
+#endif
         if (!opened) return nullptr;
         int file_index = mz_zip_reader_locate_file(&archive, name.c_str(), nullptr, 0);
-        if (file_index < 0) return nullptr;
-        return mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
+#if defined(__XBOX__)
+        if (file_index < 0) {
+            file_index = mz_zip_reader_locate_file(&archive, ("./" + name).c_str(), nullptr, 0);
+        }
+        if (file_index < 0) {
+            mz_uint numFiles = mz_zip_reader_get_num_files(&archive);
+            size_t name_len = name.size();
+            for (mz_uint i = 0; i < numFiles; i++) {
+                mz_zip_archive_file_stat st;
+                if (mz_zip_reader_file_stat(&archive, i, &st)) {
+                    size_t st_len = strlen(st.m_filename);
+                    if (st_len == name_len && strcmp(st.m_filename, name.c_str()) == 0) {
+                        file_index = static_cast<int>(i);
+                        break;
+                    } else if (st_len > name_len &&
+                               st.m_filename[st_len - name_len - 1] == '/' &&
+                               strcmp(st.m_filename + st_len - name_len, name.c_str()) == 0) {
+                        file_index = static_cast<int>(i);
+                        break;
+                    }
+                }
+            }
+        }
+#endif
+        if (file_index < 0) {
+            Log::logWarning("Zip: entry not found: " + name);
+            return nullptr;
+        }
+        void *data = mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
+        if (!data) {
+            std::string detail;
+            mz_zip_archive_file_stat st;
+            if (mz_zip_reader_file_stat(&archive, file_index, &st)) {
+                detail = " (" + std::to_string(st.m_uncomp_size / 1024) + " KB)";
+            }
+            Log::logWarning("Zip: failed to extract " + name + detail + ": " +
+                            mz_zip_get_error_string(mz_zip_get_last_error(&archive)));
+        }
+        return data;
     }
 
     void freeHeap(void *ptr) override {

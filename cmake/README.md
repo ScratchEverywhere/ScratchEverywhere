@@ -50,19 +50,7 @@ instead of a recipe override - resolves straight from the shared registry.
 Backends are Renderers, Windowing Systems, and Audio Engines which all use the
 same format in our CMake setup.
 
-All backends should have an include guard like this:
-
-```cmake
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
-```
-
-Then simply link dependencies to that interface.
-
-Renderers should also set `SE_WINDOWING_VALID_OPTIONS` and
-`SE_AUDIO_ENGINE_DEFAULT`.
+Renderers should set `SE_WINDOWING_VALID_OPTIONS` and `SE_AUDIO_ENGINE_DEFAULT`.
 
 ## Platforms
 
