@@ -260,7 +260,7 @@ if(SE_FLATLAND OR SE_RENDERER STREQUAL "flatland")
 	set(SE_AUDIO_ENGINE flatland)
 endif()
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "nv2a" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 
@@ -293,7 +293,7 @@ if(SE_WINDOWING_VALID_OPTIONS)
     list(REMOVE_DUPLICATES SE_WINDOWING_VALID_OPTIONS)
 endif()
 
-set(SE_WINDOWING_PRIORITY "all" "glfw" "nv2a" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "wiiu" "headless" "libretro")
+set(SE_WINDOWING_PRIORITY "all" "glfw" "xbox" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "wiiu" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 
 add_library(windowing_interface INTERFACE)

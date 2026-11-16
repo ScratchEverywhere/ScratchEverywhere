@@ -4,10 +4,10 @@
 #include <se_export.hpp>
 #include <string>
 
-class SE_EXPORT InputDevice_NV2A : public InputDevice {
+class SE_EXPORT InputDevice_Xbox : public InputDevice {
   public:
-    InputDevice_NV2A();
-    ~InputDevice_NV2A() override;
+    InputDevice_Xbox();
+    ~InputDevice_Xbox() override;
 
     std::array<int, 2> getTouchPosition() override;
     void getInput() override;

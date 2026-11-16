@@ -22,9 +22,6 @@
 #ifdef RENDERER_XBOX
 #include <renderers/xbox/image_xbox.hpp>
 #endif
-#ifdef RENDERER_NV2A
-#include <renderers/nv2a/image_nv2a.hpp>
-#endif
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -337,13 +334,6 @@ void Unzip::openScratchProject(void *arg) {
     if (Render::currentRenderer == Renderers::Xbox) {
         Log::log("Precaching project textures...");
         Image_Xbox::precacheProjectTextures();
-        Log::log("Project texture precache finished.");
-    }
-#endif
-#ifdef RENDERER_NV2A
-    if (Render::currentRenderer == Renderers::NV2A) {
-        Log::log("Precaching project textures...");
-        Image_NV2A::precacheProjectTextures();
         Log::log("Project texture precache finished.");
     }
 #endif
