@@ -1,0 +1,14 @@
+FROM gcc:14 AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev python3-jinja2
+
+COPY . .
+
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBRETRO=ON -DSE_RENDERER=opengl_core -DSE_WINDOWING=libretro && cmake --build . -j 2
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/scratch-pc.so /

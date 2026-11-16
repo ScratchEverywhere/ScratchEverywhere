@@ -1,101 +1,137 @@
-#include "../audio.hpp"
+#include "../../audio.hpp"
+#include "../../audiostack.hpp"
 #include "blockUtils.hpp"
 #include "downloader.hpp"
 #include "math.hpp"
 #include "os.hpp"
-#include "sprite.hpp"
+#include "runtime.hpp"
+#include "settings.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 #include <string>
 
+SCRATCH_SHADOW_BLOCK(text2speech_menu_voices, voices)
+SCRATCH_SHADOW_BLOCK(text2speech_menu_languages, languages)
+
+#include <iostream>
+
 SCRATCH_BLOCK(text2speech, speakAndWait) {
-#if defined(ENABLE_DOWNLOAD) && defined(ENABLE_AUDIO)
-    Value inputValue = Scratch::getInputValue(block, "WORDS", sprite);
-    std::string inputString = inputValue.asString();
-
-    std::string voice = sprite->textToSpeechData.gender;
-    std::string language = sprite->textToSpeechData.language;
-    std::string api = "https://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
-    std::string tempDir = OS::getScratchFolderLocation() + "cache/";
-    std::size_t h = std::hash<std::string>{}(api);
-    std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
-    std::string tempFile = tempDir + safeName;
-
-    if (!fromRepeat || block.repeatTimes >= -1) {
-        block.repeatTimes = -2;
-    }
-
-    if (block.repeatTimes == -2) {
-        if (SoundPlayer::isSoundPlaying(tempFile)) {
-            Log::log("T2S: Currently speaking on other block, skipping");
-            BlockExecutor::removeFromRepeatQueue(sprite, &block);
-            return BlockResult::CONTINUE;
-        }
-        if (SoundPlayer::isSoundLoaded(tempFile)) {
-            Log::log("T2S: sound loaded, playing");
-            SoundPlayer::playSound(tempFile);
-            BlockExecutor::addToRepeatQueue(sprite, &block);
-            block.repeatTimes = -4;
-            return BlockResult::RETURN;
-        }
-        block.repeatTimes = -3;
-    }
-    if (block.repeatTimes == -3) {
-        if (!DownloadManager::init()) return BlockResult::CONTINUE;
-        try {
-            if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
-                Log::log("T2S audio already downloaded: " + inputString);
-                SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
-                BlockExecutor::addToRepeatQueue(sprite, &block);
-                block.repeatTimes = -4;
-                return BlockResult::RETURN;
-            }
-
-            if (!DownloadManager::isDownloading(api) && !fromRepeat) {
-                Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
-
-                DownloadManager::addDownload(api, tempFile);
-                BlockExecutor::addToRepeatQueue(sprite, &block);
-                block.repeatTimes = -3;
-                return BlockResult::RETURN;
-            } else if (DownloadManager::isDownloading(api)) return BlockResult::RETURN;
-
-        } catch (const std::exception &e) {
-            Log::logWarning(std::string("Filesystem::exists threw: ") + e.what());
-            BlockExecutor::removeFromRepeatQueue(sprite, &block);
-            return BlockResult::CONTINUE;
-        }
-    }
-    if (block.repeatTimes == -4) {
-        if (SoundPlayer::isSoundPlaying(tempFile)) return BlockResult::RETURN;
-    }
-
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    block.repeatTimes = -1;
-    Log::log("T2S: finished speaking: " + inputString);
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DOWNLOAD
+    bool forceDectalk = false;
+#elif defined(ENABLE_DECTALK)
+    bool forceDectalk = true;
 #else
-    Log::logWarning("T2S: ENABLE_AUDIO is NOT defined");
+    /* no download and also no dectalk */
+
+    Log::logWarning("[TextToSpeech] Neither of ENABLE_DECTALK nor ENABLE_DOWNLOAD were defined");
+    return BlockResult::CONTINUE;
+#endif
+
+#ifdef ENABLE_DECTALK
+    if (forceDectalk || SettingsManager::getConfigSettings().value("UseDectalk",
+#ifdef DECTALK_DEFAULT
+                                                                   true
+#else
+                                                                   false
+#endif
+                                                                   )) {
+        return BlockExecutor::getHandlers()["nishiowoDectalk_speakAndWait"](block, thread, sprite, outValue);
+    } else
+#endif
+    {
+#ifdef ENABLE_DOWNLOAD
+        BlockState *state = thread->getState(block);
+        if (state->completedSteps == 0) {
+
+            std::string words;
+            if (!Scratch::getInputValueAs(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+
+            std::string voice = sprite->textToSpeechData.gender;
+            std::string language = sprite->textToSpeechData.language;
+            state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(words);
+            std::string tempDir = OS::getScratchFolderLocation() + "cache/";
+            std::size_t h = std::hash<std::string>{}(state->name);
+            std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
+            std::string tempFile = tempDir + safeName;
+            if (Mixer::isSoundPlaying(tempFile)) {
+                thread->eraseState(block);
+                return BlockResult::CONTINUE;
+            }
+            state->completedSteps = 2;
+            if (!DownloadManager::init()) return BlockResult::CONTINUE;
+            if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+                Log::log("[TextToSpeech] audio already downloaded: " + words);
+                SoundStream *strm = new SoundStream(tempFile, false, true);
+                if (strm->error.has_value()) {
+                    Log::logError("[TextToSpeech] " + strm->error.value());
+                    delete strm;
+                }
+                return BlockResult::REPEAT;
+            }
+            if (!DownloadManager::isDownloading(state->name)) {
+                Log::log("[TextToSpeech] starting download for: " + words + " -> " + tempFile);
+                DownloadManager::addDownload(state->name, tempFile);
+                state->completedSteps = 1;
+                return BlockResult::REPEAT;
+            }
+        }
+        std::string tempDir = OS::getScratchFolderLocation() + "cache/";
+        std::size_t h = std::hash<std::string>{}(state->name);
+        std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
+        std::string tempFile = tempDir + safeName;
+
+        if (state->completedSteps == 1) {
+            if (DownloadManager::isDownloading(state->name)) return BlockResult::REPEAT;
+
+            if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+                Log::log("[TextToSpeech] audio already downloaded");
+                SoundStream *strm = new SoundStream(tempFile, false, true);
+                if (strm->error.has_value()) {
+                    Log::logError(strm->error.value());
+                    delete strm;
+                }
+                state->completedSteps = 2;
+                return BlockResult::REPEAT;
+            }
+        }
+        if (state->completedSteps == 2) {
+            if (Mixer::isSoundPlaying(tempFile)) return BlockResult::REPEAT;
+        }
+
+        Mixer::setAutoClean(tempFile, true);
+        thread->eraseState(block);
+#endif
+    }
+#else
+    Log::logWarning("[TextToSpeech] ENABLE_AUDIO is NOT defined");
 #endif
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(text2speech, speakAndWait, {"WORDS", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(text2speech, setVoice) {
-    Value voiceValue = Scratch::getInputValue(block, "VOICE", sprite);
-    std::string voiceString = voiceValue.asString();
-    if (voiceString == "tenor" || voiceString == "giant") {
-        voiceString = "male";
+    std::string voice;
+    if (!Scratch::getInputValueAs(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
+
+    if (voice == "TENOR" || voice == "GIANT" || voice == "tenor" || voice == "giant") {
+        voice = "male";
     } else {
-        voiceString = "female"; // alto squeak kitten and for any unknown values
+        voice = "female"; // alto squeak kitten and for any unknown values
     }
-    // sprite->textToSpeechData.playbackRate = 1.0; //sound does currently not support playback rate changes, i think?
-    sprite->textToSpeechData.gender = voiceString;
+    // sprite->textToSpeechData.playbackRate = 1.0; /ToDo playbackRate is implemeted for Audio, i think? So it could be added?
+    sprite->textToSpeechData.gender = voice;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(text2speech, setVoice, {"VOICE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(text2speech, setLanguage) {
-    Value languageValue = Scratch::getInputValue(block, "LANGUAGE", sprite);
-    std::string languageString = languageValue.asString();
-    sprite->textToSpeechData.language = languageString;
+    if (!Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, sprite->textToSpeechData.language)) return BlockResult::REPEAT;
+
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(text2speech, setLanguage, {"LANGUAGE", BytecodeStackKind::String});

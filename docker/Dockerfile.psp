@@ -1,9 +1,12 @@
 FROM pspdev/pspdev:latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 COPY . .
 
-RUN psp-cmake -B build/psp -S . && make -C build/psp -j 2
+RUN apk add --no-cache patch
+
+RUN psp-cmake -B build/psp -S . -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl3 -DSE_WINDOWING=sdl3 -DSE_AUDIO_ENGINE=sdl3 && make -C build/psp -j 2
 
 FROM scratch AS exporter
 

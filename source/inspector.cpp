@@ -1,0 +1,447 @@
+#include "inspector.hpp"
+#ifdef ENABLE_INSPECTOR
+
+#include <blockExecutor.hpp>
+#include <bytecode_disassembler.hpp>
+#include <collision.hpp>
+#include <input.hpp>
+#include <iostream>
+#include <queue>
+#include <renderer.hpp>
+#include <runtime.hpp>
+#include <speech_manager.hpp>
+#include <sstream>
+#include <string>
+#include <thread.hpp>
+#include <types.hpp>
+#include <vector>
+
+namespace Inspector {
+
+bool paused = false;
+int stepsRemaining = 0;
+
+struct WatchEntry {
+    std::string targetStr;
+    Value lastValue;
+};
+static std::vector<WatchEntry> watchedVars;
+
+static SE_Thread cliThread;
+static std::queue<std::string> commandQueue;
+static SE_Mutex queueMutex;
+
+static Sprite *findSprite(const std::string &name) {
+    if (name == "Stage") return Scratch::stageSprite;
+    if (!name.empty() && name[0] == '@') {
+        try {
+            int layer = std::stoi(name.substr(1));
+            for (Sprite *s : Scratch::sprites) {
+                if (s->layer == layer) return s;
+            }
+            if (Scratch::stageSprite && Scratch::stageSprite->layer == layer) return Scratch::stageSprite;
+        } catch (...) {
+        }
+    }
+    for (Sprite *s : Scratch::sprites) {
+        if (s->name == name) return s;
+    }
+    return nullptr;
+}
+
+static std::vector<Sprite *> findSprites(const std::string &name) {
+    std::vector<Sprite *> results;
+    if (name == "Stage") {
+        if (Scratch::stageSprite) results.push_back(Scratch::stageSprite);
+        return results;
+    }
+    if (!name.empty() && name[0] == '@') {
+        Sprite *s = findSprite(name);
+        if (s) results.push_back(s);
+        return results;
+    }
+    for (Sprite *s : Scratch::sprites) {
+        if (s->name == name) results.push_back(s);
+    }
+    return results;
+}
+
+static List *findList(Sprite *target, const std::string &listName) {
+    for (auto &[id, l] : target->lists) {
+        if (l.name == listName) return &l;
+    }
+    return nullptr;
+}
+
+static std::string parseArg(std::stringstream &ss, bool restOfLine = false) {
+    ss >> std::ws;
+    std::string result;
+    if (ss.peek() == '"') {
+        ss.get();
+        std::getline(ss, result, '"');
+    } else if (restOfLine) {
+        std::getline(ss, result);
+    } else {
+        ss >> result;
+    }
+    if (!result.empty() && result.back() == '\r') result.pop_back();
+    return result;
+}
+
+static void loop(void *arg) {
+    std::string line;
+    std::cout << "Inspector active. Type 'help' for commands.\n";
+    while (true) {
+        if (!std::getline(std::cin, line)) {
+            std::cin.clear();
+            SE_Thread::sleep(100);
+            continue;
+        }
+
+        queueMutex.lock();
+        commandQueue.push(line);
+        queueMutex.unlock();
+    }
+}
+
+void init() {
+    queueMutex.init();
+    cliThread.create(loop, nullptr, 0, 1, -2, "Inspector");
+    cliThread.detach();
+}
+
+void processCommands() {
+    queueMutex.lock();
+    if (!commandQueue.empty()) {
+        std::string line = commandQueue.front();
+        commandQueue.pop();
+        queueMutex.unlock();
+
+        std::stringstream ss(line);
+        std::string cmd;
+        ss >> cmd;
+
+        if (cmd == "help") {
+            std::string subCmd = parseArg(ss, false);
+            if (subCmd.empty()) {
+                std::cout << "\nInspector Commands (use 'help <cmd>' for more)\n"
+                          << "[General]\n"
+                          << "  help, status,    - Help, project status\n"
+                          << "  sprites, clones,    - List all sprites and clones\n"
+                          << "[Inspection]\n"
+                          << "  inspect, inspectext      - Basic vs extended sprite data\n"
+                          << "  dist, touching           - Spatial & collision checks\n"
+                          << "[Variables & Lists]\n"
+                          << "  set, setprop, broadcast  - Update data or trigger events\n"
+                          << "  listadd, listremove, listset, listclear\n"
+                          << "[Monitoring]\n"
+                          << "  watch, unwatch, clearwatch - Real-time variable tracking\n"
+                          << "[Control]\n"
+                          << "  flag, stop               - Start or stop project execution\n"
+                          << "[Bytecode]\n"
+                          << "  bytecode                 - Dump a sprite's compiled bytecode chunk\n"
+                          << "Syntax: Use 'SpriteName:Var' for locals, '@Layer' for specefic sprite at a certain layer (including stage and clones).\n\n";
+            } else if (subCmd == "inspect" || subCmd == "inspectext") {
+                std::cout << "Usage: " << subCmd << " <name or @layer>\n"
+                          << "Prints transform, variables, and lists. 'inspectext' adds effects, audio, pen, and full lists.\n";
+            } else if (subCmd == "set" || subCmd == "setprop") {
+                std::cout << "Usage: " << subCmd << " [sprite:]<name> <value>\n"
+                          << "Updates vars or properties (x, y, size, rotation, visible).\n"
+                          << "If using a name instead of @layer, all clones of that name are updated.\n";
+            } else if (subCmd == "watch") {
+                std::cout << "Usage: watch [sprite:]<var>\n"
+                          << "Prints a log whenever the variable's value changes during a tick.\n";
+            } else if (subCmd == "dist" || subCmd == "touching") {
+                std::cout << "Usage: " << subCmd << " <s1> <s2>\n"
+                          << "Check distance or if two sprites are colliding. name or @layer supported.\n";
+            } else if (subCmd == "listset" || subCmd == "listadd" || subCmd == "listremove" || subCmd == "listclear") {
+                std::cout << "List commands use 1-based indexing.\n"
+                          << "Example: listset Sprite1:myList 1 newItem\n";
+            } else if (subCmd == "bytecode") {
+                std::cout << "Usage: bytecode <name or @layer>\n"
+                          << "Dumps the sprite's compiled BytecodeChunk: scripts, procedures, and the full\n"
+                          << "instruction listing. Most things still show up as EscapeToLegacyThread /\n"
+                          << "CallLegacyReporter -- that's expected, only a few opcodes are compiled so far.\n"
+                          << "Prints a message instead if the sprite has no compiled bytecode.\n";
+            } else {
+                std::cout << "No extra info for '" << subCmd << "'.\n";
+            }
+        } else if (cmd == "sprites" || cmd == "clones") {
+            bool onlyClones = (cmd == "clones");
+            std::cout << "Sprites (front to back):\n";
+            SpeechManager *sm = Render::getSpeechManager();
+            for (Sprite *s : Scratch::sprites) {
+                if (onlyClones && !s->isClone) continue;
+                std::cout << s->name << " | Vis: " << (s->visible ? "true" : "false") << " | Pos: (" << s->xPosition << ", " << s->yPosition << ") | Layer: " << s->layer;
+                if (sm) {
+                    std::string text = sm->getSpeechText(s);
+                    if (!text.empty()) {
+                        std::cout << " | " << sm->getSpeechStyle(s) << ": \"" << text << "\"";
+                    }
+                }
+                std::cout << "\n";
+            }
+        } else if (cmd == "status") {
+            std::cout << "Status:\n"
+                      << "FPS target: " << Scratch::FPS << "\n"
+                      << "Clones: " << Scratch::cloneCount << "/" << Scratch::maxClones << "\n"
+                      << "Threads running: " << BlockExecutor::threads.size() << "\n"
+                      << "Pools: States=" << Pools::states.size() << ", Threads=" << Pools::threads.size() << "\n"
+                      << "Timer: " << (BlockExecutor::timer.getTimeMs() / 1000.0) << "s\n"
+                      << "Turbo mode: " << (Scratch::turbo ? "ON" : "OFF") << "\n";
+        } else if (cmd == "inspect" || cmd == "inspectext") {
+            bool extended = (cmd == "inspectext");
+            std::string spriteName = parseArg(ss, true);
+            Sprite *target = findSprite(spriteName);
+
+            if (!target) {
+                std::cout << "Sprite '" << spriteName << "' not found.\n";
+            } else {
+                std::cout << "Sprite: " << target->name << (target->isStage ? " (Stage)" : "") << "\n"
+                          << "Position: (" << target->xPosition << ", " << target->yPosition << ")\n"
+                          << "Rotation: " << target->rotation << "\n"
+                          << "Size: " << target->size << "%\n"
+                          << "Visible: " << (target->visible ? "true" : "false") << "\n"
+                          << "Layer: " << target->layer << "\n"
+                          << "Is Clone: " << (target->isClone ? "true" : "false") << "\n"
+                          << "Costumes: " << target->costumes.size() << " (Current: " << target->currentCostume << ")\n"
+                          << "Sounds: " << target->sounds.size() << "\n";
+
+                if (extended) {
+                    std::cout << "--- Extended Info ---\n"
+                              << "Draggable: " << (target->draggable ? "true" : "false") << "\n"
+                              << "To Delete: " << (target->toDelete ? "true" : "false") << "\n"
+                              << "Effects: [Ghost: " << target->ghostEffect << ", Brightness: " << target->brightnessEffect << ", Color: " << target->colorEffect << "]\n"
+                              << "Audio: [Volume: " << target->volume << ", Pitch: " << target->pitch << ", Pan: " << target->pan << "]\n"
+                              << "Rotation Style: " << (target->rotationStyle == Sprite::ALL_AROUND ? "all around" : (target->rotationStyle == Sprite::LEFT_RIGHT ? "left-right" : "none")) << "\n"
+                              << "Dimensions: " << target->spriteWidth << "x" << target->spriteHeight << "\n"
+                              << "Pen: [Down: " << (target->penData.down ? "true" : "false") << ", Size: " << target->penData.size << ", Hue: " << target->penData.color.hue << ", Sat: " << target->penData.color.saturation << ", Bri: " << target->penData.color.brightness << ", Shade: " << target->penData.shade << "]\n"
+                              << "TTS: [Gender: " << target->textToSpeechData.gender << ", Lang: " << target->textToSpeechData.language << "]\n";
+                }
+
+                std::cout << "- Variables:\n";
+                for (auto &[id, v] : target->variables) {
+                    std::cout << "  " << v.name << " = " << BlockExecutor::getVariableValueAs<Value>(&v).asString() << "\n";
+                }
+                std::cout << "- Lists:\n";
+                for (auto &[id, l] : target->lists) {
+                    std::cout << "  " << l.name << " (length " << l.items.size() << ")\n";
+                    if (!extended && l.items.size() > 10) {
+                        for (size_t i = 0; i < 10; i++) {
+                            std::cout << "    [" << i + 1 << "] " << l.items[i].asString() << "\n";
+                        }
+                        std::cout << "    ... and " << (l.items.size() - 10) << " more. Use inspectext to see all.\n";
+                    } else {
+                        for (size_t i = 0; i < l.items.size(); i++) {
+                            std::cout << "    [" << i + 1 << "] " << l.items[i].asString() << "\n";
+                        }
+                    }
+                }
+            }
+        } else if (cmd == "set") {
+            std::string targetStr = parseArg(ss, false);
+            std::string valStr = parseArg(ss, true);
+            size_t colon = targetStr.find(':');
+            if (colon == std::string::npos) {
+                if (Scratch::stageSprite) {
+                    for (auto &[id, v] : Scratch::stageSprite->variables) {
+                        if (v.name == targetStr) {
+                            v.value = Value(valStr);
+                            std::cout << "Set global " << targetStr << " = " << valStr << "\n";
+                            break;
+                        }
+                    }
+                }
+            } else {
+                std::string spriteName = targetStr.substr(0, colon);
+                std::string varName = targetStr.substr(colon + 1);
+                for (Sprite *s : findSprites(spriteName)) {
+                    for (auto &[id, v] : s->variables) {
+                        if (v.name == varName) v.value = Value(valStr);
+                    }
+                }
+            }
+        } else if (cmd == "setprop") {
+            std::string targetStr = parseArg(ss, false);
+            std::string valStr = parseArg(ss, true);
+            std::string spriteName = "Stage", prop = targetStr;
+            size_t colon = targetStr.find(':');
+            if (colon != std::string::npos) {
+                spriteName = targetStr.substr(0, colon);
+                prop = targetStr.substr(colon + 1);
+            }
+            for (Sprite *target : findSprites(spriteName)) {
+                if (prop == "x") target->xPosition = std::stof(valStr);
+                else if (prop == "y") target->yPosition = std::stof(valStr);
+                else if (prop == "size") target->size = std::stof(valStr);
+                else if (prop == "rotation") target->rotation = std::stof(valStr);
+                else if (prop == "visible") target->visible = (valStr == "true" || valStr == "1");
+            }
+        } else if (cmd == "resizesvgs") {
+            Render::resizeSVGs();
+            std::cout << "Resized SVGs.\n";
+        } else if (cmd == "pause") {
+            paused = true;
+            stepsRemaining = 0;
+            std::cout << "Paused.\n";
+        } else if (cmd == "resume") {
+            paused = false;
+            stepsRemaining = 0;
+            std::cout << "Resumed.\n";
+        } else if (cmd == "step") {
+            std::string countStr = parseArg(ss, false);
+            int count = 1;
+            try {
+                if (!countStr.empty()) count = std::stoi(countStr);
+            } catch (...) {
+            }
+            paused = true;
+            stepsRemaining += count;
+            std::cout << "Stepping " << count << ".\n";
+        } else if (cmd == "broadcast") {
+            std::string name = parseArg(ss, true);
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            for (auto &spr : Scratch::sprites) {
+                if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
+                for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
+                    std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
+                    std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+                    if (broadcastOption == name) {
+                        BlockExecutor::startHat(spr, hat);
+                    }
+                }
+            }
+            std::cout << "Broadcasted '" << name << "'.\n";
+        } else if (cmd == "dist") {
+            std::string s1Name = parseArg(ss, false), s2Name = parseArg(ss, false);
+            Sprite *s1 = findSprite(s1Name), *s2 = findSprite(s2Name);
+            if (s1 && s2) std::cout << "Distance: " << sqrt(pow(s1->xPosition - s2->xPosition, 2) + pow(s1->yPosition - s2->yPosition, 2)) << "\n";
+        } else if (cmd == "touching") {
+            std::string s1Name = parseArg(ss, false), s2Name = parseArg(ss, false);
+            Sprite *s1 = findSprite(s1Name), *s2 = findSprite(s2Name);
+            if (s1 && s2) std::cout << (Scratch::isColliding("sprite", s1, s2) ? "YES\n" : "NO\n");
+        } else if (cmd == "touchmouse") {
+            std::string sName = parseArg(ss, false);
+            Sprite *s = findSprite(sName);
+            if (s) {
+                std::cout << "mousePointer: (" << Input::mousePointer.x << ", " << Input::mousePointer.y << ")\n"
+                          << "sprite pos: (" << s->xPosition << ", " << s->yPosition << ")\n"
+                          << "isColliding(mouse): " << (Scratch::isColliding("mouse", s) ? "YES" : "NO") << "\n"
+                          << "pointInSpriteFast: " << (collision::pointInSpriteFast(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n"
+                          << "pointInSprite: " << (collision::pointInSprite(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n";
+                collision::AABB box = collision::getSpriteBounds(s);
+                std::cout << "AABB: left=" << box.left << " right=" << box.right << " top=" << box.top << " bottom=" << box.bottom << "\n";
+
+                auto &costume = s->costumes[s->currentCostume];
+                auto imgFind = Scratch::costumeImages.find(costume.fullName);
+                if (imgFind != Scratch::costumeImages.end()) {
+                    std::cout << "image: w=" << imgFind->second->getWidth() << " h=" << imgFind->second->getHeight() << "\n";
+                }
+                auto freshMask = collision::generateCollisionMask(s, 1);
+                auto mask = freshMask;
+                if (mask) {
+                    std::cout << "mask: w=" << mask->width << " h=" << mask->height
+                              << " scaleFactor=" << mask->scaleFactor << " maxRadius=" << mask->maxRadius << "\n"
+                              << "rotationCenter: (" << costume.rotationCenterX << ", " << costume.rotationCenterY << ")\n"
+                              << "costume.isSVG=" << costume.isSVG << " bitmapResolution=" << costume.bitmapResolution << "\n"
+                              << "sprite.size=" << s->size << "\n";
+                    int opaqueCount = 0;
+                    for (unsigned int yy = 0; yy < mask->height; yy++) {
+                        for (unsigned int xx = 0; xx < mask->width; xx++) {
+                            if (mask->getPixel(xx, yy)) opaqueCount++;
+                        }
+                    }
+                    std::cout << "opaquePixels=" << opaqueCount << " / " << (mask->width * mask->height) << "\n";
+                } else std::cout << "mask: null\n";
+            } else std::cout << "not found\n";
+        } else if (cmd == "accurate") {
+            std::string valStr = parseArg(ss, false);
+            if (!valStr.empty()) Scratch::accurateCollision = (valStr == "1" || valStr == "true");
+            std::cout << "accurateCollision=" << (Scratch::accurateCollision ? "true" : "false") << "\n";
+        } else if (cmd == "mouse") {
+            std::string xStr = parseArg(ss, false), yStr = parseArg(ss, false), downStr = parseArg(ss, false);
+            try {
+                if (!xStr.empty()) Input::mousePointer.x = std::stoi(xStr);
+                if (!yStr.empty()) Input::mousePointer.y = std::stoi(yStr);
+                if (!downStr.empty()) Input::mousePointer.isPressed = (downStr == "true" || downStr == "1" || downStr == "down");
+            } catch (...) {
+            }
+            std::cout << "mouse: x=" << Input::mousePointer.x << " y=" << Input::mousePointer.y
+                      << " down=" << (Input::mousePointer.isPressed ? "true" : "false") << "\n";
+        } else if (cmd == "watch") {
+            std::string target = parseArg(ss, true);
+            watchedVars.push_back({target, Value()});
+            std::cout << "Watching '" << target << "'.\n";
+        } else if (cmd == "unwatch") {
+            std::string target = parseArg(ss, true);
+            for (auto it = watchedVars.begin(); it != watchedVars.end(); ++it) {
+                if (it->targetStr == target) {
+                    watchedVars.erase(it);
+                    break;
+                }
+            }
+        } else if (cmd == "clearwatch") {
+            watchedVars.clear();
+        } else if (cmd == "flag") {
+            Scratch::greenFlagClicked();
+        } else if (cmd == "stop") {
+            Scratch::stopClicked();
+        } else if (cmd == "bytecode") {
+            std::string spriteName = parseArg(ss, true);
+            Sprite *target = findSprite(spriteName);
+            if (!target) {
+                std::cout << "Sprite '" << spriteName << "' not found.\n";
+            } else if (!target->bytecode) {
+                std::cout << "Sprite '" << target->name << "' has no compiled bytecode.\n";
+            } else {
+                std::cout << "Sprite: " << target->name << (target->isStage ? " (Stage)" : "") << "\n"
+                          << BytecodeDisassembler::disassemble(*target->bytecode, target->bytecodeLink.get());
+            }
+        }
+    } else {
+        queueMutex.unlock();
+    }
+
+    // TODO: reimplement
+    /* for (auto &w : watchedVars) {
+        size_t colon = w.targetStr.find(':');
+        Value current;
+        if (colon == std::string::npos) {
+            if (Scratch::stageSprite) {
+                for (auto &[id, v] : Scratch::stageSprite->variables) {
+                    if (v.name == w.targetStr) {
+                        current = v.value;
+                        break;
+                    }
+                }
+            }
+        } else {
+            std::string spriteName = w.targetStr.substr(0, colon), varName = w.targetStr.substr(colon + 1);
+            Sprite *s = findSprite(spriteName);
+            if (s) {
+                for (auto &[id, v] : s->variables) {
+                    if (v.name == varName) {
+                        current = v.value;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!current.asString().empty() && current.asString() != w.lastValue.asString()) {
+            std::cout << "[WATCH] " << w.targetStr << " : " << w.lastValue.asString() << " -> " << current.asString() << "\n";
+            w.lastValue = current;
+        }
+    } */
+    std::cout.flush();
+}
+
+} // namespace Inspector
+
+#else
+
+namespace Inspector {
+void init() {}
+void processCommands() {}
+} // namespace Inspector
+
+#endif

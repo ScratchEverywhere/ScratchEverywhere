@@ -1,56 +1,108 @@
 #include "blockUtils.hpp"
 #include <input.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 
-SCRATCH_BLOCK_NOP(event, whenflagclicked)
-
-SCRATCH_BLOCK_NOP(event, whenbackdropswitchesto)
-
-SCRATCH_BLOCK(event, broadcast) {
-    Scratch::broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
+SCRATCH_BLOCK(event, whenflagclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenflagclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenflagclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
+
+SCRATCH_BLOCK(event, whenbackdropswitchesto) {
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, whenbackdropswitchesto);
+SCRATCH_BYTECODE_BLOCK(event, whenbackdropswitchesto) {
+    outFirstInstr = compiler.here();
+    return true;
+}
+
+SCRATCH_BLOCK(event, whenthisspriteclicked) {
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, whenthisspriteclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenthisspriteclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
+
+SCRATCH_BLOCK(event, whenstageclicked) {
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, whenstageclicked);
+SCRATCH_BYTECODE_BLOCK(event, whenstageclicked) {
+    outFirstInstr = compiler.here();
+    return true;
+}
+
+SCRATCH_BLOCK_POSITIONAL_S_VOID(event, broadcast) {
+    BlockExecutor::startBroadcastHats(str);
+}
+SCRATCH_BLOCK(event, broadcast) {
+    std::string broadcast;
+
+    if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+    block_event_broadcast_pos_(sprite, broadcast);
+
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, broadcast, {"BROADCAST_INPUT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(event, broadcastandwait) {
-    std::string broadcastName = Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString();
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps == 0) {
+        std::string broadcast;
 
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-        Scratch::broadcastQueue.push_back(broadcastName);
-        return BlockResult::RETURN;
-    }
+        if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+        state->threads = BlockExecutor::startBroadcastHats(broadcast);
 
-    if (block.broadcastsRun.empty()) {
-        for (Sprite *spr : Scratch::sprites) {
-            for (auto &[id, chain] : spr->blockChains) {
-                if (chain.blocksToRepeat.empty()) continue;
+        fprintf(stderr, "[BCWAIT] start '%s' threads=%zu ids=", broadcast.c_str(), state->threads.size());
+        for (auto id : state->threads)
+            fprintf(stderr, "%llu,", (unsigned long long)id);
+        fprintf(stderr, "\n");
 
-                for (auto &chainBlock : chain.blockChain) {
-                    if (chainBlock->opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(*chainBlock, "BROADCAST_OPTION") == broadcastName) {
-                        block.broadcastsRun.push_back({chainBlock, spr});
-                        break;
-                    }
-                }
-            }
+        state->completedSteps = 1;
+        if (state->threads.empty()) {
+            thread->eraseState(block);
+            return BlockResult::CONTINUE;
         }
+        return BlockResult::REPEAT;
     }
 
-    bool shouldEnd = true;
-    for (auto &[blockPtr, spritePtr] : block.broadcastsRun) {
-        if (spritePtr->toDelete) continue;
-        if (!spritePtr->blockChains[blockPtr->blockChainID].blocksToRepeat.empty()) {
-            shouldEnd = false;
-            break;
-        }
+    for (auto &stateID : state->threads) {
+        if (BlockExecutor::isThreadRunning(stateID)) return BlockResult::REPEAT;
     }
-
-    if (!shouldEnd) return BlockResult::RETURN;
-
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    block.broadcastsRun.clear();
+    fprintf(stderr, "[BCWAIT] done\n");
+    thread->eraseState(block);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(event, broadcastandwait) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "BROADCAST_INPUT", BytecodeStackKind::String);
+    compiler.emit(BytecodeOp::BroadcastAndWait);
+    return true;
+}
 
-SCRATCH_BLOCK_NOP(event, whenkeypressed)
+// FIXME: This is currently very poorly optimized. Please fix it, thank you.
+SCRATCH_BLOCK(event, whenkeypressed) {
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, whenkeypressed);
+SCRATCH_BYTECODE_BLOCK(event, whenkeypressed) {
+    outFirstInstr = compiler.here();
+    return true;
+}
 
-SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
+SCRATCH_BLOCK(event, whenbroadcastreceived) {
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(event, whenbroadcastreceived);
+SCRATCH_BYTECODE_BLOCK(event, whenbroadcastreceived) {
+    outFirstInstr = compiler.here();
+    return true;
+}
+
+SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

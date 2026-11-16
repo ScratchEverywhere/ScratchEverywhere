@@ -1,176 +1,327 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.34 LANGUAGES CXX C)
+# keep this here; allows us to automatically build nxdk during the build process
+# instead of failing due to missing libs
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+if(XBOX)
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+endif()
+
+project(ScratchEverywhere VERSION 1.3.0 LANGUAGES CXX C)
+
+if(APPLE)
+    enable_language(OBJC)
+endif()
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
+# tldr: MSVC strictly enforces the standard as designated initializers were a compiler extension until C++20
 if(MSVC)
-	set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD 20)
 else()
-	set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes a few dependencies using old cmake_minimum_required() versions
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
+
+include(CMakeDependentOption)
+
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
+	if(NOT DEFINED CATALOG_REQ_TYPE)
+		if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+			set(CATALOG_REQ_TYPE PREFER_SHARED)
+		else()
+			set(CATALOG_REQ_TYPE PREFER_STATIC)
+		endif()
+	endif()
+	if(CATALOG_REQ_TYPE STREQUAL "PREFER_STATIC" OR CATALOG_REQ_TYPE STREQUAL "STATIC")
+		set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+	endif()
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
+cl_repo()
+cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
+
+if(APPLE AND NOT IOS)
+    set(CL_SDL2_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-macos-gpu.patch")
+endif()
+
+set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
+set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
+set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
+set(SE_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
+
+if(VITA)
+    set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
+else()
+    set(SE_APP_TITLEID "NTXS10053" CACHE STRING "Title ID of the outputed app.")
+endif()
+
+find_package(PkgConfig QUIET)
+
+if(NOT CMAKE_CROSSCOMPILING OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if(LIBRETRO)
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/libretro.cmake")
+    else()
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
+    endif()
+elseif(NINTENDO_SWITCH)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/switch.cmake")
+elseif(PSP)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/psp.cmake")
+elseif(VITA)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/vita.cmake")
+elseif(NINTENDO_DS)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/nds.cmake")
+elseif(EMSCRIPTEN)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wasm.cmake")
+elseif(NINTENDO_GAMECUBE)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/gamecube.cmake")
+elseif(NINTENDO_WII)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wii.cmake")
+elseif(PS4)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ps4.cmake")
+elseif(NINTENDO_3DS)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/3ds.cmake")
+elseif(NINTENDO_WIIU)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wiiu.cmake")
+elseif(WEBOS)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
+elseif(XBOX)
+    # I give up, putting this here seems to be the only fix for it to properly patch on builds
+    cl_add_dep(nxdk)
+    unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/xbox.cmake")
+endif()
+
+set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
+
+option(SE_LIBRARY "Build as a library instead of an executable" OFF)
+
+option(SE_EXECUTABLE "Build the main executable." ON)
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
-# [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
-# [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT XBOX360)
-	option(SE_CLOUDVARS "Enable cloud variables." ON)
-endif()
+option(SE_JIT "Compile hot bytecode to machine code with SLJIT." ON)
+option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
+
+cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUDVARS" OFF)
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT XBOX360)
-	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
-endif()
+cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
-#  disable menu if a project is in RomFS
-if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
-	set(SE_MENU OFF)
-	set(SE_LOADSCREEN OFF)
+cmake_dependent_option(SE_DISCORD_RPC "Enable Discord Rich Presence." OFF "SE_ALLOW_DISCORD_RPC;NOT SE_LIBRARY" OFF)
+set(SE_DISCORD_APP_ID "" CACHE STRING "Discord application ID used for Rich Presence (required when SE_DISCORD_RPC is ON).")
+if(SE_DISCORD_RPC AND SE_DISCORD_APP_ID STREQUAL "")
+    message(FATAL_ERROR "SE_DISCORD_RPC is ON but SE_DISCORD_APP_ID is not set. Create an application at https://discord.com/developers/applications and pass -DSE_DISCORD_APP_ID=<id>.")
 endif()
 
-if(SE_MENU)
-	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+if(SE_LIBRARY)
+    set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
 endif()
 
-# Xbox 360 uses the SDL1 renderer
-if(XBOX360)
-	list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl1")
+if(NOT DEFINED SE_DECTALK_DEFAULT)
+    set(SE_DECTALK_DEFAULT OFF)
+endif()
+if(SE_DECTALK_DEFAULT)
+    option(SE_DECTALK "Build DECtalk for TTS." ON)
 else()
-	list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+    option(SE_DECTALK "Build DECtalk for TTS." OFF)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	if(XBOX360)
-		list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3" "opengl")
-	elseif()
-		list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
-	endif()
+# disable menu if a project is in RomFS
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
+    set(SE_MENU OFF)
+    set(SE_LOADSCREEN OFF)
 endif()
 
-if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl3"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl2"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl1"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("opengl" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"opengl"
-		CACHE STRING "Select the desired renderer backend."
-	)
+cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE_HAS_THREADS" OFF)
+
+if(SE_LUA_BACKEND_VALID_OPTIONS)
+    set(SE_ALLOW_CUSTOM_EXTENSIONS TRUE)
 else()
-	set(
-		SE_RENDERER
-		"headless"
-		CACHE STRING "Select the desired renderer backend."
-	)
+    set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
 endif()
-if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
-    message(
-        FATAL_ERROR
-        "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
-    )
+cmake_dependent_option(SE_CUSTOM_EXTENSIONS "Enables support for custom extensions." ON "SE_ALLOW_CUSTOM_EXTENSIONS" OFF)
+
+option(SE_SVG "Enable support for SVG images." ON)
+option(SE_BITMAP "Enable support for Bitmap images." ON)
+
+function(set_preferred_cache_var var_name priority_list valid_options_list doc_string)
+    if(DEFINED ${var_name} AND NOT "${${var_name}}" STREQUAL "")
+        set(selected_value "${${var_name}}")
+    else()
+        set(selected_value "")
+        foreach(option ${priority_list})
+            if(option IN_LIST valid_options_list)
+                set(selected_value "${option}")
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    if(NOT selected_value IN_LIST valid_options_list)
+        message(
+            FATAL_ERROR
+            "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
+        )
+    endif()
+
+    set(${var_name} "${selected_value}" CACHE STRING "${doc_string}" FORCE)
+    set_property(CACHE ${var_name} PROPERTY STRINGS ${valid_options_list})
+endfunction()
+
+cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLATFORM STREQUAL pc" OFF)
+
+if(SE_PLATFORM STREQUAL "pc")
+    set(SE_JIT_BACKGROUND_DEFAULT ON)
+else()
+    set(SE_JIT_BACKGROUND_DEFAULT OFF)
+endif()
+option(SE_JIT_BACKGROUND "Compile hot loops on a worker thread." ${SE_JIT_BACKGROUND_DEFAULT})
+
+set(SE_JIT_SUPPORTED FALSE)
+set(SE_JIT_REASON "${SE_PLATFORM} is not supported")
+if(SE_JIT)
+    if(SE_PLATFORM STREQUAL "pc" OR SE_PLATFORM STREQUAL "libretro")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64|ARM64|i[3-6]86|x86|riscv64)$")
+            set(SE_JIT_SUPPORTED TRUE)
+        else()
+            set(SE_JIT_REASON "${CMAKE_SYSTEM_PROCESSOR} is not supported yet")
+        endif()
+    elseif(SE_PLATFORM STREQUAL "webos")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|armv7.*|aarch64|arm64)$")
+            set(SE_JIT_SUPPORTED TRUE)
+        else()
+            set(SE_JIT_REASON "${CMAKE_SYSTEM_PROCESSOR} is not supported yet")
+        endif()
+    elseif(SE_PLATFORM MATCHES "^(switch|wiiu|3ds|wii|gamecube|vita|ps4|xbox)$")
+        set(SE_JIT_SUPPORTED TRUE)
+    elseif(SE_PLATFORM STREQUAL "nds")
+        set(SE_JIT_REASON "the DS has no floating point unit")
+    elseif(SE_PLATFORM STREQUAL "psp")
+        set(SE_JIT_REASON "the PSP only has a single precision floating point unit")
+    elseif(SE_PLATFORM STREQUAL "wasm")
+        set(SE_JIT_REASON "WebAssembly cannot run generated machine code")
+    endif()
 endif()
 
-list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
-if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
-	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
-endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	if(SE_RENDERER STREQUAL "opengl")
-		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
-	endif()
-	if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "opengl")
-		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl3")
-	endif()
-
-	if(XBOX360)
-		if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "opengl")
-			list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1")
+if(SE_JIT_SUPPORTED)
+    list(APPEND SE_JIT_BACKEND_VALID_OPTIONS "sljit")
+    if(SE_PLATFORM STREQUAL "pc" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+		set(SE_LLVM_PREFIX "" CACHE PATH "Prefix of a prebuilt LLVM shared library without CMake files (include/ and lib/libLLVM-*.dll.a), used for the Windows builds.")
+		set(SE_LLVM_IMPLIBS "")
+		if(SE_LLVM_PREFIX)
+			file(GLOB SE_LLVM_IMPLIBS "${SE_LLVM_PREFIX}/lib/libLLVM-*.dll.a")
 		endif()
-	else()
-		if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
-			list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
+		if(SE_LLVM_PREFIX AND SE_LLVM_IMPLIBS)
+			set(LLVM_FOUND TRUE)
+		else()
+			find_package(LLVM CONFIG QUIET)
 		endif()
-	endif()
+		if(LLVM_FOUND)
+			list(APPEND SE_JIT_BACKEND_VALID_OPTIONS "llvm")
+		else()
+			message(STATUS "LLVM not found on system.")
+		endif()
+    endif()
+    if(SE_PLATFORM STREQUAL "pc" AND NOT WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
+        list(APPEND SE_JIT_BACKEND_VALID_OPTIONS "asmjit")
+    endif()
+    if(NOT DEFINED SE_JIT_BACKEND_PRIORITY)
+        set(SE_JIT_BACKEND_PRIORITY "sljit" "asmjit" "llvm")
+    endif()
+    set_preferred_cache_var(SE_JIT_BACKEND "${SE_JIT_BACKEND_PRIORITY}" "${SE_JIT_BACKEND_VALID_OPTIONS}" "Select the desired JIT backend.")
+    set(SE_JIT_OPT_BACKEND_VALID_OPTIONS ${SE_JIT_BACKEND_VALID_OPTIONS})
+    list(REMOVE_ITEM SE_JIT_OPT_BACKEND_VALID_OPTIONS "${SE_JIT_BACKEND}")
+    list(PREPEND SE_JIT_OPT_BACKEND_VALID_OPTIONS "none")
+    if(NOT DEFINED SE_JIT_OPT_BACKEND_PRIORITY)
+        set(SE_JIT_OPT_BACKEND_PRIORITY "llvm" "asmjit" "none")
+    endif()
+    set_preferred_cache_var(SE_JIT_OPT_BACKEND "${SE_JIT_OPT_BACKEND_PRIORITY}" "${SE_JIT_OPT_BACKEND_VALID_OPTIONS}" "Optimizing JIT backend used for hot-loop tier-up, in addition to SE_JIT_BACKEND (none disables the second tier).")
 endif()
 
-if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"glfw"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl3"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl2"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl1"
-		CACHE STRING "Select the desired windowing backend."
-	)
+if(NOT LIBRETRO)
+    list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "all")
+endif()
+
+cmake_dependent_option(SE_FLATLAND "Enable the Flatland renderer." OFF "NOT LIBRETRO;NOT WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
+if(SE_FLATLAND OR SE_RENDERER STREQUAL "flatland")
+    list(APPEND SE_RENDERER_VALID_OPTIONS "flatland")
+	set(SE_WINDOWING flatland)
+	set(SE_AUDIO_ENGINE flatland)
+endif()
+if(NOT DEFINED SE_RENDERER_PRIORITY)
+    set(SE_RENDERER_PRIORITY "all" "d3d9" "opengl_core" "xbox" "gx2" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+endif()
+set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
+
+add_library(renderer_interface INTERFACE)
+if(SE_RENDERER STREQUAL "all")
+
+    if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS AND "sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_RENDERER_VALID_OPTIONS "sdl3")
+    endif()
+    if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS AND "sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_RENDERER_VALID_OPTIONS "sdl1")
+    endif()
+    if("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS AND "sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_RENDERER_VALID_OPTIONS "sdl1")
+    endif()
+
+    foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${RENDERER_OPT}.cmake")
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${RENDERER_OPT}.cmake")
+        endif()
+    endforeach()
 else()
-	set(
-		SE_WINDOWING
-		"headless"
-		CACHE STRING "Select the desired windowing backend."
-	)
-endif()
-if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
-    message(
-        FATAL_ERROR
-        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
-    )
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
+    endif()
 endif()
 
-if(XBOX360)
-	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl1")
+if(SE_WINDOWING_VALID_OPTIONS)
+    list(APPEND SE_WINDOWING_VALID_OPTIONS "all")
+    list(REMOVE_DUPLICATES SE_WINDOWING_VALID_OPTIONS)
+endif()
+
+set(SE_WINDOWING_PRIORITY "all" "glfw" "xbox" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "wiiu" "headless" "libretro")
+set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
+
+add_library(windowing_interface INTERFACE)
+if(SE_WINDOWING STREQUAL "all")
+    if("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS AND "sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_WINDOWING_VALID_OPTIONS "sdl3")
+    endif()
+    if("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS AND "sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_WINDOWING_VALID_OPTIONS "sdl1")
+    endif()
+    if("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS AND "sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+        list(REMOVE_ITEM SE_WINDOWING_VALID_OPTIONS "sdl1")
+    endif()
+
+    foreach(WINDOWING_OPT IN LISTS SE_WINDOWING_VALID_OPTIONS)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${WINDOWING_OPT}.cmake")
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${WINDOWING_OPT}.cmake")
+        endif()
+    endforeach()
 else()
-	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
-elseif(NOT XBOX360)
-	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
+if(NOT DEFINED SE_ZIP_BACKEND_VALID_OPTIONS)
+    set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz" "minizip")
 endif()
+set_preferred_cache_var(SE_ZIP_BACKEND "miniz" "${SE_ZIP_BACKEND_VALID_OPTIONS}" "Select the zip library used to read .sb3 archives.")
 
-if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3")
-	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
-elseif(SE_RENDERER STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "glfw")
-	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
-elseif(SE_RENDERER STREQUAL "sdl1" OR SE_WINDOWING STREQUAL "sdl1")
-	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
-else()
-	set(SE_AUDIO_ENGINE_DEFAULT "headless")
-endif()
-
+list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "all" "libretro" "headless")
 if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     set(
         SE_AUDIO_ENGINE
@@ -184,7 +335,6 @@ else()
         CACHE STRING "Select the desired audio backend."
     )
 endif()
-
 if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     message(
         FATAL_ERROR
@@ -192,50 +342,84 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR XBOX360)
-	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
-else()
-	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
+if(SE_AUDIO)
+    add_library(audio_interface INTERFACE)
+    if(SE_AUDIO_ENGINE STREQUAL "all")
+
+        if("sdl3" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS AND "sdl2" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
+            list(REMOVE_ITEM SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
+        endif()
+        if("sdl3" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS AND "sdl1" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
+            list(REMOVE_ITEM SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1")
+        endif()
+        if("sdl2" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS AND "sdl1" IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
+            list(REMOVE_ITEM SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1")
+        endif()
+
+        foreach(AUDIO_OPT IN LISTS SE_AUDIO_ENGINE_VALID_OPTIONS)
+            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${AUDIO_OPT}.cmake")
+                include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${AUDIO_OPT}.cmake")
+            endif()
+        endforeach()
+    else()
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO_ENGINE}.cmake")
+        if("flatland" IN_LIST SE_RENDERER_VALID_OPTIONS AND NOT SE_AUDIO_ENGINE STREQUAL "flatland")
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/flatland.cmake")
+        endif()
+    endif()
 endif()
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
-	message(STATUS "Downloading CPM.cmake...")
-	file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-	file(DOWNLOAD "https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake"
-		 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake"
-		 STATUS status LOG log_content)
-	if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
-		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
-	endif()
+if(NOT DEFINED SE_BUNDLE_DEFAULT)
+    set(SE_BUNDLE_DEFAULT OFF)
 endif()
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+cmake_dependent_option(SE_BUNDLE "Embed assets and project into the executable with bundle.cmake instead of loading from the working directory" ${SE_BUNDLE_DEFAULT} "SE_ALLOW_BUNDLE" OFF)
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
-	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
-endif()
-
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
-
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
 if(SE_MENU)
-	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
-	)
+    if(NINTENDO_DS)
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/mm_ds.wav"
+        )
+    else()
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+        )
+    endif()
+
 else()
-	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
-	)
+    if(NINTENDO_DS)
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/Ubuntu-Bold.ttf"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+        )
+    else()
+        file(GLOB_RECURSE GFXFILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+            "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+        )
+    endif()
+endif()
+
+if(NOT SE_SVG)
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
+endif()
+
+if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
 foreach(file IN LISTS GFXFILES)
-	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+    file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/gfx" "${file}")
 
-    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
+    set(DEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
 
     get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
     file(MAKE_DIRECTORY "${DEST_DIR}")
@@ -243,752 +427,406 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if(SE_SYSTEM)
-	find_package(PkgConfig REQUIRED)
+if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")) AND (SE_MENU OR NINTENDO_DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")))
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
 endif()
 
-# They're single header so I just use CPM no matter what
-CPMAddPackage(
-	NAME nlohmann_json
-	GITHUB_REPOSITORY nlohmann/json
-	VERSION 3.12.0
-)
-CPMAddPackage(
-	NAME poipole807_ryuJS
-	GITHUB_REPOSITORY poipole807/ryuJS
-	VERSION 3.0
-)
-include(FetchContent)
-FetchContent_Declare(
-    miniz
-	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
-)
-FetchContent_MakeAvailable(miniz)
+set(PLATFORM_DIRS ${SE_PLATFORM})
+list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-if(SE_RENDERER STREQUAL "sdl1")
-	if(NOT XBOX360)
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-			pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
-			pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
-			pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
-		else()
-			error("SDL1 is currently not supported without system libraries")
-		endif()
-	endif()
-	CPMAddPackage(
-		NAME nanosvg
-		GITHUB_REPOSITORY memononen/nanosvg
-		GIT_TAG 5cefd9847949af6df13f65027fd43af5a7513633
-	)
-elseif(SE_RENDERER STREQUAL "sdl2")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
-		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
+set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/jit/ir" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
 
-		if(NOT WEBOS)
-			pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
-			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
-		endif()
-	else()
-		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
-			message(STATUS "Test!")
-			set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
-		elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
-			set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
-		else()
-			set(SDL2_OPTIONS "")
-		endif()
-		CPMAddPackage(
-			NAME SDL2
-			VERSION 2.32.10
-			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG release-2.32.10
-			OPTIONS ${SDL2_OPTIONS}
-		)
-		CPMAddPackage(
-			NAME SDL2_ttf
-			VERSION 2.24.0
-			GITHUB_REPOSITORY libsdl-org/SDL_ttf
-			GIT_TAG release-2.24.0
-			OPTIONS "SDL2TTF_VENDORED ON"
-		)
-	endif()
-
-	if(NOT SE_SYSTEM OR WEBOS)
-		CPMAddPackage(
-			NAME SDL2_image
-			VERSION 2.8.8
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-2.8.8
-		)
-		CPMAddPackage(
-			NAME SDL2_gfx
-			VERSION 1.0.4
-			GITHUB_REPOSITORY giroletm/SDL2_gfx
-			GIT_TAG release-1.0.4
-			DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
-		)
-		file(GLOB SDL2_GFX_SOURCES
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
-		)
-		add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
-		target_include_directories(SDL2_gfx PUBLIC
-			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
-		)
-		if(WEBOS)
-			target_link_libraries(SDL2_image PUBLIC ${SDL2_LIBRARIES})
-			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
-			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
-			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
-		else()
-			target_link_libraries(SDL2_gfx PUBLIC
-				SDL2::SDL2
-			)
-		endif()
-	endif()
-elseif(SE_RENDERER STREQUAL "sdl3")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
-		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
-		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
-	else()
-		CPMAddPackage(
-			NAME SDL3
-			VERSION 3.2.26
-			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
-			OPTIONS "SDL_TEST_LIBRARY OFF"
-		)
-		CPMAddPackage(
-			NAME SDL3_image
-			VERSION 3.2.4
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-3.2.4
-		)
-		CPMAddPackage(
-			NAME SDL3_ttf
-			VERSION 3.2.2
-			GITHUB_REPOSITORY libsdl-org/SDL_ttf
-			GIT_TAG release-3.2.2
-			OPTIONS "SDLTTF_VENDORED ON"
-		)
-		CPMAddPackage(
-			NAME SDL3_gfx
-			VERSION 1.0.1
-			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
-		)
-	endif()
-elseif(SE_RENDERER STREQUAL "opengl")
-	option(SE_OPENGL_ES "Use OpenGL ES instead of OpenGL" OFF)
-
-	find_package(OpenGL REQUIRED)
-	if(SE_OPENGL_ES)
-		find_package(OpenGL REQUIRED COMPONENTS GLES2)
-	endif()
+if(SE_JIT_SUPPORTED)
+    list(APPEND SOURCES "source/runtime/jit/backends/${SE_JIT_BACKEND}")
+    if(NOT SE_JIT_OPT_BACKEND STREQUAL "none")
+        list(APPEND SOURCES "source/runtime/jit/backends/${SE_JIT_OPT_BACKEND}")
+    endif()
 endif()
 
-if(SE_WINDOWING STREQUAL "glfw")
-	if(SE_SYSTEM)
-		find_package(glfw3 REQUIRED)
-	else()
-		CPMAddPackage(
-			NAME glfw
-			GITHUB_REPOSITORY glfw/glfw
-			GIT_TAG 3.4
-			OPTIONS "GLFW_BUILD_DOCS OFF" "GLFW_BUILD_TESTS OFF" "GLFW_BUILD_EXAMPLES OFF"
-		)
-	endif()
-elseif(SE_WINDOWING STREQUAL "sdl1")
-	if(NOT XBOX360)
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-		else()
-			error("SDL1 is currently not supported without system libraries")
-		endif()
-	endif()
-elseif(SE_WINDOWING STREQUAL "sdl2")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
-	else()
-		if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2)
-			if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
-				set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
-			else()
-				set(SDL2_OPTIONS "")
-			endif()
-			CPMAddPackage(
-				NAME SDL2
-				VERSION 2.32.10
-				GITHUB_REPOSITORY libsdl-org/SDL
-				GIT_TAG release-2.32.10
-				OPTIONS ${SDL2_OPTIONS}
-			)
-		endif()
-	endif()
-elseif(SE_WINDOWING STREQUAL "sdl3")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-	else()
-		if(NOT TARGET SDL3::SDL3)
-			CPMAddPackage(
-				NAME SDL3
-				VERSION 3.2.26
-				GITHUB_REPOSITORY libsdl-org/SDL
-				GIT_TAG main
-				OPTIONS "SDL_TEST_LIBRARY OFF"
-			)
-		endif()
-	endif()
+if(SE_RENDERER STREQUAL "all")
+    foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)
+        list(APPEND SOURCES "source/renderers/${RENDERER_OPT}")
+    endforeach()
+else()
+    list(APPEND SOURCES "source/renderers/${SE_RENDERER}")
 endif()
 
-if(SE_AUDIO)
-	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
-		if(NOT XBOX360)
-			if(SE_SYSTEM)
-				pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
-			else()
-				message(FATAL_ERROR "SDL1 Audio is currently not supported without system libraries")
-			endif()
-		endif()
-	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
-		if(NOT SE_SYSTEM OR WEBOS)
-			if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2)
-				if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
-					set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
-				else()
-					set(SDL2_OPTIONS "")
-				endif()
-				CPMAddPackage(
-					NAME SDL2
-					VERSION 2.32.10
-					GITHUB_REPOSITORY libsdl-org/SDL
-					GIT_TAG release-2.32.10
-					OPTIONS ${SDL2_OPTIONS}
-				)
-			endif()
-
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-			)
-
-			if(WEBOS)
-				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
-				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
-			endif()
-		else()
-			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
-		endif()
-	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
-		else()
-			if(NOT TARGET SDL3::SDL3)
-				CPMAddPackage(
-					NAME SDL3
-					VERSION 3.2.26
-					GITHUB_REPOSITORY libsdl-org/SDL
-					GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
-					OPTIONS "SDL_TEST_LIBRARY OFF"
-				)
-			endif()
-			CPMAddPackage(
-				NAME SDL3_mixer
-				VERSION 3
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG main # TODO: pin version
-			)
-		endif()
-	endif()
+if(SE_WINDOWING STREQUAL "all")
+    foreach(WINDOWING_OPT IN LISTS SE_WINDOWING_VALID_OPTIONS)
+        list(APPEND SOURCES "source/windowing/${WINDOWING_OPT}")
+    endforeach()
+else()
+    list(APPEND SOURCES "source/windowing/${SE_WINDOWING}")
 endif()
 
-if(SE_CLOUDVARS OR SE_DOWNLOAD)
-	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
-	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
-	if(NOT HAIKU)
-		set(CURL_OPTIONS
-			"BUILD_CURL_EXE OFF"
-			"BUILD_TESTING OFF"
-			"BUILD_EXAMPLES OFF"
-			"ENABLE_MANUAL OFF"
-			"CURL_DISABLE_INSTALL ON"
-			"ENABLE_ARES OFF"
-			"USE_LIBIDN2 OFF"
-			"ENABLE_WEBSOCKETS ON"
-			"CURL_DISABLE_WEBSOCKETS OFF"
-			"CURL_DISABLE_LDAP ON"
-			"CURL_USE_LIBSSH2 OFF"
-		)
-		if(WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-		elseif(APPLE)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-		else()
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
-		endif()
-		if(WIN32 OR WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
-		endif()
-
-		CPMAddPackage(
-			NAME curl
-			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_17_0"
-			VERSION 8.17.0
-			OPTIONS ${CURL_OPTIONS}
-		)
-	else()
-		find_package(CURL REQUIRED)
-	endif()
-	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
-	endif()
+if(SE_AUDIO_ENGINE STREQUAL "all")
+    foreach(AUDIO_OPT IN LISTS SE_AUDIO_ENGINE_VALID_OPTIONS)
+        list(APPEND SOURCES "source/audio/${AUDIO_OPT}")
+    endforeach()
+else()
+    list(APPEND SOURCES "source/audio/${SE_AUDIO_ENGINE}")
+endif()
+if("flatland" IN_LIST SE_RENDERER_VALID_OPTIONS AND NOT SE_AUDIO_ENGINE STREQUAL "all" AND NOT SE_AUDIO_ENGINE STREQUAL "flatland") # Flatland needs its own audio backend
+    list(APPEND SOURCES "source/audio/flatland")
 endif()
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+if(SE_CUSTOM_EXTENSIONS)
+    list(APPEND SOURCES "source/runtime/extensions")
+endif()
 
 if(SE_MENU)
-	list(APPEND SOURCES source/menus)
+    list(APPEND SOURCES "source/menus")
 endif()
+
+set(ABSOLUTE_SOURCES "")
+foreach(src IN LISTS SOURCES)
+    list(APPEND ABSOLUTE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
+
+set(ABSOLUTE_INCLUDES "")
+foreach(src IN LISTS SOURCES)
+    string(REPLACE "source" "include" inc "${src}")
+    list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${inc}")
+    list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
 
 set(SOURCE_FILES)
-foreach(DIR IN LISTS SOURCES)
-	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
-	)
-	list(APPEND SOURCE_FILES ${DIR_SOURCES})
-endforeach()
-list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
-if(WIN32)
-	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
-endif()
-
-add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
-if(PSP)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
-elseif(NINTENDO_SWITCH)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-nx)
-elseif(VITA)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
-	target_compile_definitions(scratch-everywhere PRIVATE VITA)
-elseif(WEBOS)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
-	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
-elseif(XBOX360)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-xbox360)
-	target_compile_definitions(scratch-everywhere PRIVATE __XBOX360__ MINIZ_NO_TIME)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
-	# set_target_properties(scratch-everywhere PROPERTIES
-	# 	MACOSX_BUNDLE True
-	# 	MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
-	# 	OUTPUT_NAME "scratch-macOS"
-	# )
-	# add_custom_command(TARGET scratch-everywhere POST_BUILD
-	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
-endif()
-
-if(SE_CMAKERC)
-	include(FetchContent)
-	FetchContent_Declare(
-	  cmrc
-	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
-	)
-	FetchContent_MakeAvailable(cmrc)
-	include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)
-
-	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
-	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
-	target_link_libraries(scratch-everywhere PRIVATE romfs::rc)
-	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
-endif()
-
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE)
-	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
-endif()
-
-if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
-endif()
-
-if(SE_RENDERER STREQUAL "sdl3")
-	set(SDL_LINK_LIBS)
-
-	if(NOT SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS SDL3::SDL3)
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
-	endif()
-
-	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
-	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
-		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
-		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
-	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
-			SDL3_image::SDL3_image-static,
-			SDL3_image::SDL3_image>)
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
-			SDL3_ttf::SDL3_ttf-static,
-			SDL3_ttf::SDL3_ttf>)
-		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
-	endif()
-
-	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
-elseif(SE_RENDERER STREQUAL "sdl2")
-	set(SDL_LINK_LIBS)
-
-	if(SE_SYSTEM AND NOT WEBOS)
-		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
-		target_link_directories(scratch-everywhere PRIVATE ${SDL2_GFX_LIBRARY_DIRS})
-	else()
-		list(APPEND SDL_LINK_LIBS SDL2_image)
-		list(APPEND SDL_LINK_LIBS SDL2_gfx)
-	endif()
-
-	if (NOT SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS SDL2::SDL2)
-	endif()
-
-	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
-
-	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
-		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
-
-	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image-static>,
-			SDL2_image::SDL2_image-static,
-			SDL2_image::SDL2_image>)
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf-static>,
-			SDL2_ttf::SDL2_ttf-static,
-			SDL2_ttf::SDL2_ttf>)
-	endif()
-
-	if (WIN32)
-		list(APPEND SDL_LINK_LIBS SDL2::SDL2main)
-	endif()
-
-	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
-elseif(SE_RENDERER STREQUAL "sdl1")
-	set(SDL_LINK_LIBS)
-
-	if(SE_SYSTEM AND NOT XBOX360)
-		list(APPEND SDL_LINK_LIBS ${SDL_GFX_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL_GFX_INCLUDE_DIRS})
-	else()
-		if(XBOX360)
-			add_library(SDL::SDL STATIC IMPORTED)
-			set_target_properties(SDL::SDL PROPERTIES
-				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL.a
-				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
-			)
-		endif()
-		list(APPEND SDL_LINK_LIBS SDL_gfx SDL::SDL)
-	endif()
-
-	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
-
-	elseif(BUILD_SHARED_LIBS OR XBOX360)
-		if(XBOX360)
-			add_library(SDL_image::SDL_image STATIC IMPORTED)
-			set_target_properties(SDL_image::SDL_image PROPERTIES
-				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_image.a
-				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
-			)
-			target_link_libraries(SDL_image::SDL_image INTERFACE SDL png z)
-
-			add_library(SDL_ttf::SDL_ttf STATIC IMPORTED)
-			set_target_properties(SDL_ttf::SDL_ttf PROPERTIES
-				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_ttf.a
-				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
-			)
-			target_link_libraries(SDL_ttf::SDL_ttf INTERFACE SDL freetype bz2)
-		endif()
-
-		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
-		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
-
-	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
-			SDL_image::SDL_image-static,
-			SDL_image::SDL_image>)
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
-			SDL_ttf::SDL_ttf-static,
-			SDL_ttf::SDL_ttf>)
-	endif()
-
-	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
-	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
-elseif(SE_RENDERER STREQUAL "opengl")
-	target_link_libraries(scratch-everywhere PRIVATE OpenGL::GL)
-	if(SE_OPENGL_ES)
-		target_link_libraries(scratch-everywhere PRIVATE OpenGL::GLES2)
-		target_compile_definitions(scratch-everywhere PRIVATE USE_GLES)
-	endif()
-	target_include_directories(scratch-everywhere PRIVATE include)
-endif()
-
-if(SE_WINDOWING STREQUAL "sdl1")
-	if(SE_SYSTEM)
-		target_link_libraries(scratch-everywhere PRIVATE ${SDL_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS})
-	else()
-		target_link_libraries(scratch-everywhere PRIVATE SDL::SDL)
-	endif()
-	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL1)
-elseif(SE_WINDOWING STREQUAL "sdl2")
-	if(SE_SYSTEM)
-		target_link_libraries(scratch-everywhere PRIVATE ${SDL2_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS})
-	else()
-		target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
-		if(WIN32)
-			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2main)
-		endif()
-	endif()
-    target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL2)
-elseif(SE_WINDOWING STREQUAL "sdl3")
-	if(SE_SYSTEM)
-		target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
-	else()
-		target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
-	endif()
-	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL3)
-elseif(SE_WINDOWING STREQUAL "glfw")
-	target_link_libraries(scratch-everywhere PRIVATE glfw)
-	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
-endif()
-
-if(SE_SYSTEM)
-	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
-endif()
-
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT XBOX360)
-	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
-endif()
-
-if(SE_RENDERER STREQUAL "sdl1")
-	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL1)
-elseif(SE_RENDERER STREQUAL "sdl2")
-	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
-elseif(SE_RENDERER STREQUAL "sdl3")
-	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
-elseif(SE_RENDERER STREQUAL "opengl")
-	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_OPENGL)
-elseif(SE_RENDERER STREQUAL "headless")
-	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
-endif()
-
-if(SE_AUDIO)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
-endif()
-if(SE_MENU)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_MENU)
-endif()
-if(SE_LOADSCREEN)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
-endif()
-if(SE_DOWNLOAD)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
-	if(NOT SE_CLOUDVARS)
-		target_link_libraries(scratch-everywhere PRIVATE curl)
-	endif()
-endif()
-if(SE_CLOUDVARS)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
-	target_link_libraries(scratch-everywhere PRIVATE mist++)
-endif()
-
-
-if(NOT PSP AND NOT WEBOS AND NOT XBOX360)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
-endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT XBOX360)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
-endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT XBOX360)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
-endif()
-if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
-endif()
-
-
-if(SE_AUDIO)
-	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
-		if(SE_SYSTEM)
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
-		else()	
-			if(BUILD_SHARED_LIBS OR XBOX360)
-				if(XBOX360)
-					add_library(SDL_mixer::SDL_mixer STATIC IMPORTED)
-					set_target_properties(SDL_mixer::SDL_mixer PROPERTIES
-						IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_mixer.a
-						INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
-					)
-					target_link_libraries(SDL_mixer::SDL_mixer INTERFACE SDL::SDL)
-				endif()
-
-				target_link_libraries(scratch-everywhere PRIVATE SDL_mixer::SDL_mixer)
-			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,SDL_mixer::SDL_mixer-static,SDL_mixer::SDL_mixer>)
-			endif()
-		endif()
-	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
-		if(SE_SYSTEM AND NOT WEBOS)
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL2_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
-		else()
-			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
-			if(WEBOS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer)
-			elseif(BUILD_SHARED_LIBS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer)
-			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,SDL2_mixer::SDL2_mixer-static,SDL2_mixer::SDL2_mixer>)
-			endif()
-		endif()
-	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
-		if(SE_SYSTEM)
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
-		else()
-			target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
-			if(BUILD_SHARED_LIBS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL3_mixer::SDL3_mixer)
-			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,SDL3_mixer::SDL3_mixer-static,SDL3_mixer::SDL3_mixer>)
-			endif()
-		endif()
-	endif()
-endif()
-
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
-add_library(ryuJS STATIC
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
-)
-target_link_libraries(scratch-everywhere PRIVATE ryuJS)
-target_include_directories(ryuJS PUBLIC
-  ${poipole807_ryuJS_SOURCE_DIR}
-)
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
-
-if(PSP)
-    create_pbp_file(
-        TARGET scratch-everywhere
-        ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
-        BACKGROUND_PATH NULL
-        PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
-        VERSION ${CMAKE_PROJECT_VERSION}
+foreach(DIR IN LISTS ABSOLUTE_SOURCES)
+    file(GLOB DIR_SOURCES
+        ${DIR}/*.cpp
+        ${DIR}/*.c
+        ${DIR}/*.cc
     )
-	# package the EBOOT.pbp
-	add_custom_command(TARGET scratch-everywhere POST_BUILD
-	    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
-	    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_BINARY_DIR}/EBOOT.PBP" "${CMAKE_BINARY_DIR}/scratch-psp-bundle/EBOOT.PBP"
-		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
-	)
-elseif(NINTENDO_SWITCH)
-	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
-	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP scratch-nx.nacp)
-elseif(VITA)
-	include("${VITASDK}/share/vita.cmake" REQUIRED)
+    list(APPEND SOURCE_FILES ${DIR_SOURCES})
+endforeach()
 
-	if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
-		set(PROJ_FILE FILE ${CMAKE_SOURCE_DIR}/romfs/project.sb3 project.sb3)
-	else()
-		set(PROJ_FILE "")
-	endif()
+if(WIN32)
+    list(APPEND SOURCE_FILES "${CMAKE_CURRENT_BINARY_DIR}/resource.rc")
+endif()
 
-	set(VITA_GFXFILES)
-	foreach(file IN LISTS GFXFILES)
-		file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
-		set(DEST_PATH "gfx/${REL_PATH}")
-		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
-	endforeach()
+if(SE_LIBRARY)
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/main\\.cpp$")
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/libretro\\.cpp$")
+endif()
 
-	vita_create_self(scratch-vita.self scratch-everywhere)
-	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
-		VERSION "01.00"
-		NAME "Scratch Everywhere!"
-		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
-		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
-		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
-		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
-		${VITA_GFXFILES}
-		${PROJ_FILE}
-	)
-elseif(WEBOS)
-	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
-	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
-	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
-	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
-    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
-
-    if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
-        install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
+add_library(se-interface INTERFACE)
+if(SE_EXECUTABLE)
+    if(LIBRETRO)
+        add_library(scratch-everywhere SHARED ${SOURCE_FILES})
+        set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
+        cl_add_dep(scratch-everywhere libretro)
+    elseif(SE_LIBRARY)
+        add_library(scratch-everywhere ${SOURCE_FILES})
+    else()
+        add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
     endif()
 
-    foreach(file IN LISTS GFXFILES)
-        file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
-        get_filename_component(DEST_DIR "${REL_PATH}" DIRECTORY)
-        install(FILES "${file}" DESTINATION "gfx/${DEST_DIR}")
-    endforeach()
+    if(SE_LIBRARY)
+        target_compile_definitions(scratch-everywhere PRIVATE SE_BUILD_LIBRARY)
+    endif()
 
-    set(CPACK_GENERATOR "External")
-    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/AresPackage.cmake")
-    set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
-    set(CPACK_MONOLITHIC_INSTALL TRUE)
+    set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
+    target_link_libraries(scratch-everywhere PRIVATE se-interface)
 
-    include(CPack)
-elseif(XBOX360)
-	# Built in dependencies
-	target_link_libraries(scratch-everywhere PRIVATE xenon fat)
-	target_link_directories(scratch-everywhere PRIVATE 
-		${DEVKITXENON}/usr/lib
-		${DEVKITXENON}/xenon/lib/32
-	)
+    if(SE_ASAN)
+        target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+        target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+    endif()
 
-	include_directories(${DEVKITXENON}/usr/include ${DEVKITXENON}/usr/include/SDL)
-    link_directories(${DEVKITXENON}/usr/lib)
+    set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
 
-    # ELF -> ELF32
-    add_custom_command(TARGET scratch-everywhere POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O elf32-powerpc --adjust-vma 0x80000000 
-                $<TARGET_FILE:scratch-everywhere> ${CMAKE_BINARY_DIR}/scratch-xbox360.elf32
-        COMMAND ${CMAKE_STRIP} ${CMAKE_BINARY_DIR}/scratch-xbox360.elf32
-        COMMENT "Converting to elf32 and stripping..."
-    )
+    if(SE_STATIC_LIBGCC)
+        target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
+    endif()
+    if(SE_STATIC_LIBSTDCPP)
+        target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
+    endif()
+
+    if(NOT BUILD_SHARED_LIBS AND MINGW)
+        if("${SE_JIT_OPT_BACKEND}" STREQUAL "llvm")
+            target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+        else()
+            target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
+        endif()
+    endif()
+
+    # TODO: Move to cmake/platforms/wasm.cmake
+    if(EMSCRIPTEN)
+        set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
+        set(PRELOAD_OPTIONS)
+        if(NOT SE_BUNDLE)
+            set(PRELOAD_OPTIONS "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins")
+        endif()
+        target_link_options(scratch-everywhere PRIVATE ${PRELOAD_OPTIONS} "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+    endif()
 endif()
+
+target_include_directories(se-interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
+if(DEFINED SE_PLATFORM_DEFINITIONS)
+    target_compile_definitions(se-interface INTERFACE ${SE_PLATFORM_DEFINITIONS})
+endif()
+
+if(SE_BUNDLE)
+    if(SE_ZIP_BACKEND STREQUAL "minizip")
+        set(BUNDLE_USE_ZLIB ON)
+    endif()
+
+    cl_import_source(
+        NAME bundle_cmake
+        DOWNLOAD_ONLY
+        REPO https://github.com/gradylink/bundle.cmake.git
+        REF 21611e9b619952e64eb6d8f57f1c521eccf49b03
+    )
+    include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
+
+    function(_bundle_ensure_runtime_target)
+        if(TARGET bundle_runtime)
+            return()
+        endif()
+
+        _bundle_ensure_catalog()
+
+        add_library(bundle_runtime STATIC "${_BUNDLE_ROOT_DIR}/src/bundle_runtime.c")
+        target_include_directories(bundle_runtime PUBLIC "${_BUNDLE_ROOT_DIR}/src")
+
+        if(BUNDLE_USE_ZLIB)
+            cl_add_dep(bundle_runtime zlib PUBLIC)
+            target_compile_definitions(bundle_runtime PUBLIC BUNDLE_USE_ZLIB=1)
+            _bundle_log(STATUS "using zlib (via Catalog) for DEFLATE decompression")
+        else()
+            cl_add_dep(bundle_runtime miniz PUBLIC STATIC)
+            _bundle_log(STATUS "using miniz (via Catalog) for DEFLATE decompression")
+        endif()
+    endfunction()
+
+    set(SE_ROMFS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
+
+    set(SE_ASSET_DIRS "${SE_ROMFS_DIR}/gfx")
+    if(IS_DIRECTORY "${SE_ROMFS_DIR}/extensions")
+        list(APPEND SE_ASSET_DIRS "${SE_ROMFS_DIR}/extensions")
+    endif()
+
+    bundle_add(se_assets
+        BASE_DIR "${SE_ROMFS_DIR}"
+        DIRECTORIES ${SE_ASSET_DIRS}
+        COMPRESSION DEFLATE
+    )
+
+    set(SE_PROJECT_FILES "")
+    set(SE_PROJECT_DIRS "")
+    if(IS_DIRECTORY "${SE_ROMFS_DIR}/project")
+        list(APPEND SE_PROJECT_DIRS "${SE_ROMFS_DIR}/project")
+    endif()
+    if(EXISTS "${SE_ROMFS_DIR}/project.sb3")
+        list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3")
+    endif()
+    if(EXISTS "${SE_ROMFS_DIR}/project.sb3.json")
+        list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3.json")
+    endif()
+    if(NOT SE_PROJECT_FILES AND NOT SE_PROJECT_DIRS)
+        set(SE_PROJECT_PLACEHOLDER "${SE_ROMFS_DIR}/.bundle_project_empty") # bundle.cmake requires at least 1 file
+        file(WRITE "${SE_PROJECT_PLACEHOLDER}" "")
+        list(APPEND SE_PROJECT_FILES "${SE_PROJECT_PLACEHOLDER}")
+    endif()
+
+    bundle_add(se_project
+        BASE_DIR "${SE_ROMFS_DIR}"
+        FILES ${SE_PROJECT_FILES}
+        DIRECTORIES ${SE_PROJECT_DIRS}
+        COMPRESSION STORE
+    )
+
+    # Translate bundle symbols to a format compatible with xbox
+    if(XBOX)
+        foreach(_b se_assets se_project)
+            set(_s "${CMAKE_CURRENT_BINARY_DIR}/bundle/${_b}/${_b}_data.S")
+            file(READ "${_s}" _src)
+            if(NOT _src MATCHES "_bundle_${_b}_data")
+                string(REPLACE "bundle_${_b}_data" "_bundle_${_b}_data" _src "${_src}")
+                file(WRITE "${_s}" "${_src}")
+            endif()
+        endforeach()
+    endif()
+
+    target_link_libraries(se-interface INTERFACE se_assets se_project)
+    target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
+endif()
+
+if(SE_WINDOWING STREQUAL "all")
+    foreach(WINDOWING_OPT IN LISTS SE_WINDOWING_VALID_OPTIONS)
+        string(TOUPPER "WINDOWING_${WINDOWING_OPT}" WINDOWING_DEFINITION)
+        target_compile_definitions(se-interface INTERFACE ${WINDOWING_DEFINITION})
+    endforeach()
+else()
+    string(TOUPPER "WINDOWING_${SE_WINDOWING}" WINDOWING_DEFINITION)
+    target_compile_definitions(se-interface INTERFACE ${WINDOWING_DEFINITION})
+endif()
+
+if(SE_RENDERER STREQUAL "all")
+    foreach(RENDERER_OPT IN LISTS SE_RENDERER_VALID_OPTIONS)
+        string(TOUPPER "RENDERER_${RENDERER_OPT}" RENDERER_DEFINITION)
+        target_compile_definitions(se-interface INTERFACE ${RENDERER_DEFINITION})
+    endforeach()
+else()
+    string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
+    target_compile_definitions(se-interface INTERFACE ${RENDERER_DEFINITION})
+endif()
+
+if(SE_AUDIO)
+    if(SE_AUDIO_ENGINE STREQUAL "all")
+        foreach(AUDIO_OPT IN LISTS SE_AUDIO_ENGINE_VALID_OPTIONS)
+            string(TOUPPER "AUDIO_${AUDIO_OPT}" AUDIO_DEFINITION)
+            target_compile_definitions(se-interface INTERFACE ${AUDIO_DEFINITION})
+        endforeach()
+    else()
+        string(TOUPPER "AUDIO_${SE_AUDIO_ENGINE}" AUDIO_ENGINE_DEFINITION)
+        target_compile_definitions(se-interface INTERFACE ${AUDIO_ENGINE_DEFINITION})
+        if("flatland" IN_LIST SE_RENDERER_VALID_OPTIONS AND NOT SE_AUDIO_ENGINE STREQUAL "flatland")
+            target_compile_definitions(se-interface INTERFACE AUDIO_FLATLAND)
+        endif()
+    endif()
+endif()
+
+if(TARGET threads_interface)
+    target_link_libraries(se-interface INTERFACE threads_interface)
+endif()
+
+target_link_libraries(se-interface INTERFACE renderer_interface)
+target_link_libraries(se-interface INTERFACE windowing_interface)
+if(SE_AUDIO)
+    target_link_libraries(se-interface INTERFACE audio_interface)
+    if(NOT NINTENDO_DS)
+        cl_add_dep(se-interface stb_vorbis)
+        cl_add_dep(se-interface tsf)
+    endif()
+    cl_add_dep(se-interface dr_libs)
+endif()
+
+if(SE_ALLOW_NATIVE_EXTENSIONS)
+    target_compile_definitions(se-interface INTERFACE ENABLE_NATIVE_EXTENSIONS)
+endif()
+if(SE_CACHING)
+    target_compile_definitions(se-interface INTERFACE ENABLE_CACHING)
+endif()
+if(SE_AUDIO)
+    target_compile_definitions(se-interface INTERFACE ENABLE_AUDIO)
+endif()
+if(SE_MENU)
+    target_compile_definitions(se-interface INTERFACE ENABLE_MENU)
+endif()
+if(SE_LOADSCREEN)
+    target_compile_definitions(se-interface INTERFACE ENABLE_LOADSCREEN)
+endif()
+if(SE_DOWNLOAD)
+    target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
+    cl_add_dep(se-interface libcurl)
+endif()
+if(SE_CLOUDVARS)
+    target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
+    cl_add_dep(se-interface gh:ScratchEverywhere/mistpp)
+endif()
+
+if(SE_DECTALK)
+    target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
+    cl_add_dep(se-interface dtc)
+endif()
+
+if(SE_DISCORD_RPC)
+    target_compile_definitions(se-interface INTERFACE ENABLE_DISCORD_RPC "SE_DISCORD_APP_ID=\"${SE_DISCORD_APP_ID}\"")
+    cl_add_dep(se-interface gh:gradylink/drpc)
+endif()
+
+if(SE_DECTALK_DEFAULT)
+    target_compile_definitions(se-interface INTERFACE DECTALK_DEFAULT)
+endif()
+
+if(SE_CUSTOM_EXTENSIONS)
+    target_compile_definitions(se-interface INTERFACE ENABLE_CUSTOM_EXTENSIONS)
+endif()
+
+if(SE_BITMAP)
+    target_compile_definitions(se-interface INTERFACE ENABLE_BITMAP)
+endif()
+
+if(SE_SVG)
+    target_compile_definitions(se-interface INTERFACE ENABLE_SVG)
+endif()
+
+if(SE_INSPECTOR)
+    target_compile_definitions(se-interface INTERFACE ENABLE_INSPECTOR)
+endif()
+
+if(SE_HAS_TOUCH)
+    target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_TOUCH)
+endif()
+if(SE_HAS_MOUSE)
+    target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_MOUSE)
+endif()
+if(SE_HAS_KEYBOARD)
+    target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_KEYBOARD)
+endif()
+if(SE_HAS_CONTROLLER)
+    target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_CONTROLLER)
+endif()
+
+cl_add_dep(se-interface ryuJS)
+
+if(SE_JIT)
+    if(SE_JIT_SUPPORTED)
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/jit/${SE_JIT_BACKEND}.cmake")
+        target_compile_definitions(se-interface INTERFACE SE_JIT)
+        string(TOUPPER "JIT_BACKEND_${SE_JIT_BACKEND}" JIT_BACKEND_DEFINITION)
+        target_compile_definitions(se-interface INTERFACE ${JIT_BACKEND_DEFINITION})
+        if(NOT SE_JIT_OPT_BACKEND STREQUAL "none")
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/jit/${SE_JIT_OPT_BACKEND}.cmake")
+            string(TOUPPER "JIT_OPT_BACKEND_${SE_JIT_OPT_BACKEND}" JIT_OPT_BACKEND_DEFINITION)
+            target_compile_definitions(se-interface INTERFACE ${JIT_OPT_BACKEND_DEFINITION})
+        endif()
+        if(SE_JIT_BACKGROUND)
+            target_compile_definitions(se-interface INTERFACE JIT_BACKGROUND_COMPILE)
+        endif()
+    else()
+        message(STATUS "SE_JIT is on but ${SE_JIT_REASON}, building without the JIT")
+    endif()
+endif()
+
+cl_add_dep(se-interface nlohmann_json)
+if(SE_ZIP_BACKEND STREQUAL "minizip")
+    set(CL_DISABLE_system_minizip TRUE)
+    set(CL_DISABLE_package_minizip TRUE)
+    cl_add_dep(se-interface minizip)
+else()
+    cl_add_dep(se-interface miniz)
+endif()
+cl_add_dep(se-interface expected-lite)
+if(NOT XBOX)
+    cl_add_dep(se-interface __getexecname)
+endif()
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO AND NOT XBOX AND NOT PS4)
+    if(SE_WINDOWING STREQUAL "flatland") 
+        target_compile_definitions(se-interface INTERFACE SE_NO_LIBDLGMOD)
+    else()
+        cl_add_dep(se-interface libdlgmod)
+    endif()
+endif()
+
+if(SE_CUSTOM_EXTENSIONS)
+    cl_add_dep(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
+    cl_add_dep(se-interface sol2)
+endif()
+
+if(SE_SVG)
+    cl_add_dep(se-interface lunasvg)
+endif()
+
+if(SE_BITMAP)
+    cl_add_dep(se-interface stb_image)
+endif()
+
+target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+
+if(COMMAND package_platform)
+    package_platform()
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/add_extension.cmake")

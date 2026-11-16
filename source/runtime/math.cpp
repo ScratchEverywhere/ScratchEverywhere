@@ -1,12 +1,25 @@
 #include "math.hpp"
+#include "log.hpp"
+#include "nonstd/expected.hpp"
+#include "renderer.hpp"
 #include <algorithm>
+#include <cerrno>
+#include <charconv>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <limits>
 #include <math.h>
+#include <memory>
 #include <os.hpp>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 #ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #endif
@@ -20,32 +33,120 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
+    switch (Render::currentRenderer) {
 #ifdef RENDERER_GL2D
-    int r5 = r >> 3;
-    int g5 = g >> 3;
-    int b5 = b >> 3;
-    return RGB15(r5, g5, b5);
-#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_OPENGL)
-    return (r << 24) |
-           (g << 16) |
-           (b << 8) |
-           a;
-#elif defined(RENDERER_CITRO2D)
-    return C2D_Color32(r, g, b, a);
+    case Renderers::GL2D: {
+        int r5 = r >> 3;
+        int g5 = g >> 3;
+        int b5 = b >> 3;
+        return RGB15(r5, g5, b5);
+    }
 #endif
+#ifdef RENDERER_CITRO2D
+    case Renderers::Citro2D: {
+        return C2D_Color32(r, g, b, a);
+    }
+#endif
+    case Renderers::SDL1:
+    case Renderers::SDL2:
+    case Renderers::SDL3:
+    case Renderers::GX2:
+    case Renderers::Xbox:
+    case Renderers::OpenGL:
+    case Renderers::OpenGLCore:
+    case Renderers::GDI:
+    case Renderers::D3D9:
+        return (r << 24) |
+               (g << 16) |
+               (b << 8) |
+               a;
+    case Renderers::Headless:
+    case Renderers::Flatland:
+        break;
+    default: {
+        Log::logCritical("Looks like someone forgot to add their new renderer to Math::color... :grin:", true);
+        break;
+    }
+    }
     return 0;
 }
 
-double Math::parseNumber(std::string str) {
-    // Scratch has whitespace trimming
-    while (!str.empty() && std::isspace(str[0])) {
-        str.erase(0, 1);
+namespace {
+std::pair<uint32_t, size_t> decodeUtf8At(std::string_view str, size_t pos) {
+    unsigned char c0 = static_cast<unsigned char>(str[pos]);
+    if (c0 < 0x80) return {c0, 1};
+    size_t len;
+    uint32_t cp;
+    if ((c0 & 0xE0) == 0xC0) {
+        len = 2;
+        cp = c0 & 0x1F;
+    } else if ((c0 & 0xF0) == 0xE0) {
+        len = 3;
+        cp = c0 & 0x0F;
+    } else if ((c0 & 0xF8) == 0xF0) {
+        len = 4;
+        cp = c0 & 0x07;
+    } else return {c0, 1};
+    if (pos + len > str.size()) return {c0, 1};
+    for (size_t i = 1; i < len; i++) {
+        unsigned char c = static_cast<unsigned char>(str[pos + i]);
+        if ((c & 0xC0) != 0x80) return {c0, 1};
+        cp = (cp << 6) | (c & 0x3F);
     }
-    while (!str.empty() && std::isspace(str.back())) {
-        str.pop_back();
+    return {cp, len};
+}
+
+bool isJsWhitespaceCodepoint(uint32_t cp) {
+    switch (cp) {
+    case 0x09:
+    case 0x0A:
+    case 0x0B:
+    case 0x0C:
+    case 0x0D:
+    case 0x20:
+    case 0xA0:
+    case 0x1680:
+    case 0x2000:
+    case 0x2001:
+    case 0x2002:
+    case 0x2003:
+    case 0x2004:
+    case 0x2005:
+    case 0x2006:
+    case 0x2007:
+    case 0x2008:
+    case 0x2009:
+    case 0x200A:
+    case 0x2028:
+    case 0x2029:
+    case 0x202F:
+    case 0x205F:
+    case 0x3000:
+    case 0xFEFF:
+        return true;
+    default:
+        return false;
+    }
+}
+} // namespace
+
+nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
+    // Trim whitespace
+    while (!str.empty()) {
+        auto [cp, len] = decodeUtf8At(str, 0);
+        if (!isJsWhitespaceCodepoint(cp)) break;
+        str.remove_prefix(len);
+    }
+    while (!str.empty()) {
+        size_t start = str.size() - 1;
+        while (start > 0 && (static_cast<unsigned char>(str[start]) & 0xC0) == 0x80)
+            start--;
+        auto [cp, len] = decodeUtf8At(str, start);
+        if (start + len != str.size() || !isJsWhitespaceCodepoint(cp)) break;
+        str.remove_suffix(len);
     }
 
-    if (str.empty()) throw std::invalid_argument("");
+    if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
 
     if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
@@ -54,82 +155,464 @@ double Math::parseNumber(std::string str) {
     }
 
     uint8_t base = 0;
-    std::string validcharacters = "0123456789+-eE.";
-    if (str[0] == '0') {
-        if (str[1] == 'x' || str[1] == 'X') {
-            base = 16;
-            validcharacters = "0123456789ABCDEFabcedef";
-        } else if (str[1] == 'b' || str[1] == 'B') {
-            base = 2;
-            validcharacters = "01";
-        } else if (str[1] == 'o' || str[1] == 'O') {
-            base = 8;
-            validcharacters = "01234567";
-        }
-        if (base != 0) str = str.substr(2, str.length() - 2);
+    if (str.size() >= 2 && str[0] == '0') {
+        char second = str[1];
+        if (second == 'x' || second == 'X') base = 16;
+        else if (second == 'b' || second == 'B') base = 2;
+        else if (second == 'o' || second == 'O') base = 8;
+        if (base != 0) str.remove_prefix(2);
     }
 
-    for (size_t i = 0; i < str.length(); i++) {
-        if (validcharacters.find(str[i]) == std::string::npos) {
-            throw std::invalid_argument("");
+    if (base != 0) {
+        if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
+        double conversion = 0;
+        for (char c : str) {
+            int digit;
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+            else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+            else return nonstd::make_unexpected("Invalid Argument");
+
+            if (digit >= base) return nonstd::make_unexpected("Invalid Argument");
+            conversion = conversion * base + digit;
         }
-        if (base == 0) {
-            if (i == str.length() - 1 && (str[i] == '+' || str[i] == '-' || str[i] == 'e' || str[i] == 'E')) {
-                // implementation differece, "1e" doesn't work in Scratch but works
-                // with std::stod()
-                // signs (+, -) should also not be at the end
-                throw std::invalid_argument("");
-            }
-            if ((str[i] == 'e' || str[i] == 'E') && str.find('.', i + 1) != std::string::npos) {
-                // implementation differece, decimal point after e doesn't work in
-                // Scratch but works with std::stod()
-                throw std::invalid_argument("");
-            }
+        return conversion;
+    }
+
+    size_t e_pos = str.find_first_of("eE");
+    if (e_pos != std::string_view::npos) {
+        if (str.find('.', e_pos + 1) != std::string_view::npos) {
+            return nonstd::make_unexpected("Invalid Argument");
         }
     }
 
-    double conversion;
-    std::size_t pos;
-    try {
-        if (base == 0) {
-            conversion = std::stod(str, &pos);
-        } else {
-            conversion = std::stoull(str, &pos, base);
-        }
-    } catch (const std::out_of_range &e) {
-        if (str[0] == '-') {
-            return -std::numeric_limits<double>::infinity();
-        } else {
-            return std::numeric_limits<double>::infinity();
+    if (!str.empty() && str.front() == '+') {
+        str.remove_prefix(1);
+        if (!str.empty() && (str.front() == '+' || str.front() == '-')) {
+            return nonstd::make_unexpected("Invalid Argument");
         }
     }
+
+    double conversion = 0;
+
+#if defined(__cpp_lib_to_chars) && (__cpp_lib_to_chars >= 201611L)
+    auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), conversion);
+
+    if (ec == std::errc::invalid_argument || ptr != str.data() + str.size()) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    if (ec == std::errc::result_out_of_range) {
+        if (str.size() >= 128) return nonstd::make_unexpected("Invalid Argument");
+        char stack_buf[128];
+        std::memcpy(stack_buf, str.data(), str.size());
+        stack_buf[str.size()] = '\0';
+        conversion = std::strtod(stack_buf, nullptr);
+    } else if (std::isinf(conversion) || std::isnan(conversion)) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+#else
+    char stack_buf[128];
+    if (str.size() >= sizeof(stack_buf)) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    std::memcpy(stack_buf, str.data(), str.size());
+    stack_buf[str.size()] = '\0';
+
+    char *endptr = nullptr;
+    errno = 0;
+    conversion = std::strtod(stack_buf, &endptr);
+
+    if (endptr != stack_buf + str.size()) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+    if ((std::isinf(conversion) || std::isnan(conversion)) && errno != ERANGE) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+#endif
 
     return conversion;
 }
 
 bool Math::isNumber(const std::string &str) {
-    try {
-        parseNumber(str);
-        return true;
-    } catch (...) {
-        return false;
+    return parseNumber(str).has_value();
+}
+
+namespace {
+void encodeUtf8(uint32_t cp, std::string &out) {
+    if (cp < 0x80) {
+        out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        out += static_cast<char>(0xC0 | (cp >> 6));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        out += static_cast<char>(0xE0 | (cp >> 12));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+        out += static_cast<char>(0xF0 | (cp >> 18));
+        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
     }
 }
+
+bool isGreekCasedLetter(uint32_t cp) {
+    return (cp >= 0x0391 && cp <= 0x03A9) || (cp >= 0x03B1 && cp <= 0x03C9) || cp == 0x03C2;
+}
+
+int lowerCaseCodepoint(uint32_t cp, uint32_t prevCp, uint32_t nextCp, uint32_t out[2]) {
+    if (cp >= 'A' && cp <= 'Z') {
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp == 0x0130) { // LATIN CAPITAL LETTER I WITH DOT ABOVE -> "i" + COMBINING DOT ABOVE
+        out[0] = 'i';
+        out[1] = 0x0307;
+        return 2;
+    }
+    if (cp == 0x212A) { // KELVIN SIGN -> LATIN SMALL LETTER K
+        out[0] = 0x006B;
+        return 1;
+    }
+    if (cp == 0x1E9E) { // LATIN CAPITAL LETTER SHARP S -> LATIN SMALL LETTER SHARP S (ß)
+        out[0] = 0x00DF;
+        return 1;
+    }
+    if (cp == 0x01C4 || cp == 0x01C5) { // LATIN CAPITAL/TITLECASE LETTER DZ WITH CARON -> dž's lowercase
+        out[0] = 0x01C6;
+        return 1;
+    }
+    if (cp >= 0x00C0 && cp <= 0x00DE && cp != 0x00D7) { // Latin-1 Supplement (skip U+00D7 '*')
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp == 0x03A3) { // GREEK CAPITAL LETTER SIGMA
+        bool finalPosition = isGreekCasedLetter(prevCp) && !isGreekCasedLetter(nextCp);
+        out[0] = finalPosition ? 0x03C2 : 0x03C3;
+        return 1;
+    }
+    if (cp >= 0x0391 && cp <= 0x03A9) { // other Greek capitals
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp >= 0xFF21 && cp <= 0xFF3A) { // fullwidth Latin capitals
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    out[0] = cp;
+    return 1;
+}
+} // namespace
+
+namespace {
+bool isAsciiOnly(std::string_view s) {
+    unsigned char acc = 0;
+    for (unsigned char c : s)
+        acc |= c;
+    return (acc & 0x80) == 0;
+}
+
+constexpr unsigned char asciiLowerChar(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+} // namespace
+
+std::string Math::toLowerCaseJs(std::string_view str) {
+    if (isAsciiOnly(str)) {
+        std::string result(str);
+        for (char &c : result)
+            c = static_cast<char>(asciiLowerChar(static_cast<unsigned char>(c)));
+        return result;
+    }
+
+    struct Unit {
+        uint32_t cp;
+        size_t pos;
+        size_t len;
+    };
+    std::vector<Unit> units;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        auto [cp, len] = decodeUtf8At(str, pos);
+        units.push_back({cp, pos, len});
+        pos += len;
+    }
+
+    std::string result;
+    result.reserve(str.size());
+    for (size_t i = 0; i < units.size(); i++) {
+        const Unit &u = units[i];
+        if (u.len == 1 && u.cp >= 0x80) {
+            result += str[u.pos];
+            continue;
+        }
+        uint32_t prev = i > 0 ? units[i - 1].cp : 0;
+        uint32_t next = i + 1 < units.size() ? units[i + 1].cp : 0;
+        uint32_t out[2];
+        int n = lowerCaseCodepoint(u.cp, prev, next, out);
+        for (int j = 0; j < n; j++)
+            encodeUtf8(out[j], result);
+    }
+    return result;
+}
+
+namespace {
+class LowerCaseCursor {
+  public:
+    explicit LowerCaseCursor(std::string_view s) : str(s) {}
+
+    bool next(uint32_t &cp) {
+        if (pendingIndex < pendingCount) {
+            cp = pending[pendingIndex++];
+            return true;
+        }
+        if (pos >= str.size()) return false;
+
+        auto [curCp, len] = decodeUtf8At(str, pos);
+        if (len == 1 && curCp >= 0x80) {
+            pending[0] = curCp;
+            pendingCount = 1;
+        } else {
+            uint32_t nextRawCp = (pos + len < str.size()) ? decodeUtf8At(str, pos + len).first : 0;
+            pendingCount = lowerCaseCodepoint(curCp, lastRawCp, nextRawCp, pending);
+            if (pendingCount == 1 && pending[0] >= 0x10000) {
+                uint32_t astral = pending[0] - 0x10000;
+                pending[0] = 0xD800 + (astral >> 10);
+                pending[1] = 0xDC00 + (astral & 0x3FF);
+                pendingCount = 2;
+            }
+        }
+        pendingIndex = 1;
+        lastRawCp = curCp;
+        pos += len;
+        cp = pending[0];
+        return true;
+    }
+
+  private:
+    std::string_view str;
+    size_t pos = 0;
+    uint32_t lastRawCp = 0;
+    uint32_t pending[2] = {0, 0};
+    int pendingCount = 0;
+    int pendingIndex = 0;
+};
+} // namespace
+
+namespace {
+constexpr unsigned char asciiLower(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+
+bool isAscii(std::string_view s) {
+    for (unsigned char c : s) {
+        if (c & 0x80) return false;
+    }
+    return true;
+}
+} // namespace
+
+bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
+    if (a.size() == b.size()) {
+        size_t i = 0;
+        for (; i < a.size(); i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            if (x != y && asciiLower(x) != asciiLower(y)) return false;
+        }
+        if (i == a.size()) return true;
+    } else if (isAscii(a) && isAscii(b)) {
+        return false;
+    }
+
+    LowerCaseCursor ca(a), cb(b);
+    uint32_t cpA, cpB;
+    for (;;) {
+        bool hasA = ca.next(cpA);
+        bool hasB = cb.next(cpB);
+        if (hasA != hasB) return false;
+        if (!hasA) return true;
+        if (cpA != cpB) return false;
+    }
+}
+
+bool Math::caseInsensitiveLess(std::string_view a, std::string_view b) {
+    {
+        const size_t n = std::min(a.size(), b.size());
+        size_t i = 0;
+        for (; i < n; i++) {
+            const unsigned char x = static_cast<unsigned char>(a[i]), y = static_cast<unsigned char>(b[i]);
+            if ((x | y) & 0x80) break;
+            const unsigned char lx = asciiLower(x), ly = asciiLower(y);
+            if (lx != ly) return lx < ly;
+        }
+        if (i == n) return a.size() < b.size();
+    }
+
+    LowerCaseCursor ca(a), cb(b);
+    uint32_t cpA, cpB;
+    for (;;) {
+        bool hasA = ca.next(cpA);
+        bool hasB = cb.next(cpB);
+        if (!hasA || !hasB) return !hasA && hasB;
+        if (cpA != cpB) return cpA < cpB;
+    }
+}
+
+namespace {
+size_t utf16UnitByteLen(std::string_view str, size_t pos) {
+    unsigned char c0 = static_cast<unsigned char>(str[pos]);
+    auto isContinuation = [&](size_t i) {
+        return i < str.size() && (static_cast<unsigned char>(str[i]) & 0xC0) == 0x80;
+    };
+    if (c0 < 0x80) return 1;
+    if ((c0 & 0xE0) == 0xC0 && isContinuation(pos + 1)) return 2;
+    if ((c0 & 0xF0) == 0xE0 && isContinuation(pos + 1) && isContinuation(pos + 2)) return 3;
+    return (pos + 1 < str.size()) ? 2 : 1;
+}
+} // namespace
+
+size_t Math::utf16Length(std::string_view str) {
+    size_t units = 0;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        pos += utf16UnitByteLen(str, pos);
+        units++;
+    }
+    return units;
+}
+
+std::string Math::utf16CharAt(std::string_view str, size_t index) {
+    size_t unit = 0;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        size_t len = utf16UnitByteLen(str, pos);
+        if (unit == index) return std::string(str.substr(pos, len));
+        unit++;
+        pos += len;
+    }
+    return "";
+}
+
+std::vector<uint32_t> Math::utf16Index(std::string_view str) {
+    std::vector<uint32_t> offsets;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        offsets.push_back(static_cast<uint32_t>(pos));
+        pos += utf16UnitByteLen(str, pos);
+    }
+    offsets.push_back(static_cast<uint32_t>(pos));
+    return offsets;
+}
+
+namespace {
+constexpr size_t utf16IndexCacheLimit = 256;
+std::unordered_map<std::shared_ptr<const std::string>, std::vector<uint32_t>> utf16IndexCache;
+
+const std::vector<uint32_t> &getOrBuildUtf16Index(const std::shared_ptr<const std::string> &str) {
+    auto it = utf16IndexCache.find(str);
+    if (it != utf16IndexCache.end()) return it->second;
+
+    std::vector<uint32_t> offsets;
+    size_t pos = 0;
+    while (pos < str->size()) {
+        offsets.push_back(static_cast<uint32_t>(pos));
+        pos += utf16UnitByteLen(*str, pos);
+    }
+    offsets.push_back(static_cast<uint32_t>(pos));
+
+    if (utf16IndexCache.size() >= utf16IndexCacheLimit) utf16IndexCache.clear();
+    return utf16IndexCache.emplace(str, std::move(offsets)).first->second;
+}
+} // namespace
+
+size_t Math::utf16Length(const std::shared_ptr<const std::string> &str) {
+    if (!str) return 0;
+    const std::vector<uint32_t> &offsets = getOrBuildUtf16Index(str);
+    return offsets.empty() ? 0 : offsets.size() - 1;
+}
+
+std::string Math::utf16CharAt(const std::shared_ptr<const std::string> &str, size_t utf16Index) {
+    if (!str) return "";
+    const std::vector<uint32_t> &offsets = getOrBuildUtf16Index(str);
+    if (offsets.empty() || utf16Index + 1 >= offsets.size()) return "";
+    return str->substr(offsets[utf16Index], offsets[utf16Index + 1] - offsets[utf16Index]);
+}
+
+namespace {
+char *writeUnsigned(char *out, uint64_t value) {
+    char digits[20];
+    int count = 0;
+    do {
+        digits[count++] = static_cast<char>('0' + value % 10);
+        value /= 10;
+    } while (value != 0);
+    while (count > 0)
+        *out++ = digits[--count];
+    return out;
+}
+
+bool formatShortDecimal(double number, char *out, size_t &length) {
+    const double magnitude = std::fabs(number);
+    if (!(magnitude >= 1e-4 && magnitude < 1e9)) return false;
+    static const double scale[5] = {1.0, 10.0, 100.0, 1000.0, 10000.0};
+    static const uint64_t integerScale[5] = {1, 10, 100, 1000, 10000};
+    for (int places = 1; places < 5; places++) {
+        const double scaled = std::nearbyint(magnitude * scale[places]);
+        if (scaled / scale[places] != magnitude) continue;
+        const uint64_t digits = static_cast<uint64_t>(scaled);
+        char *p = out;
+        if (number < 0) *p++ = '-';
+        p = writeUnsigned(p, digits / integerScale[places]);
+        *p++ = '.';
+        uint64_t fraction = digits % integerScale[places];
+        for (int i = places - 1; i >= 0; i--) {
+            p[i] = static_cast<char>('0' + fraction % 10);
+            fraction /= 10;
+        }
+        p += places;
+        length = static_cast<size_t>(p - out);
+        return true;
+    }
+    return false;
+}
+} // namespace
 
 std::string Math::toString(double number) {
     if (std::isnan(number)) return "NaN";
     if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
+    if (number == 0) return "0";
     char buffer[32];
-    d2s_buffered(number, buffer);
-    return std::string(buffer);
+    if (number == std::trunc(number) && std::fabs(number) < 1e15) {
+        char *end = buffer;
+        if (number < 0) *end++ = '-';
+        end = writeUnsigned(end, static_cast<uint64_t>(std::fabs(number)));
+        return std::string(buffer, end);
+    }
+    size_t shortLength;
+    if (formatShortDecimal(number, buffer, shortLength)) return std::string(buffer, shortLength);
+    const int length = d2s_buffered_n(number, buffer);
+    return std::string(buffer, static_cast<size_t>(length));
+}
+
+double Math::jsRound(double value) {
+    if (!std::isfinite(value)) return value;
+    const double floored = std::floor(value);
+    return (value - floored >= 0.5) ? floored + 1 : floored;
 }
 
 double Math::degreesToRadians(double degrees) {
-    return degrees * (M_PI / 180.0);
+    return degrees * M_PI / 180.0;
 }
 
 double Math::radiansToDegrees(double radians) {
-    return radians * (180.0 / M_PI);
+    return radians * 180.0 / M_PI;
+}
+
+int16_t Math::radiansToAngle16(float radians) {
+    return (int16_t)(radians * (32768.0f / (2.0f * M_PI)));
 }
 
 std::string Math::generateRandomString(int length) {
@@ -160,4 +643,34 @@ const uint32_t Math::next_pow2(uint32_t n) {
     n |= n >> 16;
     n++;
     return n;
+}
+
+bool Math::containsCaseInsensitive(std::string_view haystack, std::string_view needle) {
+    if (needle.empty()) return true;
+
+    if (isAsciiOnly(haystack) && isAsciiOnly(needle)) {
+        if (needle.size() > haystack.size()) return false;
+        const unsigned char first = asciiLowerChar(static_cast<unsigned char>(needle[0]));
+        const unsigned char firstUpper = (first >= 'a' && first <= 'z') ? static_cast<unsigned char>(first - ('a' - 'A')) : first;
+        const char *const begin = haystack.data();
+        const size_t last = haystack.size() - needle.size();
+        const char *nextLower = static_cast<const char *>(std::memchr(begin, first, last + 1));
+        const char *nextUpper = firstUpper != first ? static_cast<const char *>(std::memchr(begin, firstUpper, last + 1)) : nullptr;
+        for (;;) {
+            const char *candidate = nextLower;
+            if (nextUpper != nullptr && (candidate == nullptr || nextUpper < candidate)) candidate = nextUpper;
+            if (candidate == nullptr) return false;
+            size_t j = 1;
+            while (j < needle.size() && asciiLowerChar(static_cast<unsigned char>(candidate[j])) == asciiLowerChar(static_cast<unsigned char>(needle[j])))
+                j++;
+            if (j == needle.size()) return true;
+            const size_t from = static_cast<size_t>(candidate - begin) + 1;
+            if (from > last) return false;
+            const size_t remaining = last + 1 - from;
+            if (candidate == nextLower) nextLower = static_cast<const char *>(std::memchr(begin + from, first, remaining));
+            else nextUpper = static_cast<const char *>(std::memchr(begin + from, firstUpper, remaining));
+        }
+    }
+
+    return toLowerCaseJs(haystack).find(toLowerCaseJs(needle)) != std::string::npos;
 }

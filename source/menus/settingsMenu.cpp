@@ -1,6 +1,26 @@
 #include "settingsMenu.hpp"
+#include "audio.hpp"
+#include "discord.hpp"
+#include "hasdeps.hpp"
+#include "languageMenu.hpp"
 #include "menuObjects.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
+#include "window.hpp"
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
+#ifndef SE_NO_LIBDLGMOD
+#include <libdlgmod/libdlgmod.h>
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+#include <algorithm>
+#endif
+#if !defined(USE_LIBDLGMOD) && !defined(SE_NO_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#endif
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -10,32 +30,70 @@ SettingsMenu::~SettingsMenu() {
     cleanup();
 }
 
+std::string SettingsMenu::getDectalkString() {
+    return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
+}
+
+#ifdef ENABLE_DISCORD_RPC
+std::string SettingsMenu::getDiscordString() {
+    return TranslationManager::getTranslation("ui.settings.discord") + ": " + TranslationManager::getTranslation(UseDiscord ? "ui.settings.on" : "ui.settings.off");
+}
+#endif
+
 void SettingsMenu::init() {
     settingsControl = new ControlObject();
 
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-    // Credits->text->setColor(Math::color(0, 0, 0, 255));
+    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/genericButton.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    // Credits->text->setColor(Math::color(255, 255, 255, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold");
-    EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
-    EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold");
-    ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeUsername->text->setScale(0.5);
+    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/genericButton.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
+    EnableUsername->text->setColor(Math::color(255, 255, 255, 255));
+    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/genericButton.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
+    ChangeUsername->text->setColor(Math::color(255, 255, 255, 255));
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
-    EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    EnableCustomFolderPath->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold");
-    ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeFolderPath->text->setScale(0.5);
+    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/upperButton.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
+    EnableCustomFolderPath->text->setColor(Math::color(255, 255, 255, 255));
+    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/lowerButton.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
+    ChangeFolderPath->text->setColor(Math::color(255, 255, 255, 255));
 
-    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold");
-    EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
-    EnableMenuMusic->text->setScale(0.5);
+    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/genericButton.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
+    EnableMenuMusic->text->setColor(Math::color(255, 255, 255, 255));
+
+    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/genericButton.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
+    ClearCache->text->setColor(Math::color(255, 255, 255, 255));
+
+    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/genericButton.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
+    Language->text->setColor(Math::color(255, 255, 255, 255));
+    Language->textScale = 1.0;
+
+#ifdef ENABLE_DECTALK
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/genericButton.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(255, 255, 255, 255));
+#endif
+
+    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/upperButton.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
+    RendererButton->text->setColor(Math::color(255, 255, 255, 255));
+    RendererButton->textScale = 1.0;
+    validRenderers = Render::getAvailableRenderers();
+
+    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/midButton.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
+    WindowingButton->text->setColor(Math::color(255, 255, 255, 255));
+    WindowingButton->textScale = 1.0;
+    validWindowingBackends = WindowSE::getAvailableWindowingBackends();
+
+    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/lowerButton.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
+    AudioEngineButton->text->setColor(Math::color(255, 255, 255, 255));
+    AudioEngineButton->textScale = 1.0;
+    validAudioBackends = SoundPlayer::getAvailableAudioBackends();
+
+#ifdef ENABLE_DISCORD_RPC
+    discordButton = new ButtonObject(getDiscordString(), "gfx/menu/genericButton.svg", 200, 570, "gfx/menu/Ubuntu-Bold", true);
+    discordButton->text->setColor(Math::color(255, 255, 255, 255));
+    discordButton->textScale = 1.0;
+#endif
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -45,6 +103,10 @@ void SettingsMenu::init() {
     username = "Player";
 
     nlohmann::json json = SettingsManager::getConfigSettings();
+
+    if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
+        UseDectalk = json["UseDectalk"].get<bool>();
+    }
 
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
         UseCostumeUsername = json["EnableUsername"].get<bool>();
@@ -72,6 +134,28 @@ void SettingsMenu::init() {
     if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
         menuMusic = json["MenuMusic"].get<bool>();
     }
+#ifdef ENABLE_DISCORD_RPC
+    UseDiscord = Discord::isEnabled();
+#endif
+
+    auto getBackendOption = [](std::string_view currentName, const auto &validOptions, auto &outIdx, std::string &outOption) {
+        auto it = std::find_if(validOptions.begin(), validOptions.end(),
+                               [currentName](const auto &info) { return info.name == currentName; });
+
+        if (it != validOptions.end()) {
+            outIdx = std::distance(validOptions.begin(), it);
+            outOption = std::string(currentName);
+        } else {
+            outIdx = 0;
+            outOption = std::string(validOptions.front().name);
+        }
+    };
+    getBackendOption(RendererNames[static_cast<uint8_t>(Render::currentRenderer)],
+                     validRenderers, rendererIdx, rendererOption);
+    getBackendOption(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)],
+                     validWindowingBackends, windowingIdx, windowingOption);
+    getBackendOption(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)],
+                     validAudioBackends, audioIdx, audioOption);
 
     updateButtonStates();
 
@@ -81,6 +165,17 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
+    settingsControl->buttonObjects.push_back(ClearCache);
+    settingsControl->buttonObjects.push_back(Language);
+    settingsControl->buttonObjects.push_back(RendererButton);
+    settingsControl->buttonObjects.push_back(WindowingButton);
+    settingsControl->buttonObjects.push_back(AudioEngineButton);
+#ifdef ENABLE_DECTALK
+    settingsControl->buttonObjects.push_back(dectalkButton);
+#endif
+#ifdef ENABLE_DISCORD_RPC
+    settingsControl->buttonObjects.push_back(discordButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -93,19 +188,48 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = EnableMenuMusic;
-    EnableMenuMusic->buttonDown = EnableUsername;
+    EnableUsername->buttonUp = WindowingButton;
+    EnableMenuMusic->buttonDown = ClearCache;
+    ClearCache->buttonUp = EnableMenuMusic;
+    ClearCache->buttonDown = Language;
+    Language->buttonUp = ClearCache;
+    Language->buttonDown = RendererButton;
+    RendererButton->buttonUp = Language;
+    RendererButton->buttonDown = WindowingButton;
+    WindowingButton->buttonUp = RendererButton;
+    WindowingButton->buttonDown = AudioEngineButton;
+    AudioEngineButton->buttonUp = WindowingButton;
+
+#ifdef ENABLE_DECTALK
+    Language->buttonDown = dectalkButton;
+    dectalkButton->buttonUp = Language;
+    dectalkButton->buttonDown = RendererButton;
+    RendererButton->buttonUp = dectalkButton;
+#endif
+#ifdef ENABLE_DISCORD_RPC
+    AudioEngineButton->buttonDown = discordButton;
+    discordButton->buttonUp = AudioEngineButton;
+    discordButton->buttonDown = EnableUsername;
+    EnableUsername->buttonUp = discordButton;
+    discordButton->text->setText(getDiscordString());
+#else
+    AudioEngineButton->buttonDown = EnableUsername;
+#endif
+
+    ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
+    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
+    ChangeFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.changePath"));
 
     if (UseCostumeUsername) {
-        EnableUsername->text->setText("Username: Enabled");
-        ChangeUsername->text->setText("Name: " + username);
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
+        ChangeUsername->text->setText(TranslationManager::getTranslation("ui.settings.name") + ": " + username);
         ChangeUsername->canBeClicked = true;
         ChangeUsername->hidden = false;
 
         EnableUsername->buttonDown = ChangeUsername;
         EnableCustomFolderPath->buttonUp = ChangeUsername;
     } else {
-        EnableUsername->text->setText("Username: Disabled");
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeUsername->canBeClicked = false;
         ChangeUsername->hidden = true;
 
@@ -114,14 +238,14 @@ void SettingsMenu::updateButtonStates() {
     }
 
     if (UseProjectsPath) {
-        EnableCustomFolderPath->text->setText("Custom Path: Enabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
         ChangeFolderPath->canBeClicked = true;
         ChangeFolderPath->hidden = false;
 
         EnableCustomFolderPath->buttonDown = ChangeFolderPath;
         EnableMenuMusic->buttonUp = ChangeFolderPath;
     } else {
-        EnableCustomFolderPath->text->setText("Custom Path: Disabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeFolderPath->canBeClicked = false;
         ChangeFolderPath->hidden = true;
 
@@ -129,7 +253,15 @@ void SettingsMenu::updateButtonStates() {
         EnableMenuMusic->buttonUp = EnableCustomFolderPath;
     }
 
-    EnableMenuMusic->text->setText("Menu Music: " + std::string(menuMusic ? "Enabled" : "Disabled"));
+    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
+
+#ifdef ENABLE_DECTALK
+    dectalkButton->text->setText(getDectalkString());
+#endif
+
+    RendererButton->text->setText(TranslationManager::getTranslation("ui.settings.renderer") + ": " + std::string(RendererNames[validRenderers[rendererIdx].id]));
+    WindowingButton->text->setText(TranslationManager::getTranslation("ui.settings.windowing") + ": " + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
+    AudioEngineButton->text->setText(TranslationManager::getTranslation("ui.settings.audioEngine") + ": " + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
 }
 
 void SettingsMenu::render() {
@@ -141,8 +273,14 @@ void SettingsMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 96, 90, 105);
-    Render::beginFrame(1, 96, 90, 105);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
+
+    if (ClearCache->isPressed({"a"})) {
+        const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
+    }
 
     if (EnableMenuMusic->isPressed({"a"})) {
         menuMusic = !menuMusic;
@@ -157,6 +295,9 @@ void SettingsMenu::render() {
     if (EnableCustomFolderPath->isPressed({"a"}) && OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
         UseProjectsPath = !UseProjectsPath;
         updateButtonStates();
+
+        OS::customProjectsPath = nullptr;
+        OS::loadedSettings = false;
     }
 
     if (ChangeUsername->isPressed({"a"})) {
@@ -179,12 +320,78 @@ void SettingsMenu::render() {
     }
 
     if (ChangeFolderPath->isPressed({"a"})) {
+
+#if defined(USE_LIBDLGMOD)
+
+        // FIXME: Translate this into every localization supported by SE!
+        const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
+#if defined(_WIN32) || defined(_WIN64)
+        std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
+#endif
+
+        const std::string newPath = ((newPathGui.empty()) ? ((!hasdeps()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : projectsPath) : newPathGui);
+
+#endif
+
+#else
+
         const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+
+#endif
+
         if (newPath.length() > 0) {
             projectsPath = newPath;
-
             updateButtonStates();
         }
+
+        OS::customProjectsPath = nullptr;
+        OS::loadedSettings = false;
+    }
+
+    if (Language->isPressed({"a"})) {
+        LanguageMenu *langMenu = new LanguageMenu();
+        MenuManager::changeMenu(langMenu);
+        return;
+    }
+
+#ifdef ENABLE_DECTALK
+    if (dectalkButton->isPressed({"a"})) {
+        UseDectalk = !UseDectalk;
+        dectalkButton->text->setText(getDectalkString());
+        return;
+    }
+#endif
+
+#ifdef ENABLE_DISCORD_RPC
+    if (discordButton->isPressed({"a"})) {
+        UseDiscord = !UseDiscord;
+        Discord::setEnabled(UseDiscord);
+        updateButtonStates();
+        return;
+    }
+#endif
+
+    if (RendererButton->isPressed({"a"})) {
+        rendererIdx = (rendererIdx + 1) % validRenderers.size();
+        rendererOption = validRenderers[rendererIdx].name;
+        updateButtonStates();
+    }
+
+    if (WindowingButton->isPressed({"a"})) {
+        windowingIdx = (windowingIdx + 1) % validWindowingBackends.size();
+        windowingOption = validWindowingBackends[windowingIdx].name;
+        updateButtonStates();
+    }
+
+    if (AudioEngineButton->isPressed({"a"})) {
+        audioIdx = (audioIdx + 1) % validAudioBackends.size();
+        audioOption = validAudioBackends[audioIdx].name;
+        updateButtonStates();
     }
 
     backButton->render();
@@ -221,18 +428,54 @@ void SettingsMenu::cleanup() {
         delete EnableMenuMusic;
         EnableMenuMusic = nullptr;
     }
+    if (ClearCache != nullptr) {
+        delete ClearCache;
+        ClearCache = nullptr;
+    }
+    if (Language != nullptr) {
+        delete Language;
+        Language = nullptr;
+    }
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;
     }
+    if (dectalkButton != nullptr) {
+        delete dectalkButton;
+        dectalkButton = nullptr;
+    }
+    if (discordButton != nullptr) {
+        delete discordButton;
+        discordButton = nullptr;
+    }
+    if (RendererButton != nullptr) {
+        delete RendererButton;
+        RendererButton = nullptr;
+    }
+    if (WindowingButton != nullptr) {
+        delete WindowingButton;
+        WindowingButton = nullptr;
+    }
+    if (AudioEngineButton != nullptr) {
+        delete AudioEngineButton;
+        AudioEngineButton = nullptr;
+    }
 
     // save settings
-    nlohmann::json json;
+    nlohmann::json json = SettingsManager::getConfigSettings();
     json["EnableUsername"] = UseCostumeUsername;
     json["Username"] = username;
     json["UseProjectsPath"] = UseProjectsPath;
     json["ProjectsPath"] = projectsPath;
     json["MenuMusic"] = menuMusic;
+    json["Language"] = TranslationManager::getLoadedLanguage().key;
+    json["UseDectalk"] = UseDectalk;
+#ifdef ENABLE_DISCORD_RPC
+    json["DiscordPresence"] = UseDiscord;
+#endif
+    json["Renderer"] = rendererOption;
+    json["Windowing"] = windowingOption;
+    json["AudioEngine"] = audioOption;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

@@ -1,0 +1,159 @@
+#if defined(__NDS__)
+#define NO_VORBIS
+#define NO_MP3
+#define NO_MUSIC
+#endif
+
+#pragma once
+#include <se_export.hpp>
+#ifndef STB_VORBIS_IMPLEMENTATION
+#define STB_VORBIS_HEADER_ONLY
+#endif
+#ifdef ENABLE_AUDIO
+#if !defined(NO_MP3)
+#include <dr_mp3.h>
+#endif
+#include <dr_wav.h>
+#if !defined(NO_VORBIS)
+#include <stb_vorbis.c>
+#endif
+#if !defined(NO_MUSIC)
+#include <tsf.h>
+#endif
+#endif
+#include "nonstd/expected.hpp"
+#include <atomic>
+#include <audio_resampler.hpp>
+#include <optional>
+#include <string>
+#include <thread.hpp>
+#include <unordered_map>
+#include <zip_archive.hpp>
+
+enum SoundStreamTypes {
+    SoundStreamUnknown = 0,
+    SoundStreamStream,
+    SoundStreamWAV,
+    SoundStreamMP3,
+    SoundStreamVorbis,
+};
+
+class SE_EXPORT SoundConfig {
+  public:
+    float volume;
+    float pan;
+    float pitch;
+
+    SoundConfig();
+};
+
+/* TODO: maybe make this modular? but it's not like we're going to support
+ * more than wav/mp3
+ */
+class SE_EXPORT SoundStream {
+    friend class Mixer;
+
+#ifndef __NDS__
+    std::atomic<unsigned int> activeMixers{0};
+#else
+    volatile unsigned int activeMixers = 0;
+#endif
+
+    SoundStream *nextRetired = nullptr;
+    unsigned char *buffer = nullptr;
+    size_t buffer_size = 0;
+    int (*callback)(SoundStream *strm, float *iwave, int length) = nullptr;
+
+    bool loadAsWAV();
+    bool loadAsMP3();
+    bool loadAsVorbis();
+    bool loadFromBuffer();
+    bool loadFromFile(const std::string &path);
+    void commonInit();
+    void prepareResampler();
+
+  public:
+#ifdef ENABLE_AUDIO
+    drwav wav;
+#if !defined(NO_MP3)
+    drmp3 mp3;
+#endif
+#if !defined(NO_VORBIS)
+    stb_vorbis *vorbis;
+#endif
+#endif
+
+    std::string name;
+
+    int type = SoundStreamUnknown;
+
+    int channels = 0;
+    int rate = 0;
+    SoundConfig config;
+    AudioResampler resampler;
+
+#ifndef __NDS__
+    std::atomic<bool> paused{false};
+    std::atomic<bool> auto_clean{false};
+    std::atomic<bool> userPaused{false};
+#else
+    volatile bool paused = false;
+    volatile bool auto_clean = false;
+    volatile bool userPaused = false;
+#endif
+
+    /**
+     * Set if an error occurs in the constructor.
+     */
+    std::optional<std::string> error;
+
+    SoundStream(std::string path, bool cached = false, bool on_disk = false);
+    SoundStream(ZipArchive *zip, std::string path);
+    SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate);
+
+    nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
+    nonstd::expected<void, std::string> init(ZipArchive *zip, std::string path);
+
+    ~SoundStream();
+
+    int read(float *output, int frames);
+};
+
+class SE_EXPORT Mixer {
+  public:
+#ifdef __NDS__
+    static constexpr unsigned int rate = 16000; // This is what maxmod's example uses.
+#else
+    static constexpr unsigned int rate = 48000;
+#endif
+
+    static SE_Mutex mutex;
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    static tsf *hTsf;
+#endif
+    static void *sf2_buffer;
+    static int sf2_seq;
+    static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<int, float> notes;
+    static std::unordered_map<std::string, SoundConfig> configs;
+    static bool musicInitialized;
+    static std::atomic<bool> musicPaused;
+    static void initMusic();
+    static void requestSound(short *output, int frames); /* expects stereo */
+    static void registerStream(const std::string &name, SoundStream *stream);
+    static void stopSound(std::string name);
+    static bool isSoundPlaying(std::string name);
+    static void setAllStreamsPaused(bool paused);
+    static void setPitch(std::string name, float pitch);
+    static void setPan(std::string name, float pan);
+    static void setSoundVolume(std::string name, float volume);
+    static float getSoundVolume(std::string name);
+    static void setAutoClean(std::string name, bool toggle);
+    static void cleanupAudio();
+    // Called by main-thread audio controls to destroy streams retired by the audio callback.
+    static void drainRetiredStreams();
+    static float beatsToSec(float v);
+    static int note(int instrument, int note, float volume, float beats);
+    static int drum(int drum, float volume, float beats);
+    static bool isInstrumentPlaying(int channel);
+};

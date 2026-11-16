@@ -1,6 +1,8 @@
 #include "menuObjects.hpp"
+#include "text.hpp"
 #include <input.hpp>
-#include <render.hpp>
+#include <log.hpp>
+#include <renderer.hpp>
 
 #define REFERENCE_WIDTH 400
 #define REFERENCE_HEIGHT 240
@@ -9,6 +11,13 @@
 static float guiScale = 1.3f;
 #else
 static float guiScale = 1.0f;
+#endif
+
+// turn off nineslice for low performance platforms
+#if defined(__NDS__) || defined(__PSP__) || defined(RENDERER_SDL1) /* sdl1 just doesnt support it currently */
+constexpr bool enableNineslice = false;
+#else
+constexpr bool enableNineslice = true;
 #endif
 
 double MenuObject::getScaleFactor() {
@@ -26,9 +35,12 @@ double MenuObject::getScaleFactor() {
         guiScale = 1.5f;
     else if (WindowScale > 1000)
         guiScale = 1.3f;
+    else if (WindowScale < 500)
+        guiScale = 0.5f;
     else if (WindowScale < 780)
         guiScale = 0.7f;
-    else guiScale = 1.0f;
+    else
+        guiScale = 1.0f;
 
     return guiScale;
 }
@@ -42,19 +54,16 @@ std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
     return pos;
 }
 
-ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath) {
+ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
     textScale = 1.0;
     text = createTextObject(buttonText, x, y, fontPath);
     text->setCenterAligned(true);
-    buttonTexture = new MenuImage(filePath);
-
-// turn off nineslice for low performance platforms
-#if defined(__NDS__) || defined(__PSP__)
-    enableNineslice = false;
-#endif
+    imageId = filePath;
+    buttonTexture = new MenuImage(filePath, x, y, shouldNineslice);
 }
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
@@ -64,7 +73,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
     if (!canBeClicked) return false;
 
-    std::vector<int> touchPos = Input::getTouchPosition();
+    std::array<int, 2> touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
@@ -75,8 +84,16 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
     // get position based on scale
     std::vector<double> scaledPos = getScaledPosition(x - renderOffsetX, y - renderOffsetY);
+#if defined(__XBOX__)
+    int imgW = (buttonTexture && buttonTexture->image) ? buttonTexture->image->getWidth() : 32;
+    int imgH = (buttonTexture && buttonTexture->image) ? buttonTexture->image->getHeight() : 32;
+    double btnScale = buttonTexture ? buttonTexture->scale : 1.0;
+    double scaledWidth = imgW * btnScale * getScaleFactor();
+    double scaledHeight = imgH * btnScale * getScaleFactor();
+#else
     double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale * getScaleFactor();
     double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale * getScaleFactor();
+#endif
 
     // simple box collision
     bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
@@ -100,7 +117,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
 bool ButtonObject::isTouchingMouse() {
     if (!canBeClicked) return false;
-    std::vector<int> touchPos = Input::getTouchPosition();
+    std::array<int, 2> touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
@@ -129,17 +146,26 @@ void ButtonObject::render(double xPos, double yPos) {
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
     buttonTexture->scale = scale * getScaleFactor();
-    buttonTexture->image->scale = scale * getScaleFactor();
+    ImageRenderParams params;
+    params.x = scaledPos[0];
+    params.y = scaledPos[1];
+    params.scale = scale * getScaleFactor();
+    params.centered = true;
 
-    if (enableNineslice) {
+#if defined(__XBOX__)
+    if (!buttonTexture || !buttonTexture->image) return;
+#endif
+
+    text->setScale(renderScale * textScale);
+
+    if (enableNineslice && this->shouldNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
                                               std::max(text->getSize()[1], (float)buttonTexture->image->getHeight() * renderScale), 8, true);
     } else {
-        buttonTexture->image->render(scaledPos[0], scaledPos[1], true);
+        buttonTexture->image->render(params);
     }
 
-    text->setScale(renderScale * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
@@ -147,33 +173,86 @@ ButtonObject::~ButtonObject() {
     delete buttonTexture;
 }
 
-MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
+MenuImage::MenuImage(std::string filePath, int xPos, int yPos, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
-    image = new Image(filePath);
+    auto potentialImage = createImageFromFile(filePath, false);
+    if (!potentialImage.has_value()) Log::logError("Failed to load Menu Image: " + potentialImage.error());
+    else image = potentialImage.value();
 }
 
 void MenuImage::render(double xPos, double yPos) {
+#if defined(__XBOX__)
+    if (!image) return;
+#endif
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
-    image->scale = scale * getScaleFactor();
+    // image->scale = scale * getScaleFactor();
     const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
     const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
-    if (width <= 0 && height <= 0) {
-        image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
-        return;
+    const float renderScale = scale * getScaleFactor();
+
+    if (enableNineslice && this->shouldNineslice) {
+        if (width <= 0 && height <= 0) {
+            image->renderNineslice(renderX, renderY, image->getWidth() * renderScale, image->getHeight() * renderScale, 8 /* TODO: make this customizable */, true);
+            return;
+        }
+        image->renderNineslice(renderX, renderY, width * renderScale, height * renderScale, 8 /* TODO: make this customizable */, true);
+    } else {
+        ImageRenderParams params;
+        params.x = renderX;
+        params.y = renderY;
+        params.scale = renderScale;
+        params.centered = true;
+        image->render(params);
     }
-    image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
 }
 
 MenuImage::~MenuImage() {
-    delete image;
+    // delete image;
+}
+
+MenuText::MenuText(std::string txt, double xPos, double yPos) {
+    x = xPos;
+    y = yPos;
+    scale = 1.0;
+    text = createTextObject(txt, xPos, yPos);
+    text->setCenterAligned(false);
+    originalText = txt;
+}
+
+void MenuText::setText(const std::string &txt) {
+    text->setText(txt);
+    originalText = txt;
+}
+
+void MenuText::render(double xPos, double yPos) {
+    if (xPos == 0) xPos = x;
+    if (yPos == 0) yPos = y;
+
+    const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
+
+    renderX = proportionX * Render::getWidth();
+    renderY = proportionY * Render::getHeight();
+
+    const float renderScale = scale * getScaleFactor();
+    std::string wrapped = text->wrap(Render::getWidth());
+    text->setText(wrapped);
+
+    text->setScale(renderScale);
+    text->render(renderX, renderY);
+    text->setText(originalText);
+}
+
+MenuText::~MenuText() {
 }
 
 ControlObject::ControlObject() {
@@ -184,10 +263,18 @@ void ControlObject::input() {
 
     ButtonObject *newSelection = nullptr;
 
+    if (Input::keyHeldDuration["any"] == 1) mousePriority = false;
     if (Input::keyHeldDuration["up arrow"] == 1 || Input::keyHeldDuration["u"] == 1) newSelection = selectedObject->buttonUp;
     else if (Input::keyHeldDuration["down arrow"] == 1 || Input::keyHeldDuration["h"] == 1) newSelection = selectedObject->buttonDown;
     else if (Input::keyHeldDuration["left arrow"] == 1 || Input::keyHeldDuration["g"] == 1) newSelection = selectedObject->buttonLeft;
     else if (Input::keyHeldDuration["right arrow"] == 1 || Input::keyHeldDuration["j"] == 1) newSelection = selectedObject->buttonRight;
+    else if (enableScrolling && Input::keyHeldDuration["r"] == 1) {
+        this->y += REFERENCE_HEIGHT;
+        selectedObject = getClosestObject();
+    } else if (enableScrolling && Input::keyHeldDuration["l"] == 1) {
+        this->y -= REFERENCE_HEIGHT;
+        selectedObject = getClosestObject();
+    }
 
     if (newSelection != nullptr) {
         selectedObject->isSelected = false;
@@ -195,7 +282,7 @@ void ControlObject::input() {
         selectedObject->isSelected = true;
     } else {
         for (ButtonObject *button : buttonObjects) {
-            if (button->isTouchingMouse()) {
+            if (mousePriority && button->isTouchingMouse()) {
                 selectedObject->isSelected = false;
                 selectedObject = button;
                 selectedObject->isSelected = true;
@@ -229,7 +316,14 @@ void ControlObject::setScrollLimits() {
     maxY = -std::numeric_limits<int>::max();
 
     for (ButtonObject *object : buttonObjects) {
+#if defined(__XBOX__)
+        int height = 0;
+        if (object->buttonTexture && object->buttonTexture->image) {
+            height = object->buttonTexture->image->getHeight();
+        }
+#else
         int height = object->buttonTexture->image->getHeight();
+#endif
 
         if (object->y + height - REFERENCE_HEIGHT > maxY) {
             maxY = object->y + height - REFERENCE_HEIGHT;
@@ -243,26 +337,35 @@ void ControlObject::setScrollLimits() {
 void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
+    std::array<int, 2> touchPos = Input::getTouchPosition();
+    bool isEmpty = (touchPos[0] == 0 || touchPos[1] == 0);
 
+    if (!isEmpty && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
+        mousePriority = true;
+    }
+
+    std::array<int, 2> empty;
     if (enableScrolling) {
-
         if (Input::mousePointer.isPressed) {
             // Touch scrolling
-            std::vector<int> touchPos = Input::getTouchPosition();
-            if (!lastFrameTouchPos.empty()) {
+
+            if (!isEmpty) {
                 float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
                 scrollAmount /= guiScale;
                 y += scrollAmount;
                 if (std::abs(scrollAmount) > 3)
                     selectedObject = getClosestObject();
             }
-            lastFrameTouchPos = touchPos;
         } else {
-            lastFrameTouchPos.clear();
+            lastFrameTouchPos = {0, 0};
 
             // Controller scrolling
             if (std::abs((y - cameraY) * lerpSpeed) < 1) {
+#if defined(__XBOX__)
+                int height = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getHeight() : 32;
+#else
                 int height = selectedObject->buttonTexture->image->getHeight();
+#endif
 
                 if (selectedObject->y > (y + yPos) - (height * 0.15) + REFERENCE_HEIGHT) { // going down
                     y = selectedObject->y - height * 0.25;
@@ -281,7 +384,12 @@ void ControlObject::render(double xPos, double yPos) {
     yPos += cameraY;
 
     for (ButtonObject *object : buttonObjects) {
+#if defined(__XBOX__)
+        int objHeight = (object && object->buttonTexture && object->buttonTexture->image) ? object->buttonTexture->image->getHeight() : 32;
+        if (object->hidden || object->y + objHeight - yPos < 0 || object->y - objHeight - yPos > REFERENCE_HEIGHT) continue;
+#else
         if (object->hidden || object->y + object->buttonTexture->image->getHeight() - yPos < 0 || object->y - object->buttonTexture->image->getHeight() - yPos > REFERENCE_HEIGHT) continue;
+#endif
 
         object->renderOffsetX = xPos;
         object->renderOffsetY = yPos;
@@ -304,13 +412,26 @@ void ControlObject::render(double xPos, double yPos) {
     double scaledWidth;
     double scaledHeight;
 
-    if (selectedObject->enableNineslice) {
+#if defined(__XBOX__)
+    int selImgWidth = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getWidth() : 32;
+    int selImgHeight = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getHeight() : 32;
+
+    if (enableNineslice) {
+        scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selImgWidth * renderScale);
+        scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selImgHeight * renderScale);
+    } else {
+        scaledWidth = (float)selImgWidth * renderScale;
+        scaledHeight = (float)selImgHeight * renderScale;
+    }
+#else
+    if (enableNineslice) {
         scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
         scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
     } else {
         scaledWidth = (float)selectedObject->buttonTexture->image->getWidth() * renderScale;
         scaledHeight = (float)selectedObject->buttonTexture->image->getHeight() * renderScale;
     }
+#endif
 
     // animation effect
     double time = animationTimer.getTimeMs() / 1000.0;
@@ -323,10 +444,22 @@ void ControlObject::render(double xPos, double yPos) {
     double bottomY = buttonCenter[1] + (scaledHeight / 2) + breathingOffset;
 
     // Render boxes at all 4 corners
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), leftX, topY, 33, 34, 36, 255);     // Top-left
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, topY, 33, 34, 36, 255);    // Top-right
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), leftX, bottomY, 33, 34, 36, 255);  // Bottom-left
-    Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, bottomY, 33, 34, 36, 255); // Bottom-right
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, topY, 255, 255, 255, 255);     // Top-left
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, topY, 255, 255, 255, 255);    // Top-right
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, bottomY, 255, 255, 255, 255);  // Bottom-left
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, bottomY, 255, 255, 255, 255); // Bottom-right
+
+    // Corner thingies for the corners
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), topY, 255, 255, 255, 255); // |""
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // |_
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // _|
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), topY, 255, 255, 255, 255); // ""|
+    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
+
+    if (touchPos[0] != 0 && touchPos[1] != 0) lastFrameTouchPos = touchPos;
 }
 
 ControlObject::~ControlObject() {

@@ -1,4 +1,8 @@
 #include "controlsMenu.hpp"
+#include "translation.hpp"
+#include "types.hpp"
+#include "unpackMenu.hpp"
+#include <log.hpp>
 #include <settings.hpp>
 
 ControlsMenu::ControlsMenu(std::string projPath) {
@@ -11,10 +15,16 @@ ControlsMenu::~ControlsMenu() {
 }
 
 void ControlsMenu::init() {
-
-    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+    }
     if (!Unzip::load()) {
-        Log::logError("Failed to load project for ControlsMenu.");
+        Log::logCritical("Failed to load project for ControlsMenu.", false);
         OS::toExit = true;
         return;
     }
@@ -23,52 +33,49 @@ void ControlsMenu::init() {
     // get controls
     std::vector<std::string> controls;
 
-    for (auto &sprite : Scratch::sprites) {
-        for (auto &[id, block] : sprite->blocks) {
-            std::string buttonCheck;
-            if (block.opcode == "sensing_keypressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY_OPTION", sprite));
-            } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
-            } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite), true);
-            } else if (block.opcode == "makeymakey_whenCodePressed") {
-                std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
-                size_t start = 0;
-                size_t end;
-                while ((end = input.find(' ', start)) != std::string::npos) {
-                    buttonCheck = input.substr(start, end - start);
-                    if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
-                        Log::log("Found new control: " + buttonCheck);
-                        controls.push_back(buttonCheck);
-                    }
-                    start = end + 1;
-                }
-                buttonCheck = input.substr(start);
+    for (auto &block : Scratch::blocks) {
+        std::string buttonCheck;
+        if (block->opcode == "sensing_keypressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
+        } else if (block->opcode == "event_whenkeypressed") {
+            buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
+            if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
+
+            std::string inputSequence = input->value.get<std::string>();
+            size_t start = 0;
+            size_t end;
+            while ((end = inputSequence.find(' ', start)) != std::string::npos) {
+                buttonCheck = inputSequence.substr(start, end - start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
                 }
-                continue;
-            } else continue;
+                start = end + 1;
+            }
+            buttonCheck = inputSequence.substr(start);
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
                 controls.push_back(buttonCheck);
             }
+            continue;
+        } else continue;
+        if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+            Log::log("Found new control: " + buttonCheck);
+            controls.push_back(buttonCheck);
         }
     }
 
     Scratch::cleanupScratchProject();
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    settingsControl = new ControlObject();
-    settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold");
-    applyButton->scale = 0.6;
-    applyButton->needsToBeSelected = false;
-    backButton->scale = 1.0;
-    backButton->needsToBeSelected = false;
 
     if (controls.empty()) {
         Log::logWarning("No controls found in project");
@@ -76,10 +83,21 @@ void ControlsMenu::init() {
         return;
     }
 
+    Render::renderMode = Render::BOTH_SCREENS;
+
+    settingsControl = new ControlObject();
+    settingsControl->selectedObject = nullptr;
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
+    applyButton = new ButtonObject(TranslationManager::getTranslation("ui.controls.apply"), "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
+    applyButton->scale = 0.6;
+    applyButton->needsToBeSelected = false;
+    backButton->scale = 1.0;
+    backButton->needsToBeSelected = false;
+
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/controlsButton.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 1.0;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
@@ -147,22 +165,22 @@ void ControlsMenu::render() {
     if (settingsControl->selectedObject->isPressed()) {
 
         // wait till A isnt pressed
-        while (!Input::inputButtons.empty() && Render::appShouldRun()) {
+        while (!Input::inputKeys.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
-        while (Input::inputButtons.empty() && Render::appShouldRun()) {
+        while (Input::inputKeys.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
-        if (!Input::inputButtons.empty()) {
+        if (!Input::inputKeys.empty()) {
 
             // remove "any" first
-            auto it = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "any");
-            if (it != Input::inputButtons.end()) {
-                Input::inputButtons.erase(it);
+            auto it = std::find(Input::inputKeys.begin(), Input::inputKeys.end(), "any");
+            if (it != Input::inputKeys.end()) {
+                Input::inputKeys.erase(it);
             }
 
-            std::string key = Input::inputButtons.back();
+            std::string key = Input::inputKeys.back();
             for (const auto &pair : Input::inputControls) {
                 if (pair.second == key) {
                     // Update the control value
@@ -193,9 +211,9 @@ void ControlsMenu::render() {
 
         // Highlight selected
         if (settingsControl->selectedObject == controlButton.button)
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
         else
-            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
     }
 
     // Render UI elements

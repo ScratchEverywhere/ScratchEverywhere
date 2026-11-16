@@ -1,42 +1,72 @@
+#ifndef LIBRETRO
+#include "image.hpp"
+#include "translation.hpp"
+
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include "hasdeps.hpp"
+#ifndef SE_NO_LIBDLGMOD
+#include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#endif
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <sstream>
+#include <sys/stat.h>
+#endif
+
+#include <discord.hpp>
+#include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
+#include <inspector.hpp>
 #include <menus/mainMenu.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
+#ifdef RENDERER_FLATLAND
+#include <flatland_backend.hpp>
+#endif
 #include <runtime.hpp>
 #include <unzip.hpp>
+
+#ifdef ENABLE_AUDIO
+#include <audio.hpp>
+#endif
 
 #ifdef __SWITCH__
 #include <switch.h>
 #endif
 
-#ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
+#if defined(__PSP__) && defined(RENDERER_SDL3)
+#include <SDL3/SDL_main.h>
 #endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
+#include <filesystem.hpp>
 #endif
 
 static void exitApp() {
+    Discord::shutdown();
+#ifdef ENABLE_AUDIO
+    SoundPlayer::deinit();
+#endif
     Render::deInit();
+    OS::deinit();
 }
 
 static bool initApp() {
-#ifndef __XBOX360__ // TODO: handle this in a better way
-    Log::deleteLogFile();
-#endif
-    Render::debugMode = true;
-    if (!Render::Init()) {
-        return false;
-    }
-    return true;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
+    Unzip::filePath = "";
+    Discord::setInMenu();
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -52,6 +82,9 @@ bool activateMainMenu() {
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
 #endif
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
     }
 #endif
     return false;
@@ -59,22 +92,27 @@ bool activateMainMenu() {
 
 void mainLoop() {
     Scratch::startScratchProject();
+
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
-        if (!Unzip::load()) {
-            if (Unzip::projectOpened == -3) { // main menu
-                if (!activateMainMenu()) {
-                    exitApp();
-                    exit(0);
-                }
-            } else {
-                exitApp();
-                exit(0);
-            }
+        if (Unzip::load()) {
+            goto skipCheck;
         }
 
+        if (Unzip::projectOpened != -3) { // main menu
+            exitApp();
+            exit(0);
+        }
+
+        if (!activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
+
+    skipCheck:
         return;
     }
+
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
@@ -84,7 +122,163 @@ void mainLoop() {
     }
 }
 
+bool in_path = true;
+bool hasdeps() {
+    return in_path;
+}
+
+#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
+#include <SDL.h>
+
+extern "C" int main(int argc, char **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
+#if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+    in_path = false;
+    bool is_qt = false;
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
+
+        const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+        std::string str = ((ptr) ? ptr : "");
+
+        if (!str.empty()) {
+            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos ||
+                     str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos ||
+                     str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos ||
+                     str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos ||
+                     str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+        }
+
+        if (is_qt) {
+            struct stat st;
+            std::string buf;
+
+            std::string cpp_path(path);
+            std::stringstream ss(cpp_path);
+
+            char resolved_path[PATH_MAX];
+            std::string cmd = "kdialog";
+
+            while (std::getline(ss, buf, ':')) {
+                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    // Expected dialog CLI executable exists in path!
+                    widget_set_system("KDialog");
+                    in_path = true;
+                    break;
+                }
+            }
+            if (!in_path) {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "zenity";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("Zenity");
+                        in_path = true;
+                        break;
+                    }
+                }
+            }
+        } else {
+            struct stat st;
+            std::string buf;
+
+            std::string cpp_path(path);
+            std::stringstream ss(cpp_path);
+
+            char resolved_path[PATH_MAX];
+            std::string cmd = "zenity";
+
+            while (std::getline(ss, buf, ':')) {
+                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    // Expected dialog CLI executable exists in path!
+                    widget_set_system("Zenity");
+                    in_path = true;
+                    break;
+                }
+            }
+            if (!in_path) {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "kdialog";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("KDialog");
+                        in_path = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
+    bool enableInspector = false;
+    std::string unpackToDest;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--inspector") {
+            enableInspector = true;
+        } else if (arg == "--unpack-to" && i + 1 < argc) {
+            unpackToDest = argv[++i];
+        } else if (arg == "--glcore") {
+            Render::currentRenderer = Renderers::OpenGLCore;
+        } else if (arg == "--opengl") {
+            Render::currentRenderer = Renderers::OpenGL;
+        } else if (arg == "--d3d9") {
+            Render::currentRenderer = Renderers::D3D9;
+        } else if (arg == "--gdi") {
+            Render::currentRenderer = Renderers::GDI;
+        } else if (arg == "--headless") {
+            Render::currentRenderer = Renderers::Headless;
+        }
+#ifdef RENDERER_FLATLAND
+        else if (arg == "--flatland") {
+            Render::currentRenderer = Renderers::Flatland;
+        } else if (arg == "--flatland-port" && i + 1 < argc) {
+            FlatlandBackend::port = static_cast<uint16_t>(std::atoi(argv[++i]));
+            Render::currentRenderer = Renderers::Flatland;
+        }
+#endif
+        else if (arg == "--sdl1") {
+            Render::currentRenderer = Renderers::SDL1;
+        } else if (arg == "--sdl2") {
+            Render::currentRenderer = Renderers::SDL2;
+        } else if (arg == "--sdl3") {
+            Render::currentRenderer = Renderers::SDL3;
+        } else if (arg == "--xbox" || arg == "--nv2a") {
+            // Keep the former command-line name as a compatibility alias.
+            Render::currentRenderer = Renderers::Xbox;
+        }
+        // these will never ever be used but like consistency i guess
+        else if (arg == "--c2d") {
+            Render::currentRenderer = Renderers::Citro2D;
+        } else if (arg == "--gl2d") {
+            Render::currentRenderer = Renderers::GL2D;
+        } else if (Unzip::filePath.empty()) {
+#if defined(__PC__)
+            Unzip::filePath = arg;
+#endif
+        }
+    }
+
     if (!initApp()) {
         exitApp();
         return 1;
@@ -92,37 +286,82 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-    if (argc > 1) {
+    Discord::init();
+
+#ifdef ENABLE_INSPECTOR
+    if (enableInspector) Inspector::init();
+#endif
+
+#if defined(__PC__)
+    if (!unpackToDest.empty()) {
+        if (Unzip::filePath.empty()) {
+            Log::logCritical("--unpack-to requires a project path, e.g: scratch-everywhere MyProject.sb3 --unpack-to romfs/project", true);
+            exitApp();
+            return 1;
+        }
+
+        ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+        if (format == ProjectFormat::SB1) {
+            Log::logCritical("Unpacking is not supported for .sb (Scratch 1.4) projects.", true);
+            exitApp();
+            return 1;
+        }
+
+        std::string sourcePath = Unzip::filePath;
+        if (!Unzip::extractProject(sourcePath, unpackToDest)) {
+            Log::logCritical("Failed to unpack project to: " + unpackToDest, true);
+            exitApp();
+            return 1;
+        }
+
+        // Load the freshly unpacked copy once, exactly like opening it normally would, so
+        // Scratch::useBytecode's cache gets baked into unpackToDest alongside project.json -
+        // ready to be copied straight into romfs/project for a bundle.cmake build.
+        Unzip::filePath = unpackToDest;
+        Unzip::unpackedFormatHint = format;
+        if (!Unzip::load()) {
+            Log::logCritical("Unpacked project to " + unpackToDest + ", but failed to load it back to bake its bytecode cache.", true);
+            exitApp();
+            return 1;
+        }
+
+        Log::log("Unpacked '" + sourcePath + "' to '" + unpackToDest + "' (with a baked bytecode cache).");
+        exitApp();
+        return 0;
+    }
+#endif
+
 #if defined(__EMSCRIPTEN__)
-        while (!OS::fileExists("/romfs/project.sb3")) {
+    if (argc > 1) {
+        while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
             }
             emscripten_sleep(0);
         }
-#elif defined(__PC__)
-        Unzip::filePath = std::string(argv[1]);
-#else
-#endif
     }
+#endif
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
-            emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
-                *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
-                std::ofstream f(OS::getScratchFolderLocation() + filename);
-                f << buffer;
+            emscripten_browser_file::upload(".sb3,.sb2,.sb", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
+                if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
+                std::ofstream f(OS::getScratchFolderLocation() + filename, std::ios::binary);
+                f.write(buffer.data(), buffer.size());
                 f.close();
                 Unzip::filePath = OS::getScratchFolderLocation() + filename;
-                Unzip::load(); // TODO: Error handling
-            },
-                                            &uploadComplete);
+                *(bool *)userdata = true; }, &uploadComplete);
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
+
+            if (uploadComplete && !Unzip::load()) {
+                Log::logCritical("Failed to load uploaded project.", false);
+                exitApp();
+                return 0;
+            }
 #else
             if (!activateMainMenu()) {
                 exitApp();
@@ -144,3 +383,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif

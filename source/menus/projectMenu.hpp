@@ -1,11 +1,17 @@
 #pragma once
 #include "mainMenu.hpp"
+#include <se_export.hpp>
 
-class ProjectMenu : public Menu {
+class SE_EXPORT ProjectMenu : public Menu {
   public:
-    bool hasProjects;
+    bool hasProjects = false;
+#ifdef __XBOX__
+    bool awaitingConfirmRelease = true;
+    bool pendingProjectLoad = false;
+#endif
     bool shouldGoBack = false;
 
+    std::string initProjectName;
     std::vector<std::string> projectFiles;
     std::vector<std::string> UnzippedFiles;
 
@@ -19,7 +25,10 @@ class ProjectMenu : public Menu {
 
     nlohmann::json settings;
 
-    ProjectMenu();
+    /**
+     * @param selectedProjectName if specified, the selected object will be the project name on startup.
+     */
+    ProjectMenu(const std::string &selectedProjectName = "");
     ~ProjectMenu();
 
     void init() override;

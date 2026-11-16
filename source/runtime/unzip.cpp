@@ -1,17 +1,27 @@
 #include "unzip.hpp"
 #include "input.hpp"
+#include "os.hpp"
+#include "parser.hpp"
+#include "runtime.hpp"
+#include "translation.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
+#include <filesystem.hpp>
 #include <fstream>
 #include <image.hpp>
 #include <istream>
+#include <log.hpp>
 #include <menus/loading.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
+
+#ifdef RENDERER_XBOX
+#include <renderers/xbox/image_xbox.hpp>
+#endif
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -21,35 +31,82 @@
 #endif
 
 #ifdef ENABLE_LOADSCREEN
-#ifdef RENDERER_CITRO2D
-#include <3ds.h>
-#elif defined(RENDERER_SDL1)
-#include "SDL/SDL.h"
-#elif defined(RENDERER_SDL2) || defined(WINDOWING_SDL2)
-#include "SDL2/SDL.h"
-#elif defined(RENDERER_SDL3) || defined(WINDOWING_SDL3)
-#include "SDL3/SDL.h"
-#else
-#include <thread>
-#endif
+#include <thread.hpp>
 #endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #include <sstream>
-
-CMRC_DECLARE(romfs);
 #endif
 
-volatile int Unzip::projectOpened = 0;
-std::string Unzip::loadingState = "";
-volatile bool Unzip::threadFinished = false;
-std::string Unzip::filePath = "";
-mz_zip_archive Unzip::zipArchive;
-std::vector<char> Unzip::zipBuffer;
-bool Unzip::UnpackedInSD = false;
+SE_Mutex &unzipStateMutex() {
+    static SE_Mutex mutex;
+    return mutex;
+}
 
-int Unzip::openFile(std::istream *&file) {
+UnzipShared<int> Unzip::projectOpened = 0;
+static std::string s_loadingState;
+
+void Unzip::setLoadingState(const std::string &state) {
+    unzipStateMutex().lock();
+    s_loadingState = state;
+    unzipStateMutex().unlock();
+}
+
+std::string Unzip::getLoadingState() {
+    unzipStateMutex().lock();
+    const std::string copy = s_loadingState;
+    unzipStateMutex().unlock();
+    return copy;
+}
+
+UnzipShared<bool> Unzip::threadFinished = false;
+std::string Unzip::filePath = "";
+std::unique_ptr<ZipArchive> Unzip::zipArchive;
+#ifdef __XBOX__
+std::vector<char, DefaultInitAllocator<char>> Unzip::zipBuffer;
+#else
+std::vector<char> Unzip::zipBuffer;
+#endif
+std::unique_ptr<ProjectLoader> Unzip::loader;
+std::optional<ProjectFormat> Unzip::unpackedFormatHint;
+ProjectFormat Unzip::currentFormat = ProjectFormat::SB3;
+UnzipShared<bool> Unzip::UnpackedInSD = false;
+
+ProjectFormat Unzip::detectFormat(const std::string &path) {
+    if (Unzip::unpackedFormatHint.has_value()) {
+        ProjectFormat format = *Unzip::unpackedFormatHint;
+        Unzip::unpackedFormatHint.reset();
+        return format;
+    }
+
+    const auto hasExtension = [&](const std::string &ext) {
+        return path.size() >= ext.size() && path.compare(path.size() - ext.size(), ext.size(), ext) == 0;
+    };
+
+    if (hasExtension(".sb2")) return ProjectFormat::SB2;
+    if (hasExtension(".sb")) return ProjectFormat::SB1;
+    return ProjectFormat::SB3;
+}
+
+std::string Unzip::resolveZipProjectPath(const std::string &baseNoExt, ProjectFormat &format) {
+    if (FileSystem::fileExists(baseNoExt + ".sb3")) {
+        format = ProjectFormat::SB3;
+        return baseNoExt + ".sb3";
+    }
+    if (FileSystem::fileExists(baseNoExt + ".sb2")) {
+        format = ProjectFormat::SB2;
+        return baseNoExt + ".sb2";
+    }
+    if (FileSystem::fileExists(baseNoExt + ".sb")) {
+        format = ProjectFormat::SB1;
+        return baseNoExt + ".sb";
+    }
+    format = ProjectFormat::SB3;
+    return "";
+}
+
+int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     Log::log("Unzipping Scratch project...");
 
     // load Scratch project into memory
@@ -60,62 +117,82 @@ int Unzip::openFile(std::istream *&file) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#ifdef USE_CMAKERC
-    const auto &fs = cmrc::romfs::get_filesystem();
+#ifdef USE_BUNDLE
+    auto project = Bundle::project();
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef USE_CMAKERC
-    if (fs.exists(unzippedPath)) {
-        const auto &romfsFile = fs.open(unzippedPath);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+#ifdef USE_BUNDLE
+    if (auto entry = project.find(unzippedPath)) {
+        file = new std::istringstream(project.load_text(*entry));
     }
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
-    Scratch::projectType = UNZIPPED;
-    if (file != nullptr && *file) return 1;
+    Scratch::projectType = ProjectType::UNZIPPED;
+    if (file != nullptr) {
+        if (*file) return 1;
+        else {
+            delete file;
+            file = nullptr;
+        }
+    }
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
-    Scratch::projectType = EMBEDDED;
-#ifdef USE_CMAKERC
-    if (fs.exists(embeddedFilename)) {
-        const auto &romfsFile = fs.open(embeddedFilename);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+    Scratch::projectType = ProjectType::EMBEDDED;
+#ifdef USE_BUNDLE
+    if (auto entry = project.find(embeddedFilename)) {
+        file = new std::istringstream(project.load_text(*entry));
         file->seekg(0, std::ios::end);
     }
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
 #endif
-    if (file != nullptr && *file) return 1;
+    if (file != nullptr) {
+        if (*file) {
+            Unzip::filePath = embeddedFilename;
+            return 1;
+        } else {
+            delete file;
+            file = nullptr;
+        }
+    }
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
-    Scratch::projectType = UNEMBEDDED;
+    Scratch::projectType = ProjectType::UNEMBEDDED;
     if (filePath == "") {
         Log::log("Activating main menu...");
         return -1;
     }
     // SD card Project
     Log::logWarning("Main Menu already done, loading SD card project.");
-    // check if normal Project
-    if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
-        Log::log("Normal .sb3 project in SD card ");
+
+    if (format == ProjectFormat::SB1) {
+        Log::log(".sb project in SD card");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (file == nullptr || !(*file)) {
-            Log::logError("Couldnt find Scratch project file: " + filePath + " jinkies.");
+            Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
+            return 0;
+        }
+        return 1;
+    }
+
+    if (filePath.size() >= 4 && (filePath.compare(filePath.size() - 4, 4, ".sb3") == 0 || filePath.compare(filePath.size() - 4, 4, ".sb2") == 0)) {
+        Log::log("Normal packed project in SD card");
+        file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
+        if (file == nullptr || !(*file)) {
+            Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
             return 0;
         }
 
         return 1;
     }
-    Scratch::projectType = UNZIPPED;
-    Log::log("Unpacked .sb3 project in SD card");
+    Scratch::projectType = ProjectType::UNZIPPED;
+    Log::log("Unpacked project in SD card");
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
     if (file == nullptr || !(*file)) {
-        Log::logError("Couldnt open unpacked Scratch project: " + filePath);
+        Log::logCritical("Couldnt open unpacked Scratch project: " + filePath, true);
         return 0;
     }
     filePath = filePath + "/";
@@ -124,135 +201,113 @@ int Unzip::openFile(std::istream *&file) {
     return 1;
 }
 
-int projectLoaderThread(void *data) {
+void projectLoaderThread(void *data) {
     Unzip::openScratchProject(NULL);
-    return 0;
 }
 
 void loadInitialImages() {
-    Unzip::loadingState = "Loading images";
-    int sprIndex = 1;
-    if (Scratch::projectType == UNZIPPED) {
-        for (auto &currentSprite : Scratch::sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
-            sprIndex++;
-        }
-    } else {
-        for (auto &currentSprite : Scratch::sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
-            sprIndex++;
+#ifdef __XBOX__
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    const std::string missingName = "SE__Missingno";
+    if (Scratch::costumeImages.find(missingName) == Scratch::costumeImages.end()) {
+        auto missingImg = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+        if (missingImg.has_value()) {
+            Scratch::costumeImages[missingName] = missingImg.value();
         }
     }
+    for (auto &currentSprite : Scratch::sprites) {
+        if (Scratch::costumeImages.size() >= (Scratch::sprites.size() + 2)) {
+            Scratch::freeUnusedCostumeImages();
+        }
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#else
+    Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+    for (auto &currentSprite : Scratch::sprites) {
+        Scratch::loadCurrentCostumeImage(currentSprite);
+    }
+#endif
 }
 
 bool Unzip::load() {
-
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
-#ifdef ENABLE_LOADSCREEN
+#if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
-#ifdef RENDERER_CITRO2D // create 3DS thread for loading screen
-    s32 mainPrio = 0;
-    svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
+    SE_Thread projectThread;
+    constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
+        Loading loading;
+        loading.init();
 
-    Thread projectThread = threadCreate(
-        Unzip::openScratchProject,
-        NULL,
-        0x4000,
-        mainPrio + 1,
-        -1,
-        false);
+        while (!Unzip::threadFinished) {
+            loading.render();
+#ifdef __XBOX__
+            SE_Thread::sleep(10);
+#endif
+        }
 
-    if (!projectThread) {
-        Unzip::threadFinished = true;
-        Unzip::projectOpened = -3;
-    }
+        projectThread.join();
 
-    Loading loading;
-    loading.init();
+        if (Unzip::projectOpened != 1) {
+            loading.cleanup();
+            return false;
+        }
 
-    while (!Unzip::threadFinished) {
+#ifdef __XBOX__
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
         loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+#else
+        loadInitialImages();
+#endif
+        loading.cleanup();
+        return true;
+    } else {
+        Loading loading;
+        loading.init();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
+        loading.render();
+
+        Unzip::openScratchProject(nullptr);
+        if (Unzip::projectOpened != 1) {
+            loading.cleanup();
+            return false;
+        }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loading.render();
+        loadInitialImages();
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
+        loading.render();
+        loading.cleanup();
+        return true;
     }
-    threadJoin(projectThread, U64_MAX);
-    threadFree(projectThread);
+
+#else
+    // Non-threaded loading fallback
+    Unzip::openScratchProject(nullptr);
     if (Unzip::projectOpened != 1) {
-        loading.cleanup();
         return false;
     }
-    loading.cleanup();
-    osSetSpeedupEnable(false);
-
-#elif defined(WINDOWING_SDL1) || defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(WINDOWING_SDL3) // create SDL thread for loading screen
-#ifdef RENDERER_SDL1
-    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
-#elif defined(RENDERER_SDL2) || defined(WINDOWING_SDL2)
-    SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
-#else
-    SDL_PropertiesID props = SDL_CreateProperties();
-    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)projectLoaderThread);
-    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "LoadingScreen");
-    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 0x15000);
-    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_USERDATA_POINTER, nullptr);
-    SDL_Thread *thread = SDL_CreateThreadWithProperties(props);
-    SDL_DestroyProperties(props);
-#endif
-
-    if (thread != NULL && thread != nullptr) {
-
-        Loading loading;
-        loading.init();
-
-        while (!Unzip::threadFinished) {
-            loading.render();
-        }
-        SDL_WaitThread(thread, nullptr);
-        loading.cleanup();
-    } else Unzip::openScratchProject(NULL);
-
-    if (Unzip::projectOpened != 1)
-        return false;
-#else // create thread for loading screen
-    std::thread thread(projectLoaderThread, nullptr);
-    if (thread.joinable()) {
-        Loading loading;
-        loading.init();
-
-        while (!Unzip::threadFinished) {
-            loading.render();
-        }
-        thread.join();
-        loading.cleanup();
-    } else Unzip::openScratchProject(NULL);
-
-    if (Unzip::projectOpened != 1)
-        return false;
-#endif
-#else
-
-    // non-threaded loading
-    Unzip::openScratchProject(NULL);
-    if (Unzip::projectOpened != 1)
-        return false;
-#endif
-
     loadInitialImages();
     return true;
+#endif
 }
 
 void Unzip::openScratchProject(void *arg) {
-    loadingState = "Opening Scratch project";
+    setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
-    int isFileOpen = openFile(file);
+    ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+    Unzip::currentFormat = format;
+
+    int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
-        Log::logError("Failed to open Scratch project.");
+        Log::logCritical("Failed to open Scratch project.", true);
         Unzip::projectOpened = -1;
         Unzip::threadFinished = true;
         return;
@@ -262,270 +317,116 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
-    loadingState = "Unzipping Scratch project";
-    nlohmann::json project_json = unzipProject(file);
-    if (project_json.empty()) {
-        Log::logError("Project.json is empty.");
+    setLoadingState(TranslationManager::getTranslation("ui.loading.unzipping"));
+    Unzip::loader = createProjectLoader(format);
+    Log::log("Project loader created; reading archive...");
+    bool loaded = Unzip::loader->load(file);
+    delete file;
+    file = nullptr;
+    if (!loaded) {
+        Log::logCritical("Failed to load Scratch project.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
-        delete file;
         return;
     }
-    loadingState = "Loading Sprites";
-    Parser::loadSprites(project_json);
+
+#ifdef RENDERER_XBOX
+    if (Render::currentRenderer == Renderers::Xbox) {
+        Log::log("Precaching project textures...");
+        Image_Xbox::precacheProjectTextures();
+        Log::log("Project texture precache finished.");
+    }
+#endif
+
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
-    delete file;
     return;
 }
 
 std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
-    std::vector<std::string> projectFiles;
     struct stat dirStat;
 
     if (stat(directory.c_str(), &dirStat) != 0) {
         Log::logWarning("Directory does not exist! " + directory);
-        try {
-            OS::createDirectory(directory);
-        } catch (...) {
-        }
-        return projectFiles;
+        auto potentialError = FileSystem::createDirectory(directory);
+        if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
+        return {};
     }
 
     if (!(dirStat.st_mode & S_IFDIR)) {
         Log::logWarning("Path is not a directory! " + directory);
-        return projectFiles;
+        return {};
     }
 
-#ifdef _WIN32
-    std::wstring wdirectory(directory.size(), L' ');
-    wdirectory.resize(std::mbstowcs(&wdirectory[0], directory.c_str(), directory.size()));
-    if (wdirectory.back() != L'\\') wdirectory += L"\\";
-    wdirectory += L"*";
-
-    WIN32_FIND_DATAW find_data;
-    HANDLE hfind = FindFirstFileW(wdirectory.c_str(), &find_data);
-
-    do {
-        std::wstring wname(find_data.cFileName);
-
-        if (wcscmp(wname.c_str(), L".") == 0 || wcscmp(wname.c_str(), L"..") == 0)
-            continue;
-
-        if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            const wchar_t *ext = wcsrchr(wname.c_str(), L'.');
-            if (ext && _wcsicmp(ext, L".sb3") == 0) {
-                std::string name(wname.size(), ' ');
-                name.resize(std::wcstombs(&name[0], wname.c_str(), wname.size()));
-                projectFiles.push_back(name);
-            }
-        }
-    } while (FindNextFileW(hfind, &find_data));
-
-    FindClose(hfind);
-#else
-    DIR *dir = opendir(directory.c_str());
-    if (!dir) {
-        Log::logWarning("Failed to open directory: " + std::string(strerror(errno)));
-        return projectFiles;
+    auto projectFiles = FileSystem::listDirectory(directory);
+    if (!projectFiles.has_value()) {
+        Log::logCritical("Error while reading project files: " + projectFiles.error(), true);
+        return {};
     }
 
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
+    projectFiles.value().erase(std::remove_if(projectFiles.value().begin(), projectFiles.value().end(), [](const std::string &file) {
+                                   const auto hasExtension = [&](const std::string &ext) {
+                                       return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0;
+                                   };
+                                   return !hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb");
+                               }),
+                               projectFiles.value().end());
 
-        std::string fullPath = directory + entry->d_name;
+    std::sort(projectFiles.value().begin(), projectFiles.value().end(), [](const std::string &a, const std::string &b) {
+        return std::lexicographical_compare(
+            a.begin(), a.end(),
+            b.begin(), b.end(),
+            [](char x, char y) { return std::tolower(x) < std::tolower(y); });
+    });
 
-        struct stat fileStat;
-        if (stat(fullPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
-            const char *ext = strrchr(entry->d_name, '.');
-            if (ext && strcmp(ext, ".sb3") == 0) {
-                projectFiles.push_back(entry->d_name);
-            }
-        }
-    }
-
-    closedir(dir);
-#endif
-    return projectFiles;
+    return projectFiles.value();
 }
 
-std::string Unzip::getSplashText() {
-    std::string textPath = "gfx/menu/splashText.txt";
-    std::string fallback = "Everywhere!";
-
-    textPath = OS::getRomFSLocation() + textPath;
-
-    std::vector<std::string> splashLines;
-#ifdef USE_CMAKERC
-    try {
-        auto file = cmrc::romfs::get_filesystem().open(textPath);
-        std::string_view sv(file.begin(), file.size());
-        std::istringstream stream{std::string(sv)};
-
-        std::string line;
-        while (std::getline(stream, line)) {
-            if (!line.empty()) {
-                splashLines.push_back(line);
-            }
-        }
-    } catch (const std::exception &e) {
-        return fallback;
-    }
-#else
-    std::ifstream file(textPath);
-    if (!file.is_open()) {
-        return fallback;
-    }
-    std::string line;
-    while (std::getline(file, line)) {
-        if (!line.empty()) {
-            splashLines.push_back(line);
-        }
-    }
-    file.close();
-#endif
-
-    if (splashLines.empty()) {
-        return fallback;
-    }
-
-    // Initialize random number generator with current time
-    static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
-    std::uniform_int_distribution<size_t> dist(0, splashLines.size() - 1);
-
-    std::string splash = splashLines[dist(rng)];
-
-    // Replace {PlatformName} and {UserName} placeholders with actual values
-    const std::string platformPlaceholder = "{PlatformName}";
-    const std::string platform = OS::getPlatform();
-
-    const std::string usernamePlaceholder = "{UserName}";
-    std::string username = OS::getUsername();
-    nlohmann::json json = SettingsManager::getConfigSettings();
-    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean() && json["EnableUsername"].get<bool>()) {
-        if (json.contains("Username") && json["Username"].is_string()) {
-            std::string customUsername = json["Username"].get<std::string>();
-            if (!customUsername.empty()) {
-                username = customUsername;
-            }
-        }
-    }
-
-    size_t pos = 0;
-
-    while ((pos = splash.find(platformPlaceholder, pos)) != std::string::npos) {
-        splash.replace(pos, platformPlaceholder.size(), platform);
-        pos += platform.size(); // move past replacement
-    }
-
-    pos = 0;
-    while ((pos = splash.find(usernamePlaceholder, pos)) != std::string::npos) {
-        splash.replace(pos, usernamePlaceholder.size(), username);
-        pos += username.size(); // move past replacement
-    }
-
-    return splash;
-}
-
-nlohmann::json Unzip::unzipProject(std::istream *file) {
-    nlohmann::json project_json;
-
-    if (Scratch::projectType != UNZIPPED) {
-        // read the file
-        Log::log("Reading SB3...");
-        std::streamsize size = file->tellg();
-        file->seekg(0, std::ios::beg);
-        zipBuffer.resize(size);
-        if (!file->read(zipBuffer.data(), size)) {
-            return project_json;
-        }
-
-        // open ZIP file
-        Log::log("Opening SB3 file...");
-        memset(&zipArchive, 0, sizeof(zipArchive));
-        if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
-            return project_json;
-        }
-
-        // extract project.json
-        Log::log("Extracting project.json...");
-        int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
-        if (file_index < 0) {
-            return project_json;
-        }
-
-        size_t json_size;
-        const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
-
-        // Parse JSON file
-        Log::log("Parsing project.json...");
-
-        project_json = nlohmann::json::parse(std::string(json_data, json_size));
-        mz_free((void *)json_data);
-
-    } else {
-        file->clear();
-        file->seekg(0, std::ios::beg);
-
-        // get file size
-        file->seekg(0, std::ios::end);
-        std::streamsize size = file->tellg();
-        file->seekg(0, std::ios::beg);
-
-        // put file into string
-        std::string json_content;
-        json_content.reserve(size);
-        json_content.assign(std::istreambuf_iterator<char>(*file),
-                            std::istreambuf_iterator<char>());
-
-        project_json = nlohmann::json::parse(json_content);
-    }
-    return project_json;
+void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
+    if (!Unzip::loader) return nullptr;
+    return Unzip::loader->getAsset(fileName, outSize);
 }
 
 bool Unzip::extractProject(const std::string &zipPath, const std::string &destFolder) {
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
-    if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
-        Log::logError("Failed to open zip: " + zipPath);
+    auto zip = createZipArchive();
+    if (!zip->openFile(zipPath)) {
+        Log::logCritical("Failed to open zip: " + zipPath, true);
         return false;
     }
 
-    try {
-
-        OS::createDirectory(destFolder + "/");
-    } catch (const std::exception &e) {
-        Log::logError(e.what());
+    auto potentialError = FileSystem::createDirectory(destFolder + "/");
+    if (!potentialError.has_value()) {
+        Log::logError(potentialError.error());
         return false;
     }
 
-    int numFiles = (int)mz_zip_reader_get_num_files(&zip);
-    for (int i = 0; i < numFiles; i++) {
-        mz_zip_archive_file_stat st;
-        if (!mz_zip_reader_file_stat(&zip, i, &st)) continue;
-        std::string filename(st.m_filename);
-
+    bool hadError = false;
+    bool walked = zip->extractAll([&](const std::string &filename) -> std::string {
         if (filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
-            continue;
+            return "";
 
         std::string outPath = destFolder + "/" + filename;
 
-        OS::createDirectory(OS::parentPath(outPath));
-
-        if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
-            Log::logError("Failed to extract: " + outPath);
-            mz_zip_reader_end(&zip);
-            return false;
+        auto potentialError = FileSystem::createDirectory(FileSystem::parentPath(outPath));
+        if (!potentialError.has_value()) {
+            Log::logError(potentialError.error());
+            hadError = true;
+            return "";
         }
+
+        return outPath;
+    });
+
+    if (!walked || hadError) {
+        Log::logCritical("Failed to extract zip: " + zipPath, false);
+        return false;
     }
 
-    mz_zip_reader_end(&zip);
     return true;
 }
 
 bool Unzip::deleteProjectFolder(const std::string &directory) {
+#if !defined(__XBOX__)
     struct stat st;
     if (stat(directory.c_str(), &st) != 0) {
         Log::logWarning("Directory does not exist: " + directory);
@@ -536,12 +437,12 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         Log::logWarning("Path is not a directory: " + directory);
         return false;
     }
+#endif
 
-    try {
-        OS::removeDirectory(directory);
-        return true;
-    } catch (const OS::FilesystemError &e) {
-        Log::logError(std::string("Failed to delete folder: ") + e.what());
+    auto potentialError = FileSystem::removeDirectory(directory);
+    if (!potentialError.has_value()) {
+        Log::logCritical(std::string("Failed to delete folder: ") + potentialError.error(), false);
+        return false;
     }
 
     return true;
@@ -549,29 +450,57 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 
 nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
+    std::string content;
 
-    std::ifstream file(folderPath);
-    if (!file.good()) {
-        Log::logWarning("Project settings file not found: " + folderPath);
-        return nlohmann::json();
-    }
+    if (UnpackedInSD) {
+        std::string folder = filePath;
+        while (!folder.empty() && folder.back() == '/')
+            folder.pop_back();
+        std::ifstream file(folder + ".sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folder + ".sb3.json");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    } else if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+#ifdef USE_BUNDLE
+        auto project = Bundle::project();
+        auto entry = project.find(folderPath);
+        if (!entry) {
+            Log::logWarning("Project settings file not found: romfs:/" + folderPath);
+            return nlohmann::json();
+        }
 
-    nlohmann::json json;
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse JSON file: " + std::string(e.what()));
+        content = project.load_text(*entry);
+#else
+        std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found in RomFS.");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         file.close();
-        return nlohmann::json();
+#endif
+    } else {
+        std::ifstream file(folderPath);
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folderPath);
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
     }
-    file.close();
 
-    if (!json.contains("settings")) {
-        return nlohmann::json();
-    }
-    if (!json["settings"].contains(settingName)) {
+    nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
+
+    if (json.is_discarded()) {
+        Log::logCritical("Failed to parse JSON file: Syntax error.", false);
         return nlohmann::json();
     }
 
-    return json["settings"][settingName];
+    if (json.contains("settings") && json["settings"].contains(settingName)) {
+        return json["settings"][settingName];
+    }
+
+    return nlohmann::json();
 }

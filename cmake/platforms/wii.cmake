@@ -1,0 +1,52 @@
+set(SE_DEFAULT_OUTPUT_NAME "scratch-wii")
+
+set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2")
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
+
+set(SE_CACHING_DEFAULT OFF)
+set(SE_BUNDLE_DEFAULT OFF)
+
+set(SE_ALLOW_BUNDLE ON)
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
+
+set(SE_PLATFORM_DEFINITIONS "__OGC__" "WII")
+set(SE_PLATFORM "wii")
+
+set(SE_HAS_THREADS ON)
+
+set(SE_HAS_TOUCH FALSE)
+set(SE_HAS_MOUSE TRUE)
+set(SE_HAS_KEYBOARD FALSE)
+set(SE_HAS_CONTROLLER TRUE)
+
+macro(package_platform)
+	ogc_create_dol(scratch-everywhere)
+
+	execute_process(
+		COMMAND date "+%Y%m%d%H%M%S"
+		OUTPUT_VARIABLE WII_RELEASE_DATE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
+
+	set(COPY_ASSETS_COMMAND)
+    if(NOT SE_BUNDLE)
+        set(COPY_ASSETS_COMMAND
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+        )
+    endif()
+
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.dol" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/boot.dol"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/meta.xml"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/icon.png"
+		${COPY_ASSETS_COMMAND}
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/apps"
+		COMMENT "Packaging..."
+	)
+endmacro()

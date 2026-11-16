@@ -1,10 +1,15 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
+#include <audiostack.hpp>
+#include <log.hpp>
+#include <xbox_menu_trace.hpp>
 
-ProjectMenu::ProjectMenu() {
+ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
+    initProjectName = selectedProjectName;
     init();
 }
 
@@ -13,15 +18,9 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
-#if defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_ds.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_ds.wav", false, false);
-    }
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-    }
+#ifdef __XBOX__
+    awaitingConfirmRelease = true;
+    pendingProjectLoad = false;
 #endif
 
     projectControl = new ControlObject();
@@ -35,7 +34,9 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 30;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        std::size_t dot = file.find_last_of('.');
+        std::string displayName = dot == std::string::npos ? file : file.substr(0, dot);
+        ButtonObject *project = new ButtonObject(displayName, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -55,7 +56,7 @@ void ProjectMenu::init() {
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(126, 101, 1, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -93,32 +94,12 @@ void ProjectMenu::init() {
         noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
-        noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
+        noProjectsText = createTextObject(TranslationManager::getTranslation("ui.projects.noProjects"), 0, 0);
         noProjectsText->setCenterAligned(true);
         noProjectInfo = createTextObject("a", 0, 0);
         noProjectInfo->setCenterAligned(true);
 
-#ifdef __WIIU__
-        noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
-#elif defined(__3DS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/3ds/scratch-everywhere/ !");
-#elif defined(WII)
-        noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii/ !");
-#elif defined(VITA)
-        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ !");
-#elif defined(GAMECUBE)
-        noProjectInfo->setText("Put Scratch projects in sd:/scratch-gamecube/ !");
-#elif defined(__SWITCH__)
-        noProjectInfo->setText("Put Scratch projects in sd:/switch/scratch-nx !");
-#elif defined(__NDS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/scratch-ds !");
-#elif defined(__PS4__)
-        noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
-#elif defined(WEBOS)
-        noProjectInfo->setText("Upload Scratch projects to apps/usr/palm/applications/io.github.scratcheverywhere/projects/ using webosbrew Dev Manager!");
-#else
-        noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
-#endif
+        noProjectInfo->setText(TranslationManager::getTranslation("ui.projects.path") + OS::getScratchFolderLocation());
 
         if (noProjectInfo->getSize()[0] > Render::getWidth() * 0.85) {
             float scale = (float)Render::getWidth() / (noProjectInfo->getSize()[0] * 1.15);
@@ -141,36 +122,93 @@ void ProjectMenu::init() {
     isInitialized = true;
 
     settings = SettingsManager::getConfigSettings();
+
+    if (!initProjectName.empty()) {
+        for (auto &object : projectControl->buttonObjects) {
+            if (object->text->getText() == initProjectName) {
+                projectControl->y = object->y - 120;
+                projectControl->cameraY = object->y - 120;
+                projectControl->selectedObject = object;
+                break;
+            }
+        }
+    }
 }
 
 void ProjectMenu::render() {
     Input::getInput();
+#ifdef __XBOX__
+    if (pendingProjectLoad) {
+        // A small project can finish loading before A/X is released. Keep UI
+        // controls until release so launching cannot trigger a game key hat.
+        if (Input::keyHeldDuration["a"] != 0 || Input::keyHeldDuration["x"] != 0 || Input::mousePointer.isPressed) return;
+        pendingProjectLoad = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser load after release");
+        XboxMenuTrace::beginGameFrames();
+        MenuManager::loadProject();
+        return;
+    }
+    // A may still be held after confirming Exit Project, and remapping the
+    // game controls back to UI controls makes it look like a new key press.
+    if (awaitingConfirmRelease && Input::keyHeldDuration["a"] == 0 && Input::keyHeldDuration["x"] == 0) {
+        awaitingConfirmRelease = false;
+        if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser armed");
+    }
+    const bool acceptReady = !awaitingConfirmRelease;
+#else
+    const bool acceptReady = true;
+#endif
     projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+        static bool menuMusicFailed = false;
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
-            SoundPlayer::playSound("gfx/menu/mm_ds.wav");
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+            SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+                menuMusicFailed = true;
+            } else
+                Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+                menuMusicFailed = true;
+            } else
+                Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({"a"})) {
+        if (acceptReady && projectControl->selectedObject->isPressed()) {
+            if constexpr (XboxMenuTrace::enabled) XboxMenuTrace::snapshot("browser accepted " + projectControl->selectedObject->text->getText());
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBoxFast") != std::string::npos) {
-                // Unpacked sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
+            if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
+                std::string name = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + name;
+                Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", name);
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
-            } else if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBox") != std::string::npos) {
-                // normal sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
+            } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
+                std::string name = projectControl->selectedObject->text->getText();
+                ProjectFormat format;
+                std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + name, format);
+                Unzip::filePath = !resolved.empty() ? resolved : (OS::getScratchFolderLocation() + name + ".sb3");
+#ifdef __XBOX__
+                pendingProjectLoad = true;
+#else
                 MenuManager::loadProject();
+#endif
                 return;
             } else {
                 // Settings button
@@ -199,8 +237,11 @@ void ProjectMenu::render() {
         //     return;
         // }
     } else {
-        if (noProjectsButton->isPressed({"a"})) {
-            MenuManager::changeMenu(MenuManager::previousMenu);
+        if (acceptReady && noProjectsButton->isPressed({"a"})) {
+            // A browser opened directly at startup has no previous menu yet.
+            Menu *destination = MenuManager::previousMenu;
+            if (destination == nullptr) destination = new MainMenu();
+            MenuManager::changeMenu(destination);
             return;
         }
     }
@@ -211,8 +252,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 97, 73, 97);
-    Render::beginFrame(1, 97, 73, 97);
+    Render::beginFrame(0, 88, 58, 88);
+    Render::beginFrame(1, 88, 58, 88);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;

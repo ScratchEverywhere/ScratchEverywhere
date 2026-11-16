@@ -1,0 +1,20 @@
+include("${CMAKE_SOURCE_DIR}/cmake/platforms/pc.cmake")
+
+set(SE_RENDERER_VALID_OPTIONS "opengl" "opengl_core")
+set(SE_WINDOWING_VALID_OPTIONS "libretro")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
+
+set(SE_WINDOWING "libretro")
+set(SE_AUDIO_ENGINE "libretro")
+set(SE_AUDIO_ENGINE_DEFAULT "libretro")
+set(SE_PLATFORM "libretro")
+
+set(SE_BUNDLE_DEFAULT ON)
+set(SE_ALLOW_BUNDLE ON)
+
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
+
+list(APPEND SE_PLATFORM_DEFINITIONS "LIBRETRO")
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)

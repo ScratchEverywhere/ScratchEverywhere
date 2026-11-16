@@ -1,0 +1,930 @@
+#include "nonstd/expected.hpp"
+#define DR_MP3_IMPLEMENTATION
+#define DR_WAV_IMPLEMENTATION
+#define TSF_IMPLEMENTATION
+#include "audiostack.hpp"
+#include "os.hpp"
+#include "runtime.hpp"
+#include "unzip.hpp"
+#include <log.hpp>
+#include <mutex>
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
+#endif
+
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <thread>
+#include <vector>
+
+SoundConfig::SoundConfig() {
+    this->volume = 100;
+    this->pan = 0;
+    this->pitch = 1;
+}
+
+/* TODO: Oh no! this does not check errors from dr_libs. Please anyone,
+ * think me a best way to check them. I don't know enough C++ to do this.
+ */
+
+bool SoundStream::loadAsWAV() {
+#ifdef ENABLE_AUDIO
+    if (!drwav_init_memory(&this->wav, this->buffer, this->buffer_size, nullptr)) {
+        Log::logError("Failed to load WAV file.");
+        return false;
+    }
+
+    this->type = SoundStreamWAV;
+    this->rate = this->wav.sampleRate;
+    this->channels = this->wav.channels;
+    return true;
+#endif
+    return false;
+}
+
+#if !defined(NO_MP3)
+bool SoundStream::loadAsMP3() {
+#ifdef ENABLE_AUDIO
+    if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
+        Log::logError("Failed to load MP3 file.");
+        return false;
+    }
+
+    this->type = SoundStreamMP3;
+    this->rate = this->mp3.sampleRate;
+    this->channels = this->mp3.channels;
+    return true;
+#endif
+    return false;
+}
+#endif
+
+#if !defined(NO_VORBIS)
+bool SoundStream::loadAsVorbis() {
+#ifdef ENABLE_AUDIO
+    int err;
+    stb_vorbis_info info;
+
+    if ((this->vorbis = stb_vorbis_open_memory(this->buffer, this->buffer_size, &err, nullptr)) == nullptr) {
+        Log::logError("Failed to load OGG file.");
+        return false;
+    }
+
+    info = stb_vorbis_get_info(this->vorbis);
+    this->type = SoundStreamVorbis;
+    this->rate = info.sample_rate;
+    this->channels = info.channels;
+    return true;
+#endif
+    return false;
+}
+#endif
+
+void SoundStream::commonInit() {
+#ifdef ENABLE_AUDIO
+    resampler.reset();
+// prepareResampler() sizes the buffer after the decoder's rate/channels are known.
+#ifndef __NDS__
+    this->paused.store(false, std::memory_order_relaxed);
+    this->auto_clean.store(false, std::memory_order_relaxed);
+#else
+    this->paused = false;
+    this->auto_clean = false;
+#endif
+
+    Mixer::mutex.lock();
+    auto e = Mixer::configs.find(this->name);
+    if (e != Mixer::configs.end()) {
+        this->config = e->second;
+    }
+    Mixer::mutex.unlock();
+#endif
+}
+
+void SoundStream::prepareResampler() {
+#ifdef ENABLE_AUDIO
+    if (channels <= 0 || rate <= 0) return;
+    // Scratch pitch spans roughly -360..+360, i.e. 1/8x..8x. Pre-size for one audio
+    // chunk at the upper bound so vector growth never happens in requestSound().
+    const double sourceFrames = std::ceil(2048.0 * static_cast<double>(rate) * 8.0 / Mixer::rate) + 2.0;
+    if (!std::isfinite(sourceFrames) || sourceFrames <= 0.0 ||
+        sourceFrames > static_cast<double>(std::numeric_limits<size_t>::max() / static_cast<size_t>(channels))) return;
+    resampler.prepare(channels, static_cast<size_t>(sourceFrames) * static_cast<size_t>(channels));
+#endif
+}
+
+bool SoundStream::loadFromBuffer() {
+#ifdef ENABLE_AUDIO
+    this->type = SoundStreamUnknown;
+
+    if (this->buffer == nullptr || this->buffer_size <= 0) {
+        Log::logCritical("Audio buffer is null.", false);
+        return false;
+    }
+    bool success = false;
+    if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
+        success = loadAsWAV();
+#if !defined(NO_MP3)
+    } else if (this->buffer_size >= 3 && memcmp(this->buffer, "ID3", 3) == 0) {
+        success = loadAsMP3();
+    } else if (this->buffer_size >= 2 && this->buffer[0] == 0xff && (this->buffer[1] == 0xfb || this->buffer[1] == 0xf3 || this->buffer[1] == 0xf2)) {
+        success = loadAsMP3();
+#endif
+#if !defined(NO_VORBIS)
+    } else if (this->buffer_size >= 4 && memcmp(this->buffer, "OggS", 4) == 0) {
+        success = loadAsVorbis();
+#endif
+    } else {
+        Log::logError("Unknown audio format.");
+        return false;
+    }
+
+    return success;
+#endif
+    return false;
+}
+
+bool SoundStream::loadFromFile(const std::string &path) {
+#ifdef ENABLE_AUDIO
+    this->type = SoundStreamUnknown;
+
+    FILE *f = fopen(path.c_str(), "rb");
+    if (!f) {
+        Log::logError("Could not open file for header check: " + path);
+        return false;
+    }
+    unsigned char header[4] = {0};
+    fread(header, 1, 4, f);
+    fclose(f);
+
+    bool success = false;
+    if (memcmp(header, "RIFF", 4) == 0) {
+        if (drwav_init_file(&this->wav, path.c_str(), nullptr)) {
+            this->type = SoundStreamWAV;
+            this->rate = this->wav.sampleRate;
+            this->channels = this->wav.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream WAV file.");
+        }
+#if !defined(NO_MP3)
+    } else if ((memcmp(header, "ID3", 3) == 0) || (header[0] == 0xff && (header[1] == 0xfb || header[1] == 0xf3 || header[1] == 0xf2))) {
+        if (drmp3_init_file(&this->mp3, path.c_str(), nullptr)) {
+            this->type = SoundStreamMP3;
+            this->rate = this->mp3.sampleRate;
+            this->channels = this->mp3.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream MP3 file.");
+        }
+#endif
+#if !defined(NO_VORBIS)
+    } else if (memcmp(header, "OggS", 4) == 0) {
+        int err;
+        if ((this->vorbis = stb_vorbis_open_filename(path.c_str(), &err, nullptr)) != nullptr) {
+            stb_vorbis_info info = stb_vorbis_get_info(this->vorbis);
+            this->type = SoundStreamVorbis;
+            this->rate = info.sample_rate;
+            this->channels = info.channels;
+            success = true;
+        } else {
+            Log::logError("Failed to stream OGG file.");
+        }
+#endif
+    } else {
+        Log::logError("Unknown audio format.");
+    }
+
+    return success;
+#endif
+    return false;
+}
+
+nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
+#ifdef ENABLE_AUDIO
+    this->buffer = nullptr;
+    this->buffer_size = 0;
+
+    bool isSystemAsset = (path.rfind("gfx/", 0) == 0);
+    std::string prefix = "";
+    bool useProjectBundle = false;
+
+    if (isSystemAsset) {
+        prefix = OS::getRomFSLocation();
+        useProjectBundle = false;
+    } else {
+        if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
+        else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
+
+        if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) {
+            prefix += "project/";
+            useProjectBundle = true;
+        }
+    }
+
+#if defined(__XBOX__)
+    std::string fullAudioPath = OS::normalizePath(prefix + path);
+#else
+    std::string fullAudioPath = prefix + path;
+#endif
+
+#ifdef USE_BUNDLE
+    bool loadFromDisk = !isSystemAsset && (cached || Unzip::UnpackedInSD || on_disk);
+    if (loadFromDisk) {
+#endif
+
+        this->name = path;
+        commonInit();
+
+        // Stream directly from the disk file instead of loading to heap
+        if (!loadFromFile(fullAudioPath)) {
+            return nonstd::make_unexpected("Failed to stream sound from disk: " + fullAudioPath);
+        }
+        prepareResampler();
+
+        Mixer::registerStream(path, this);
+        return {};
+
+#ifdef USE_BUNDLE
+    } else {
+        auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
+        auto entry = archive.find(prefix + path);
+
+        this->name = path;
+        commonInit();
+
+        if (!entry) {
+            // Fallback to disk if not in bundle archive (Streams from file)
+            if (loadFromFile(fullAudioPath)) {
+                prepareResampler();
+                Mixer::registerStream(path, this);
+                return {};
+            }
+            return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+        } else {
+            // Bundle assets must remain loaded via memory buffer
+            this->buffer_size = entry->size();
+            this->buffer = (unsigned char *)malloc(this->buffer_size);
+            if (bundle_read_all(&entry->raw(), this->buffer, this->buffer_size) < 0) {
+                free(this->buffer);
+                this->buffer = nullptr;
+                return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+            }
+
+            if (!loadFromBuffer()) {
+                return nonstd::make_unexpected("Failed to load bundled sound.");
+            }
+            prepareResampler();
+
+            Mixer::registerStream(path, this);
+            return {};
+        }
+    }
+#endif
+#endif
+    return nonstd::make_unexpected("Audio not enabled.");
+}
+
+SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+    this->buffer = nullptr;
+    auto potentialError = init(path, cached, on_disk);
+    if (!potentialError.has_value()) error = potentialError.error();
+}
+
+SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
+    this->buffer = nullptr;
+    this->name = name;
+    this->channels = channels;
+    this->rate = rate;
+    this->type = SoundStreamStream;
+    this->callback = callback;
+
+    commonInit();
+    prepareResampler();
+
+    Mixer::registerStream(name, this);
+}
+
+nonstd::expected<void, std::string> SoundStream::init(ZipArchive *zip, std::string path) {
+#ifdef ENABLE_AUDIO
+    this->buffer = nullptr;
+    this->buffer_size = 0;
+
+    if (zip != nullptr) {
+        this->buffer = (unsigned char *)zip->extractToHeap(path, &this->buffer_size);
+        if (!this->buffer) {
+            return nonstd::make_unexpected("Audio not found in zip");
+        }
+    } else {
+        this->buffer = (unsigned char *)Unzip::getFileInSB3(path, &this->buffer_size);
+    }
+
+    this->name = path;
+    commonInit();
+
+    if (!loadFromBuffer()) {
+        return nonstd::make_unexpected("Failed to load sound from zip.");
+    }
+    prepareResampler();
+
+    Mixer::registerStream(path, this);
+    return {};
+#endif
+    return nonstd::make_unexpected("Audio not enabled.");
+}
+
+SoundStream::SoundStream(ZipArchive *zip, std::string path) {
+    this->buffer = nullptr;
+    auto potentialError = init(zip, path);
+    if (!potentialError.has_value()) error = potentialError.error();
+}
+
+SoundStream::~SoundStream() {
+#ifdef ENABLE_AUDIO
+    // requestSound pins streams while decoding outside the global mixer lock. Remove this
+    // stream from the registry first, then wait without holding the lock so the audio thread
+    // can finish and drop its pin.
+    Mixer::mutex.lock();
+    for (auto it = Mixer::streams.begin(); it != Mixer::streams.end();) {
+        if (it->second == this) {
+            it = Mixer::streams.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    Mixer::mutex.unlock();
+
+#ifndef __NDS__
+    while (activeMixers.load(std::memory_order_acquire) != 0)
+#else
+    while (activeMixers != 0)
+#endif
+        std::this_thread::yield();
+
+    if (this->type == SoundStreamWAV) {
+        drwav_uninit(&this->wav);
+#if !defined(NO_MP3)
+    } else if (this->type == SoundStreamMP3) {
+        drmp3_uninit(&this->mp3);
+#endif
+#if !defined(NO_VORBIS)
+    } else if (this->type == SoundStreamVorbis) {
+        stb_vorbis_close(this->vorbis);
+#endif
+    }
+
+    if (this->type != SoundStreamStream && this->buffer != nullptr) {
+        free(this->buffer);
+        this->buffer = nullptr;
+    }
+#endif
+}
+
+int SoundStream::read(float *output, int frames) {
+#ifdef ENABLE_AUDIO
+    if (this->type == SoundStreamStream) {
+        return this->callback(this, output, frames);
+    } else if (this->type == SoundStreamWAV) {
+        return drwav_read_pcm_frames_f32(&this->wav, frames, output);
+#if !defined(NO_MP3)
+    } else if (this->type == SoundStreamMP3) {
+        return drmp3_read_pcm_frames_f32(&this->mp3, frames, output);
+#endif
+#if !defined(NO_VORBIS)
+    } else if (this->type == SoundStreamVorbis) {
+        return stb_vorbis_get_samples_float_interleaved(this->vorbis, this->channels, output, frames * this->channels);
+#endif
+    }
+#endif
+    return 0;
+}
+
+std::unordered_map<std::string, SoundStream *> Mixer::streams;
+std::unordered_map<std::string, SoundConfig> Mixer::configs;
+SE_Mutex Mixer::mutex;
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+tsf *Mixer::hTsf = nullptr;
+#endif
+void *Mixer::sf2_buffer = nullptr;
+int Mixer::sf2_seq = 0;
+std::unordered_map<int, float> Mixer::notes;
+bool Mixer::musicInitialized = false;
+std::atomic<bool> Mixer::musicPaused{false};
+
+namespace {
+constexpr size_t MAX_MIXER_STREAMS = 2048;
+constexpr int MIX_CHUNK_FRAMES = 2048;
+struct MixerStreamSnapshot {
+    SoundStream *stream = nullptr;
+    int channels = 0;
+    int rate = 0;
+    float volume = 1.0f;
+    float pan = 0.0f;
+    float pitch = 1.0f;
+    bool initiallyPaused = false;
+};
+// Audio callbacks are single-threaded on the NXAudio backend. Fixed storage eliminates
+// per-callback vectors/heap traffic and is not resized by main-thread stream registration.
+std::array<MixerStreamSnapshot, MAX_MIXER_STREAMS> mixerSnapshot{};
+std::array<float, MIX_CHUNK_FRAMES * 2> mixerBuffer{};
+SoundStream *retiredStreams = nullptr; // intrusive queue, protected by Mixer::mutex
+#if defined(ENABLE_AUDIO) && !defined(__NDS__)
+std::mutex mixerCallbackMutex; // serializes use of the shared, allocation-free callback workspace
+#endif
+} // namespace
+
+void Mixer::registerStream(const std::string &name, SoundStream *stream) {
+#ifdef ENABLE_AUDIO
+    if (!stream) return;
+    Mixer::mutex.lock();
+    auto existing = Mixer::streams.find(name);
+    if (existing != Mixer::streams.end() && existing->second != stream) {
+        SoundStream *replaced = existing->second;
+#ifndef __NDS__
+        replaced->paused.store(true, std::memory_order_relaxed);
+#else
+        replaced->paused = true;
+#endif
+        Mixer::streams.erase(existing);
+        // The audio callback may still hold a lifetime pin. Retiring is safe now; the
+        // main-thread reaper releases its decoder/buffers after the callback drops the pin.
+        replaced->nextRetired = retiredStreams;
+        retiredStreams = replaced;
+    }
+    Mixer::streams[name] = stream;
+    Mixer::mutex.unlock();
+#else
+    (void)name;
+    (void)stream;
+#endif
+}
+
+void Mixer::initMusic() {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    if (Mixer::musicInitialized) return;
+
+    std::string prefix = OS::getRomFSLocation();
+    std::string path = prefix + "gfx/ingame/scratch.sf2";
+    size_t size;
+
+#ifdef USE_BUNDLE
+    const auto assets = Bundle::assets();
+    if (auto entry = assets.find(path)) {
+        size = entry->size();
+        Mixer::sf2_buffer = malloc(size);
+        bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);
+    }
+#else
+#if defined(__XBOX__)
+    std::string fullSF2Path = OS::normalizePath(path);
+    FILE *f = fopen(fullSF2Path.c_str(), "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        Mixer::sf2_buffer = malloc(size);
+        fread(Mixer::sf2_buffer, 1, size, f);
+        fclose(f);
+    }
+#else
+    std::ifstream ifs(path, std::ios::binary);
+
+    ifs.seekg(0, std::ios::end);
+    size = ifs.tellg();
+    ifs.seekg(0);
+
+    if (ifs.good()) {
+        Mixer::sf2_buffer = malloc(size);
+        ifs.read((char *)Mixer::sf2_buffer, size);
+        ifs.close();
+    }
+#endif
+#endif
+
+    if (Mixer::sf2_buffer) {
+        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
+    }
+
+    if (Mixer::hTsf) {
+        tsf_set_output(Mixer::hTsf, TSF_STEREO_INTERLEAVED, Mixer::rate, 0);
+    }
+
+    Mixer::musicInitialized = true;
+#endif
+}
+
+void Mixer::requestSound(short *output, int frames) {
+#ifdef ENABLE_AUDIO
+    if (!output || frames <= 0) return;
+
+// The workspace and each stream resampler are shared across callbacks. Serialize only
+// audio callbacks, not runtime controls, so they cannot race without holding Mixer::mutex
+// during potentially slow decoding/resampling.
+#ifndef __NDS__
+    std::lock_guard<std::mutex> callbackLock(mixerCallbackMutex);
+#endif
+
+    size_t streamCount = 0;
+    Mixer::mutex.lock();
+    for (const auto &entry : streams) {
+        if (streamCount >= mixerSnapshot.size()) break;
+        SoundStream *s = entry.second;
+#ifndef __NDS__
+        s->activeMixers.fetch_add(1, std::memory_order_acq_rel);
+#else
+        s->activeMixers += 1;
+#endif
+        MixerStreamSnapshot &snapshot = mixerSnapshot[streamCount++];
+        snapshot.stream = s;
+        snapshot.channels = s->channels;
+        snapshot.rate = s->rate;
+        snapshot.volume = s->config.volume / 100.0f;
+        snapshot.pan = std::clamp(s->config.pan / 100.0f, -1.0f, 1.0f);
+        // Scratch's pitch effect ranges from -360 to +360 semitones, i.e. 1/8x to 8x.
+        // Clamp here as well so malformed settings cannot trigger callback-time allocation.
+        snapshot.pitch = std::clamp(s->config.pitch, 0.125f, 8.0f);
+#ifndef __NDS__
+        snapshot.initiallyPaused = s->paused.load(std::memory_order_relaxed) || s->userPaused.load(std::memory_order_relaxed);
+#else
+        snapshot.initiallyPaused = s->paused || s->userPaused;
+#endif
+    }
+    Mixer::mutex.unlock();
+
+    // Keep the lock around the synthesizer, whose note/instrument state is shared with
+    // note()/drum(), but do decoding/resampling with only the per-stream lifetime pin held.
+    // A slow decoder can therefore no longer block the runtime when it adjusts sound state.
+    for (int offset = 0; offset < frames; offset += MIX_CHUNK_FRAMES) {
+        const int chunkFrames = std::min(MIX_CHUNK_FRAMES, frames - offset);
+        std::fill_n(mixerBuffer.data(), static_cast<size_t>(chunkFrames) * 2, 0.0f);
+
+#ifndef NO_MUSIC
+        Mixer::mutex.lock();
+        if (Mixer::hTsf && !Mixer::musicPaused.load(std::memory_order_relaxed)) {
+            tsf_render_float(Mixer::hTsf, mixerBuffer.data(), chunkFrames, 0);
+            for (auto it = notes.begin(); it != notes.end();) {
+                it->second -= static_cast<float>(chunkFrames) / Mixer::rate;
+                if (it->second <= 0) {
+                    tsf_channel_note_off_all(Mixer::hTsf, it->first);
+                    it = notes.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        Mixer::mutex.unlock();
+#endif
+
+        for (size_t i = 0; i < streamCount; ++i) {
+            const MixerStreamSnapshot &snapshot = mixerSnapshot[i];
+            SoundStream *s = snapshot.stream;
+#ifndef __NDS__
+            if (!s || snapshot.initiallyPaused || s->paused.load(std::memory_order_relaxed)) continue;
+#else
+            if (!s || snapshot.initiallyPaused || s->paused) continue;
+#endif
+
+            const float gainLeft = snapshot.volume * (snapshot.pan <= 0 ? 1.0f : 1.0f - snapshot.pan);
+            const float gainRight = snapshot.volume * (snapshot.pan >= 0 ? 1.0f : 1.0f + snapshot.pan);
+            const double step = static_cast<double>(snapshot.rate) * snapshot.pitch / Mixer::rate;
+            const int mixed = s->resampler.mixStereo(mixerBuffer.data(), chunkFrames, snapshot.channels, step,
+                                                     gainLeft, gainRight,
+                                                     [s](float *data, int count) { return s->read(data, count); });
+            if (mixed == 0)
+#ifndef __NDS__
+                s->paused.store(true, std::memory_order_relaxed);
+#else
+                s->paused = true;
+#endif
+        }
+
+        short *chunkOutput = output + static_cast<size_t>(offset) * 2;
+        for (int i = 0; i < chunkFrames * 2; ++i) {
+            const float x = std::clamp(mixerBuffer[i], -1.0f, 1.0f);
+            chunkOutput[i] = static_cast<short>(x * 32767.0f);
+        }
+    }
+
+    Mixer::mutex.lock();
+    // Removing/freeing decoders in the audio callback used to contend with the main heap.
+    // Instead, enqueue finished auto-clean streams and let a main-thread mixer API reap them.
+    for (auto it = streams.begin(); it != streams.end();) {
+        SoundStream *s = it->second;
+#ifndef __NDS__
+        if (s->paused.load(std::memory_order_relaxed) && s->auto_clean.load(std::memory_order_relaxed)) {
+#else
+        if (s->paused && s->auto_clean) {
+#endif
+            it = streams.erase(it);
+            s->nextRetired = retiredStreams;
+            retiredStreams = s;
+        } else {
+            ++it;
+        }
+    }
+    for (size_t i = 0; i < streamCount; ++i) {
+        if (mixerSnapshot[i].stream) {
+#ifndef __NDS__
+            mixerSnapshot[i].stream->activeMixers.fetch_sub(1, std::memory_order_acq_rel);
+#else
+            mixerSnapshot[i].stream->activeMixers -= 1;
+#endif
+            mixerSnapshot[i].stream = nullptr;
+        }
+    }
+    Mixer::mutex.unlock();
+#endif
+}
+
+void Mixer::drainRetiredStreams() {
+#ifdef ENABLE_AUDIO
+    Mixer::mutex.lock();
+    SoundStream *pending = retiredStreams;
+    retiredStreams = nullptr;
+    Mixer::mutex.unlock();
+
+    while (pending) {
+        SoundStream *next = pending->nextRetired;
+        pending->nextRetired = nullptr;
+#ifndef __NDS__
+        if (pending->activeMixers.load(std::memory_order_acquire) != 0) {
+#else
+        if (pending->activeMixers != 0) {
+#endif
+            // Never make the runtime thread wait for a slow decoder callback. Since the
+            // stream has already left the registry, it cannot acquire any new pins.
+            Mixer::mutex.lock();
+            pending->nextRetired = retiredStreams;
+            retiredStreams = pending;
+            Mixer::mutex.unlock();
+        } else {
+            delete pending;
+        }
+        pending = next;
+    }
+#endif
+}
+
+void Mixer::cleanupAudio() {
+#ifdef ENABLE_AUDIO
+    std::vector<SoundStream *> pendingStreams;
+    SoundStream *pendingRetired = nullptr;
+    Mixer::mutex.lock();
+    pendingStreams.reserve(Mixer::streams.size());
+    for (auto &e : Mixer::streams) {
+#ifndef __NDS__
+        e.second->paused.store(true, std::memory_order_relaxed);
+#else
+        e.second->paused = true;
+#endif
+        pendingStreams.push_back(e.second);
+    }
+    Mixer::streams.clear();
+    Mixer::notes.clear();
+#ifndef NO_MUSIC
+    if (Mixer::hTsf) {
+        tsf_close(Mixer::hTsf);
+        Mixer::hTsf = nullptr;
+    }
+    if (Mixer::sf2_buffer) {
+        free(Mixer::sf2_buffer);
+        Mixer::sf2_buffer = nullptr;
+    }
+    Mixer::musicInitialized = false;
+#endif
+    pendingRetired = retiredStreams;
+    retiredStreams = nullptr;
+    Mixer::mutex.unlock();
+
+    // Destructors can wait for outstanding audio pins, so never hold Mixer::mutex here.
+    for (SoundStream *s : pendingStreams)
+        delete s;
+    while (pendingRetired) {
+        SoundStream *next = pendingRetired->nextRetired;
+        pendingRetired->nextRetired = nullptr;
+        delete pendingRetired;
+        pendingRetired = next;
+    }
+#endif
+}
+
+#ifdef ENABLE_AUDIO
+
+#define FIND(blk)                 \
+    Mixer::drainRetiredStreams(); \
+    Mixer::mutex.lock();          \
+                                  \
+    blk;                          \
+                                  \
+    auto e = streams.find(name);  \
+    if (e != streams.end()) {
+
+#define END \
+    }       \
+            \
+    Mixer::mutex.unlock();
+
+#define PRESERVE(x)                                        \
+    {                                                      \
+        SoundConfig config;                                \
+        auto e = Mixer::configs.find(name);                \
+                                                           \
+        if (e != Mixer::configs.end()) config = e->second; \
+                                                           \
+        config.x = x;                                      \
+                                                           \
+        Mixer::configs[name] = config;                     \
+    }
+
+#endif
+void Mixer::stopSound(std::string name) {
+#ifdef ENABLE_AUDIO
+    FIND({});
+    e->second->paused = true;
+    END;
+#endif
+}
+
+void Mixer::setAllStreamsPaused(bool paused) {
+#ifdef ENABLE_AUDIO
+    Mixer::musicPaused.store(paused, std::memory_order_relaxed);
+
+    Mixer::mutex.lock();
+    for (auto &entry : Mixer::streams) {
+        if (!entry.second) continue;
+#ifndef __NDS__
+        entry.second->userPaused.store(paused, std::memory_order_relaxed);
+#else
+        entry.second->userPaused = paused;
+#endif
+    }
+    Mixer::mutex.unlock();
+#endif
+}
+
+bool Mixer::isSoundPlaying(std::string name) {
+#ifdef ENABLE_AUDIO
+    bool b = false;
+    FIND({});
+    b = !e->second->paused;
+    END;
+    return b;
+#endif
+    return false;
+}
+
+void Mixer::setPitch(std::string name, float pitch) {
+#ifdef ENABLE_AUDIO
+    pitch = pow(2, pitch / 120.0);
+    FIND(PRESERVE(pitch));
+    e->second->config.pitch = pitch;
+    END;
+#endif
+}
+
+void Mixer::setPan(std::string name, float pan) {
+#ifdef ENABLE_AUDIO
+    FIND(PRESERVE(pan));
+    e->second->config.pan = pan;
+    END;
+#endif
+}
+
+void Mixer::setSoundVolume(std::string name, float volume) {
+#ifdef ENABLE_AUDIO
+    FIND(PRESERVE(volume));
+    e->second->config.volume = volume;
+    END;
+#endif
+}
+
+float Mixer::getSoundVolume(std::string name) {
+#ifdef ENABLE_AUDIO
+    float v;
+    FIND({});
+    v = e->second->config.volume;
+    END;
+    return v;
+#endif
+    return 0.0f;
+}
+
+void Mixer::setAutoClean(std::string name, bool toggle) {
+#ifdef ENABLE_AUDIO
+    FIND({});
+    e->second->auto_clean = toggle;
+    END;
+#endif
+}
+
+float Mixer::beatsToSec(float v) {
+    return v / (Scratch::tempo / 60.0);
+}
+
+static constexpr int instrument_lut[] = {
+    0,   /* Piano -> Acoustic Grand */
+    4,   /* Electric Piano -> Electric Piano 1 */
+    19,  /* Organ -> Church Organ */
+    24,  /* Guitar -> Steel String Guitar */
+    27,  /* Electric Guitar -> Electric Clean Guitar */
+    32,  /* Bass -> Acoustic Bass */
+    45,  /* Pizzicato -> Pizzicato Strings */
+    42,  /* Cello -> Cello */
+    57,  /* Trombone -> Trombone */
+    71,  /* Clarinet -> Clarinet */
+    64,  /* Saxophone -> Soprano Sax */
+    73,  /* Flute -> Flute */
+    75,  /* Wooden Flute -> Pan Flute */
+    70,  /* Bassoon -> Bassoon */
+    52,  /* Choir -> Choir Aahs */
+    11,  /* Vibraphone -> Vibraphone */
+    10,  /* Music Box -> Music Box */
+    114, /* Steel Drum -> Steel Drums */
+    12,  /* Marimba -> Marimba */
+    80,  /* Synth Lead -> Lead 1 (square) */
+    89   /* Synth Pad -> Pad 2 (warm) */
+};
+
+int Mixer::note(int instrument, int note, float volume, float beats) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+    instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0])));
+    if (instrument < 0 || instrument_lut[instrument] == -1) return -1;
+
+    Mixer::drainRetiredStreams();
+    Mixer::mutex.lock();
+    if (!Mixer::hTsf) {
+        Mixer::mutex.unlock();
+        return -1;
+    }
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument_lut[instrument]);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
+    Mixer::mutex.unlock();
+    return n;
+#endif
+    return -1;
+}
+
+static constexpr int drum_lut[] = {
+    38, /* Snare -> Acoustic Snare */
+    36, /* Bass Drum -> Bass Drum 1 */
+    37, /* Side Stick -> Side Stick */
+    49, /* Crash Cymbal -> Crash Cymbal 1 */
+    46, /* Open Hi Hat -> Open Hi-Hat */
+    42, /* Closed Hi Hat -> Closed Hi Hat */
+    54, /* Tambourine -> Tambourine */
+    39, /* Hand Clap -> Hand Clap */
+    75, /* Claves -> Claves */
+    76, /* Wood Block -> Hi Wood Block */
+    56, /* Cowbell -> Cowbell */
+    81, /* Triangle -> Open Triangle */
+    60, /* Bongo -> Hi Bongo */
+    63, /* Conga -> Open Hi Conga */
+    69, /* Cabasa -> Cabasa */
+    74, /* Guiro -> Long Guiro */
+    58, /* Vibraslap -> Vibraslap */
+    79  /* Cuica -> Open Cuica */
+};
+
+int Mixer::drum(int drum, float volume, float beats) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+    drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0])));
+    if (drum < 0 || drum_lut[drum] == -1) return -1;
+
+    Mixer::drainRetiredStreams();
+    Mixer::mutex.lock();
+    if (!Mixer::hTsf) {
+        Mixer::mutex.unlock();
+        return -1;
+    }
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, drum_lut[drum], 1.0);
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
+    Mixer::mutex.unlock();
+    return n;
+#endif
+    return -1;
+}
+
+bool Mixer::isInstrumentPlaying(int channel) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    bool v = false;
+    Mixer::mutex.lock();
+    if (Mixer::hTsf && Mixer::notes.find(channel) != Mixer::notes.end() && Mixer::notes[channel]) v = true;
+    Mixer::mutex.unlock();
+    return v;
+#endif
+    return 0;
+}
