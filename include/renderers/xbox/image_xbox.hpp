@@ -1,22 +1,19 @@
 #pragma once
 #include <se_export.hpp>
-
 #include "nonstd/expected.hpp"
-#include <SDL3/SDL.h>
 #include <image.hpp>
+#include "renderer_xbox.hpp"
 #include <string>
 #include <vector>
 
+#include <cmath>
+#include <algorithm>
+
 class SE_EXPORT Image_Xbox : public Image {
   public:
-    /**
-     * A slice of a large image stored as its own (small) texture.
-     * Used on Xbox, where one large contiguous texture allocation often fails
-     * and swizzled textures get padded up to the next power of two.
-     */
     struct Tile {
-        SDL_Texture *texture = nullptr;
-        int x = 0, y = 0, w = 0, h = 0; // source rect in image pixels
+        NV2ATexture *texture = nullptr;
+        int x = 0, y = 0, w = 0, h = 0;
     };
 
     struct EffectCacheStats {
@@ -25,26 +22,54 @@ class SE_EXPORT Image_Xbox : public Image {
     };
     static EffectCacheStats getEffectCacheStats();
 
+
   private:
     std::vector<Tile> tiles;
-    bool colorDataUnavailable = false;
-    bool effectWarningLogged = false;
 
     nonstd::expected<void, std::string> setInitialTexture();
     nonstd::expected<void, std::string> buildTiles();
     void destroyTiles();
-    void renderTiled(ImageRenderParams &params, bool effects = false);
+    void renderTiled(ImageRenderParams &params, bool gpuHue = false);
+    void renderMosaic(ImageRenderParams &params, NV2ATexture *activeTex);
+    void renderPixelate(ImageRenderParams &params, NV2ATexture *activeTex);
+    void renderDeformedMesh(ImageRenderParams &params, NV2ATexture *activeTex,
+                            bool hasWhirl, bool hasFisheye, bool hasMosaic);
+
+	struct EffectHSVA { uint16_t h; uint8_t s, v, a; };
+
+    // Looks effects (color/fisheye/whirl/pixelate/mosaic) are evaluated on the CPU into cached textures.
+    struct EffectCacheSlot {
+        NV2ATexture *texture = nullptr;
+        float color = 0.0f;
+        float fisheye = 0.0f;
+        float whirl = 0.0f;
+        float pixelate = 0.0f;
+        float mosaic = 0.0f;
+        uint32_t lastUsedFrame = 0;
+		int effW = 0, effH = 0;
+
+        bool matches(const ImageRenderParams &p) const {
+            return std::abs(color - p.colorEffect) < 0.001f &&
+                   std::abs(pixelate - p.pixelateEffect) < 0.001f;
+        }
+    };
+
+	std::vector<EffectHSVA> hsvCache;
+	int hsvW = 0, hsvH = 0;
+
+    EffectCacheSlot effectSlots[2];
+    std::vector<uint8_t> effectSource;
+    const uint8_t *getEffectSource(int &pitch);
+    NV2ATexture *acquireEffectTexture(const ImageRenderParams &params, bool residentOnly = false);
+    void releaseEffects();
 
   public:
-    SDL_Texture *texture = nullptr;
-    SDL_Renderer *sdlRenderer = nullptr;
+    NV2ATexture *texture = nullptr;
+    Renderer_Xbox *nv2aRenderer = nullptr;
 
     Image_Xbox(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-
     Image_Xbox(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
-
     ~Image_Xbox() override;
-    bool ensureColorData() override;
 
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
@@ -59,4 +84,12 @@ class SE_EXPORT Image_Xbox : public Image {
     bool loadFromCache(const std::string &cachePath);
 
     nonstd::expected<void, std::string> refreshTexture() override;
+
+    // Keep these members in every translation unit: SE_NV2A_PROFILE is
+    // source-specific, while image.cpp also allocates Image_Xbox objects.
+    // Guard diagnostic code, not object layout, to avoid undersized allocations.
+	bool fxTraceInitialized = false;
+	bool fxTraceWasActive = false;
+	const NV2ATexture *fxTraceLastActiveTex = nullptr;
+	NV2AScaleMode fxTraceLastScaleMode = NV2AScaleMode::PixelArt;
 };

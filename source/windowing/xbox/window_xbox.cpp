@@ -1,6 +1,6 @@
-#include "window_nv2a.hpp"
-#include "input_nv2a.hpp"
-#include "renderer_nv2a.hpp"
+#include "window_xbox.hpp"
+#include "input_xbox.hpp"
+#include "renderer_xbox.hpp"
 #include <input.hpp>
 #include <log.hpp>
 #include <os.hpp>
@@ -12,10 +12,10 @@
 #include <windows.h>
 #endif
 
-WindowNV2A::WindowNV2A(int width, int height, const std::string &title) {
+WindowXbox::WindowXbox(int width, int height, const std::string &title) {
     (void)title;
-    Renderer_NV2A::initVideo();
-    Renderer_NV2A::VideoDisplaySettings vds = Renderer_NV2A::getVideoDisplaySettings();
+    Renderer_Xbox::initVideo();
+    Renderer_Xbox::VideoDisplaySettings vds = Renderer_Xbox::getVideoDisplaySettings();
 
     this->width = vds.width > 0 ? vds.width : width;
     this->height = vds.height > 0 ? vds.height : height;
@@ -35,32 +35,32 @@ WindowNV2A::WindowNV2A(int width, int height, const std::string &title) {
     this->height = vm.height;
 #endif
 
-    Input::setGlobalInputDevice(new InputDevice_NV2A);
+    Input::setGlobalInputDevice(new InputDevice_Xbox);
 
-    Log::log("WindowNV2A initialized: " + std::to_string(this->width) + "x" + std::to_string(this->height));
+    Log::log("WindowXbox initialized: " + std::to_string(this->width) + "x" + std::to_string(this->height));
 }
 
-void WindowNV2A::cleanup() {
+void WindowXbox::cleanup() {
     Input::destroyGlobalInputDevice();
 }
 
-bool WindowNV2A::shouldClose() {
+bool WindowXbox::shouldClose() {
     return OS::toExit || shouldCloseFlag;
 }
 
-void WindowNV2A::pollEvents() {
+void WindowXbox::pollEvents() {
 #ifdef __XBOX__
     usbh_pooling_hubs();
 #endif
 }
 
-void WindowNV2A::swapBuffers() {
+void WindowXbox::swapBuffers() {
     if (Render::getGlobalRenderer()) {
         Render::endFrame();
     }
 }
 
-void WindowNV2A::resize(int width, int height) {
+void WindowXbox::resize(int width, int height) {
     this->width = width;
     this->height = height;
     this->pixelDensity = 1.0f;
@@ -68,18 +68,18 @@ void WindowNV2A::resize(int width, int height) {
     Render::resizeSVGs();
 }
 
-int WindowNV2A::getWidth() const {
+int WindowXbox::getWidth() const {
     return width;
 }
 
-int WindowNV2A::getHeight() const {
+int WindowXbox::getHeight() const {
     return height;
 }
 
-float WindowNV2A::getPixelDensity() const {
+float WindowXbox::getPixelDensity() const {
     return pixelDensity;
 }
 
-void *WindowNV2A::getHandle() {
+void *WindowXbox::getHandle() {
     return nullptr;
 }
