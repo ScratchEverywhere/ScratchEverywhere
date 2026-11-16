@@ -62,6 +62,7 @@ int Math::color(int r, int g, int b, int a) {
                (b << 8) |
                a;
     case Renderers::Headless:
+    case Renderers::Flatland:
         break;
     default: {
         Log::logCritical("Looks like someone forgot to add their new renderer to Math::color... :grin:", true);

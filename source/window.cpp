@@ -34,6 +34,9 @@
 #ifdef WINDOWING_WIN32
 #include <window_win32.hpp>
 #endif
+#ifdef WINDOWING_FLATLAND
+#include <window_flatland.hpp>
+#endif
 
 WindowingBackends WindowSE::currentWindowingBackend = WindowingBackends::Headless;
 int WindowSE::msaaSamples = 0;
@@ -78,6 +81,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
             break;
         case Renderers::Headless:
             b = WindowingBackends::Headless;
+            break;
+        case Renderers::Flatland:
+            b = WindowingBackends::Flatland;
             break;
         case Renderers::Citro2D:
             b = WindowingBackends::N3DS;
@@ -217,6 +223,14 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
 #endif
         break;
     }
+    case WindowingBackends::Flatland: {
+#ifdef WINDOWING_FLATLAND
+        WindowSE::currentWindowingBackend = WindowingBackends::Flatland;
+        window = new WindowFlatland(width, height, title);
+        break;
+#endif
+        break;
+    }
     default: {
         Log::logCritical("add renderer to new window creation..", true);
         break;
@@ -267,6 +281,9 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
 #endif
 #ifdef WINDOWING_HEADLESS
     add(WindowingBackends::Headless);
+#endif
+#ifdef WINDOWING_FLATLAND
+    add(WindowingBackends::Flatland);
 #endif
 
     return windowingBackends;
