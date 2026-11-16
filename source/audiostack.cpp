@@ -764,7 +764,7 @@ void Mixer::setAllStreamsPaused(bool paused) {
     Mixer::mutex.lock();
     for (auto &entry : Mixer::streams) {
         if (!entry.second) continue;
-#ifndef __NDS__
+#if !defined(__NDS__) && !defined(__VFLASH__)
         entry.second->userPaused.store(paused, std::memory_order_relaxed);
 #else
         entry.second->userPaused = paused;
