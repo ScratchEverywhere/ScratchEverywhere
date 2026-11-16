@@ -92,6 +92,8 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
     if (touchActive) {
         pos[0] = touchPosition.x;
         pos[1] = touchPosition.y;
+        Input::mousePointer.rawX = pos[0];
+        Input::mousePointer.rawY = pos[1];
 
     } else {
 #endif
@@ -296,6 +298,8 @@ void InputDevice_SDL2::getInput() {
 #ifdef PLATFORM_HAS_MOUSE
 
     std::array<int, 2> rawMouse = getTouchPosition();
+    Input::mousePointer.rawX = rawMouse[0];
+    Input::mousePointer.rawY = rawMouse[1];
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;

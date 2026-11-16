@@ -24,6 +24,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 }
 
 static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    Input::mouseScrollDelta = 0;
     static double accumulated = 0.0;
     accumulated += yoffset;
     const int ticks = static_cast<int>(accumulated);

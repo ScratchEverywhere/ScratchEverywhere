@@ -160,6 +160,7 @@ bool WindowSDL2::shouldClose() {
 }
 
 void WindowSDL2::pollEvents() {
+    Input::mouseScrollDelta = 0;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {

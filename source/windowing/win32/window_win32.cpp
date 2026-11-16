@@ -53,6 +53,7 @@ static void setDarkTheme(HWND hWnd, bool dark) {
 }
 
 static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
+    Input::mouseScrollDelta = 0;
     WindowWin32 *self = (WindowWin32 *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
     if (self == nullptr) return DefWindowProc(hWnd, msg, wp, lp);
 

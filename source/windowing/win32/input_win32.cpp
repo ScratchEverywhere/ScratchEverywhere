@@ -28,6 +28,9 @@ std::array<int, 2> InputDevice_Win32::getTouchPosition() {
     pos[0] = p.x;
     pos[1] = p.y;
 
+    Input::mousePointer.rawX = pos[0];
+    Input::mousePointer.rawY = pos[1];
+
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
     return pos;

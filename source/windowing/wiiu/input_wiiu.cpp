@@ -65,6 +65,8 @@ void readGamePad(PadState &state) {
     if (calibrated.touched) {
         touching = true;
         lastTouch = {static_cast<int>(calibrated.x), static_cast<int>(calibrated.y)};
+        Input::mousePointer.rawX = lastTouch[0];
+        Input::mousePointer.rawY = lastTouch[1];
     }
 }
 

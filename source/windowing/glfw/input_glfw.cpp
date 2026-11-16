@@ -56,6 +56,9 @@ std::array<int, 2> InputDevice_GLFW::getTouchPosition() {
     double x, y;
     glfwGetCursorPos(inputWindow(), &x, &y);
 
+    Input::mousePointer.rawX = x;
+    Input::mousePointer.rawY = y;
+
     std::array<int, 2> pos = {(int)x, (int)y};
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());

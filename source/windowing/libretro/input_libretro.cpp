@@ -42,6 +42,8 @@ void InputDevice_Libretro::getInput() {
     Input::mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
     Input::mousePointer.mouseButton = Input::Mouse::LEFT; // TODO: support multiple mouse buttons
     std::array<int, 2> touchPos = getTouchPosition();
+    Input::mousePointer.rawX = touchPos[0];
+    Input::mousePointer.rawY = touchPos[1];
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], window->getWidth(), window->getHeight());
     Input::mousePointer.x = (int)coords.first;
     Input::mousePointer.y = (int)coords.second;

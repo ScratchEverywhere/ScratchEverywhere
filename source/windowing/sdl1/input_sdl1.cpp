@@ -40,6 +40,8 @@ std::array<int, 2> InputDevice_SDL1::getTouchPosition() {
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos[0] = rawMouseX;
     pos[1] = rawMouseY;
+    Input::mousePointer.rawX = rawMouseX;
+    Input::mousePointer.rawY = rawMouseY;
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
 #elif !defined(PLATFORM_HAS_TOUCH)
