@@ -121,7 +121,9 @@ void Input::applyControls(std::string controlsFilePath) {
 
             // Access the "controls" object specifically
             if (controlsJson.contains("controls")) {
-                for (auto &[key, value] : controlsJson["controls"].items()) {
+                for (auto controls : controlsJson["controls"].items()) {
+                    auto key = controls.key();
+                    auto value = controls.value();
                     if (key.empty() || value.empty()) continue;
                     // A key can be bound to several physical inputs, e.g. both
                     // D-pad Up and left-stick Up for arrow-only Scratch games.
@@ -175,21 +177,21 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         }
 
         switch (static_cast<int>(key)) {
-        case 32:
-            return "space";
-            break;
-        case 37:
-            return "left arrow";
-            break;
-        case 38:
-            return "up arrow";
-            break;
-        case 39:
-            return "right arrow";
-            break;
-        case 40:
-            return "down arrow";
-            break;
+            case 32:
+                return "space";
+                break;
+            case 37:
+                return "left arrow";
+                break;
+            case 38:
+                return "up arrow";
+                break;
+            case 39:
+                return "right arrow";
+                break;
+            case 40:
+                return "down arrow";
+                break;
         };
     }
 
@@ -203,7 +205,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         if (key == "DOWN") return "down arrow";
     }
 
-    if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "back" || key == "enter" || key == "any") {
+    if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "enter" || key == "any" || key == "back") {
         return key;
     }
 

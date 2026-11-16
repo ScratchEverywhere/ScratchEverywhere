@@ -74,8 +74,10 @@ WindowSDL2::WindowSDL2(int width, int height, const std::string &title) {
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     }
 
-#if defined(WEBOS) || defined(__ANDROID__)
+#if defined(WEBOS)
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
+#elif defined(__ANDROID__)
+    Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
