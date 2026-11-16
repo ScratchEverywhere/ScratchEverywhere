@@ -11,7 +11,7 @@
 namespace UI {
 
 constexpr uint16_t NONE = 0xFFFF;
-constexpr uint16_t MAX_ELEMENTS = 1024;
+constexpr uint16_t MAX_ELEMENTS = 256;
 constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
 constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
 
@@ -264,7 +264,7 @@ class Builder {
 
     void layout();
     bool shouldRebuild();
-    void begin(Pool &pool);
+    void begin(Pool *pool);
     void input();
     void cleanup();
 
@@ -302,8 +302,8 @@ class Builder {
 };
 
 namespace Painter {
-void render(const Pool &pool);
-void renderScrollbars(Renderer *renderer, const Pool &pool);
+void render(const Pool *pool);
+void renderScrollbars(Renderer *renderer, const Pool *pool);
 }; // namespace Painter
 
 void loadTheme();

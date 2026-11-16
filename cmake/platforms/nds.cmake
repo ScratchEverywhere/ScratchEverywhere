@@ -21,6 +21,8 @@ set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
 macro(package_platform)
+	target_compile_options(scratch-everywhere PRIVATE -Os -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
+	target_link_options(scratch-everywhere PRIVATE -Wl,--gc-sections)
 	if(SE_BUNDLE)
 		nds_create_rom(scratch-everywhere
 			NAME "${SE_APP_NAME}"

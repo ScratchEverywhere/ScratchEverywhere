@@ -81,9 +81,9 @@ static bool contains(const Rect &r, int x, int y) {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 
-static Rect effectiveClip(const Pool &pool, uint16_t owner, Rect r) {
-    for (; owner != NONE; owner = pool.elements[owner].clipOwner)
-        r = intersect(r, screenRect(pool.elements[owner]));
+static Rect effectiveClip(const Pool *pool, uint16_t owner, Rect r) {
+    for (; owner != NONE; owner = pool->elements[owner].clipOwner)
+        r = intersect(r, screenRect(pool->elements[owner]));
     return r;
 }
 
@@ -287,8 +287,8 @@ bool Builder::shouldRebuild() {
     return dirty;
 }
 
-void Builder::begin(Pool &p) {
-    pool = &p;
+void Builder::begin(Pool *p) {
+    pool = p;
     pool->count = 0;
     pool->textCount = 0;
     pool->imageCount = 0;
@@ -626,7 +626,7 @@ uint16_t Builder::hitTest(int mx, int my, bool focusableOnly) {
         if (focusableOnly && !(e.flags & Flag::Focusable)) continue;
 
         if (!contains(screenRect(e), mx, my)) continue;
-        if (e.clipOwner != NONE && !contains(effectiveClip(*pool, e.clipOwner, windowRect), mx, my)) continue;
+        if (e.clipOwner != NONE && !contains(effectiveClip(pool, e.clipOwner, windowRect), mx, my)) continue;
 
         return i;
     }
@@ -810,14 +810,14 @@ static const ScrollState *findScrollConst(const Pool &pool, uint16_t id) {
     return nullptr;
 }
 
-void Painter::renderScrollbars(Renderer *renderer, const Pool &pool) {
+void Painter::renderScrollbars(Renderer *renderer, const Pool *pool) {
     constexpr int barW = 4, barMargin = 2, minThumb = 16;
 
-    for (uint16_t i = 0; i < pool.count; i++) {
-        const Element &e = pool.elements[i];
+    for (uint16_t i = 0; i < pool->count; i++) {
+        const Element &e = pool->elements[i];
         if (!(e.flags & Flag::ScrollY)) continue;
 
-        const ScrollState *s = findScrollConst(pool, e.id);
+        const ScrollState *s = findScrollConst(*pool, e.id);
         const int viewH = e.rect.h;
         if (!s || viewH <= 0 || s->extentH <= viewH) continue;
 
@@ -836,11 +836,11 @@ void Painter::renderScrollbars(Renderer *renderer, const Pool &pool) {
     }
 }
 
-void Painter::render(const Pool &pool) {
+void Painter::render(const Pool *pool) {
     Renderer *renderer = Render::getGlobalRenderer();
 
-    for (uint16_t i = 0; i < pool.count; i++) {
-        const Element &e = pool.elements[i];
+    for (uint16_t i = 0; i < pool->count; i++) {
+        const Element &e = pool->elements[i];
 
         const Rect sr = screenRect(e);
         const Rect clip = effectiveClip(pool, e.clipOwner, windowRect);
@@ -871,17 +871,17 @@ void Painter::render(const Pool &pool) {
             break;
         }
         case UI::ElementKind::Text: {
-            const auto &txt = pool.texts[e.payloadId];
+            const auto &txt = pool->texts[e.payloadId];
             txt->render(sr.x, sr.y);
             break;
         }
         case UI::ElementKind::Image: {
-            const auto &img = pool.images[e.payloadId];
+            const auto &img = pool->images[e.payloadId];
 
             Image *image = nullptr;
 
-            if (pool.imageData.find(img.imagePath) != pool.imageData.end()) {
-                image = pool.imageData.at(img.imagePath).get();
+            if (pool->imageData.find(img.imagePath) != pool->imageData.end()) {
+                image = pool->imageData.at(img.imagePath).get();
             } else break;
 
             float centerX = (float)sr.x + ((float)sr.w / 2.0f);

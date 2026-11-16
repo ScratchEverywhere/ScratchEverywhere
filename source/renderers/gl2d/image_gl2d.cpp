@@ -24,10 +24,8 @@ nonstd::expected<void, std::string> Image_GL2D::setInitialTexture(bool fromScrat
         (const u16 *)paletteData,
         (const u8 *)textureData);
 
-    if (!fromScratchProject) { // pallete data is needed for collision
-        delete[] paletteData;
-        paletteData = nullptr;
-    }
+    delete[] paletteData;
+    paletteData = nullptr;
 
     delete[] textureData;
     textureData = nullptr;

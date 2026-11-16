@@ -20,7 +20,7 @@ enum class MenuId : uint8_t {
 };
 
 namespace MenuManager {
-extern UI::Pool elements;
+extern std::unique_ptr<UI::Pool> elements;
 extern MenuId currentMenu;
 extern std::unordered_map<MenuId, std::unique_ptr<Menu>> loadedMenus;
 extern UI::Builder builder;

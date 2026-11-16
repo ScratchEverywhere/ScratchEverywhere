@@ -20,7 +20,7 @@ bool MenuManager::canChangeTabs = true;
 MenuId MenuManager::currentMenu = MenuId::None;
 std::unordered_map<MenuId, std::unique_ptr<Menu>> MenuManager::loadedMenus;
 UI::Builder MenuManager::builder = {};
-UI::Pool MenuManager::elements = {};
+std::unique_ptr<UI::Pool> MenuManager::elements;
 
 #ifdef __NDS__
 static const std::string musicPath = "gfx/nds/mm_ds.wav";
@@ -72,6 +72,7 @@ bool MenuManager::initMainMenu() {
     UI::fontPaths[1] = "gfx/menu/RedditSansFudge-Regular";
 #endif
 
+    if (!elements) elements = std::make_unique<UI::Pool>();
     UI::loadTheme();
     Input::applyControls();
     initMenuMusic();
@@ -86,6 +87,8 @@ bool MenuManager::initMainMenu() {
 }
 
 void MenuManager::changeMenu(MenuId id) {
+    if (!elements) elements = std::make_unique<UI::Pool>();
+
     if (loadedMenus.find(id) == loadedMenus.end()) {
         switch (id) {
         case MenuId::MainMenu: {
@@ -129,7 +132,7 @@ void MenuManager::render() {
     Menu *menu = loadedMenus[currentMenu].get();
 
     if (builder.shouldRebuild()) {
-        builder.begin(elements);
+        builder.begin(elements.get());
 
         if (currentMenu == MenuId::Ingame) {
             builder.scale = 1.0f;
@@ -179,7 +182,7 @@ void MenuManager::render() {
 
     builder.keyboardNav = (currentMenu != MenuId::Ingame);
     builder.input();
-    UI::Painter::render(elements);
+    UI::Painter::render(elements.get());
 
     if (projectPendingLoad) {
         loadProject();
@@ -254,4 +257,5 @@ void MenuManager::loadProject() {
 void MenuManager::cleanup() {
     builder.cleanup();
     loadedMenus.clear();
+    elements.reset();
 }

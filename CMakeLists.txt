@@ -398,12 +398,12 @@ else()
     endif()
 endif()
 
-if(NOT SE_SVG)
-    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
-endif()
-
-if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
-    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
+if(NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)(-small)?\\.ttf$")
+elseif(NINTENDO_DS)
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSans.*")
+else()
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)-small\\.ttf$")
 endif()
 
 foreach(file IN LISTS GFXFILES)
@@ -417,8 +417,17 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")) AND (SE_MENU OR NINTENDO_DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")))
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+if(SE_MENU AND (NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox")))
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Bold-small.ttf"
+        "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Bold.ttf"
+        COPYONLY
+    )
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Regular-small.ttf"
+        "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Regular.ttf"
+        COPYONLY
+    )
 endif()
 
 set(PLATFORM_DIRS ${SE_PLATFORM})
