@@ -148,7 +148,7 @@ void ControlsMenu::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (backButton->isPressed({"b"})) {
+    if (backButton->isPressed({"b", "back"})) {
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }

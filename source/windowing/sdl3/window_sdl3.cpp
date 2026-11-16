@@ -65,6 +65,9 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_SDL3);
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#elif defined(__PS4__)
+    SDL_SetHint("SDL_HINT_ANDROID_TRAP_BACK_BUTTON", "1");
+    SDL_SetHint("SDL_HINT_ORIENTATIONS", "LandscapeLeft LandscapeRight");
 #endif
 
 #if defined(__XBOX__) && defined(SE_XBOX_TRACE_RENDERER)
@@ -134,7 +137,7 @@ WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
 
         SDL_GL_SetSwapInterval(1); // VSync
 
-#ifdef RENDERER_OPENGL_CORE
+#if defined(RENDERER_OPENGL_CORE) && !defined(__ANDROID__)
         if (!gladLoaderLoadGL()) {
             error = "Failed to initialize GLAD";
             return;

@@ -21,6 +21,7 @@ class SE_EXPORT SettingsMenu : public Menu {
     ButtonObject *ChangeUsername = nullptr;
     ButtonObject *EnableCustomFolderPath = nullptr;
     ButtonObject *ChangeFolderPath = nullptr;
+    ButtonObject *ImportProjects = nullptr;
     ButtonObject *EnableMenuMusic = nullptr;
     ButtonObject *RendererButton = nullptr;
     ButtonObject *WindowingButton = nullptr;
@@ -36,6 +37,7 @@ class SE_EXPORT SettingsMenu : public Menu {
     bool UseProjectsPath = false;
     std::string projectsPath;
 
+    bool importProjects = true;
     bool menuMusic = true;
 
     std::vector<RendererInfo> validRenderers;

@@ -40,6 +40,11 @@
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #include <sstream>
+#elif defined(__ANDROID__)
+#include <android/asset_manager.h>
+#include <jni.h>
+#include <SDL_system.h>
+extern AAssetManager *g_assetManager;
 #endif
 
 SE_Mutex &unzipStateMutex() {
@@ -129,6 +134,13 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     if (auto entry = project.find(unzippedPath)) {
         file = new std::istringstream(project.load_text(*entry));
     }
+#elif defined(__ANDROID__)
+    AAsset *projAsset = AAssetManager_open(g_assetManager, unzippedPath.c_str(), AASSET_MODE_BUFFER);
+    if (projAsset) {
+        const char *contents = static_cast<const char *>(AAsset_getBuffer(projAsset));
+        file = new std::istringstream(contents);
+        AAsset_close(projAsset);
+    }
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
@@ -147,6 +159,13 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     if (auto entry = project.find(embeddedFilename)) {
         file = new std::istringstream(project.load_text(*entry));
         file->seekg(0, std::ios::end);
+    }
+#elif defined(__ANDROID__)
+    AAsset *embeddedProj = AAssetManager_open(g_assetManager, embeddedFilename.c_str(), AASSET_MODE_BUFFER);
+    if (embeddedProj) {
+        const char *contents = static_cast<const char *>(AAsset_getBuffer(embeddedProj));
+        file = new std::istringstream(contents);
+        AAsset_close(embeddedProj);
     }
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
@@ -482,6 +501,15 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         }
 
         content = project.load_text(*entry);
+#elif defined(__ANDROID__)
+        AAsset *asset = AAssetManager_open(g_assetManager, folderPath.c_str(), AASSET_MODE_BUFFER);
+        if (asset) {
+            Log::logWarning("Project settings file not found: romfs:/" + folderPath);
+            return nlohmann::json();
+        }
+
+        const char *raw = static_cast<const char *>(AAsset_getBuffer(asset));
+        content = std::string(raw);
 #else
         std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
         if (!file.is_open()) {

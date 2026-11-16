@@ -52,7 +52,7 @@ void LanguageMenu::render() {
     Input::getInput();
     control->input();
 
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b", "y", "back"})) {
         MainMenu *mainMenu = new MainMenu();
         MenuManager::changeMenu(mainMenu);
         return;

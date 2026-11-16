@@ -131,6 +131,9 @@ void SettingsMenu::init() {
     if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string()) {
         projectsPath = json["ProjectsPath"].get<std::string>();
     }
+    if (json.contains("ImportProjects") && json["ImportProjects"].is_boolean()) {
+        UseDectalk = json["ImportProjects"].get<bool>();
+    }
     if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
         menuMusic = json["MenuMusic"].get<bool>();
     }
@@ -161,8 +164,6 @@ void SettingsMenu::init() {
 
     // settingsControl->buttonObjects.push_back(Credits);
     settingsControl->buttonObjects.push_back(EnableMenuMusic);
-    settingsControl->buttonObjects.push_back(ChangeFolderPath);
-    settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
     settingsControl->buttonObjects.push_back(ClearCache);
@@ -170,6 +171,12 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(RendererButton);
     settingsControl->buttonObjects.push_back(WindowingButton);
     settingsControl->buttonObjects.push_back(AudioEngineButton);
+#ifdef __ANDROID__
+    settingsControl->buttonObjects.push_back(ImportProjects);
+#else
+    settingsControl->buttonObjects.push_back(ChangeFolderPath);
+    settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
+#endif
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
@@ -185,9 +192,6 @@ void SettingsMenu::init() {
 
 void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonUp = EnableUsername;
-    ChangeUsername->buttonDown = EnableCustomFolderPath;
-    ChangeFolderPath->buttonUp = EnableCustomFolderPath;
-    ChangeFolderPath->buttonDown = EnableMenuMusic;
     EnableUsername->buttonUp = WindowingButton;
     EnableMenuMusic->buttonDown = ClearCache;
     ClearCache->buttonUp = EnableMenuMusic;
@@ -199,6 +203,16 @@ void SettingsMenu::updateButtonStates() {
     WindowingButton->buttonUp = RendererButton;
     WindowingButton->buttonDown = AudioEngineButton;
     AudioEngineButton->buttonUp = WindowingButton;
+
+#ifdef __ANDROID__
+    ChangeUsername->buttonDown = ImportProjects;
+    ImportProjects->buttonUp = ChangeUsername;
+    ImportProjects->buttonDown = EnableMenuMusic;
+#else
+    ChangeUsername->buttonDown = EnableCustomFolderPath;
+    ChangeFolderPath->buttonUp = EnableCustomFolderPath;
+    ChangeFolderPath->buttonDown = EnableMenuMusic;
+#endif
 
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
@@ -218,7 +232,9 @@ void SettingsMenu::updateButtonStates() {
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
+#ifndef __ANDROID__
     ChangeFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.changePath"));
+#endif
 
     if (UseCostumeUsername) {
         EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
@@ -226,17 +242,30 @@ void SettingsMenu::updateButtonStates() {
         ChangeUsername->canBeClicked = true;
         ChangeUsername->hidden = false;
 
+#ifdef __ANDROID__
+        EnableUsername->buttonDown = ChangeUsername;
+        ImportProjects->buttonUp = ChangeUsername;
+#else
         EnableUsername->buttonDown = ChangeUsername;
         EnableCustomFolderPath->buttonUp = ChangeUsername;
+#endif
     } else {
         EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeUsername->canBeClicked = false;
         ChangeUsername->hidden = true;
 
+#ifdef __ANDROID__
+        EnableUsername->buttonDown = ImportProjects;
+        ImportProjects->buttonUp = EnableUsername;
+#else
         EnableUsername->buttonDown = EnableCustomFolderPath;
         EnableCustomFolderPath->buttonUp = EnableUsername;
+#endif
     }
 
+#ifdef __ANDROID__
+    ImportProjects->text->setText(TranslationManager::getTranslation("ui.settings.import") + ": " + (importProjects ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
+#else
     if (UseProjectsPath) {
         EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
         ChangeFolderPath->canBeClicked = true;
@@ -252,6 +281,7 @@ void SettingsMenu::updateButtonStates() {
         EnableCustomFolderPath->buttonDown = EnableMenuMusic;
         EnableMenuMusic->buttonUp = EnableCustomFolderPath;
     }
+#endif
 
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
 
@@ -267,7 +297,7 @@ void SettingsMenu::updateButtonStates() {
 void SettingsMenu::render() {
     Input::getInput();
     settingsControl->input();
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b", "y", "back"})) {
         MainMenu *mainMenu = new MainMenu();
         MenuManager::changeMenu(mainMenu);
         return;
@@ -292,6 +322,12 @@ void SettingsMenu::render() {
         updateButtonStates();
     }
 
+#ifdef __ANDROID__
+    if (ImportProjects->isPressed({"a"})) {
+        importProjects = !importProjects;
+        updateButtonStates();
+    }
+#else
     if (EnableCustomFolderPath->isPressed({"a"}) && OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
         UseProjectsPath = !UseProjectsPath;
         updateButtonStates();
@@ -352,6 +388,7 @@ void SettingsMenu::render() {
         OS::customProjectsPath = nullptr;
         OS::loadedSettings = false;
     }
+#endif
 
     if (Language->isPressed({"a"})) {
         LanguageMenu *langMenu = new LanguageMenu();
@@ -424,6 +461,10 @@ void SettingsMenu::cleanup() {
         delete ChangeFolderPath;
         ChangeFolderPath = nullptr;
     }
+    if (ImportProjects != nullptr) {
+        delete ImportProjects;
+        ImportProjects = nullptr;
+    }
     if (EnableMenuMusic != nullptr) {
         delete EnableMenuMusic;
         EnableMenuMusic = nullptr;
@@ -467,6 +508,7 @@ void SettingsMenu::cleanup() {
     json["Username"] = username;
     json["UseProjectsPath"] = UseProjectsPath;
     json["ProjectsPath"] = projectsPath;
+    json["ImportProjects"] = importProjects;
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;

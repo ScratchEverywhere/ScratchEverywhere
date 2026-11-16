@@ -153,6 +153,8 @@ void InputDevice_SDL2::getInput() {
         // forward: 451 | backward: 452
         // record: 453
         // play: 450
+#elif defined(__ANDROID__)
+        else if (keyName == "ac back") keyName = "back";
 #else
         else if (keyName == "return") keyName = "enter";
 #endif
@@ -363,7 +365,10 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
                     // finish input
                     inputActive = false;
                     break;
-
+                case SDLK_AC_BACK:
+                    // Android back button
+                    inputActive = false;
+                    break;
                 case SDLK_BACKSPACE:
                     // remove character
                     if (!inputText.empty()) {
