@@ -41,7 +41,7 @@ on:
 
 jobs:
   build:
-    name: Ubuntu Touch ${{ matrix.name }}
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
