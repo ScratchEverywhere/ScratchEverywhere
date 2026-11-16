@@ -1,11 +1,11 @@
 #include "pauseMenu.hpp"
 #include "translation.hpp"
+#include <algorithm>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
 #include <utility>
 #include <xbox_menu_trace.hpp>
-#include <algorithm>
 #ifdef SE_XBOX_TRACE_GAME_STATE
 #include <blockExecutor.hpp>
 #include <log.hpp>

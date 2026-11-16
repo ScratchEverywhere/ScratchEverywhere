@@ -250,7 +250,39 @@ Value::Value(std::shared_ptr<const std::string> val) : tag(Tag::STRING_ID), flag
 
 Value::Value(bool val) : tag(Tag::BOOLEAN), flags(0) { storage.b = val; }
 
-Value::Value(Color val) : tag(Tag::COLOR), flags(0) { storage.c = val; }
+static_assert(sizeof(Value) == 16, "Value must stay two machine words; the JIT and list memmoves rely on it being compact");
+
+namespace {
+
+std::vector<Color> &colorStorage() {
+    static std::vector<Color> colors(1);
+    return colors;
+}
+
+std::unordered_map<std::string, uint32_t> &colorIndex() {
+    static std::unordered_map<std::string, uint32_t> index;
+    return index;
+}
+
+} // namespace
+
+uint32_t ColorPool::intern(const Color &color) {
+    const std::string key(reinterpret_cast<const char *>(&color), sizeof color);
+    auto &index = colorIndex();
+    if (const auto it = index.find(key); it != index.end()) return it->second;
+    auto &colors = colorStorage();
+    const uint32_t id = static_cast<uint32_t>(colors.size());
+    colors.push_back(color);
+    index.emplace(key, id);
+    return id;
+}
+
+const Color &ColorPool::get(uint32_t id) {
+    auto &colors = colorStorage();
+    return colors[id < colors.size() ? id : 0];
+}
+
+Value::Value(Color val) : tag(Tag::COLOR), flags(0) { storage.colorId = ColorPool::intern(val); }
 
 Value::Value(Undefined) : tag(Tag::UNDEFINED), flags(0) {}
 
@@ -406,7 +438,7 @@ bool Value::equalsSlow(const Value &other) const {
     if (isBoolean() && other.isBoolean())
         return storage.b == other.storage.b;
     if (isColor() && other.isColor())
-        return storage.c == other.storage.c;
+        return storage.colorId == other.storage.colorId || ColorPool::get(storage.colorId) == ColorPool::get(other.storage.colorId);
 
     if (isString() && other.isString() && storage.stringId == other.storage.stringId)
         return true;
@@ -456,7 +488,7 @@ bool Value::operator>(const Value &other) const {
     return caseInsensitiveLess(svB, svA);
 }
 
-bool Value::isScratchInt() {
+bool Value::isScratchInt() const {
     if (isDouble()) {
         double val = asDouble();
         if (std::isnan(val)) return true;

@@ -49,6 +49,9 @@
 #ifdef RENDERER_HEADLESS
 #include <renderers/headless/text_headless.hpp>
 #endif
+#ifdef RENDERER_FLATLAND
+#include <renderers/flatland/text_flatland.hpp>
+#endif
 
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
     x = posX;
@@ -109,6 +112,10 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #ifdef RENDERER_HEADLESS
     case Renderers::Headless:
         return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
+#endif
+#ifdef RENDERER_FLATLAND
+    case Renderers::Flatland:
+        return std::make_unique<TextObjectFlatland>(txt, posX, posY, fontPath);
 #endif
     default: {
         Log::logCritical("You forgot to add this renderer to createTextObject :grin: :grin:", true);
@@ -184,7 +191,7 @@ std::string TextObject::wrap(int maxWidth) {
 }
 
 void TextObject::cleanupText() {
-    if (Render::currentRenderer != Renderers::Headless)
+    if (Render::currentRenderer != Renderers::Headless && Render::currentRenderer != Renderers::Flatland)
         TextObjectBase::cleanupText();
 }
 

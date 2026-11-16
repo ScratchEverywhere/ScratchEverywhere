@@ -239,7 +239,7 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-	constexpr size_t loaderStackSize = 0x262144;
+    constexpr size_t loaderStackSize = 0x262144;
     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
@@ -336,15 +336,15 @@ void Unzip::openScratchProject(void *arg) {
 #ifdef RENDERER_XBOX
     if (Render::currentRenderer == Renderers::Xbox) {
         Log::log("Precaching project textures...");
-		Image_Xbox::precacheProjectTextures();
-		Log::log("Project texture precache finished.");
+        Image_Xbox::precacheProjectTextures();
+        Log::log("Project texture precache finished.");
     }
 #endif
 #ifdef RENDERER_NV2A
     if (Render::currentRenderer == Renderers::NV2A) {
-		Log::log("Precaching project textures...");
+        Log::log("Precaching project textures...");
         Image_NV2A::precacheProjectTextures();
-		Log::log("Project texture precache finished.");
+        Log::log("Project texture precache finished.");
     }
 #endif
 

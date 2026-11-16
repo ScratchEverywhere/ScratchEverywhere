@@ -1,5 +1,5 @@
-#include <cstdio>
 #include "bytecode_executor.hpp"
+#include <cstdio>
 #ifdef SE_JIT
 #include "bytecode_jit.hpp"
 #endif
@@ -130,7 +130,7 @@ static uint64_t fastRandomNext() {
     return randState0 + randState1;
 }
 
-static double fastRandomDouble() {
+double fastRandomDouble() {
     return static_cast<double>(fastRandomNext() >> 11) * (1.0 / 9007199254740992.0);
 }
 

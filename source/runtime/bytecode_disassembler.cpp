@@ -515,4 +515,8 @@ std::string disassemble(const BytecodeChunk &chunk, const BytecodeLinkTable *lin
     return out.str();
 }
 
+const char *opMnemonic(BytecodeOp op) {
+    return mnemonic(op);
+}
+
 } // namespace BytecodeDisassembler

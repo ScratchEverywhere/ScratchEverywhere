@@ -18,7 +18,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <sljitLir.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,24 +26,24 @@ namespace BytecodeJitInternal {
 
 void Emitter::emitCompareValue(BytecodeCompareKind kind, uint32_t a, uint32_t b) {
     const uint32_t out = booleanSlot(state_.booleans);
-    loadF(SLJIT_FR0, a);
-    loadF(SLJIT_FR1, b);
-    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
+    loadF(lir::FR0, a);
+    loadF(lir::FR1, b);
+    lir::Jump *unordered = lir::emitFCmp(c_, lir::UNORDERED, lir::FR0, 0, lir::FR1, 0);
 
-    const sljit_s32 setFlag = kind == BytecodeCompareKind::Equals ? SLJIT_SET_F_EQUAL : kind == BytecodeCompareKind::Less ? SLJIT_SET_F_LESS
-                                                                                                                          : SLJIT_SET_F_GREATER;
-    const sljit_s32 flag = kind == BytecodeCompareKind::Equals ? SLJIT_F_EQUAL : kind == BytecodeCompareKind::Less ? SLJIT_F_LESS
-                                                                                                                   : SLJIT_F_GREATER;
-    sljit_emit_fop1(c_, SLJIT_CMP_F64 | setFlag, SLJIT_FR0, 0, SLJIT_FR1, 0);
+    const lir::Int setFlag = kind == BytecodeCompareKind::Equals ? lir::SET_F_EQUAL : kind == BytecodeCompareKind::Less ? lir::SET_F_LESS
+                                                                                                                        : lir::SET_F_GREATER;
+    const lir::Int flag = kind == BytecodeCompareKind::Equals ? lir::F_EQUAL : kind == BytecodeCompareKind::Less ? lir::F_LESS
+                                                                                                                 : lir::F_GREATER;
+    lir::emitFOp1(c_, lir::CMP_F64 | setFlag, lir::FR0, 0, lir::FR1, 0);
     storeFlag(out, flag);
-    sljit_label *done = sljit_emit_label(c_);
+    lir::Label *done = lir::emitLabel(c_);
 
     addCold([this, unordered, done, kind, out]() {
-        sljit_set_label(unordered, sljit_emit_label(c_));
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
-        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
-        storeW(out, SLJIT_R0);
-        sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), done);
+        lir::setLabel(unordered, lir::emitLabel(c_));
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, static_cast<lir::Word>(kind));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), LIR_ARGS3(W, F64, F64, W));
+        storeW(out, lir::R0);
+        lir::setLabel(lir::emitJump(c_, lir::JUMP), done);
     });
 }
 
@@ -55,8 +54,8 @@ void Emitter::emitCompareJump(const BytecodeInstruction &instr, BytecodeIndex pc
     emitCompareBranch(kind, instr.op == BytecodeOp::JumpIfNumCompareTrue, instr.a, instr.a <= pc, {false, a, 0}, {false, b, 0}, state_);
 }
 
-void Emitter::loadOperand(sljit_s32 reg, const Operand &operand) {
-    if (operand.immediate) sljit_emit_fset64(c_, reg, operand.value);
+void Emitter::loadOperand(lir::Int reg, const Operand &operand) {
+    if (operand.immediate) lir::emitFSet64(c_, reg, operand.value);
     else loadF(reg, operand.slot);
 }
 
@@ -103,19 +102,19 @@ void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, Bytec
         const Operand &variable = variableFirst ? a : b;
         const Operand &constant = variableFirst ? b : a;
         if (variable.slot == static_cast<uint32_t>(active_->shadowSlot) && std::isfinite(constant.value) && constant.value == std::floor(constant.value) && std::fabs(constant.value) < 2147483648.0) {
-            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
-            sljit_jump *notInteger = sljit_emit_jump(c_, SLJIT_OVERFLOW);
+            lir::emitOp2U(c_, lir::SUB | lir::SET_OVERFLOW, lir::S1, 0, lir::IMM, 1);
+            lir::Jump *notInteger = lir::emitJump(c_, lir::OVERFLOW_SET);
             const bool less = kind == BytecodeCompareKind::Less ? variableFirst : (kind == BytecodeCompareKind::Greater ? !variableFirst : false);
-            sljit_s32 type;
-            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL;
-            else if (less) type = jumpIfTrue ? SLJIT_SIG_LESS : SLJIT_SIG_GREATER_EQUAL;
-            else type = jumpIfTrue ? SLJIT_SIG_GREATER : SLJIT_SIG_LESS_EQUAL;
-            emitJumpTo(sljit_emit_cmp(c_, type, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(constant.value)), target, atTarget, backEdge);
-            sljit_label *fall = sljit_emit_label(c_);
+            lir::Int type;
+            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? lir::EQUAL : lir::NOT_EQUAL;
+            else if (less) type = jumpIfTrue ? lir::SIG_LESS : lir::SIG_GREATER_EQUAL;
+            else type = jumpIfTrue ? lir::SIG_GREATER : lir::SIG_LESS_EQUAL;
+            emitJumpTo(lir::emitCmp(c_, type, lir::S1, 0, lir::IMM, static_cast<lir::Word>(constant.value)), target, atTarget, backEdge);
+            lir::Label *fall = lir::emitLabel(c_);
             addCold([this, notInteger, fall, kind, jumpIfTrue, target, backEdge, a, b, atTarget]() {
-                sljit_set_label(notInteger, sljit_emit_label(c_));
+                lir::setLabel(notInteger, lir::emitLabel(c_));
                 emitCompareBranchFloat(kind, jumpIfTrue, target, backEdge, a, b, atTarget);
-                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), fall);
+                lir::setLabel(lir::emitJump(c_, lir::JUMP), fall);
             });
             return;
         }
@@ -124,49 +123,49 @@ void Emitter::emitCompareBranch(BytecodeCompareKind kind, bool jumpIfTrue, Bytec
 }
 
 void Emitter::emitCompareBranchFloat(BytecodeCompareKind kind, bool jumpIfTrue, BytecodeIndex target, bool backEdge, Operand a, Operand b, const AbsState &atTarget) {
-    sljit_s32 left = SLJIT_FR0, right = SLJIT_FR1;
-    sljit_sw rightOffset = 0;
-    if (a.immediate) loadOperand(SLJIT_FR0, a);
-    else left = readF(a.slot, SLJIT_FR0);
+    lir::Int left = lir::FR0, right = lir::FR1;
+    lir::Word rightOffset = 0;
+    if (a.immediate) loadOperand(lir::FR0, a);
+    else left = readF(a.slot, lir::FR0);
     const int poolSlot = b.immediate ? poolIndex(b.value) : -1;
     if (poolSlot >= 0) {
-        right = SLJIT_MEM1(SLJIT_S0);
+        right = lir::MEM1(lir::S0);
         rightOffset = poolOffset(poolSlot);
     } else if (b.immediate) {
-        loadOperand(SLJIT_FR1, b);
+        loadOperand(lir::FR1, b);
     } else {
-        right = readF(b.slot, SLJIT_FR1);
+        right = readF(b.slot, lir::FR1);
     }
-    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, left, 0, right, rightOffset);
+    lir::Jump *unordered = lir::emitFCmp(c_, lir::UNORDERED, left, 0, right, rightOffset);
 
-    sljit_s32 type;
+    lir::Int type;
     switch (kind) {
     case BytecodeCompareKind::Equals:
-        type = jumpIfTrue ? SLJIT_ORDERED_EQUAL : SLJIT_ORDERED_NOT_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_EQUAL : lir::ORDERED_NOT_EQUAL;
         break;
     case BytecodeCompareKind::Less:
-        type = jumpIfTrue ? SLJIT_ORDERED_LESS : SLJIT_ORDERED_GREATER_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_LESS : lir::ORDERED_GREATER_EQUAL;
         break;
     default:
-        type = jumpIfTrue ? SLJIT_ORDERED_GREATER : SLJIT_ORDERED_LESS_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_GREATER : lir::ORDERED_LESS_EQUAL;
         break;
     }
-    emitJumpTo(sljit_emit_fcmp(c_, type, left, 0, right, rightOffset), target, atTarget, backEdge);
-    sljit_label *fall = sljit_emit_label(c_);
+    emitJumpTo(lir::emitFCmp(c_, type, left, 0, right, rightOffset), target, atTarget, backEdge);
+    lir::Label *fall = lir::emitLabel(c_);
 
     addCold([this, unordered, fall, kind, jumpIfTrue, atTarget, backEdge, target, a, b]() {
-        sljit_set_label(unordered, sljit_emit_label(c_));
-        loadOperand(SLJIT_FR0, a);
-        loadOperand(SLJIT_FR1, b);
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
-        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
-        sljit_jump *no = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        lir::setLabel(unordered, lir::emitLabel(c_));
+        loadOperand(lir::FR0, a);
+        loadOperand(lir::FR1, b);
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, static_cast<lir::Word>(kind));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), LIR_ARGS3(W, F64, F64, W));
+        lir::Jump *no = lir::emitCmp(c_, jumpIfTrue ? lir::EQUAL : lir::NOT_EQUAL, lir::R0, 0, lir::IMM, 0);
         if (backEdge) {
             emitBackEdgeThenJump(target, atTarget);
         } else {
             pendUnconditional(target);
         }
-        sljit_set_label(no, fall);
+        lir::setLabel(no, fall);
     });
 }
 
@@ -320,17 +319,17 @@ void Emitter::buildConditions() {
 }
 
 void Emitter::bindCondLabel(CondLabel &label) {
-    label.label = sljit_emit_label(c_);
-    for (sljit_jump *jump : label.pending)
-        sljit_set_label(jump, label.label);
+    label.label = lir::emitLabel(c_);
+    for (lir::Jump *jump : label.pending)
+        lir::setLabel(jump, label.label);
     label.pending.clear();
 }
 
-void Emitter::routeJump(sljit_jump *jump, const CondTarget &target) {
+void Emitter::routeJump(lir::Jump *jump, const CondTarget &target) {
     if (target.kind == CondTarget::Bytecode) {
         emitJumpTo(jump, target.pc, *target.state, target.backEdge);
     } else if (target.label->label != nullptr) {
-        sljit_set_label(jump, target.label->label);
+        lir::setLabel(jump, target.label->label);
     } else {
         target.label->pending.push_back(jump);
     }
@@ -341,29 +340,29 @@ void Emitter::routeUnconditional(const CondTarget &target) {
         if (target.backEdge) emitBackEdgeThenJump(target.pc, *target.state);
         else pendUnconditional(target.pc);
     } else {
-        routeJump(sljit_emit_jump(c_, SLJIT_JUMP), target);
+        routeJump(lir::emitJump(c_, lir::JUMP), target);
     }
 }
 
-void Emitter::emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general) {
+void Emitter::emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<lir::Jump *> &notPlain, const CompareDescriptor *general) {
     if (shadowSupported && active_ != nullptr && active_->shadowSlot >= 0 && a.immediate != b.immediate && notPlain.empty() && general == nullptr) {
         const bool variableFirst = !a.immediate;
         const Operand &variable = variableFirst ? a : b;
         const Operand &constant = variableFirst ? b : a;
         if (variable.slot == static_cast<uint32_t>(active_->shadowSlot) && std::isfinite(constant.value) && constant.value == std::floor(constant.value) && std::fabs(constant.value) < 2147483648.0) {
-            sljit_emit_op2u(c_, SLJIT_SUB | SLJIT_SET_OVERFLOW, SLJIT_S1, 0, SLJIT_IMM, 1);
-            sljit_jump *notInteger = sljit_emit_jump(c_, SLJIT_OVERFLOW);
+            lir::emitOp2U(c_, lir::SUB | lir::SET_OVERFLOW, lir::S1, 0, lir::IMM, 1);
+            lir::Jump *notInteger = lir::emitJump(c_, lir::OVERFLOW_SET);
             const bool less = kind == BytecodeCompareKind::Less ? variableFirst : (kind == BytecodeCompareKind::Greater ? !variableFirst : false);
-            sljit_s32 type;
-            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL;
-            else if (less) type = jumpIfTrue ? SLJIT_SIG_LESS : SLJIT_SIG_GREATER_EQUAL;
-            else type = jumpIfTrue ? SLJIT_SIG_GREATER : SLJIT_SIG_LESS_EQUAL;
-            routeJump(sljit_emit_cmp(c_, type, SLJIT_S1, 0, SLJIT_IMM, static_cast<sljit_sw>(constant.value)), target);
-            sljit_label *fall = sljit_emit_label(c_);
+            lir::Int type;
+            if (kind == BytecodeCompareKind::Equals) type = jumpIfTrue ? lir::EQUAL : lir::NOT_EQUAL;
+            else if (less) type = jumpIfTrue ? lir::SIG_LESS : lir::SIG_GREATER_EQUAL;
+            else type = jumpIfTrue ? lir::SIG_GREATER : lir::SIG_LESS_EQUAL;
+            routeJump(lir::emitCmp(c_, type, lir::S1, 0, lir::IMM, static_cast<lir::Word>(constant.value)), target);
+            lir::Label *fall = lir::emitLabel(c_);
             addCold([this, notInteger, fall, kind, jumpIfTrue, a, b, target]() {
-                sljit_set_label(notInteger, sljit_emit_label(c_));
+                lir::setLabel(notInteger, lir::emitLabel(c_));
                 emitLeafTestFloat(kind, jumpIfTrue, a, b, target, {}, nullptr);
-                sljit_set_label(sljit_emit_jump(c_, SLJIT_JUMP), fall);
+                lir::setLabel(lir::emitJump(c_, lir::JUMP), fall);
             });
             return;
         }
@@ -371,44 +370,44 @@ void Emitter::emitLeafTest(BytecodeCompareKind kind, bool jumpIfTrue, Operand a,
     emitLeafTestFloat(kind, jumpIfTrue, a, b, target, notPlain, general);
 }
 
-void Emitter::emitLeafTestFloat(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<sljit_jump *> &notPlain, const CompareDescriptor *general) {
-    loadOperand(SLJIT_FR0, a);
-    loadOperand(SLJIT_FR1, b);
-    sljit_jump *unordered = sljit_emit_fcmp(c_, SLJIT_UNORDERED, SLJIT_FR0, 0, SLJIT_FR1, 0);
+void Emitter::emitLeafTestFloat(BytecodeCompareKind kind, bool jumpIfTrue, Operand a, Operand b, const CondTarget &target, const std::vector<lir::Jump *> &notPlain, const CompareDescriptor *general) {
+    loadOperand(lir::FR0, a);
+    loadOperand(lir::FR1, b);
+    lir::Jump *unordered = lir::emitFCmp(c_, lir::UNORDERED, lir::FR0, 0, lir::FR1, 0);
 
-    sljit_s32 type;
+    lir::Int type;
     switch (kind) {
     case BytecodeCompareKind::Equals:
-        type = jumpIfTrue ? SLJIT_ORDERED_EQUAL : SLJIT_ORDERED_NOT_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_EQUAL : lir::ORDERED_NOT_EQUAL;
         break;
     case BytecodeCompareKind::Less:
-        type = jumpIfTrue ? SLJIT_ORDERED_LESS : SLJIT_ORDERED_GREATER_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_LESS : lir::ORDERED_GREATER_EQUAL;
         break;
     default:
-        type = jumpIfTrue ? SLJIT_ORDERED_GREATER : SLJIT_ORDERED_LESS_EQUAL;
+        type = jumpIfTrue ? lir::ORDERED_GREATER : lir::ORDERED_LESS_EQUAL;
         break;
     }
-    routeJump(sljit_emit_fcmp(c_, type, SLJIT_FR0, 0, SLJIT_FR1, 0), target);
-    sljit_label *fall = sljit_emit_label(c_);
+    routeJump(lir::emitFCmp(c_, type, lir::FR0, 0, lir::FR1, 0), target);
+    lir::Label *fall = lir::emitLabel(c_);
 
     addCold([this, unordered, fall, kind, jumpIfTrue, target, notPlain, general]() {
-        sljit_set_label(unordered, sljit_emit_label(c_));
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, static_cast<sljit_sw>(kind));
-        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), SLJIT_ARGS3(W, F64, F64, W));
-        sljit_jump *no = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        lir::setLabel(unordered, lir::emitLabel(c_));
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, static_cast<lir::Word>(kind));
+        callHelper(reinterpret_cast<void *>(&Runtime::jitCompareUnordered), LIR_ARGS3(W, F64, F64, W));
+        lir::Jump *no = lir::emitCmp(c_, jumpIfTrue ? lir::EQUAL : lir::NOT_EQUAL, lir::R0, 0, lir::IMM, 0);
         routeUnconditional(target);
-        sljit_set_label(no, fall);
+        lir::setLabel(no, fall);
 
         if (general != nullptr) {
-            sljit_label *here = sljit_emit_label(c_);
-            for (sljit_jump *jump : notPlain)
-                sljit_set_label(jump, here);
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_S0, 0);
-            sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(general));
-            callHelper(reinterpret_cast<void *>(&Runtime::jitCompareValues), SLJIT_ARGS2(W, P, P));
-            sljit_jump *skip = sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_EQUAL : SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+            lir::Label *here = lir::emitLabel(c_);
+            for (lir::Jump *jump : notPlain)
+                lir::setLabel(jump, here);
+            lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::S0, 0);
+            lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::IMM, reinterpret_cast<lir::Word>(general));
+            callHelper(reinterpret_cast<void *>(&Runtime::jitCompareValues), LIR_ARGS2(W, P, P));
+            lir::Jump *skip = lir::emitCmp(c_, jumpIfTrue ? lir::EQUAL : lir::NOT_EQUAL, lir::R0, 0, lir::IMM, 0);
             routeUnconditional(target);
-            sljit_set_label(skip, fall);
+            lir::setLabel(skip, fall);
         }
     });
 }
@@ -420,6 +419,8 @@ bool Emitter::guardable(const AbsValue &entry, const Code &code, const BytecodeC
         return true;
     case ValueEntry::VarValue:
         return entry.constant < code.promoted.size();
+    case ValueEntry::Argument:
+        return entry.constant < Runtime::maxTypedArguments;
     case ValueEntry::Constant: {
         if (entry.constant >= chunk.constants.size()) return false;
         const Value &constant = chunk.constants[entry.constant];
@@ -460,7 +461,7 @@ void Emitter::emitLeaf(const CondTree &, const CondNode &node, const CondTarget 
             compare.aPosition = depth - 2;
             compare.b = describe(state_.values[depth - 1]);
             compare.bPosition = depth - 1;
-            std::vector<sljit_jump *> notPlain;
+            std::vector<lir::Jump *> notPlain;
             guardPlainNumber(state_.values[depth - 2], depth - 2, notPlain);
             guardPlainNumber(state_.values[depth - 1], depth - 1, notPlain);
             state_.values.pop_back();
@@ -471,9 +472,9 @@ void Emitter::emitLeaf(const CondTree &, const CondNode &node, const CondTarget 
             suppressFusion_ = true;
             emitInstruction(node.compare);
             suppressFusion_ = false;
-            loadW(SLJIT_R0, booleanSlot(state_.booleans - 1));
+            loadW(lir::R0, booleanSlot(state_.booleans - 1));
             state_.booleans--;
-            routeJump(sljit_emit_cmp(c_, jumpIfTrue ? SLJIT_NOT_EQUAL : SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0), target);
+            routeJump(lir::emitCmp(c_, jumpIfTrue ? lir::NOT_EQUAL : lir::EQUAL, lir::R0, 0, lir::IMM, 0), target);
             return;
         }
         state_.values.pop_back();
@@ -537,7 +538,7 @@ void Emitter::emitCondition(const CondTree &tree, BytecodeIndex start) {
     else emitCond(tree, tree.root, CondTarget{}, target, true);
 }
 
-bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<sljit_jump *> &notPlain) {
+bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::vector<lir::Jump *> &notPlain) {
     switch (entry.kind) {
     case ValueEntry::Number:
         return true;
@@ -547,27 +548,44 @@ bool Emitter::guardPlainNumber(const AbsValue &entry, uint32_t position, std::ve
         return !constant.isString() && (constant.isRealNumber() || constant.isStringTyped());
     }
     case ValueEntry::Temp:
-        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM0(), reinterpret_cast<sljit_sw>(&Runtime::tempLazy[position]));
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
+        lir::emitOp1(c_, lir::MOV_U8, lir::R2, 0, lir::MEM0(), reinterpret_cast<lir::Word>(&Runtime::tempLazy[position]));
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
         return true;
     case ValueEntry::VarValue: {
         if (entry.constant >= code_.promoted.size()) return false;
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), dirtyOffset(entry.constant));
-        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 1);
-        sljit_jump *plain = sljit_emit_cmp(c_, SLJIT_LESS_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 1);
-        sljit_jump *constantKind = sljit_emit_cmp(c_, SLJIT_SIG_GREATER_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 4);
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 3));
-        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM1(SLJIT_S0), static_cast<sljit_sw>(offsetof(Context, numericTagged)) + static_cast<sljit_sw>(entry.constant));
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
-        sljit_jump *tagged = sljit_emit_jump(c_, SLJIT_JUMP);
-        sljit_set_label(constantKind, sljit_emit_label(c_));
-        sljit_emit_op2(c_, SLJIT_SUB, SLJIT_R2, 0, SLJIT_R2, 0, SLJIT_IMM, 4);
-        sljit_emit_op1(c_, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>(code_.constantIsNumber.data()));
-        sljit_emit_op1(c_, SLJIT_MOV_U8, SLJIT_R2, 0, SLJIT_MEM2(SLJIT_R0, SLJIT_R2), 0);
-        notPlain.push_back(sljit_emit_cmp(c_, SLJIT_EQUAL, SLJIT_R2, 0, SLJIT_IMM, 0));
-        sljit_label *usable = sljit_emit_label(c_);
-        sljit_set_label(plain, usable);
-        sljit_set_label(tagged, usable);
+        lir::emitOp1(c_, lir::MOV, lir::R2, 0, lir::MEM1(lir::S0), dirtyOffset(entry.constant));
+        lir::emitOp2(c_, lir::SUB, lir::R2, 0, lir::R2, 0, lir::IMM, 1);
+        lir::Jump *plain = lir::emitCmp(c_, lir::LESS_EQUAL, lir::R2, 0, lir::IMM, 1);
+        lir::Jump *constantKind = lir::emitCmp(c_, lir::SIG_GREATER_EQUAL, lir::R2, 0, lir::IMM, 4);
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 3));
+        lir::emitOp1(c_, lir::MOV_U8, lir::R2, 0, lir::MEM1(lir::S0), static_cast<lir::Word>(offsetof(Context, numericTagged)) + static_cast<lir::Word>(entry.constant));
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
+        lir::Jump *tagged = lir::emitJump(c_, lir::JUMP);
+        lir::setLabel(constantKind, lir::emitLabel(c_));
+        lir::emitOp2(c_, lir::SUB, lir::R2, 0, lir::R2, 0, lir::IMM, 4);
+        lir::emitOp1(c_, lir::MOV, lir::R0, 0, lir::IMM, reinterpret_cast<lir::Word>(code_.constantIsNumber.data()));
+        lir::emitOp1(c_, lir::MOV_U8, lir::R2, 0, lir::MEM2(lir::R0, lir::R2), 0);
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
+        lir::Label *usable = lir::emitLabel(c_);
+        lir::setLabel(plain, usable);
+        lir::setLabel(tagged, usable);
+        return true;
+    }
+    case ValueEntry::Argument: {
+        if (entry.constant >= Runtime::maxTypedArguments) return false;
+        const auto field = [](size_t offset) { return static_cast<lir::Word>(offset); };
+        const auto load32 = [&](lir::Int reg, size_t offset) { lir::emitOp1(c_, lir::MOV_U32, reg, 0, lir::MEM1(lir::S0), field(offset)); };
+        load32(lir::R2, offsetof(Context, lazyDepth));
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
+        load32(lir::R0, offsetof(Context, nativeDepth));
+        lir::emitOp2(c_, lir::SUB, lir::R0, 0, lir::R0, 0, lir::IMM, 1);
+        lir::emitOp2(c_, lir::SHL, lir::R0, 0, lir::R0, 0, lir::IMM, 5);
+        lir::emitOp2(c_, lir::ADD, lir::R0, 0, lir::R0, 0, lir::IMM, reinterpret_cast<lir::Word>(Runtime::frames));
+        lir::emitOp1(c_, lir::MOV, lir::R1, 0, lir::MEM1(lir::R0), field(offsetof(Runtime::NativeFrame, call)));
+        lir::emitOp1(c_, lir::MOV_U32, lir::R2, 0, lir::MEM1(lir::R1), field(offsetof(CallDescriptor, argNumbers)));
+        lir::emitOp2(c_, lir::LSHR, lir::R2, 0, lir::R2, 0, lir::IMM, entry.constant);
+        lir::emitOp2(c_, lir::AND, lir::R2, 0, lir::R2, 0, lir::IMM, 1);
+        notPlain.push_back(lir::emitCmp(c_, lir::EQUAL, lir::R2, 0, lir::IMM, 0));
         return true;
     }
     default:

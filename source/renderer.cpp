@@ -44,6 +44,9 @@
 #ifdef RENDERER_HEADLESS
 #include "renderer_headless.hpp"
 #endif
+#ifdef RENDERER_FLATLAND
+#include "renderer_flatland.hpp"
+#endif
 
 Renderer *globalRenderer = nullptr;
 
@@ -109,6 +112,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #endif
 #ifdef RENDERER_HEADLESS
     add(Renderers::Headless);
+#endif
+#ifdef RENDERER_FLATLAND
+    add(Renderers::Flatland);
 #endif
 
     return renderers;
@@ -264,6 +270,15 @@ bool Render::init() {
 #ifdef RENDERER_HEADLESS
             Render::currentRenderer = Renderers::Headless;
             globalRenderer = new Renderer_Headless;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::Flatland: {
+#ifdef RENDERER_FLATLAND
+            Render::currentRenderer = Renderers::Flatland;
+            globalRenderer = new Renderer_Flatland;
             break;
 #else
             continue;

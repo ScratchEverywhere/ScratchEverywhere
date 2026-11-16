@@ -124,6 +124,7 @@ class SE_EXPORT BytecodeAnalysis {
     std::vector<std::vector<bool>> procedureReaches_;
     std::vector<bool> escapeTaint_;
 
+    std::vector<uint8_t> canonicalConstants_;
     mutable std::vector<std::vector<BytecodeValueType>> nextParams_;
     mutable std::vector<BytecodeValueType> nextReturns_;
     mutable std::vector<bool> callSeen_;
