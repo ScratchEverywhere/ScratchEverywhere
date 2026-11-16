@@ -1,16 +1,13 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-vflash")
 
 enable_language(ASM)
-set(VFLASH_OPT_LEVEL "-Os" CACHE STRING "Compiler optimization level (-O1, -O2, -O3, -Os)")
+set(VFLASH_OPT_LEVEL "-O3" CACHE STRING "Compiler optimization level (-O1, -O2, -O3, -Os)")
 find_package(VFlash REQUIRED)
 
 set(SE_RENDERER_VALID_OPTIONS "vflash")
+set(SE_WINDOWING_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "vflash")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
-
-set(SE_RENDERER "vflash" CACHE STRING "Select the desired renderer backend." FORCE)
-set(SE_WINDOWING "sdl2" CACHE STRING "Select the desired windowing backend." FORCE)
-set(SE_AUDIO_ENGINE "vflash" CACHE STRING "Select the desired audio backend." FORCE)
 
 set(SE_CACHING_DEFAULT OFF)
 set(SE_BUNDLE_DEFAULT OFF)
@@ -64,7 +61,7 @@ macro(vflash_create_executable)
     target_compile_definitions(se-interface INTERFACE STBI_NO_THREAD_LOCALS)
     target_link_libraries(scratch-everywhere-core PRIVATE se-interface SDL2)
     target_compile_options(se-interface INTERFACE
-        -Oz
+        -Os
         -mcpu=arm926ej-s -marm -mfloat-abi=soft -mlittle-endian -mabi=aapcs -fno-short-enums
         -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables
         -Wno-psabi
@@ -124,9 +121,9 @@ macro(package_platform)
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3")
         configure_file("${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" "${_vflash_assets_dir}/project.sb3" COPYONLY)
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb2")
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb2" "${_vflash_assets_dir}/project.sb3" COPYONLY)
+        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb2" "${_vflash_assets_dir}/project.sb2" COPYONLY)
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb")
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb" "${_vflash_assets_dir}/project.sb3" COPYONLY)
+        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb" "${_vflash_assets_dir}/project.sb" COPYONLY)
     endif()
 
     vflash_add_disc_with_assets(vflash_disc_image scratch-everywhere vflash "${_vflash_assets_dir}")
