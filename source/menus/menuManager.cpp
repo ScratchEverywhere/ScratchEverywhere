@@ -251,7 +251,6 @@ void MenuManager::loadProject() {
         return;
     }
     isProjectLoaded = true;
-    changeMenu(MenuId::Ingame);
 }
 
 void MenuManager::cleanup() {

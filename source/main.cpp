@@ -65,7 +65,11 @@ bool activateMainMenu() {
     Discord::setInMenu();
 
     while (Render::appShouldRun()) {
+        // TODO: move these somewhere else?
         Input::getInput();
+#ifdef __3DS__
+        Render::beginFrame(0, 68, 44, 66);
+#endif
         Render::beginFrame(1, 68, 44, 66);
         MenuManager::render();
         Render::endFrame(false);
@@ -331,6 +335,8 @@ int main(int argc, char **argv) {
     }
 #endif
 
+// load RomFS project (only if no main menu because otherwise some platforms get weird)
+#if defined(__EMSCRIPTEN__) || !defined(ENABLE_MENU)
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
@@ -361,6 +367,12 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
+#else // load main menu
+    if (!activateMainMenu()) {
+        exitApp();
+        return 0;
+    }
+#endif
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);

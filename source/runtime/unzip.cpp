@@ -2,6 +2,7 @@
 #include "input.hpp"
 #include "os.hpp"
 #include "parser.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include "translation.hpp"
 #include <cstring>
@@ -12,9 +13,7 @@
 #include <image.hpp>
 #include <istream>
 #include <log.hpp>
-// #ifdef ENABLE_MENU
-// #include <menus/loading.hpp>
-// #endif
+#include <menuManager.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -238,68 +237,48 @@ bool Unzip::load() {
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
-    // #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
+#if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
-    //     SE_Thread projectThread;
-    // 	constexpr size_t loaderStackSize = 0x262144;
-    //     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
-    //         Loading loading;
-    //         loading.init();
+    SE_Thread projectThread;
+    constexpr size_t loaderStackSize = 0x262144;
+    if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
 
-    //         while (!Unzip::threadFinished) {
-    //             loading.render();
-    // #ifdef __XBOX__
-    //             SE_Thread::sleep(10);
-    // #endif
-    //         }
+        while (!Unzip::threadFinished) {
+            SE_Thread::sleep(10);
+        }
 
-    //         projectThread.join();
+        projectThread.join();
 
-    //         if (Unzip::projectOpened != 1) {
-    //             loading.cleanup();
-    //             return false;
-    //         }
+        if (Unzip::projectOpened != 1) {
+            return false;
+        }
+        loadInitialImages();
+    } else {
+        Unzip::openScratchProject(nullptr);
+        if (Unzip::projectOpened != 1) {
+            return false;
+        }
+        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
+        loadInitialImages();
+    }
 
-    // #ifdef __XBOX__
-    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-    //         loading.render();
-    //         loadInitialImages();
-    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-    //         loading.render();
-    // #else
-    //         loadInitialImages();
-    // #endif
-    //         loading.cleanup();
-    //         return true;
-    //     } else {
-    //         Loading loading;
-    //         loading.init();
-    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
-    //         loading.render();
-
-    //         Unzip::openScratchProject(nullptr);
-    //         if (Unzip::projectOpened != 1) {
-    //             loading.cleanup();
-    //             return false;
-    //         }
-    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-    //         loading.render();
-    //         loadInitialImages();
-    //         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-    //         loading.render();
-    //         loading.cleanup();
-    //         return true;
-    //     }
-
-    // #else
+#else
     // Non-threaded loading fallback
     Unzip::openScratchProject(nullptr);
     if (Unzip::projectOpened != 1) {
         return false;
     }
     loadInitialImages();
+#endif
+
+#ifdef __3DS__
+    // is this unsafe? nah fuck it :grin:
+    Render::beginFrame(0, 0, 0, 0);
+    Render::beginFrame(1, 0, 0, 0);
+    Render::endFrame(false);
+#endif
+
     return true;
-    // #endif
 }
 
 void Unzip::openScratchProject(void *arg) {
@@ -350,6 +329,7 @@ void Unzip::openScratchProject(void *arg) {
     }
 #endif
 
+    MenuManager::changeMenu(MenuId::Ingame);
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
     return;

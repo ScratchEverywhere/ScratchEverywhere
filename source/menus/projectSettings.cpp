@@ -37,7 +37,7 @@ void ProjectSettingsMenu::info(UI::Builder &b, const std::string &text) {
 
 void ProjectSettingsMenu::build(UI::Builder &b) {
 
-#ifdef __NDS__
+#if defined(__NDS__) || defined(__3DS__) || defined(__PSP__)
     constexpr bool collisionDefault = false;
 #else
     constexpr bool collisionDefault = true;
@@ -91,7 +91,6 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                               },
                                           },
                                           [&] {
-                                              b.image({.imagePath = "gfx/menu/projects.svg"});
                                               b.text({
                                                   .text = "Play!",
                                                   .color = {255, 255, 255, 255},

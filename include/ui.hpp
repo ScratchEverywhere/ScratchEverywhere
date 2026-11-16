@@ -11,9 +11,15 @@
 namespace UI {
 
 constexpr uint16_t NONE = 0xFFFF;
+#ifdef __NDS__
 constexpr uint16_t MAX_ELEMENTS = 256;
 constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
 constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
+#else
+constexpr uint16_t MAX_ELEMENTS = 1024;
+constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
+constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
+#endif
 
 extern std::array<std::string, 2> fontPaths;
 
