@@ -87,7 +87,11 @@ std::string OS::getConfigFolderLocation() {
             struct passwd *pw = getpwuid(getuid());
             if (pw) home = pw->pw_dir;
         }
-        if (home) path = (std::filesystem::path(home) / ".config" / "scratch-everywhere" / "").string();
+        if (home) {
+            path = (std::filesystem::path(home) / ".config" / "scratch-everywhere" / "").string();
+            std::error_code ec;
+            std::filesystem::create_directories(path, ec);
+        }
     }
 #endif
     return path;

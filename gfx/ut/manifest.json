@@ -1,7 +1,7 @@
 {
     "name": "scratch-everywhere",
     "description": "Custom Scratch Runtime made in C++!",
-    "architecture": "armhf",
+    "architecture": "$ENV{CLICK_ARCH}",
     "title": "Scratch Everywhere!",
     "hooks": {
         "scratch-everywhere": {
@@ -11,5 +11,5 @@
     },
     "version": "1.0.0",
     "maintainer": "Dogo6647 <htldogo@proton.me>",
-    "framework" : "ubuntu-sdk-16.04.5"
+    "framework" : "$ENV{CLICK_FRAMEWORK}"
 }

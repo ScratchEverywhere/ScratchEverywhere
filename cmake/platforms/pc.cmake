@@ -106,6 +106,20 @@ macro(package_platform)
 		include(CPack)
 	endif()
 
+	if(UBUNTU_TOUCH)
+		set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+		install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
+
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/" DESTINATION "gfx/ingame")
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/" DESTINATION "gfx/menu")
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/" DESTINATION "gfx/translations")
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ut/" DESTINATION .)
+
+		if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
+			install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/romfs/" DESTINATION .)
+		endif()
+	endif()
+
 	# "multiple definition of `wp_fractional_scale_manager_v1_interface'"
 	if(SE_WINDOWING STREQUAL "all" AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$")
 		target_link_options(scratch-everywhere PRIVATE "-Wl,--allow-multiple-definition")

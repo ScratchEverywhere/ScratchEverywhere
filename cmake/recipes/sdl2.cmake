@@ -23,7 +23,7 @@ function(_recipe_SDL2_system)
       endif()
     endif()
 
-    if(UBUNTU_TOUCH AND SDL2_FOUND AND NOT TARGET SDL2::SDL2) # workaround for older SDL2 versions
+    if(UBUNTU_TOUCH_1604 AND SDL2_FOUND AND NOT TARGET SDL2::SDL2) # workaround for older SDL2 versions
       add_library(SDL2::SDL2 INTERFACE IMPORTED)
       target_include_directories(SDL2::SDL2 INTERFACE ${SDL2_INCLUDE_DIRS})
       separate_arguments(SDL2_LIBRARIES_LIST NATIVE_COMMAND "${SDL2_LIBRARIES}")
@@ -79,7 +79,7 @@ function(_recipe_SDL2_source)
   set(SDL_URL "${SDL_URL_BASE}/${SDL_TAG}.tar.gz")
 
   set(SDL_PLATFORM_OPTIONS "")
-  if(UBUNTU_TOUCH) # custom 2.0.18 with re-added mir backend
+  if(UBUNTU_TOUCH_1604) # custom 2.0.18 with re-added mir backend
     set(SDL_URL "https://github.com/Dogo6647/SDL2/archive/refs/heads/main.tar.gz")
     set(SDL_PLATFORM_OPTIONS
       "SDL_INSTALL" "OFF"
