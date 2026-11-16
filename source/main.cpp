@@ -124,7 +124,6 @@ bool hasdeps() {
 
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
-#include <jni.h>
 
 extern "C" int main(int argc, char **argv) {
 #else

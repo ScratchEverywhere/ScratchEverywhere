@@ -13,9 +13,13 @@ import android.provider.OpenableColumns;
 
 import org.libsdl.app.SDLActivity;
 
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class MainActivity extends SDLActivity {
 	private native void initAssets(AssetManager manager);
-	private native void loadProject(int fd, String filename);
+	private native void loadProject(String filename);
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -46,13 +50,20 @@ public class MainActivity extends SDLActivity {
 
 	private void handleImport(Uri uri) {
 		if (uri != null) {
+			String path = getExternalFilesDir(null) + "/" + getFilename(uri);
 			try {
-				ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(uri, "r");
-				if (pfd != null) {
-					int fd = pfd.detachFd();
-					loadProject(fd, getFilename(uri));
-					pfd.close();
+				InputStream in = getContentResolver().openInputStream(uri);
+				FileOutputStream out = new FileOutputStream(path);
+				if (in != null) {
+					byte[] buffer = new byte[4086];
+					int length;
+					while ((length = in.read(buffer)) > 0) {
+						out.write(buffer, 0, length);
+					}
+					loadProject(path);
+					in.close();
 				}
+				out.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

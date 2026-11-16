@@ -1,53 +1,16 @@
-#include <fstream>
 #include <log.hpp>
 #include <os.hpp>
+#include <runtime.hpp>
+#include <unzip.hpp>
 
 #include <jni.h>
 #include <SDL_system.h>
-#include <SDL_timer.h>
 
 #ifndef USE_BUNDLE
 #include <android/asset_manager_jni.h>
 AAssetManager *g_assetManager = nullptr;
 #endif
 
-#include <loading.hpp>
-#include <mainMenu.hpp>
-#include <thread.hpp>
-#include <translation.hpp>
-
-// Import threads
-struct ImportThreadArgs {
-    int fd;
-    std::string filename;
-};
-
-static void importProject(void *arg) {
-    ImportThreadArgs *args = static_cast<ImportThreadArgs *>(arg);
-    std::string destPath = OS::getScratchFolderLocation() + args->filename;
-
-    FILE *file = fdopen(args->fd, "rb");
-    if (!file) return;
-
-    fseek(file, 0, SEEK_END);
-    size_t size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    std::vector<char> buffer(size);
-    if (fread(buffer.data(), 1, size, file) != size) {
-        fclose(file);
-        Log::logError("Failed to read project: " + args->filename);
-        return;
-    }
-    fclose(file);
-
-    std::ofstream dest(destPath, std::ios::binary | std::ios::trunc);
-    dest.write(buffer.data(), buffer.size());
-    dest.close();
-
-    Unzip::filePath = destPath;
-    MenuManager::loadProject();
-}
 
 namespace OS {
     bool toExit = false;
@@ -129,55 +92,14 @@ Java_io_github_scratcheverywhere_MainActivity_initAssets(
 
 extern "C" JNIEXPORT void JNICALL
 Java_io_github_scratcheverywhere_MainActivity_loadProject(
-    JNIEnv *env, jobject thiz, jint fd, jstring filename) {
-    const char *jniFilename = env->GetStringUTFChars(filename, JNI_FALSE);
-    const std::string cppFilename(jniFilename);
-    env->ReleaseStringUTFChars(filename, jniFilename);
+    JNIEnv *env, jobject thiz, jstring path) {
+    const char *project = env->GetStringUTFChars(path, JNI_FALSE);
 
-    // Advice user we are yielding until runtime is initialized using a Toast
-    if (!Unzip::projectOpened) {
-        TranslationManager::loadLanguage();
-        jclass clazz = env->FindClass("android/widget/Toast");
-        jmethodID makeText = env->GetStaticMethodID(
-            clazz, "makeText",
-            "(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;"
-        );
-        jmethodID show = env->GetMethodID(clazz, "show", "()V");
-        jstring message = env->NewStringUTF(TranslationManager::getTranslation("ui.unpack.wait").c_str());
-        jobject toast = env->CallStaticObjectMethod(clazz, makeText, thiz, message, 0);
-        env->CallVoidMethod(toast, show);
-        env->DeleteLocalRef(toast);
-        env->DeleteLocalRef(clazz);
-    }
+    // When a project is imported from a "Open with" dialog, we will start the project
+    Unzip::filePath = project;
+    Scratch::nextProject = true;
+    if (Scratch::proje)
+    Scratch::shouldStop = true;
 
-    nlohmann::json json = SettingsManager::getConfigSettings();
-    bool shouldImport = true;
-
-    if (json.contains("ImportSettings") && json["ImportSettings"].is_boolean()) {
-        shouldImport = json["ImportSettings"].get<bool>();;
-    }
-
-    if (shouldImport) {
-        ImportThreadArgs args{fd, cppFilename};
-#if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
-        SE_Thread importThread;
-        if (importThread.create(importProject, &args, 0x262144, 0, -1, "ProjectImporter")) {
-            Loading loading;
-            loading.init();
-
-            Unzip::loadingState = TranslationManager::getTranslation("ui.loading.import");
-            while (!Unzip::threadFinished) {
-                loading.render();
-            }
-
-            loading.cleanup();
-            importThread.join();
-        }
-#else
-        // Non-threaded loading fallback
-        importProject(&args);
-#endif
-    }
-
-
+    env->ReleaseStringUTFChars(path, project);
 }

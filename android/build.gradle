@@ -21,6 +21,6 @@ allprojects {
 }
 
 task clean(type: Delete) {
+	delete "${rootProject}/.cxx"
 	delete rootProject.buildDir
-	delete ".cxx"
 }
