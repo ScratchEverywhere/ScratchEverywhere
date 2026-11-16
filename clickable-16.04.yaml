@@ -9,9 +9,9 @@ build_args:
     - -DCMAKE_CXX_COMPILER=clang++-8
     - -DCMAKE_C_LINKER=clang-8
     - -DCMAKE_CXX_LINKER=clang++-8
-    - -DCMAKE_C_FLAGS="--target=${ARCH_TRIPLET}"
-    - -DCMAKE_CXX_FLAGS="--target=${ARCH_TRIPLET} -stdlib=libc++"
-    - -DCMAKE_ASM_FLAGS="--target=${ARCH_TRIPLET}"
+    - -DCMAKE_C_FLAGS='--target=${ARCH_TRIPLET}'
+    - -DCMAKE_CXX_FLAGS='--target=${ARCH_TRIPLET} -stdlib=libc++'
+    - -DCMAKE_ASM_FLAGS='--target=${ARCH_TRIPLET}'
     - -DCMAKE_BUILD_RPATH='$ORIGIN/lib'
     - -DCMAKE_INSTALL_RPATH='$ORIGIN/lib'
     - -DCMAKE_BUILD_TYPE=Release
@@ -49,6 +49,7 @@ dependencies_target:
     - libegl1-mesa-dev
     - libmirclient-dev
     - libmircommon-dev
+    - libpsl-dev
     - libxkbcommon-dev
     - libdbus-1-dev
     - libudev-dev
@@ -58,6 +59,7 @@ dependencies_target:
     - libc++abi-8-dev
     - libxcursor-dev
     - libxi-dev
+    - libxinerama-dev
     - libx11-dev
     - libxrandr-dev
     - libxext-dev

@@ -71,6 +71,7 @@ main.code-workspace
 *.wbfs
 *.vpk
 *.ipk
+*.click
 *.nds
 *.pkg
 romfs/sample.ogg

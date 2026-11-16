@@ -27,6 +27,7 @@ dependencies_target:
     - libxrandr-dev
     - libxcursor-dev
     - libxi-dev
+    - libxinerama-dev
     - libxfixes-dev
     - libxss-dev
     - libxtst-dev
