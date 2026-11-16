@@ -5,7 +5,7 @@ builder: cmake
 build_args:
     - -B ${BUILD_DIR}
     - -S ${SRC_DIR}
-    - -DCMAKE_BUILD_TYPE=Debug
+    - -DCMAKE_BUILD_TYPE=Release
     - -DSE_CLOUDVARS=OFF
     - -DSE_DOWNLOAD=OFF
     - -DUBUNTU_TOUCH=ON

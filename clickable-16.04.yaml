@@ -14,7 +14,7 @@ build_args:
     - -DCMAKE_ASM_FLAGS="--target=${ARCH_TRIPLET}"
     - -DCMAKE_BUILD_RPATH='$ORIGIN/lib'
     - -DCMAKE_INSTALL_RPATH='$ORIGIN/lib'
-    - -DCMAKE_BUILD_TYPE=Debug
+    - -DCMAKE_BUILD_TYPE=Release
     - -DSE_CLOUDVARS=OFF
     - -DSE_DOWNLOAD=OFF
     - -DSE_JIT=OFF # clang 8 is too unc for the available jit implementations
