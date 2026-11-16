@@ -46,6 +46,9 @@ class SE_EXPORT Renderer_GLCore : public Renderer {
     void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) override;
     void drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) override;
 
+    void setClip(int x, int y, int w, int h) override;
+    void clearClip() override;
+
     bool appShouldRun() override;
 
     void penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) override;

@@ -1,8 +1,8 @@
 #pragma once
 #include "nonstd/expected.hpp"
+#include <cstdint>
 #include <renderer.hpp>
 #include <se_export.hpp>
-#include <cstdint>
 #include <vector>
 
 #ifndef AV_PACK_NONE
@@ -177,6 +177,9 @@ class SE_EXPORT Renderer_NV2A : public Renderer {
 
     void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) override;
     void drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255) override;
+
+    void setClip(int x, int y, int w, int h) override;
+    void clearClip() override;
 
     bool appShouldRun() override;
 

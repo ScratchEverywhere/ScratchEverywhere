@@ -193,7 +193,7 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
                   .childGap = 20,
-                  .padding = UI::Padding::all(20),
+                  .padding = {5, 5, 20, 0},
                   .align = UI::AlignMode::Center,
               },
               [&] {

@@ -92,6 +92,9 @@ class SE_EXPORT Renderer {
     virtual int getHeight() = 0;
     virtual float getPixelDensity() = 0;
 
+    virtual void setClip(int x, int y, int w, int h) = 0;
+    virtual void clearClip() = 0;
+
     virtual void renderSprites() = 0;
     virtual void renderPenLayer() = 0;
 
@@ -200,11 +203,6 @@ void setRenderTarget(void *renderTarget, int width, int height);
 void clearRenderTarget();
 
 /**
- * [SDL] returns the current renderer.
- */
-// void *getRenderer();
-
-/**
  * Creates a global speech manager instance.
  */
 bool createSpeechManager();
@@ -263,6 +261,9 @@ void renderPenLayer();
  */
 void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
 void drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
+
+void setClip(int x, int y, int w, int h);
+void clearClip();
 
 /**
  * Returns whether or not the app should be running.

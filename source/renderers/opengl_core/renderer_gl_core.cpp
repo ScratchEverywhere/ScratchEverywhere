@@ -1003,6 +1003,15 @@ void Renderer_GLCore::drawRoundedBox(int w, int h, int x, int y, int radius,
     drawSolidFan(verts, proj);
 }
 
+void Renderer_GLCore::setClip(int x, int y, int w, int h) {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x, getHeight() - (y + h), w, h);
+}
+
+void Renderer_GLCore::clearClip() {
+    glDisable(GL_SCISSOR_TEST);
+}
+
 void Renderer_GLCore::renderPenLayer() {
     if (penTexture == 0) return;
 

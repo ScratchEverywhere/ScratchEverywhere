@@ -435,6 +435,17 @@ void Renderer_C2D::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_
     drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
+void Renderer_C2D::setClip(int x, int y, int w, int h) {
+    C2D_Flush();
+    Window3DS *win = reinterpret_cast<Window3DS *>(window);
+    C3D_SetScissor(GPU_SCISSOR_NORMAL, std::max(0, win->height - h - y), std::max(0, win->width - w - x), std::max(0, win->height - y), std::max(0, win->width - x));
+}
+
+void Renderer_C2D::clearClip() {
+    C2D_Flush();
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+}
+
 void Renderer_C2D::renderSprites() {
     if (isConsoleInit) Render::renderMode = Render::TOP_SCREEN_ONLY;
     if (!hasFrameBegan) {

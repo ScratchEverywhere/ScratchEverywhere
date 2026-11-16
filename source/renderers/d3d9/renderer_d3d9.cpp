@@ -1,6 +1,7 @@
 #include "renderer_d3d9.hpp"
 #include "image_d3d9.hpp"
 #include "speech_manager_d3d9.hpp"
+#include <menuManager.hpp>
 
 #define WIN32_LEAN_AND_MEAN
 #include <algorithm>
@@ -751,6 +752,37 @@ void Renderer_D3D9::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     this->drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
+void Renderer_D3D9::setClip(int x, int y, int w, int h) {
+    const int rtW = getWidth();
+    const int rtH = getHeight();
+
+    const int left = std::clamp(x, 0, rtW);
+    const int top = std::clamp(y, 0, rtH);
+    const int right = std::clamp(x + w, 0, rtW);
+    const int bottom = std::clamp(y + h, 0, rtH);
+
+    if (right <= left || bottom <= top) {
+        RECT emptyRect = {0, 0, 1, 1};
+        pDev->SetScissorRect(&emptyRect);
+        pDev->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
+        return;
+    }
+
+    RECT scissorRect = {
+        static_cast<LONG>(left),
+        static_cast<LONG>(top),
+        static_cast<LONG>(right),
+        static_cast<LONG>(bottom)};
+
+    pDev->SetScissorRect(&scissorRect);
+    pDev->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
+}
+
+void Renderer_D3D9::clearClip() {
+    // Flush any pending batch here before disabling scissor test
+    pDev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+}
+
 void Renderer_D3D9::renderPenLayer() {
     TEXVERTEX v[4];
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -857,7 +889,7 @@ void Renderer_D3D9::renderSprites() {
         speechManager->render();
     }
 
-    Render::renderMonitors();
+    MenuManager::render();
 
     drawBlackBars(this->getWidth(), this->getHeight());
     this->endFrame(true);

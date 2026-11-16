@@ -810,6 +810,10 @@ static const ScrollState *findScrollConst(const Pool &pool, uint16_t id) {
     return nullptr;
 }
 
+static inline bool sameRect(const Rect &a, const Rect &b) {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+}
+
 void Painter::renderScrollbars(Renderer *renderer, const Pool *pool) {
     constexpr int barW = 4, barMargin = 2, minThumb = 16;
 
@@ -822,7 +826,10 @@ void Painter::renderScrollbars(Renderer *renderer, const Pool *pool) {
         if (!s || viewH <= 0 || s->extentH <= viewH) continue;
 
         const Rect sr = screenRect(e);
-        if (!overlaps(sr, effectiveClip(pool, e.clipOwner, windowRect))) continue;
+        const Rect clip = effectiveClip(pool, e.clipOwner, windowRect);
+        if (!overlaps(sr, clip)) continue;
+
+        renderer->setClip(clip.x, clip.y, clip.w, clip.h);
 
         const int maxScroll = s->extentH - viewH;
         const int thumbH = std::min(viewH, std::max(minThumb, viewH * viewH / s->extentH));
@@ -838,17 +845,22 @@ void Painter::renderScrollbars(Renderer *renderer, const Pool *pool) {
 
 void Painter::render(const Pool *pool) {
     Renderer *renderer = Render::getGlobalRenderer();
+    Rect activeClip = {-1, -1, -1, -1};
 
     for (uint16_t i = 0; i < pool->count; i++) {
         const Element &e = pool->elements[i];
 
         const Rect sr = screenRect(e);
         const Rect clip = effectiveClip(pool, e.clipOwner, windowRect);
-        // TODO: renderer->setClipRect or sum
 
         if (e.parent == NONE) {
             if (sr.x + sr.w < 0 || sr.y + sr.h < 0 || sr.x > windowRect.w || sr.y > windowRect.h) continue;
         } else if (!overlaps(sr, clip)) continue;
+
+        if (!sameRect(activeClip, clip)) {
+            renderer->setClip(clip.x, clip.y, clip.w, clip.h);
+            activeClip = clip;
+        }
 
         switch (e.kind) {
         case UI::ElementKind::Box: {
@@ -900,6 +912,7 @@ void Painter::render(const Pool *pool) {
         }
     }
     renderScrollbars(renderer, pool);
+    renderer->clearClip();
 }
 
 } // namespace UI

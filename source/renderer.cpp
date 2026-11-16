@@ -367,9 +367,20 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     if (globalRenderer)
         globalRenderer->drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
+
 void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     if (globalRenderer)
         globalRenderer->drawRoundedBox(w, h, x, y, radius, colorR, colorG, colorB, colorA);
+}
+
+void Render::setClip(int x, int y, int w, int h) {
+    if (globalRenderer)
+        globalRenderer->setClip(x, y, w, h);
+}
+
+void Render::clearClip() {
+    if (globalRenderer)
+        globalRenderer->clearClip();
 }
 
 bool Render::appShouldRun() {

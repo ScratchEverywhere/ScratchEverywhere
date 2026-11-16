@@ -1,6 +1,7 @@
 #include "renderer_gdi.hpp"
 #include "image_gdi.hpp"
 #include "speech_manager_gdi.hpp"
+#include <menuManager.hpp>
 
 #define WIN32_LEAN_AND_MEAN
 #include <algorithm>
@@ -352,6 +353,13 @@ void Renderer_GDI::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_
     DeleteObject(pen);
 }
 
+// does GDI support scissoring?
+void Renderer_GDI::setClip(int x, int y, int w, int h) {
+}
+
+void Renderer_GDI::clearClip() {
+}
+
 void Renderer_GDI::renderPenLayer() {
     POINT p[3];
     int i;
@@ -406,7 +414,7 @@ void Renderer_GDI::renderSprites() {
         speechManager->render();
     }
 
-    Render::renderMonitors();
+    MenuManager::render();
 
     drawBlackBars(this->getWidth(), this->getHeight());
     this->endFrame(true);

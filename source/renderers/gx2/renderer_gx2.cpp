@@ -3,6 +3,7 @@
 #include "image_gx2.hpp"
 #include "speech_manager_gx2.hpp"
 #include <log.hpp>
+#include <menuManager.hpp>
 #include <runtime.hpp>
 #include <window.hpp>
 
@@ -591,6 +592,35 @@ void Renderer_GX2::drawRoundedBox(int w, int h, int x, int y, int radius,
     drawSolidFan(verts, proj);
 }
 
+void Renderer_GX2::setClip(int x, int y, int w, int h) {
+    flushPenTarget(window);
+
+    const int targetW = getWidth();
+    const int targetH = getHeight();
+
+    const int left = std::clamp(x, 0, targetW);
+    const int top = std::clamp(y, 0, targetH);
+    const int right = std::clamp(x + w, 0, targetW);
+    const int bottom = std::clamp(y + h, 0, targetH);
+
+    if (right <= left || bottom <= top) {
+        GX2SetScissor(0, 0, 0, 0);
+        return;
+    }
+
+    GX2SetScissor(static_cast<uint32_t>(left),
+                  static_cast<uint32_t>(top),
+                  static_cast<uint32_t>(right - left),
+                  static_cast<uint32_t>(bottom - top));
+}
+
+void Renderer_GX2::clearClip() {
+    flushPenTarget(window);
+    GX2SetScissor(0, 0,
+                  static_cast<uint32_t>(getWidth()),
+                  static_cast<uint32_t>(getHeight()));
+}
+
 void Renderer_GX2::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
     if (!penTarget.valid) return;
     if (penReadback.valid && !penReadbackStale) return;
@@ -709,7 +739,7 @@ void Renderer_GX2::renderSprites() {
     if (speechManager) speechManager->render();
 
     if (!dualScreen) drawBlackBars(getWidth(), getHeight(), proj);
-    Render::renderMonitors();
+    MenuManager::render();
 
     if (dualScreen) {
         flushPenTarget(window);

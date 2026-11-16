@@ -1,6 +1,9 @@
 #include "renderer_sdl3.hpp"
+#include "SDL3/SDL_oldnames.h"
+#include "menuManager.hpp"
 #include "speech_manager_sdl3.hpp"
 #include "window_sdl3.hpp"
+#include <menuManager.hpp>
 #include <window.hpp>
 
 #include <algorithm>
@@ -581,6 +584,15 @@ void Renderer_SDL3::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     SDL_RenderGeometry(Sdlrenderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
 }
 
+void Renderer_SDL3::setClip(int x, int y, int w, int h) {
+    SDL_Rect r = {x, y, w, h};
+    SDL_SetRenderClipRect(Sdlrenderer, &r);
+}
+
+void Renderer_SDL3::clearClip() {
+    SDL_SetRenderClipRect(Sdlrenderer, nullptr);
+}
+
 void Renderer_SDL3::renderSprites() {
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
@@ -616,7 +628,7 @@ void Renderer_SDL3::renderSprites() {
     }
 
     drawBlackBars(Sdlrenderer, getWidth(), getHeight());
-    Render::renderMonitors();
+    MenuManager::render();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {

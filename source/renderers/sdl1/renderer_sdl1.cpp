@@ -8,6 +8,7 @@
 #include <SDL_gfxBlitFunc.h>
 #include <SDL_gfxPrimitives.h>
 #include <SDL_rotozoom.h>
+#include <menuManager.hpp>
 
 #include <algorithm>
 #include <audio.hpp>
@@ -343,6 +344,27 @@ void Renderer_SDL1::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
+void Renderer_SDL1::setClip(int x, int y, int w, int h) {
+    if (!mainSurface) return;
+
+    const int left = std::clamp(x, 0, mainSurface->w);
+    const int top = std::clamp(y, 0, mainSurface->h);
+    const int right = std::clamp(x + w, 0, mainSurface->w);
+    const int bottom = std::clamp(y + h, 0, mainSurface->h);
+
+    SDL_Rect clipRect = {
+        static_cast<Sint16>(left),
+        static_cast<Sint16>(top),
+        static_cast<Uint16>(right - left),
+        static_cast<Uint16>(bottom - top)};
+    SDL_SetClipRect(mainSurface, &clipRect);
+}
+
+void Renderer_SDL1::clearClip() {
+    if (!mainSurface) return;
+    SDL_SetClipRect(mainSurface, nullptr);
+}
+
 void Renderer_SDL1::renderSprites() {
     SDL_FillRect(mainSurface, NULL, SDL_MapRGB(mainSurface->format, 255, 255, 255));
 
@@ -377,7 +399,7 @@ void Renderer_SDL1::renderSprites() {
     }
 
     drawBlackBars(mainSurface, getWidth(), getHeight());
-    Render::renderMonitors();
+    MenuManager::render();
 
     if (window) window->swapBuffers();
 }

@@ -186,6 +186,13 @@ void Renderer_GL2D::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
+// as far as i know, GL2D does not support scissoring.
+void Renderer_GL2D::setClip(int x, int y, int w, int h) {
+}
+
+void Renderer_GL2D::clearClip() {
+}
+
 bool Renderer_GL2D::appShouldRun() {
     return true;
 }
