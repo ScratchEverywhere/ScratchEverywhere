@@ -443,7 +443,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/jit/ir" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
+set(SOURCES "source" "source/runtime"  "source/menus" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/jit/ir" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS})
 
 if(SE_JIT_SUPPORTED)
     list(APPEND SOURCES "source/runtime/jit/backends/${SE_JIT_BACKEND}")
@@ -481,10 +481,6 @@ endif()
 
 if(SE_CUSTOM_EXTENSIONS)
     list(APPEND SOURCES "source/runtime/extensions")
-endif()
-
-if(SE_MENU)
-    list(APPEND SOURCES "source/menus")
 endif()
 
 set(ABSOLUTE_SOURCES "")

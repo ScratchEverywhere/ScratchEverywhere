@@ -2,6 +2,7 @@
 #include "gx2_gfx.hpp"
 #include "image_gx2.hpp"
 #include "speech_manager_gx2.hpp"
+#include <gx2/registers.h>
 #include <log.hpp>
 #include <menuManager.hpp>
 #include <runtime.hpp>

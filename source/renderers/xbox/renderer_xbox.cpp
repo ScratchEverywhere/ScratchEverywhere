@@ -1818,11 +1818,11 @@ void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
 }
 
 // TODO: should probably delete duplicate scissor() funcs
-void Renderer_NV2A::setClip(int x, int y, int w, int h) {
+void Renderer_Xbox::setClip(int x, int y, int w, int h) {
     setScissor(x, y, w, h);
 }
 
-void Renderer_NV2A::clearClip() {
+void Renderer_Xbox::clearClip() {
     clearScissor();
 }
 
