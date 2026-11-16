@@ -239,9 +239,29 @@ class Builder {
     ScrollState *findScrollState(uint16_t id);
     Element *findElement(uint16_t id);
 
+    uint16_t focusedIndex = NONE;
+    int focusOrdinal = -1;
+    bool navMode = false;
+    int lastMouseX = -1, lastMouseY = -1;
+
+    uint16_t firstFocusable();
+    int ordinalOf(uint16_t index);
+    void setFocus(uint16_t index);
+    void restoreFocus();
+    uint16_t findNeighbor(uint16_t from, uint8_t dir);
+    void scrollIntoView(uint16_t index);
+
   public:
     float scale = 0.5f;
     bool dirty = true;
+
+    bool keyboardNav = true;
+    void resetFocus() {
+        focusedIndex = NONE;
+        focusOrdinal = -1;
+        navMode = false;
+    }
+
     void layout();
     bool shouldRebuild();
     void begin(Pool &pool);

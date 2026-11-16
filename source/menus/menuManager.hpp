@@ -13,8 +13,8 @@ enum class MenuId : uint8_t {
     None,
     MainMenu,
     ProjectMenu,
-    ProjectSettingsMenu,
     GlobalSettingsMenu,
+    ProjectSettingsMenu,
     LanguageMenu,
     Ingame,
 };
@@ -27,11 +27,15 @@ extern UI::Builder builder;
 extern bool isProjectLoaded;
 extern bool projectPendingLoad;
 extern bool canChangeTabs;
+extern bool menuMusicFailed;
 bool initMainMenu();
 void render();
 void buildMenuBar(UI::Builder &b);
 void changeMenu(MenuId id);
 void unloadMenu(MenuId id);
 void loadProject();
+void initMenuMusic();
+void deinitMenuMusic();
+void tickMenuMusic();
 void cleanup();
 }; // namespace MenuManager

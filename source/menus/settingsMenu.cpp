@@ -215,7 +215,10 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                                     return;
                                 });
 
-                                toggle(b, "MenuMusic", "ui.settings.music", true);
+                                toggle(b, "MenuMusic", "ui.settings.music", true, [](bool enabled) {
+                                    if (enabled) MenuManager::initMenuMusic();
+                                    else MenuManager::deinitMenuMusic();
+                                });
 
                                 if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
                                     toggle(b, "UseProjectsPath", "ui.settings.path", false);

@@ -15,11 +15,53 @@
 
 bool MenuManager::isProjectLoaded = false;
 bool MenuManager::projectPendingLoad = false;
+bool MenuManager::menuMusicFailed = false;
 bool MenuManager::canChangeTabs = true;
 MenuId MenuManager::currentMenu = MenuId::None;
 std::unordered_map<MenuId, std::unique_ptr<Menu>> MenuManager::loadedMenus;
 UI::Builder MenuManager::builder = {};
 UI::Pool MenuManager::elements = {};
+
+#ifdef __NDS__
+static const std::string musicPath = "gfx/nds/mm_ds.wav";
+#else
+static const std::string musicPath = "gfx/menu/mm_splash.ogg";
+#endif
+
+void MenuManager::initMenuMusic() {
+#ifdef ENABLE_AUDIO
+    menuMusicFailed = false;
+    auto settings = SettingsManager::getConfigSettings();
+    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+        SoundStream *strm = new SoundStream(musicPath);
+        if (strm->error.has_value()) {
+            Log::log(strm->error.value());
+            delete strm;
+            menuMusicFailed = true;
+        } else
+            Mixer::setAutoClean(musicPath, true);
+    } else menuMusicFailed = true;
+#endif
+}
+
+void MenuManager::deinitMenuMusic() {
+    menuMusicFailed = true;
+    Mixer::stopSound(musicPath);
+}
+
+void MenuManager::tickMenuMusic() {
+#ifdef ENABLE_AUDIO
+    if (!menuMusicFailed && !Mixer::isSoundPlaying(musicPath)) {
+        SoundStream *strm = new SoundStream(musicPath);
+        if (strm->error.has_value()) {
+            Log::log(strm->error.value());
+            delete strm;
+            menuMusicFailed = true;
+        } else
+            Mixer::setAutoClean(musicPath, true);
+    }
+#endif
+}
 
 bool MenuManager::initMainMenu() {
 #ifdef __NDS__
@@ -31,6 +73,8 @@ bool MenuManager::initMainMenu() {
 #endif
 
     UI::loadTheme();
+    Input::applyControls();
+    initMenuMusic();
 
     loadedMenus[MenuId::MainMenu] = std::make_unique<MainMenu>();
     loadedMenus[MenuId::ProjectMenu] = std::make_unique<ProjectMenu>();
@@ -70,6 +114,7 @@ void MenuManager::changeMenu(MenuId id) {
         }
     }
     currentMenu = id;
+    builder.resetFocus();
     builder.dirty = true;
 }
 
@@ -80,6 +125,7 @@ void MenuManager::unloadMenu(MenuId id) {
 }
 
 void MenuManager::render() {
+    tickMenuMusic();
     Menu *menu = loadedMenus[currentMenu].get();
 
     if (builder.shouldRebuild()) {
@@ -122,6 +168,16 @@ void MenuManager::render() {
         builder.layout();
     }
 
+    constexpr int tabCount = 3;
+
+    if (canChangeTabs) {
+        if (Input::keyHeldDuration["r"] == 1)
+            changeMenu(static_cast<MenuId>((static_cast<uint8_t>(currentMenu) % tabCount) + 1));
+        else if (Input::keyHeldDuration["l"] == 1)
+            changeMenu(static_cast<MenuId>(((static_cast<uint8_t>(currentMenu) + 1) % tabCount) + 1));
+    }
+
+    builder.keyboardNav = (currentMenu != MenuId::Ingame);
     builder.input();
     UI::Painter::render(elements);
 
@@ -182,6 +238,8 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
 void MenuManager::loadProject() {
     projectPendingLoad = false;
     cleanup();
+    TextObject::cleanupText();
+    deinitMenuMusic();
     Mixer::cleanupAudio();
 
     if (!Unzip::load()) {

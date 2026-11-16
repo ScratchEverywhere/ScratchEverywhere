@@ -57,7 +57,7 @@ static Rect screenRect(const Element &e) {
         e.rect.h};
 }
 
-// TODO: make these not static yawwwwnnnn
+// TODO: move these and make these not static yawwwwnnnn
 static Rect intersect(const Rect &a, const Rect &b) {
     const int x1 = std::max<int>(a.x, b.x);
     const int y1 = std::max<int>(a.y, b.y);
@@ -146,42 +146,99 @@ static int flowChildren(Pool &pool, Element &p, bool place) {
     return anyRow ? y - gap : 0;
 }
 
+static bool downPressed() {
+    return Input::keyHeldDuration["down arrow"] == 1 || Input::keyHeldDuration["h"] == 1;
+}
+
+static bool upPressed() {
+    return Input::keyHeldDuration["up arrow"] == 1 || Input::keyHeldDuration["u"] == 1;
+}
+
+static bool leftPressed() {
+    return Input::keyHeldDuration["left arrow"] == 1 || Input::keyHeldDuration["g"] == 1;
+}
+
+static bool rightPressed() {
+    return Input::keyHeldDuration["right arrow"] == 1 || Input::keyHeldDuration["j"] == 1;
+}
+
+static bool selectPressed() {
+    return Input::keyHeldDuration["a"] == 1;
+}
+
+static bool selectHeld() {
+    return Input::keyHeldDuration["a"] > 0;
+}
+
+static int gap1D(int p1, int l1, int p2, int l2) {
+    return std::max(0, std::max(p1, p2) - std::min(p1 + l1, p2 + l2));
+}
+
 void Builder::input() {
-    // TODO: Input class changes
     const int mouseX = Input::mousePointer.rawX;
     const int mouseY = Input::mousePointer.rawY;
+    const bool mouseDown = Input::mousePointer.isPressed;
     const size_t mouseHeldFrames = Input::mousePointer.heldFrames;
 
     static size_t oldHeldFrames = 0;
     static int oldMouseX = 0;
     static int oldMouseY = 0;
 
-    for (uint16_t i = 0; i < pool->count; i++) {
-        Element &e = pool->elements[i];
-        if (!(e.flags & Flag::Focusable)) continue;
-        e.state = StateFlag::Normal;
-    }
+    const bool mouseActive = mouseDown || mouseX != lastMouseX || mouseY != lastMouseY;
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
 
-    uint16_t h = hitTest(mouseX, mouseY, true);
-    if (h != NONE) {
-        Element &e = pool->elements[h];
-        if (Input::mousePointer.isPressed) {
-            e.state = StateFlag::Pressed;
+    if (focusedIndex != NONE &&
+        (focusedIndex >= pool->count || !(pool->elements[focusedIndex].flags & Flag::Focusable)))
+        setFocus(NONE);
 
-            if (mouseHeldFrames == 1) {
-                oldMouseX = mouseX;
-                oldMouseY = mouseY;
+    if (mouseActive) navMode = false;
+
+    const uint16_t h = hitTest(mouseX, mouseY, true);
+    if (!navMode && h != NONE && h != focusedIndex) setFocus(h);
+
+    uint16_t activate = NONE;
+
+    if (keyboardNav) {
+        int dir = -1;
+        if (upPressed()) dir = 0;
+        else if (downPressed()) dir = 1;
+        else if (leftPressed()) dir = 2;
+        else if (rightPressed()) dir = 3;
+
+        if (dir >= 0) {
+            navMode = true;
+            const uint16_t next = (focusedIndex == NONE) ? firstFocusable() : findNeighbor(focusedIndex, dir);
+            if (next != NONE) {
+                setFocus(next);
+                scrollIntoView(next);
             }
-
-        } else if (mouseHeldFrames == 0 && oldHeldFrames != 0 &&
-                   std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
-            if (e.onClickId != NONE) {
-                pool->callbacks[e.onClickId]();
+        } else if (selectPressed()) {
+            if (navMode) activate = focusedIndex;
+            else if (h != NONE) activate = h;
+            else {
+                navMode = true;
+                if (focusedIndex == NONE) setFocus(firstFocusable());
             }
-        } else {
-            e.state = StateFlag::Focused;
         }
     }
+
+    if (mouseDown && mouseHeldFrames == 1) {
+        oldMouseX = mouseX;
+        oldMouseY = mouseY;
+    } else if (h != NONE && !mouseDown && mouseHeldFrames == 0 && oldHeldFrames != 0 &&
+               std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
+        activate = h;
+    }
+
+    for (uint16_t i = 0; i < pool->count; i++) {
+        Element &e = pool->elements[i];
+        if (e.flags & Flag::Focusable) e.state = StateFlag::Normal;
+    }
+    const uint16_t lit = navMode ? focusedIndex : h;
+    if (lit != NONE) pool->elements[lit].state = StateFlag::Focused;
+    if (mouseDown && h != NONE) pool->elements[h].state = StateFlag::Pressed;
+    else if (navMode && focusedIndex != NONE && selectHeld()) pool->elements[focusedIndex].state = StateFlag::Pressed;
 
     if (Input::mouseScrollDelta != 0) {
         uint16_t target = scrollAncestor(hitTest(mouseX, mouseY, false));
@@ -196,6 +253,9 @@ void Builder::input() {
     }
 
     oldHeldFrames = mouseHeldFrames;
+
+    if (activate != NONE && pool->elements[activate].onClickId != NONE)
+        pool->callbacks[pool->elements[activate].onClickId]();
 }
 
 static float getScale(const Rect &r) {
@@ -328,7 +388,7 @@ uint16_t Builder::text(const TextProps &props) {
 uint16_t Builder::image(const ImageProps &props) {
     ImageProps payload = props;
 
-    Image *image;
+    Image *image = nullptr;
 
     if (pool->imageData.find(payload.imagePath) != pool->imageData.end()) {
         image = pool->imageData.at(payload.imagePath).get();
@@ -557,6 +617,7 @@ void Builder::layout() {
 
     updateScrollBounds();
     resolveScroll();
+    restoreFocus();
 }
 
 uint16_t Builder::hitTest(int mx, int my, bool focusableOnly) {
@@ -612,6 +673,112 @@ void Builder::resolveScroll() {
             }
         }
     }
+}
+
+uint16_t Builder::firstFocusable() {
+    for (uint16_t i = 0; i < pool->count; i++)
+        if (pool->elements[i].flags & Flag::Focusable) return i;
+    return NONE;
+}
+
+int Builder::ordinalOf(uint16_t index) {
+    int n = 0;
+    for (uint16_t i = 0; i < pool->count; i++) {
+        if (!(pool->elements[i].flags & Flag::Focusable)) continue;
+        if (i == index) return n;
+        n++;
+    }
+    return -1;
+}
+
+void Builder::setFocus(uint16_t index) {
+    focusedIndex = index;
+    focusOrdinal = (index == NONE) ? -1 : ordinalOf(index);
+}
+
+void Builder::restoreFocus() {
+    focusedIndex = NONE;
+    if (focusOrdinal < 0) return;
+
+    int n = 0;
+    uint16_t last = NONE;
+    for (uint16_t i = 0; i < pool->count; i++) {
+        if (!(pool->elements[i].flags & Flag::Focusable)) continue;
+        if (n == focusOrdinal) {
+            focusedIndex = i;
+            return;
+        }
+        last = i;
+        n++;
+    }
+    focusedIndex = last;
+    focusOrdinal = (last == NONE) ? -1 : n - 1;
+}
+
+uint16_t Builder::findNeighbor(uint16_t from, uint8_t dir) {
+    const Rect a = screenRect(pool->elements[from]);
+    uint16_t best = NONE;
+    int64_t bestScore = INT64_MAX;
+
+    for (uint16_t i = 0; i < pool->count; i++) {
+        if (i == from) continue;
+        const Element &c = pool->elements[i];
+        if (!(c.flags & Flag::Focusable) || c.rect.w <= 0 || c.rect.h <= 0) continue;
+        const Rect b = screenRect(c);
+
+        // distance between the facing edges, so the candidate must sit fully past the current one
+        int primary, crossGap, crossCenter;
+        switch (dir) {
+        case 0:
+            primary = a.y - (b.y + b.h);
+            crossGap = gap1D(a.x, a.w, b.x, b.w);
+            crossCenter = std::abs((b.x + b.w / 2) - (a.x + a.w / 2));
+            break;
+        case 1:
+            primary = b.y - (a.y + a.h);
+            crossGap = gap1D(a.x, a.w, b.x, b.w);
+            crossCenter = std::abs((b.x + b.w / 2) - (a.x + a.w / 2));
+            break;
+        case 2:
+            primary = a.x - (b.x + b.w);
+            crossGap = gap1D(a.y, a.h, b.y, b.h);
+            crossCenter = std::abs((b.y + b.h / 2) - (a.y + a.h / 2));
+            break;
+        default:
+            primary = b.x - (a.x + a.w);
+            crossGap = gap1D(a.y, a.h, b.y, b.h);
+            crossCenter = std::abs((b.y + b.h / 2) - (a.y + a.h / 2));
+            break;
+        }
+        if (primary < 0) continue;
+        if (dir >= 2 && crossGap > 0) continue;
+
+        const int64_t score = (static_cast<int64_t>(primary) + 4 * crossGap) * 4096 + std::min(crossCenter, 4095);
+        if (score < bestScore) {
+            bestScore = score;
+            best = i;
+        }
+    }
+    return best;
+}
+
+void Builder::scrollIntoView(uint16_t index) {
+    const Element &e = pool->elements[index];
+    const uint16_t sc = scrollAncestor(e.parent);
+    if (sc == NONE) return;
+
+    const Element &c = pool->elements[sc];
+    ScrollState *s = findScrollState(c.id);
+    if (!s) return;
+
+    const int top = e.rect.y - c.rect.y;
+    const int bottom = top + e.rect.h;
+
+    if (top - c.padding.up < s->y) s->y = static_cast<int16_t>(top - c.padding.up);
+    else if (bottom + c.padding.down > s->y + c.rect.h) s->y = static_cast<int16_t>(bottom + c.padding.down - c.rect.h);
+
+    clampScroll(c, *s);
+    resolveScroll();
 }
 
 void Builder::updateScrollBounds() {
