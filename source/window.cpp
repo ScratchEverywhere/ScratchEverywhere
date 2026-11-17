@@ -1,9 +1,12 @@
 #ifdef __XBOX__
 #include <platforms/xbox/backend_names.hpp>
 #endif
-#include "window.hpp"
 #include "log.hpp"
 #include "renderer.hpp"
+#include "window.hpp"
+#ifdef WINDOWING_XBOX360
+#include <window_xbox360.hpp>
+#endif
 #ifdef WINDOWING_SDL3
 #include <window_sdl3.hpp>
 #endif
@@ -82,6 +85,9 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         case Renderers::SDL3:
             b = WindowingBackends::SDL1;
             break;
+        case Renderers::Xbox360:
+            b = WindowingBackends::Xbox360;
+            break;
         case Renderers::Xbox:
             b = WindowingBackends::Xbox;
             break;
@@ -154,6 +160,13 @@ WindowSE *createWindow(int width, int height, const std::string &title, Windowin
         WindowSE::currentWindowingBackend = WindowingBackends::SDL2;
         window = new WindowSDL2(width, height, title);
         break;
+#endif
+        break;
+    }
+    case WindowingBackends::Xbox360: {
+#ifdef WINDOWING_XBOX360
+        WindowSE::currentWindowingBackend = WindowingBackends::Xbox360;
+        window = new WindowXbox360(width, height, title);
 #endif
         break;
     }
@@ -292,5 +305,8 @@ const std::vector<WindowingBackendInfo> WindowSE::getAvailableWindowingBackends(
     add(WindowingBackends::Flatland);
 #endif
 
+#ifdef WINDOWING_XBOX360
+    add(WindowingBackends::Xbox360);
+#endif
     return windowingBackends;
 }

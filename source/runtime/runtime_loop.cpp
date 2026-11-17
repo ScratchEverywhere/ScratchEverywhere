@@ -10,10 +10,10 @@
 #include <cstdio>
 #include <input.hpp>
 #include <iostream>
-#include <touch_controls.hpp>
 #include <os.hpp>
 #include <renderer.hpp>
 #include <speech_manager.hpp>
+#include <touch_controls.hpp>
 #include <utility>
 
 #ifdef ENABLE_MENU
@@ -220,7 +220,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
         // Count wall time, not game frames: slow projects must remain escapable.
         static Timer pauseHoldTimer(false);
         static bool holdingPauseStart = false;

@@ -10,6 +10,10 @@
 #include <bundle_archives.hpp>
 #endif
 
+#ifdef RENDERER_XBOX360
+#include <text_xbox360.hpp>
+#endif
+
 #ifdef RENDERER_CITRO2D
 #include <renderers/citro2d/text_c2d.hpp>
 #endif
@@ -58,6 +62,10 @@ TextObject::TextObject(std::string txt, double posX, double posY, std::string fo
 
 std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, double posY, std::string fontPath) {
     switch (Render::currentRenderer) {
+#ifdef RENDERER_XBOX360
+    case Renderers::Xbox360:
+        return std::make_unique<TextObjectXbox360>(txt, posX, posY, fontPath);
+#endif
 #ifdef RENDERER_CITRO2D
     case Renderers::Citro2D:
         return std::make_unique<TextObjectC2D>(txt, posX, posY, fontPath);
