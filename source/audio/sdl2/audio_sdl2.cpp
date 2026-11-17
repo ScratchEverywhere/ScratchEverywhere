@@ -27,6 +27,7 @@ extern "C" void SDLCALL sdl2Callback(void *ptr, Uint8 *stream, int len) {
 SoundDevice_SDL2::SoundDevice_SDL2() {
 #ifdef ENABLE_AUDIO
     SDL_AudioSpec spac;
+    SDL_zero(spac);
 
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         error = "Failed to init SDL2 Audio: " + std::string(SDL_GetError());

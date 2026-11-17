@@ -4,6 +4,9 @@
 #ifdef __SWITCH__
 #include <switch.h>
 #endif
+#ifdef __VFLASH__
+#include <vflash/input.h>
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
@@ -163,7 +166,32 @@ void InputDevice_SDL2::getInput() {
     }
 #endif
 
-#ifdef PLATFORM_HAS_CONTROLLER
+#ifdef __VFLASH__
+    vflash_input_poll();
+    const vflash_input_state_t *vf = vflash_input_get_state();
+    if (vf && vf->connected) {
+        if (vf->buttons & VFLASH_BTN_UP) Input::buttonPress("dpadUp");
+        if (vf->buttons & VFLASH_BTN_DOWN) Input::buttonPress("dpadDown");
+        if (vf->buttons & VFLASH_BTN_LEFT) Input::buttonPress("dpadLeft");
+        if (vf->buttons & VFLASH_BTN_RIGHT) Input::buttonPress("dpadRight");
+        if (vf->buttons & VFLASH_BTN_RED) Input::buttonPress("A");
+        if (vf->buttons & VFLASH_BTN_YELLOW) Input::buttonPress("B");
+        if (vf->buttons & VFLASH_BTN_GREEN) Input::buttonPress("X");
+        if (vf->buttons & VFLASH_BTN_BLUE) Input::buttonPress("Y");
+        if (vf->buttons & VFLASH_BTN_OK) {
+            Input::buttonPress("start");
+            Input::inputKeys.push_back("space");
+        }
+        if (vf->buttons & VFLASH_BTN_EXIT) Input::buttonPress("back");
+        if (vf->buttons & VFLASH_BTN_STICK) Input::buttonPress("shoulderL");
+
+        constexpr int16_t deadzone = 8192;
+        if (vf->axis_x > deadzone) Input::buttonPress("LeftStickRight");
+        else if (vf->axis_x < -deadzone) Input::buttonPress("LeftStickLeft");
+        if (vf->axis_y > deadzone) Input::buttonPress("LeftStickDown");
+        else if (vf->axis_y < -deadzone) Input::buttonPress("LeftStickUp");
+    }
+#elif defined(PLATFORM_HAS_CONTROLLER)
 
     auto dpad_handler = [&](SCRATCH_KEY_INDEX scratch_key, int x, int y) {
         if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(scratch_key)])) {

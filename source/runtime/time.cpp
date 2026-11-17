@@ -8,6 +8,8 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#elif defined(__VFLASH__)
+#include <SDL.h>
 #endif
 
 namespace {
@@ -70,6 +72,8 @@ double TimeSE::getDaysSince2000() {
     const int64_t ticks = (static_cast<int64_t>(now.dwHighDateTime) << 32) | now.dwLowDateTime;
     constexpr int64_t epoch2000 = 125911584000000000LL; // 100 ns since 1601-01-01.
     return (ticks - epoch2000) / 864000000000.0;
+#elif defined(__VFLASH__)
+    return (static_cast<double>(SDL_GetPerformanceCounter()) * 0.1) / 86400000.0;
 #else
     const auto now = std::chrono::system_clock::now();
 

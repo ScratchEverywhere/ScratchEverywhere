@@ -7,7 +7,9 @@
 #include <stdexcept>
 #include <string>
 
+
 void Image_SDL2::render(ImageRenderParams &params) {
+    if (!texture && !setInitialTexture().has_value()) return;
 
     const float &x = params.x;
     const float &y = params.y;
@@ -18,8 +20,10 @@ void Image_SDL2::render(ImageRenderParams &params) {
     const bool &centered = params.centered;
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
-    const float floatW = imgData.width / imgData.scale * scale;
-    const float floatH = imgData.height / imgData.scale * scale;
+    const float baseW = params.subrect != nullptr ? static_cast<float>(params.subrect->w) : (imgData.width / imgData.scale);
+    const float baseH = params.subrect != nullptr ? static_cast<float>(params.subrect->h) : (imgData.height / imgData.scale);
+    const float floatW = baseW * scale;
+    const float floatH = baseH * scale;
     const float floatX = centered ? x - (floatW / 2.0f) : x;
     const float floatY = centered ? y - (floatH / 2.0f) : y;
 
@@ -36,10 +40,10 @@ void Image_SDL2::render(ImageRenderParams &params) {
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
         subRect = {
-            .x = params.subrect->x,
-            .y = params.subrect->y,
-            .w = params.subrect->w,
-            .h = params.subrect->h};
+            .x = static_cast<int>(std::round(params.subrect->x * imgData.scale)),
+            .y = static_cast<int>(std::round(params.subrect->y * imgData.scale)),
+            .w = std::max(1, static_cast<int>(std::round(params.subrect->w * imgData.scale))),
+            .h = std::max(1, static_cast<int>(std::round(params.subrect->h * imgData.scale)))};
     } else {
         subRect = {
             .x = 0,
@@ -53,16 +57,20 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
     const SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
+    auto renderCopy = [&](SDL_Rect *src, SDL_Rect *dst) {
+        SDL_RenderCopyEx(sdlRenderer, texture, src, dst, rotation, &center, flip);
+    };
+
     if (brightness != 0) {
         float b = brightness * 0.01f;
         if (brightness > 0.0f) {
             // render the normal image first
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -70,14 +78,14 @@ void Image_SDL2::render(ImageRenderParams &params) {
             Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
 
-            SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+            renderCopy(&subRect, &renderRect);
             // reset for next frame
             SDL_SetTextureColorMod(texture, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderCopyEx(sdlRenderer, texture, &subRect, &renderRect, rotation, &center, flip);
+        renderCopy(&subRect, &renderRect);
     }
     freeTimer = maxFreeTimer;
 }
@@ -226,3 +234,4 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitma
 Image_SDL2::~Image_SDL2() {
     SDL_DestroyTexture(texture);
 }
+

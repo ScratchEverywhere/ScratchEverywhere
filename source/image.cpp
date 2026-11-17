@@ -12,6 +12,9 @@
 #ifdef __XBOX__
 #include <runtime.hpp>
 #endif
+#ifdef __VFLASH__
+#include <miniz.h>
+#endif
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -44,6 +47,9 @@ static bool hasSVGExtension(const std::string &path) {
 #endif
 #if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
+#endif
+#if defined(RENDERER_VFLASH)
+#include <image_vflash.hpp>
 #endif
 #if defined(RENDERER_XBOX)
 #include <image_xbox.hpp>
@@ -191,6 +197,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
         rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
         break;
 #endif
+#if defined(RENDERER_VFLASH)
+    case Renderers::VFlash:
+        rawImg = new Image_VFlash(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_XBOX)
     case Renderers::Xbox:
         rawImg = new Image_Xbox(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -289,6 +300,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #if defined(RENDERER_SDL2)
     case Renderers::SDL2:
         rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
+#if defined(RENDERER_VFLASH)
+    case Renderers::VFlash:
+        rawImg = new Image_VFlash(filePath, zip, bitmapHalfQuality, scale);
         break;
 #endif
 #if defined(RENDERER_XBOX)
@@ -545,6 +561,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     width = std::max(1, (int)(docW * finalScale));
     height = std::max(1, (int)(docH * finalScale));
     imgData.scale = finalScale;
+    svgRasterScale = scale;
+    svgRasterScale = scale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) {
@@ -555,6 +573,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     width = std::max(1, (int)(svgDocument->width() * finalScale));
     height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
+    svgRasterScale = scale;
+    svgRasterScale = scale;
 
     if (Render::currentRenderer == Renderers::Headless) {
         imgData.pitch = width * 4;
@@ -606,7 +626,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
-    if (!svgDocument || scale <= imgData.scale) return {};
+    if (!svgDocument || scale <= svgRasterScale) return {};
     if (svgDocument->width() <= 0.0f || svgDocument->height() <= 0.0f) return {};
 
     // TODO: De-duplicate code.
@@ -649,6 +669,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     imgData.width = width;
     imgData.height = height;
     imgData.scale = finalScale;
+    svgRasterScale = scale;
     imgData.pitch = width * 4;
     imgData.pixels = dst;
 
@@ -696,28 +717,199 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     return dst;
 }
 
+#ifdef __VFLASH__
+static uint8_t paethPredictor(uint8_t a, uint8_t b, uint8_t c) {
+    int p = static_cast<int>(a) + static_cast<int>(b) - static_cast<int>(c);
+    int pa = std::abs(p - static_cast<int>(a));
+    int pb = std::abs(p - static_cast<int>(b));
+    int pc = std::abs(p - static_cast<int>(c));
+    if (pa <= pb && pa <= pc) return a;
+    if (pb <= pc) return b;
+    return c;
+}
+
+static unsigned char *decodePngDownscaledVFlash(const unsigned char *data, size_t size, int &outW, int &outH, float &imgScale) {
+    if (!data || size < 8) return nullptr;
+    static const uint8_t sig[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+    if (std::memcmp(data, sig, 8) != 0) return nullptr;
+
+    auto readU32BE = [](const uint8_t *p) -> uint32_t {
+        return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
+               (static_cast<uint32_t>(p[2]) << 8) | static_cast<uint32_t>(p[3]);
+    };
+
+    int origW = 0, origH = 0, bpp = 0;
+    uint8_t colorType = 0;
+    size_t rowBytes = 0;
+    std::vector<uint8_t> prevRow, curRow;
+    unsigned char *outPixels = nullptr;
+    uint8_t palette[256][3]{};
+    uint8_t trnsAlpha[256];
+    std::memset(trnsAlpha, 255, sizeof(trnsAlpha));
+
+    mz_stream zs{};
+    bool zsInit = false;
+    size_t curRowPos = 0;
+    int curY = 0;
+    int nextDy = 0;
+
+    auto cleanupFail = [&]() -> unsigned char * {
+        if (zsInit) mz_inflateEnd(&zs);
+        std::free(outPixels);
+        return nullptr;
+    };
+
+    size_t pos = 8;
+    while (pos + 12 <= size) {
+        uint32_t len = readU32BE(data + pos);
+        if (pos + 12 + static_cast<size_t>(len) > size) return cleanupFail();
+        const uint8_t *type = data + pos + 4;
+        const uint8_t *cdata = data + pos + 8;
+
+        if (std::memcmp(type, "IHDR", 4) == 0 && len >= 13) {
+            origW = static_cast<int>(readU32BE(cdata));
+            origH = static_cast<int>(readU32BE(cdata + 4));
+            uint8_t bitDepth = cdata[8];
+            colorType = cdata[9];
+            uint8_t comp = cdata[10], filt = cdata[11], interlace = cdata[12];
+            if (origW <= 0 || origH <= 0 || bitDepth != 8 || comp != 0 || filt != 0 || interlace != 0) return cleanupFail();
+            if (colorType == 0 || colorType == 3) bpp = 1;
+            else if (colorType == 2) bpp = 3;
+            else if (colorType == 4) bpp = 2;
+            else if (colorType == 6) bpp = 4;
+            else return cleanupFail();
+
+            const int maxW = 160, maxH = 120;
+            float ratio = std::min(static_cast<float>(maxW) / static_cast<float>(origW),
+                                   static_cast<float>(maxH) / static_cast<float>(origH));
+            if (ratio > 1.0f) ratio = 1.0f;
+            outW = std::max(2, static_cast<int>(std::floor(origW * ratio)) & ~1);
+            outH = std::max(1, static_cast<int>(std::floor(origH * ratio)));
+
+            rowBytes = 1 + static_cast<size_t>(origW) * bpp;
+            prevRow.assign(static_cast<size_t>(origW) * bpp, 0);
+            curRow.resize(rowBytes);
+            outPixels = static_cast<unsigned char *>(std::malloc(static_cast<size_t>(outW) * outH * 4));
+            if (!outPixels) return cleanupFail();
+            if (mz_inflateInit(&zs) != MZ_OK) return cleanupFail();
+            zsInit = true;
+        } else if (std::memcmp(type, "PLTE", 4) == 0) {
+            uint32_t count = std::min<uint32_t>(len / 3, 256);
+            for (uint32_t i = 0; i < count; ++i) {
+                palette[i][0] = cdata[i * 3 + 0];
+                palette[i][1] = cdata[i * 3 + 1];
+                palette[i][2] = cdata[i * 3 + 2];
+            }
+        } else if (std::memcmp(type, "tRNS", 4) == 0 && colorType == 3) {
+            uint32_t count = std::min<uint32_t>(len, 256);
+            std::memcpy(trnsAlpha, cdata, count);
+        } else if (std::memcmp(type, "IDAT", 4) == 0 && zsInit) {
+            zs.next_in = const_cast<unsigned char *>(cdata);
+            zs.avail_in = len;
+            while (zs.avail_in > 0 && curY < origH) {
+                zs.next_out = curRow.data() + curRowPos;
+                zs.avail_out = static_cast<unsigned int>(rowBytes - curRowPos);
+                int rc = mz_inflate(&zs, MZ_NO_FLUSH);
+                curRowPos = rowBytes - zs.avail_out;
+                if (curRowPos == rowBytes) {
+                    uint8_t filter = curRow[0];
+                    uint8_t *p = curRow.data() + 1;
+                    const size_t rawBytes = rowBytes - 1;
+                    if (filter == 1) {
+                        for (size_t i = bpp; i < rawBytes; ++i) p[i] = static_cast<uint8_t>(p[i] + p[i - bpp]);
+                    } else if (filter == 2) {
+                        for (size_t i = 0; i < rawBytes; ++i) p[i] = static_cast<uint8_t>(p[i] + prevRow[i]);
+                    } else if (filter == 3) {
+                        for (size_t i = 0; i < rawBytes; ++i) {
+                            uint8_t a = (i >= static_cast<size_t>(bpp)) ? p[i - bpp] : 0;
+                            p[i] = static_cast<uint8_t>(p[i] + ((static_cast<int>(a) + static_cast<int>(prevRow[i])) >> 1));
+                        }
+                    } else if (filter == 4) {
+                        for (size_t i = 0; i < rawBytes; ++i) {
+                            uint8_t a = (i >= static_cast<size_t>(bpp)) ? p[i - bpp] : 0;
+                            uint8_t b = prevRow[i];
+                            uint8_t c = (i >= static_cast<size_t>(bpp)) ? prevRow[i - bpp] : 0;
+                            p[i] = static_cast<uint8_t>(p[i] + paethPredictor(a, b, c));
+                        }
+                    } else if (filter != 0) {
+                        return cleanupFail();
+                    }
+
+                    while (nextDy < outH && ((nextDy * origH) / outH) == curY) {
+                        uint8_t *dst = outPixels + static_cast<size_t>(nextDy) * outW * 4;
+                        for (int dx = 0; dx < outW; ++dx) {
+                            int sx = (dx * origW) / outW;
+                            const uint8_t *sp = p + static_cast<size_t>(sx) * bpp;
+                            uint8_t *dp = dst + dx * 4;
+                            if (colorType == 6) {
+                                dp[0] = sp[0]; dp[1] = sp[1]; dp[2] = sp[2]; dp[3] = sp[3];
+                            } else if (colorType == 2) {
+                                dp[0] = sp[0]; dp[1] = sp[1]; dp[2] = sp[2]; dp[3] = 255;
+                            } else if (colorType == 3) {
+                                uint8_t idx = sp[0];
+                                dp[0] = palette[idx][0]; dp[1] = palette[idx][1]; dp[2] = palette[idx][2]; dp[3] = trnsAlpha[idx];
+                            } else if (colorType == 4) {
+                                dp[0] = sp[0]; dp[1] = sp[0]; dp[2] = sp[0]; dp[3] = sp[1];
+                            } else {
+                                dp[0] = sp[0]; dp[1] = sp[0]; dp[2] = sp[0]; dp[3] = 255;
+                            }
+                        }
+                        nextDy++;
+                    }
+                    std::memcpy(prevRow.data(), p, rawBytes);
+                    curRowPos = 0;
+                    curY++;
+                }
+                if (rc == MZ_STREAM_END) break;
+                if (rc != MZ_OK && rc != MZ_BUF_ERROR) return cleanupFail();
+            }
+        } else if (std::memcmp(type, "IEND", 4) == 0) {
+            break;
+        }
+        pos += 12 + static_cast<size_t>(len);
+    }
+
+    if (zsInit) mz_inflateEnd(&zs);
+    if (!outPixels || curY == 0) {
+        std::free(outPixels);
+        return nullptr;
+    }
+    imgScale *= static_cast<float>(outW) / static_cast<float>(origW);
+    return outPixels;
+}
+#endif
+
 nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality,
                                                                            const unsigned char *textData, size_t textSize) {
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
-#if defined(__XBOX__)
+#if defined(__XBOX__) || defined(__VFLASH__)
+    bool usedStreamingFallback = false;
     if (!pixels) {
         Scratch::freeUnusedCostumeImages(this);
         pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
     }
+#ifdef __VFLASH__
+    if (!pixels) {
+        pixels = decodePngDownscaledVFlash(data, size, width, height, imgData.scale);
+        usedStreamingFallback = (pixels != nullptr);
+    }
+#endif
     if (!pixels || width <= 0 || height <= 0) {
         if (pixels) stbi_image_free(pixels);
         const char *reason = stbi_failure_reason();
         return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
     }
 #else
-    if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
+    if (!pixels) {
+        return nonstd::make_unexpected("Failed to decode raster image.");
+    }
 #endif
     if (textData) {
         int textWidth = 0, textHeight = 0, textChannels = 0;
         unsigned char *text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__VFLASH__)
         if (!text) {
             Scratch::freeUnusedCostumeImages(this);
             text = stbi_load_from_memory(textData, textSize, &textWidth, &textHeight, &textChannels, 4);
@@ -738,7 +930,11 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #endif
 
     unsigned char *resultPixels = pixels;
+#ifdef __VFLASH__
+    if (bitmapHalfQuality && !usedStreamingFallback) {
+#else
     if (bitmapHalfQuality) {
+#endif
         int resizedW, resizedH;
         unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH, this);
         if (!resizedPixels) {

@@ -17,6 +17,9 @@
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/renderer_sdl2.hpp>
 #endif
+#ifdef RENDERER_VFLASH
+#include <renderers/vflash/renderer_vflash.hpp>
+#endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_GameController *controller = nullptr;

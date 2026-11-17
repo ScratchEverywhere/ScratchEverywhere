@@ -35,6 +35,7 @@ body:
               - PS4
               - Libretro
               - Original Xbox
+              - V.Flash
       validations:
           required: false
     - type: textarea

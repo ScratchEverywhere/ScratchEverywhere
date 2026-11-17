@@ -6,11 +6,20 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
-static constexpr int bucketSteps[] = {12, 16, 20, 24, 32, 40, 50, 64, 80, 100, 128, 160, 200, 256};
-#if defined(__XBOX__) || defined(__PSP__)
-static constexpr int maxAtlasDim = 512;
+#if defined(__VFLASH__)
+static constexpr int bucketSteps[] = {12, 24, 36, 48, 60, 72, 96, 120, 144, 192, 240};
 #else
-static constexpr int maxAtlasDim = 2048;
+static constexpr int bucketSteps[] = {12, 16, 20, 24, 32, 40, 50, 64, 80, 100, 128, 160, 200, 256};
+#endif
+#if defined(__VFLASH__)
+static constexpr int maxAtlasWidth = 32;
+static constexpr int maxAtlasHeight = 128;
+#elif defined(__XBOX__) || defined(__PSP__)
+static constexpr int maxAtlasWidth = 512;
+static constexpr int maxAtlasHeight = 512;
+#else
+static constexpr int maxAtlasWidth = 2048;
+static constexpr int maxAtlasHeight = 2048;
 #endif
 static constexpr unsigned int evictAfterTicks = 5000;
 
@@ -62,22 +71,26 @@ int FontAtlas::pickBucket(float requestedPixelSize, int currentBucket) const {
 }
 
 void FontAtlas::growAndRepackAll(FontGeneration &gen) {
-    if (gen.atlasWidth >= maxAtlasDim || gen.atlasHeight >= maxAtlasDim) {
+    if (gen.atlasWidth >= maxAtlasWidth && gen.atlasHeight >= maxAtlasHeight) {
         Log::logWarning("FontAtlas: hit max atlas size, some glyphs may not render");
         return;
     }
 
     stbtt_PackEnd(&gen.packCtx);
-    gen.atlasWidth = std::min(gen.atlasWidth * 2, maxAtlasDim);
-    gen.atlasHeight = std::min(gen.atlasHeight * 2, maxAtlasDim);
+    gen.atlasWidth = std::min(gen.atlasWidth * 2, maxAtlasWidth);
+    gen.atlasHeight = std::min(gen.atlasHeight * 2, maxAtlasHeight);
     gen.pixels.assign((size_t)gen.atlasWidth * (size_t)gen.atlasHeight, 0);
 
     stbtt_PackBegin(&gen.packCtx, gen.pixels.data(), gen.atlasWidth, gen.atlasHeight, 0, 1, nullptr);
+#if defined(__VFLASH__)
+    stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
+#else
     if (gen.pixelSize <= 24) {
         stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
     } else {
         stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
     }
+#endif
 
     std::vector<int> allCodepoints(gen.bakedCodepoints.begin(), gen.bakedCodepoints.end());
 
@@ -148,19 +161,31 @@ FontGeneration &FontAtlas::ensureGeneration(int bucket, const std::vector<uint32
         gen.descent = (float)descent * scale;
         gen.lineGap = (float)lineGap * scale;
 
+#if defined(__VFLASH__)
+        int initialW = 32;
+        int initialH = 32;
+#else
         int initialDim = bucket <= 64 ? 256 : (bucket <= 128 ? 512 : 1024);
 #if defined(__XBOX__) || defined(__PSP__)
-        if (initialDim > maxAtlasDim) initialDim = maxAtlasDim;
+        if (initialDim > maxAtlasWidth) initialDim = maxAtlasWidth;
 #endif
-        gen.atlasWidth = gen.atlasHeight = initialDim;
-        gen.pixels.assign((size_t)initialDim * (size_t)initialDim, 0);
+        int initialW = initialDim;
+        int initialH = initialDim;
+#endif
+        gen.atlasWidth = initialW;
+        gen.atlasHeight = initialH;
+        gen.pixels.assign((size_t)initialW * (size_t)initialH, 0);
 
-        stbtt_PackBegin(&gen.packCtx, gen.pixels.data(), initialDim, initialDim, 0, 1, nullptr);
+        stbtt_PackBegin(&gen.packCtx, gen.pixels.data(), initialW, initialH, 0, 1, nullptr);
+#if defined(__VFLASH__)
+        stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
+#else
         if (bucket <= 24) {
             stbtt_PackSetOversampling(&gen.packCtx, 2, 2);
         } else {
             stbtt_PackSetOversampling(&gen.packCtx, 1, 1);
         }
+#endif
     }
 
     FontGeneration &gen = it->second;

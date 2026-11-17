@@ -1,0 +1,55 @@
+FROM debian:trixie-slim AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+ENV VFLASH_SDK_DIR=/opt/vflash-sdk
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    gcc-arm-none-eabi \
+    genisoimage \
+    git \
+    libnewlib-arm-none-eabi \
+    libstdc++-arm-none-eabi-newlib \
+    ninja-build \
+    python3 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/MikeDev101/vflash-sdk.git "${VFLASH_SDK_DIR}"
+
+ARG SE_VFLASH_PROJECT=""
+ARG SE_BUILD_TYPE=MinSizeRel
+ARG VFLASH_ENABLE_MMU=OFF
+
+COPY . .
+
+RUN mkdir -p romfs && \
+    PROJECT_ARG="" && \
+    if [ -n "${SE_VFLASH_PROJECT}" ]; then \
+        case "${SE_VFLASH_PROJECT}" in \
+            /*) PROJECT_PATH="${SE_VFLASH_PROJECT}" ;; \
+            *) PROJECT_PATH="/app/${SE_VFLASH_PROJECT}" ;; \
+        esac; \
+        if [ ! -e "${PROJECT_PATH}" ]; then \
+            echo "ERROR: SE_VFLASH_PROJECT not found in build context: ${PROJECT_PATH}" >&2; \
+            exit 1; \
+        fi; \
+        PROJECT_ARG="-DSE_VFLASH_PROJECT=${PROJECT_PATH}"; \
+    fi && \
+    cmake -S . -B build-vflash -G Ninja \
+        -DCMAKE_BUILD_TYPE="${SE_BUILD_TYPE}" \
+        -DCMAKE_TOOLCHAIN_FILE="${VFLASH_SDK_DIR}/cmake/toolchain-vflash.cmake" \
+        -DVFlash_DIR="${VFLASH_SDK_DIR}/cmake" \
+        -DCMAKE_DISABLE_FIND_PACKAGE_Threads=TRUE \
+        -DVFLASH_ENABLE_MMU="${VFLASH_ENABLE_MMU}" \
+        ${PROJECT_ARG} && \
+    cmake --build build-vflash -j"$(nproc)" && \
+    cmake --build build-vflash --target vflash_disc_image -j"$(nproc)"
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build-vflash/scratch-vflash.elf /
+COPY --from=main_builder /app/build-vflash/vflash/BOOT.BIN /
+COPY --from=main_builder /app/build-vflash/vflash/homebrew.iso /
+COPY --from=main_builder /app/build-vflash/vflash/homebrew.bin /
+COPY --from=main_builder /app/build-vflash/vflash/homebrew.cue /

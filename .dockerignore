@@ -64,6 +64,8 @@ main.code-workspace
 *.cia
 *.bat
 *.sb3
+!romfs/project.sb*
+!test-project/project.sb3
 *.t3x
 *.dol
 *.wbfs

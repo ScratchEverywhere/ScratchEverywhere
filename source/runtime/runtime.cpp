@@ -286,7 +286,7 @@ void Scratch::cleanupScratchProject() {
     shouldStop = false;
     forceRedraw = false;
     useCustomUsername = false;
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__) || defined(__VFLASH__)
     sb3InRam = false;
 #else
     sb3InRam = true;

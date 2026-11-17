@@ -1,4 +1,5 @@
 #include "renderer_sdl2.hpp"
+#include "image_sdl2.hpp"
 #include "speech_manager_sdl2.hpp"
 #include <window.hpp>
 
@@ -14,6 +15,7 @@
 #include <types.hpp>
 #include <unordered_map>
 #include <vector>
+
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>

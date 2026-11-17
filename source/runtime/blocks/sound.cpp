@@ -5,8 +5,14 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <types.hpp>
+#include <unordered_set>
 #include <unzip.hpp>
 #include <value.hpp>
+
+static std::unordered_set<std::string> &failedSounds() {
+    static std::unordered_set<std::string> s;
+    return s;
+}
 
 bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName) {
     if (soundValue.isStringTyped()) {
@@ -27,6 +33,7 @@ bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::str
 
 void Scratch::startSoundUntilDone(Sprite *sprite, const std::string &fullName) {
 #ifdef ENABLE_AUDIO
+    if (failedSounds().count(fullName)) return;
     SoundStream *strm;
     if (Scratch::projectType == ProjectType::UNZIPPED)
         strm = new SoundStream(fullName);
@@ -38,6 +45,7 @@ void Scratch::startSoundUntilDone(Sprite *sprite, const std::string &fullName) {
 #endif
     if (strm->error.has_value()) {
         Log::logError("[Sound] " + strm->error.value());
+        failedSounds().insert(fullName);
         delete strm;
     }
 
@@ -107,6 +115,7 @@ SCRATCH_BLOCK(sound, play) {
     }
 
     if (soundFound) {
+        if (failedSounds().count(soundFullName)) return BlockResult::CONTINUE;
         SoundStream *strm;
         if (Scratch::projectType == ProjectType::UNZIPPED)
             strm = new SoundStream(soundFullName, false);
@@ -118,6 +127,7 @@ SCRATCH_BLOCK(sound, play) {
 #endif
         if (strm->error.has_value()) {
             Log::logError("[Sound] " + strm->error.value());
+            failedSounds().insert(soundFullName);
             delete strm;
             return BlockResult::CONTINUE;
         }

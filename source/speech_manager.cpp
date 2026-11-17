@@ -44,9 +44,13 @@ void SpeechManager::clearAllSpeechObjects() {
 void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, double showForSecs, const std::string &style) {
     if (!sprite) return;
 
-    clearSpeech(sprite);
+    if (message.empty()) {
+        clearSpeech(sprite);
+        return;
+    }
 
-    if (message.empty()) return;
+    speechStartTimes.erase(sprite);
+    speechDurations.erase(sprite);
     const std::string truncatedMessage = message.substr(0, 330);
 
     // start timer if showForSecs value is given
