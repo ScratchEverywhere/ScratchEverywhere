@@ -108,7 +108,7 @@ std::string Unzip::resolveZipProjectPath(const std::string &baseNoExt, ProjectFo
 }
 
 int Unzip::openFile(std::istream *&file, ProjectFormat format) {
-    Log::log("Unzipping Scratch project...");
+    Log::log("Unzipping " + Unzip::filePath);
 
     // load Scratch project into memory
     Log::log("Loading SB3 into memory...");
@@ -159,14 +159,14 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
         }
     }
     // Main menu
-    Log::logWarning("No sb3 project, trying Main Menu.");
+    // Log::logWarning("No sb3 project, trying Main Menu.");
     Scratch::projectType = ProjectType::UNEMBEDDED;
-    if (filePath == "") {
-        Log::log("Activating main menu...");
-        return -1;
-    }
+    // if (filePath == "") {
+    //     Log::log("Activating main menu...");
+    //     return -1;
+    // }
     // SD card Project
-    Log::logWarning("Main Menu already done, loading SD card project.");
+    Log::logWarning("No embedded SB3 project, loading SD card project.");
 
     if (format == ProjectFormat::SB1) {
         Log::log(".sb project in SD card");

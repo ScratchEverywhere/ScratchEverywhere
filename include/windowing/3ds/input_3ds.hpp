@@ -10,5 +10,7 @@ class SE_EXPORT InputDevice_3DS : public InputDevice {
 
     void getInput() override;
 
+    bool hasConnectedGamepad() override { return true; }
+
     std::string openSoftwareKeyboard(const char *hintText) override;
 };

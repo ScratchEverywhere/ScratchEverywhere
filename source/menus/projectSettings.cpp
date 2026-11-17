@@ -1,5 +1,8 @@
 #include "projectSettings.hpp"
+#include "controlsMenu.hpp"
+#include "filesystem.hpp"
 #include "menuManager.hpp"
+#include "os.hpp"
 #include "settings.hpp"
 #include "ui.hpp"
 #include <unzip.hpp>
@@ -7,6 +10,7 @@
 ProjectSettingsMenu::ProjectSettingsMenu(const std::string &projectPath) {
     json = SettingsManager::getProjectSettings(projectPath.substr(0, projectPath.size() - 4));
     this->projectPath = projectPath;
+    fileSize = FileSystem::getFileSize(OS::getScratchFolderLocation() + projectPath) / 1000000.0;
 }
 
 ProjectSettingsMenu::~ProjectSettingsMenu() {
@@ -101,9 +105,18 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                 section(b, "Info");
 
                                 info(b, projectPath);
-                                info(b, "67.67 MB");
+                                info(b, std::to_string(fileSize) + " MB");
 
                                 section(b, "Project Settings");
+
+                                if (Input::hasConnectedGamepad()) {
+                                    button(b, "ui.settings.controls", [&] {
+                                        MenuManager::unloadMenu(MenuId::ControlsMenu);
+                                        MenuManager::loadedMenus[MenuId::ControlsMenu] = std::make_unique<ControlsMenu>(projectPath, json);
+                                        MenuManager::changeMenu(MenuId::ControlsMenu);
+                                        return;
+                                    });
+                                }
 
                                 toggle(b, "debugVars", "ui.settings.fps", false);
 #if defined(__3DS__) || defined(__NDS__)

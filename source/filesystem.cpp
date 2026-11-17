@@ -356,3 +356,15 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
 
     return files;
 }
+
+long FileSystem::getFileSize(const std::string &path) {
+    long size;
+    FILE *fp = fopen(path.c_str(), "r");
+    if (!fp) return 0;
+    long current_pos = ftell(fp);
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, current_pos, SEEK_SET);
+    fclose(fp);
+    return size;
+}

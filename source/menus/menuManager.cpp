@@ -170,6 +170,7 @@ void MenuManager::render() {
         builder.end();
         builder.layout();
     }
+    menu->callback(builder);
 
     constexpr int tabCount = 3;
 

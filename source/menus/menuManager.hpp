@@ -4,17 +4,23 @@
 
 class SE_EXPORT Menu {
   public:
+    // only gets called when UI needs to rebuild.
     virtual void build(UI::Builder &b) = 0;
+    // gets called every frame. shouldn't be used to build UI unless you really have to.
+    virtual void callback(UI::Builder &b) {};
     Menu() = default;
     virtual ~Menu() = default;
 };
 
 enum class MenuId : uint8_t {
     None,
+    // DONT MOVE THESE THREE PLEASE
     MainMenu,
     ProjectMenu,
     GlobalSettingsMenu,
+
     ProjectSettingsMenu,
+    ControlsMenu,
     LanguageMenu,
     Ingame,
 };

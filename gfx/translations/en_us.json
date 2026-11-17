@@ -1,8 +1,10 @@
 {
-  "ui.controls.apply": "Apply (Y)",
+  "ui.controls.apply": "Apply",
+  "ui.controls.none": "No controls found in Project!",
   "ui.headless.projectPrompt": "Please type what project you want to open.",
   "ui.projects.noProjects": "No Scratch projects found!",
   "ui.projects.path": "Put projects in ",
+  "ui.settings.back": "Back",
   "ui.settings.controls": "Change Controls",
   "ui.settings.unpack": "Unpack Project",
   "ui.settings.deleteUnpacked": "Delete Unpacked Project",

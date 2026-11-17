@@ -42,4 +42,6 @@ SE_EXPORT std::string parentPath(const std::string &path);
  * @return A vector containing all files and folders within the directory.
  */
 SE_EXPORT nonstd::expected<std::vector<std::string>, std::string> listDirectory(const std::string &path);
+
+SE_EXPORT long getFileSize(const std::string &path);
 }; // namespace FileSystem
