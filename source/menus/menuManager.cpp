@@ -192,9 +192,6 @@ void MenuManager::render() {
     builder.input();
     UI::Painter::render(elements.get());
 
-    if (projectPendingLoad) {
-        loadProject();
-    }
     static bool oldCanChangeTabs = false;
     if (canChangeTabs != oldCanChangeTabs) {
         oldCanChangeTabs = canChangeTabs;
@@ -203,6 +200,9 @@ void MenuManager::render() {
     if (toUnload != MenuId::None) {
         unloadMenu(toUnload);
         toUnload = MenuId::None;
+    }
+    if (projectPendingLoad) {
+        loadProject();
     }
 }
 

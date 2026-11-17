@@ -5,6 +5,7 @@
 #include "os.hpp"
 #include "settings.hpp"
 #include "ui.hpp"
+#include "unpackMenu.hpp"
 #include <unzip.hpp>
 
 ProjectSettingsMenu::ProjectSettingsMenu(const std::string &projectPath) {
@@ -89,8 +90,16 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                               .align = UI::AlignMode::Center,
                                               .style = UI::StyleId::Button,
                                               .onClick = [&] {
-                                                  Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
-                                                  MenuManager::projectPendingLoad = true;
+                                                  if (isToggled("unpack")) {
+                                                      MenuManager::unloadMenu(MenuId::UnpackMenu);
+                                                      MenuManager::loadedMenus[MenuId::UnpackMenu] = std::make_unique<UnpackMenu>(projectPath);
+                                                      MenuManager::changeMenu(MenuId::UnpackMenu);
+                                                      return;
+                                                  } else {
+                                                      Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+                                                      MenuManager::projectPendingLoad = true;
+                                                  }
+
                                                   return;
                                               },
                                           },
@@ -123,6 +132,8 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                 toggle(b, "bottomScreen", "ui.settings.bottom", false);
 #endif
 
+                                toggle(b, "unpack", "ui.settings.unpack", false);
+
                                 dropdown(b, "runtime", "ui.settings.runtime", getRuntimeBackends(), runtimeDefault);
 
                                 toggle(b, "accuratePen", "ui.settings.penMode", true);
@@ -131,7 +142,8 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
 
                                 toggle(b, "warpTimer", "ui.settings.warp", true);
 
-                                toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
+                                if (!isToggled("unpack"))
+                                    toggle(b, "sb3InRam", "ui.settings.keepProjectInRam", ramDefault);
                             });
               });
 }

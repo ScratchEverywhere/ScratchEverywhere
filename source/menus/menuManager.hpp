@@ -20,6 +20,7 @@ enum class MenuId : uint8_t {
     GlobalSettingsMenu,
 
     ProjectSettingsMenu,
+    UnpackMenu,
     ControlsMenu,
     LanguageMenu,
     Ingame,

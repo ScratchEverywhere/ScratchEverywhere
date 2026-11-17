@@ -23,13 +23,13 @@
 #include <log.hpp>
 #include <math.h>
 #include <memory>
-#include <touch_controls.hpp>
 #include <os.hpp>
 #include <parser.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -100,10 +100,6 @@ bool Scratch::useJit = false;
 bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);
-
-// #ifdef ENABLE_MENU
-// PauseMenu *Scratch::pauseMenu = nullptr;
-// #endif
 
 double Scratch::counter = 0;
 

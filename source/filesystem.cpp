@@ -368,3 +368,37 @@ long FileSystem::getFileSize(const std::string &path) {
     fclose(fp);
     return size;
 }
+
+long FileSystem::fileModifiedTime(const std::string &path) {
+#if defined(__XBOX__)
+    std::string norm = path;
+    for (char &c : norm) {
+        if (c == '/') c = '\\';
+    }
+    while (norm.size() > 3 && norm.back() == '\\') {
+        norm.pop_back();
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA attrData;
+    if (!GetFileAttributesExA(norm.c_str(), GetFileExInfoStandard, &attrData)) {
+        return 0;
+    }
+
+    ULARGE_INTEGER ull;
+    ull.LowPart = attrData.ftLastWriteTime.dwLowDateTime;
+    ull.HighPart = attrData.ftLastWriteTime.dwHighDateTime;
+    return static_cast<long>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+#elif defined(_WIN32)
+    struct _stat64 st;
+    if (_stat64(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#else
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#endif
+}

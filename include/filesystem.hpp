@@ -44,4 +44,5 @@ SE_EXPORT std::string parentPath(const std::string &path);
 SE_EXPORT nonstd::expected<std::vector<std::string>, std::string> listDirectory(const std::string &path);
 
 SE_EXPORT long getFileSize(const std::string &path);
+SE_EXPORT long fileModifiedTime(const std::string &path);
 }; // namespace FileSystem
