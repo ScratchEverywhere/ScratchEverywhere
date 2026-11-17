@@ -267,8 +267,8 @@ class Builder {
     void resetFocus() {
         focusedIndex = NONE;
         focusOrdinal = -1;
-        navMode = false;
     }
+    bool isNavMode() const { return navMode; }
 
     void layout();
     bool shouldRebuild();

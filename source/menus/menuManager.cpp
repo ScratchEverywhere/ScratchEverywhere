@@ -193,8 +193,10 @@ void MenuManager::render() {
     UI::Painter::render(elements.get());
 
     static bool oldCanChangeTabs = false;
-    if (canChangeTabs != oldCanChangeTabs) {
+    static bool oldNavMode = false;
+    if (canChangeTabs != oldCanChangeTabs || builder.isNavMode() != oldNavMode) {
         oldCanChangeTabs = canChangeTabs;
+        oldNavMode = builder.isNavMode();
         builder.dirty = true;
     }
     if (toUnload != MenuId::None) {
@@ -219,7 +221,7 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
               [&] {
                   auto tab = [&](const std::string &imagePath, MenuId menu, std::function<void()> onClickFn) -> void {
                       const bool pressed = currentMenu == menu;
-                      const uint8_t flags = pressed ? 0 : UI::Flag::Focusable;
+                      const uint8_t flags = (pressed || b.isNavMode()) ? 0 : UI::Flag::Focusable;
 
                       b.element({
                                     .flags = flags,
