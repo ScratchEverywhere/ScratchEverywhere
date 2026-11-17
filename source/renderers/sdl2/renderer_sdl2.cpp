@@ -763,7 +763,8 @@ void Renderer_SDL2::renderPenLayer() {
     }
 
     SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
-#endif
+#endif // SDL_HAS_GEOMETRY
+#endif // __PS2__
 }
 
 bool Renderer_SDL2::appShouldRun() {
