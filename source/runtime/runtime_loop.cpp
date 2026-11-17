@@ -19,6 +19,10 @@
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
 #endif
+#ifdef __XBOX360__
+#include <log.hpp>
+#include <windowing/xbox360/window_xbox360.hpp>
+#endif
 
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
@@ -38,6 +42,9 @@ void Scratch::initializeScratchProject() {
 
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
+#endif
+#ifdef __XBOX360__
+    WindowXbox360::clearPauseRequest();
 #endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
@@ -85,6 +92,14 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
+#ifdef __XBOX360__
+    if (WindowXbox360::consumePauseRequest()) {
+        Log::log("Opening pause menu from native Start request");
+        pauseMenu = new PauseMenu();
+        MenuManager::changeMenu(pauseMenu);
+        return std::make_pair(true, false);
+    }
+#endif
 #endif
 
     bool forcedStep = false;
@@ -220,7 +235,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
-#if defined(__XBOX__) || defined(__XBOX360__)
+#if defined(__XBOX__)
         // Count wall time, not game frames: slow projects must remain escapable.
         static Timer pauseHoldTimer(false);
         static bool holdingPauseStart = false;
@@ -236,6 +251,8 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             holdingPauseStart = false;
         }
         if (pauseRequested) holdingPauseStart = false;
+#elif defined(__XBOX360__)
+        bool pauseRequested = false;
 #else
         bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
 #endif

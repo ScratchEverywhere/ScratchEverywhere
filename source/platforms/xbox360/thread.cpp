@@ -1,8 +1,9 @@
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <pthread.h>
 #include <thread.hpp>
-#include <unistd.h>
+#include <xsdk/thread.h>
 struct SE_Thread::Impl {
     pthread_t thread;
     bool active = false;
@@ -24,9 +25,12 @@ bool SE_Thread::create(void (*function)(void *), void *argument, size_t stackSiz
     auto entry = std::make_unique<Entry>(Entry{function, argument});
     pthread_attr_t attr;
     if (pthread_attr_init(&attr) != 0) return false;
-    if (stackSize && pthread_attr_setstacksize(&attr, stackSize) != 0) {
-        pthread_attr_destroy(&attr);
-        return false;
+    if (stackSize) {
+        const size_t clampedStack = std::max<size_t>(stackSize, 64 * 1024);
+        if (pthread_attr_setstacksize(&attr, clampedStack) != 0) {
+            pthread_attr_destroy(&attr);
+            return false;
+        }
     }
     int result = pthread_create(&state->thread, &attr, [](void *p) -> void * {std::unique_ptr<Entry> e(static_cast<Entry *>(p));e->function(e->argument);return nullptr; }, entry.get());
     pthread_attr_destroy(&attr);
@@ -48,7 +52,7 @@ void SE_Thread::detach() {
         impl->active = false;
     }
 }
-void SE_Thread::sleep(uint16_t ms) { usleep(unsigned(ms) * 1000); }
+void SE_Thread::sleep(uint16_t ms) { xsdk_thread_sleep(ms); }
 unsigned SE_Thread::getCurrentThreadId() { return static_cast<unsigned>(reinterpret_cast<uintptr_t>(pthread_self())); }
 struct SE_Mutex::Impl {
     std::mutex mutex;

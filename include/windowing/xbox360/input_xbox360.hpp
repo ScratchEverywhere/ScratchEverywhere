@@ -10,4 +10,5 @@ class InputDeviceXbox360 final : public InputDevice {
     std::array<int, 2> getTouchPosition() override { return {0, 0}; }
     bool hasConnectedGamepad() override;
     void getInput() override;
+    std::string openSoftwareKeyboard(const char *hintText) override;
 };

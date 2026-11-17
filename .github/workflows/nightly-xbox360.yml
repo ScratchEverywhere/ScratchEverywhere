@@ -1,0 +1,58 @@
+name: Xbox 360 Nightly Build
+
+on:
+  push:
+    paths:
+      - CMakeLists.txt
+      - cmake/xbox360-toolchain.cmake
+      - cmake/platforms/xbox360.cmake
+      - cmake/renderers/xbox360.cmake
+      - cmake/windowing/xbox360.cmake
+      - cmake/audio/xbox360.cmake
+      - cmake/sljit/se_exec_xbox360.c
+      - cmake/sljit/se_jit_pool_xbox360.S
+      - cmake/recipes/**
+      - cmake/patches/**
+      - source/runtime/**
+      - source/renderers/xbox360/**
+      - source/windowing/xbox360/**
+      - source/platforms/xbox360/**
+      - source/audio/xbox360/**
+      - source/menus/**
+      - source/*
+      - gfx/menu/**
+      - include/**
+      - .github/workflows/nightly-xbox360.yml
+      - docker/Dockerfile.xbox360
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Create `romfs` directory
+        run: mkdir -p romfs
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.xbox360
+          target: exporter
+          outputs: type=local,dest=.
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Scratch Everywhere! Xbox 360 Nightly
+          path: |
+            scratch-xbox360.xex
+            xsdk-LICENSE.txt
+            xsdk-THIRD_PARTY_NOTICES.md
+            romfs

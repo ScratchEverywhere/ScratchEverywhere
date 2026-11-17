@@ -10,7 +10,8 @@
 static void checked(NTSTATUS status, const char *operation) {
     if (!NT_SUCCESS(status)) throw std::runtime_error(std::string(operation) + ": " + std::to_string(uint32_t(status)));
 }
-TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool linear) {
+TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool linear)
+    : texWidth_(image.width), texHeight_(image.height) {
     if (!image.pixels || image.width <= 0 || image.height <= 0 || image.width > XSDK_TEXTURE_MAX_SIZE || image.height > XSDK_TEXTURE_MAX_SIZE || image.format != IMAGE_FORMAT_RGBA32 || int64_t(image.pitch) < int64_t(image.width) * 4)
         throw std::invalid_argument("Invalid RGBA32 texture data/dimensions/pitch");
     try {
@@ -40,6 +41,14 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
         blend.color_op = blend.alpha_op = XSDK_BLEND_OP_ADD;
         blend.write_mask = XSDK_WRITE_ALL;
         xsdk_gpu_blend_state(&blend_, &blend);
+        XsdkBlend blendOpaque{};
+        blendOpaque.color_source = XSDK_BLEND_ONE;
+        blendOpaque.color_dest = XSDK_BLEND_ZERO;
+        blendOpaque.alpha_source = XSDK_BLEND_ONE;
+        blendOpaque.alpha_dest = XSDK_BLEND_ZERO;
+        blendOpaque.color_op = blendOpaque.alpha_op = XSDK_BLEND_OP_ADD;
+        blendOpaque.write_mask = XSDK_WRITE_ALL;
+        xsdk_gpu_blend_state(&blendOpaque_, &blendOpaque);
         XsdkDepthStencil depth{};
         xsdk_gpu_depth_stencil_state(&depth_, &depth);
         XsdkRaster raster{};
@@ -56,9 +65,22 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
 void TexturedQuadXbox360::render() {
     xsdk_gpu_set_shaders(&vertex_, &pixel_);
     xsdk_built_shader_set_literals(&costume_frag);
-    const float effects[4] = {opacity_, brightness_, 0, 0};
+    const float effects[12] = {
+        opacity_,
+        brightness_,
+        colorEffect_,
+        mosaicEffect_,
+        pixelateEffect_,
+        whirlEffect_,
+        fisheyeEffect_,
+        0.0f,
+        static_cast<float>(texWidth_),
+        static_cast<float>(texHeight_),
+        0.0f,
+        0.0f,
+    };
     xsdk_gpu_set_pixel_constants(COSTUME_FRAG_PUSH, effects, COSTUME_FRAG_PUSH_REGISTERS);
-    xsdk_gpu_set_blend(&blend_);
+    xsdk_gpu_set_blend(blendEnabled_ ? &blend_ : &blendOpaque_);
     xsdk_gpu_set_depth_stencil(&depth_);
     xsdk_gpu_set_raster(&raster_);
     xsdk_gpu_set_texture(0, &texture_, &sampler_);
@@ -83,18 +105,32 @@ TexturedQuadXbox360::~TexturedQuadXbox360() {
 }
 
 void TexturedQuadXbox360::render(const ImageRenderParams &p, int iw, int ih, int sw, int sh) {
-    if (p.subrect) throw std::logic_error("Xbox 360 subrect transforms are not implemented");
+    if (p.subrect) {
+        if (iw <= 0 || ih <= 0 || p.subrect->w <= 0 || p.subrect->h <= 0) return;
+        const float u0 = static_cast<float>(p.subrect->x) / static_cast<float>(iw);
+        const float v0 = static_cast<float>(p.subrect->y) / static_cast<float>(ih);
+        const float u1 = static_cast<float>(p.subrect->x + p.subrect->w) / static_cast<float>(iw);
+        const float v1 = static_cast<float>(p.subrect->y + p.subrect->h) / static_cast<float>(ih);
+        renderRegion(p, p.subrect->w * p.scale, p.subrect->h * p.scale, sw, sh, u0, v0, u1, v1);
+        return;
+    }
     renderRegion(p, iw * p.scale, ih * p.scale, sw, sh, 0, 0, 1, 1);
 }
 void TexturedQuadXbox360::renderRegion(const ImageRenderParams &p, float w, float h, int sw, int sh, float u0, float v0, float u1, float v1) {
     if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.scale) || !std::isfinite(p.rotation))
         throw std::invalid_argument("Non-finite image transform");
     if (p.scale == 0 || p.opacity <= 0) return;
-    if (!p.blend || p.subrect || p.colorEffect || p.fisheyeEffect || p.whirlEffect || p.pixelateEffect || p.mosaicEffect)
-        throw std::logic_error("Xbox 360 image distortion/color effects or subrect rendering are not implemented");
-    if (!std::isfinite(p.opacity)) throw std::invalid_argument("Non-finite costume opacity");
+    if (!std::isfinite(p.opacity) || !std::isfinite(p.colorEffect) || !std::isfinite(p.mosaicEffect) ||
+        !std::isfinite(p.pixelateEffect) || !std::isfinite(p.whirlEffect) || !std::isfinite(p.fisheyeEffect))
+        throw std::invalid_argument("Non-finite costume effect");
+    blendEnabled_ = p.blend;
     opacity_ = std::clamp(p.opacity, 0.0f, 1.0f);
     brightness_ = std::clamp(p.brightness, -100, 100) / 100.0f;
+    colorEffect_ = p.colorEffect;
+    mosaicEffect_ = p.mosaicEffect;
+    pixelateEffect_ = p.pixelateEffect;
+    whirlEffect_ = p.whirlEffect;
+    fisheyeEffect_ = p.fisheyeEffect;
     // A draw owns its slot until its fence passes. Never overwrite in-flight vertices.
     if (usedSlots_[vertexSlot_] && !xsdk_gpu_fence_done(reuseFences_[vertexSlot_]))
         checked(xsdk_gpu_wait(reuseFences_[vertexSlot_], 5000), "image vertex ring reuse fence");

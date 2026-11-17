@@ -1,7 +1,7 @@
 #pragma once
 #include "mainMenu.hpp"
 #include <se_export.hpp>
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
 #include <map>
 #include <string>
 #endif
@@ -16,7 +16,7 @@ class SE_EXPORT PauseMenu : public Menu {
     Action pendingAction = Action::None;
     void requestAction(Action action);
     void finishAction(Action action);
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
     std::map<std::string, std::string> gameControls;
 #endif
   public:

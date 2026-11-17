@@ -1,0 +1,50 @@
+FROM debian:trixie AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+WORKDIR /app
+
+# Match the Debian Trixie + GCC 15.3.0 / xsdk host build environment.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    curl \
+    ca-certificates \
+    python3 \
+    perl \
+    bison \
+    flex \
+    texinfo \
+    gawk \
+    libgmp-dev \
+    libmpfr-dev \
+    libmpc-dev \
+    xz-utils && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV XSDK_ROOT=/opt/xsdk
+ENV XSDK_TOOLCHAIN=/opt/xsdk-gcc
+ENV PATH="/opt/xsdk-gcc/bin:$PATH"
+
+RUN git clone https://github.com/xenosworks/xsdk.git /opt/xsdk && \
+    cd /opt/xsdk && \
+    git checkout 9e6de98f6b5d737bce0fecd2864edae94bdd2637 && \
+    git submodule update --init --recursive && \
+    PREFIX=/opt/xsdk-gcc WORK=/tmp/xsdk-gcc-work /opt/xsdk/tools/toolchain/build.sh && \
+    rm -rf /tmp/xsdk-gcc-work && \
+    make -C /opt/xsdk -j"$(nproc)" TOOLCHAIN=/opt/xsdk-gcc/bin/powerpc-xsdk-elf- build/libxsdk.a
+
+COPY . .
+
+RUN cmake -B build-xbox360 -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/xbox360-toolchain.cmake \
+    -DXSDK_ROOT=/opt/xsdk \
+    -DXSDK_TOOLCHAIN=/opt/xsdk-gcc \
+    -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build-xbox360 -j"$(nproc)"
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build-xbox360/scratch-xbox360.xex /
+COPY --from=main_builder /app/build-xbox360/xsdk-LICENSE.txt /
+COPY --from=main_builder /app/build-xbox360/xsdk-THIRD_PARTY_NOTICES.md /
+COPY --from=main_builder /app/build-xbox360/romfs /romfs

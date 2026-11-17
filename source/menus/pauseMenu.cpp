@@ -47,7 +47,7 @@ void PauseMenu::init() {
         }
     }
 #endif
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
     gameControls = Input::inputControls;
     Input::applyControls();
 #endif
@@ -101,7 +101,7 @@ void PauseMenu::finishAction(Action action) {
 }
 
 void PauseMenu::requestAction(Action action) {
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
     // Keep UI controls installed until confirmation is released. Otherwise A
     // becomes the game's Space key on the first frame after Green Flag/resume.
     pendingAction = action;
@@ -113,7 +113,7 @@ void PauseMenu::requestAction(Action action) {
 
 void PauseMenu::render() {
     Input::getInput();
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
     if (pendingAction != Action::None) {
         const auto held = [](const char *key) {
             return std::find(Input::inputKeys.begin(), Input::inputKeys.end(), key) != Input::inputKeys.end();
@@ -166,7 +166,7 @@ void PauseMenu::render() {
 void PauseMenu::cleanup() {
     if (!isInitialized) return;
     isInitialized = false;
-#ifdef __XBOX__
+#if defined(__XBOX__) || defined(__XBOX360__)
     Input::inputControls = std::move(gameControls);
 #endif
 

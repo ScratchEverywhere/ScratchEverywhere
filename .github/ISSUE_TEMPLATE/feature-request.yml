@@ -35,6 +35,7 @@ body:
               - PS4
               - Libretro
               - Original Xbox
+              - Xbox 360
       validations:
           required: false
     - type: textarea

@@ -10,12 +10,16 @@ class TexturedQuadXbox360 {
     XsdkShader vertex_{}, pixel_{};
     XsdkSamplerState sampler_{};
     XsdkBlendState blend_{};
+    XsdkBlendState blendOpaque_{};
     XsdkDepthStencilState depth_{};
     XsdkRasterState raster_{};
     volatile uint32_t *vertices_ = nullptr;
     static constexpr uint32_t vertexSlots_ = 32;
     uint32_t vertexSlot_ = 0;
-    float opacity_ = 1, brightness_ = 0;
+    int texWidth_ = 0, texHeight_ = 0;
+    bool blendEnabled_ = true;
+    float opacity_ = 1, brightness_ = 0, colorEffect_ = 0;
+    float mosaicEffect_ = 0, pixelateEffect_ = 0, whirlEffect_ = 0, fisheyeEffect_ = 0;
     uint32_t reuseFences_[vertexSlots_]{};
     bool usedSlots_[vertexSlots_]{};
     void release();
