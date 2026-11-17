@@ -52,10 +52,12 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
-    u32 wifiEnabled = 0;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled == AC_AP_TYPE_NONE) return false;
-    return true;
+    if (R_FAILED(acInit())) return true;
+    u32 wifiStatus = 0;
+    Result res = ACU_GetWifiStatus(&wifiStatus);
+    acExit();
+    if (R_FAILED(res)) return true;
+    return wifiStatus != AC_AP_TYPE_NONE;
 }
 
 static uint32_t *socBuffer = nullptr;
@@ -64,9 +66,7 @@ static bool socketsUp = false;
 bool OS::initWifi() {
     if (socketsUp) return true;
 
-    u32 wifiStatus = 0;
-    ACU_GetWifiStatus(&wifiStatus);
-    if (wifiStatus == AC_AP_TYPE_NONE) return false;
+    if (!OS::isOnline()) return false;
 
     const uint32_t SOC_ALIGN = 0x1000;
     const uint32_t SOC_BUFFERSIZE = 0x100000;
