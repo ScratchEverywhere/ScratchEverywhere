@@ -1,0 +1,26 @@
+--- a/src/video/mir/SDL_mirwindow.c
++++ b/src/video/mir/SDL_mirwindow.c
+@@ -163,15 +163,18 @@
+ MIR_DestroyWindow(_THIS, SDL_Window* window)
+ {
+     MIR_Data* mir_data     = _this->driverdata;
+-    MIR_Window* mir_window = window->driverdata;
++    MIR_Window* mir_window = (MIR_Window*) window->driverdata;
+ 
+     if (mir_data) {
+-        SDL_EGL_DestroySurface(_this, mir_window->egl_surface);
+-        MIR_mir_window_release_sync(mir_window->window);
++        if (mir_window) {
++            SDL_EGL_DestroySurface(_this, mir_window->egl_surface);
++            if (mir_window->window) {
++                MIR_mir_window_release_sync(mir_window->window);
++            }
++            SDL_free(mir_window);
++        }
+ 
+         mir_data->current_window = NULL;
+-
+-        SDL_free(mir_window);
+     }
+     window->driverdata = NULL;
+ }

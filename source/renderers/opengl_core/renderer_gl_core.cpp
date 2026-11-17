@@ -1104,6 +1104,7 @@ void Renderer_GLCore::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight(), proj);
     Render::renderMonitors();
+    Render::renderTouchControls();
 
     endFrame(true);
 }

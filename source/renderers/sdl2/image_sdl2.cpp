@@ -7,6 +7,10 @@
 #include <stdexcept>
 #include <string>
 
+#ifndef SDL_PIXELFORMAT_RGBA32
+#define SDL_PIXELFORMAT_RGBA32 SDL_PIXELFORMAT_ABGR8888
+#endif
+
 void Image_SDL2::render(ImageRenderParams &params) {
 
     const float &x = params.x;
@@ -118,9 +122,11 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     const SDL_Rect dstBottomRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY + iSrcPadding + dstCenterHeight, iSrcPadding, iSrcPadding};
 
     SDL_Texture *originalTexture = texture;
+#if SDL_VERSION_ATLEAST(2,0,12)
     SDL_ScaleMode originalScaleMode;
     SDL_GetTextureScaleMode(originalTexture, &originalScaleMode);
     SDL_SetTextureScaleMode(originalTexture, SDL_ScaleModeNearest);
+#endif
 
     SDL_RenderCopy(sdlRenderer, originalTexture, &srcTopLeft, &dstTopLeft);
     SDL_RenderCopy(sdlRenderer, originalTexture, &srcTop, &dstTop);
@@ -132,7 +138,9 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottom, &dstBottom);
     SDL_RenderCopy(sdlRenderer, originalTexture, &srcBottomRight, &dstBottomRight);
 
+#if SDL_VERSION_ATLEAST(2,0,12)
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
+#endif
     freeTimer = maxFreeTimer;
 }
 
