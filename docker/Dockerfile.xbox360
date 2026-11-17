@@ -30,7 +30,7 @@ RUN git clone https://github.com/xenosworks/xsdk.git /opt/xsdk && \
     cd /opt/xsdk && \
     git checkout 9e6de98f6b5d737bce0fecd2864edae94bdd2637 && \
     git submodule update --init --recursive && \
-    PREFIX=/opt/xsdk-gcc WORK=/tmp/xsdk-gcc-work /opt/xsdk/tools/toolchain/build.sh && \
+    PREFIX=/opt/xsdk-gcc WORK=/tmp/xsdk-gcc-work bash /opt/xsdk/tools/toolchain/build.sh && \
     rm -rf /tmp/xsdk-gcc-work && \
     make -C /opt/xsdk -j"$(nproc)" TOOLCHAIN=/opt/xsdk-gcc/bin/powerpc-xsdk-elf- build/libxsdk.a
 
