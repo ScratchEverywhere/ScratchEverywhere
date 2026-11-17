@@ -1114,6 +1114,7 @@ void Renderer_GLCore::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight(), proj);
     MenuManager::render();
+    Render::renderTouchControls();
 
     endFrame(true);
 }

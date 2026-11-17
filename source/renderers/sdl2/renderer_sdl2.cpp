@@ -54,7 +54,14 @@ static int overrideWidth = 0;
 static int overrideHeight = 0;
 SDL_Texture *penTexture = nullptr;
 
+SpeechManagerSDL2 *speechManager = nullptr;
+
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+#define SDL_HAS_GEOMETRY 1
 static std::vector<SDL_Vertex> penVerts;
+#else
+#define SDL_HAS_GEOMETRY 0
+#endif
 
 static std::vector<uint8_t> penColorPixels;
 static SDL_Rect penColorRect = {0, 0, 0, 0};
@@ -112,6 +119,9 @@ Renderer_SDL2::Renderer_SDL2() {
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
+#elif defined(__UT1604__)
+    int windowWidth = 1080;
+    int windowHeight = 1920;
 
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
@@ -237,6 +247,7 @@ bool Renderer_SDL2::initPen() {
     return true;
 }
 
+#if SDL_HAS_GEOMETRY
 void Renderer_SDL2::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
@@ -509,6 +520,14 @@ void Renderer_SDL2::penClear() {
     SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     if (!penVerts.empty()) penVerts.clear();
 }
+#else
+void Render::penMoveFast(double, double, double, double, Sprite *) {} // stub pen for SDL2 versions that don't support the geometry API
+void Render::penDotFast(Sprite *) {}
+void Render::penMoveAccurate(double, double, double, double, Sprite *) {}
+void Render::penDotAccurate(Sprite *) {}
+void Render::penStamp(Sprite *) {}
+void Render::penClear() {}
+#endif
 
 void Renderer_SDL2::cleanupPen() {
     if (penTexture != nullptr) {
@@ -686,6 +705,7 @@ void Renderer_SDL2::renderSprites() {
 
     drawBlackBars(Sdlrenderer, getWidth(), getHeight());
     MenuManager::render();
+    Render::renderTouchControls();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
@@ -704,6 +724,7 @@ void Renderer_SDL2::renderSprites() {
 }
 
 void Renderer_SDL2::renderPenLayer() {
+#if SDL_HAS_GEOMETRY
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(Sdlrenderer, penTexture);
         SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
@@ -728,6 +749,7 @@ void Renderer_SDL2::renderPenLayer() {
     }
 
     SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
+#endif
 }
 
 bool Renderer_SDL2::appShouldRun() {

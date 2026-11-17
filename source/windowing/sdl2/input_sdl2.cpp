@@ -12,7 +12,12 @@
 #include <map>
 #include <renderer.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <types.hpp>
+#ifdef __UBUNTUTOUCH__
+#include <platforms/ut/swkbd_ut.hpp>
+#endif
+#include <utf8.hpp>
 #include <vector>
 
 #ifdef __WIIU__
@@ -115,6 +120,45 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
     return pos;
+}
+
+std::vector<InputTouch> InputDevice_SDL2::getTouches() {
+    std::vector<InputTouch> touches;
+#ifdef PLATFORM_HAS_TOUCH
+    const int renderWidth = Render::getWidth();
+    const int renderHeight = Render::getHeight();
+    const int numDevices = SDL_GetNumTouchDevices();
+
+    for (int i = 0; i < numDevices; ++i) {
+        const SDL_TouchID touchID = SDL_GetTouchDevice(i);
+        const int numFingers = SDL_GetNumTouchFingers(touchID);
+
+        for (int f = 0; f < numFingers; ++f) {
+            const SDL_Finger *finger = SDL_GetTouchFinger(touchID, f);
+            if (!finger) continue;
+
+            int x = static_cast<int>(finger->x * renderWidth);
+            int y = static_cast<int>(finger->y * renderHeight);
+
+            Input::applyInputViewportOffset(x, y);
+            Input::scaleViewportToRenderSpace(x, y, renderWidth, renderHeight);
+
+            InputTouch touch;
+            touch.x = x;
+            touch.y = y;
+            touches.push_back(touch);
+        }
+    }
+#endif
+    return touches;
+}
+
+bool InputDevice_SDL2::hasConnectedGamepad() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller != nullptr;
+#else
+    return false;
+#endif
 }
 
 void InputDevice_SDL2::getInput() {
@@ -282,13 +326,16 @@ void InputDevice_SDL2::getInput() {
     if (touchActive) {
         // Transform touch coordinates to Scratch space
         int touchX = touchPosition.x, touchY = touchPosition.y;
+        Input::mousePointer.rawX = touchX;
+        Input::mousePointer.rawY = touchY;
         Input::applyInputViewportOffset(touchX, touchY);
         Input::scaleViewportToRenderSpace(touchX, touchY, Render::getWidth(), Render::getHeight());
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
         Input::clampMouseToStage();
-        Input::mousePointer.isPressed = touchActive;
+        // Touches on the on-screen controls drive game keys, not the stage.
+        Input::mousePointer.isPressed = touchActive && !TouchControls::isPointOverControls(touchX, touchY);
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
         return;
@@ -340,6 +387,13 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
     enterText->setColor(Math::color(219, 145, 219, 255));
 
     SDL_StartTextInput();
+
+    // SDL cannot raise the Ubuntu Touch keyboard, so drive Maliit directly.
+    // SDL text input remains enabled as a fallback when Maliit is unavailable.
+#ifdef __UBUNTUTOUCH__
+    UbuntuTouchKeyboard maliitKeyboard;
+    maliitKeyboard.show();
+#endif
 
     std::string inputText = "";
     bool inputActive = true;
@@ -396,6 +450,39 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
             }
         }
 
+#ifdef __UBUNTUTOUCH__
+        maliitKeyboard.poll();
+        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
+            switch (oskEvent.type) {
+            case UbuntuTouchKeyboard::Event::Type::CommitString:
+                utf8::eraseLast(inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
+                inputText += oskEvent.text;
+                text->setText(inputText);
+                text->setColor(Math::color(255, 255, 255, 255));
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Backspace:
+                utf8::eraseLast(inputText, 1);
+                if (inputText.empty()) {
+                    text->setText(std::string(hintText));
+                    text->setColor(Math::color(0, 0, 0, 170));
+                } else {
+                    text->setText(inputText);
+                }
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Enter:
+            case UbuntuTouchKeyboard::Event::Type::Escape:
+            case UbuntuTouchKeyboard::Event::Type::Dismissed:
+                inputActive = false;
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Preedit:
+                break;
+            }
+        }
+#endif
+
         // set text size
         text->setScale(1.0f);
         if (text->getSize()[0] > Render::getWidth() * 0.95) {
@@ -414,6 +501,9 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
     }
 
     SDL_StopTextInput();
+#ifdef __UBUNTUTOUCH__
+    maliitKeyboard.hide();
+#endif
     return inputText;
 #endif
 

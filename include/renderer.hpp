@@ -191,6 +191,11 @@ std::string getListValueString(Value value);
  */
 ColorRGBA getMonitorValueColor(const std::string &opcode);
 
+/**
+ * Renders touch-only on-screen controls over the game frame.
+ */
+void renderTouchControls();
+
 // --- renderer specific render functions
 
 bool init();

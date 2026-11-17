@@ -400,6 +400,7 @@ void Renderer_SDL1::renderSprites() {
 
     drawBlackBars(mainSurface, getWidth(), getHeight());
     MenuManager::render();
+    Render::renderTouchControls();
 
     if (window) window->swapBuffers();
 }

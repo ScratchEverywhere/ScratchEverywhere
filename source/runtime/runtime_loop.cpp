@@ -14,6 +14,7 @@
 #include <os.hpp>
 #include <renderer.hpp>
 #include <speech_manager.hpp>
+#include <touch_controls.hpp>
 #include <utility>
 
 // #ifdef ENABLE_MENU
@@ -53,6 +54,8 @@ void Scratch::initializeScratchProject() {
     }
 
     Render::setRenderScale();
+
+    TouchControls::init();
 
     Scratch::greenFlagClicked();
 
@@ -236,8 +239,9 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         //         }
         //         if (pauseRequested) holdingPauseStart = false;
         // #else
-        //         const bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+        //         bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
         // #endif
+        // pauseRequested = pauseRequested || TouchControls::consumePauseRequest();
         //         if (pauseRequested) {
         //             pauseMenu = new PauseMenu();
         //             MenuManager::changeMenu(pauseMenu);

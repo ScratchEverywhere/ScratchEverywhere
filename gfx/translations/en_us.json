@@ -17,6 +17,8 @@
   "ui.settings.keepProjectInRam": "Keep Project In RAM",
   "ui.settings.warp": "Warp Timer",
   "ui.settings.runtime": "Runtime",
+  "ui.settings.onScreenControls": "On-Screen Controls",
+  "ui.settings.auto": "AUTO",
   "ui.settings.username": "Username",
   "ui.settings.name": "Name",
   "ui.settings.path": "Custom Path",
