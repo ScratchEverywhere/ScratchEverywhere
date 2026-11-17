@@ -554,6 +554,8 @@ void Renderer_C2D::renderSprites() {
             drawBlackBars(bottomScreenWidth, screenHeight);
             Render::renderMonitors();
         }
+
+        Render::renderOnScreenControls();
     }
 
     C3D_FrameEnd(0);

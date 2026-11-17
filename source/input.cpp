@@ -48,6 +48,32 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
+std::vector<InputTouch> Input::getTouches() {
+    std::vector<InputTouch> touches;
+    if (globalInputDevice) touches = globalInputDevice->getTouches();
+
+    if (touches.empty() && globalInputDevice) {
+        const std::array<int, 2> pos = globalInputDevice->getTouchPosition();
+        if (pos[0] != 0 || pos[1] != 0) {
+            InputTouch touch;
+            touch.x = pos[0];
+            touch.y = pos[1];
+            touches.push_back(touch);
+        }
+    }
+
+    return touches;
+}
+
+bool Input::hasConnectedGamepad() {
+#if defined(__3DS__) || defined(__WIIU__) || defined(VITA) || defined(__NDS__) // touch platforms with built-in physical controls
+    return true;
+#else
+    if (globalInputDevice) return globalInputDevice->hasConnectedGamepad();
+    return false;
+#endif
+}
+
 void Input::getInput() {
     if (globalInputDevice) globalInputDevice->getInput();
 }

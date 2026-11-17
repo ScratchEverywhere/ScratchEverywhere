@@ -562,6 +562,7 @@ void Renderer_GL::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight());
     Render::renderMonitors();
+    Render::renderOnScreenControls();
 
     endFrame(true);
 }

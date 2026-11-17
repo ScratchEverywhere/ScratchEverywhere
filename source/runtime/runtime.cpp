@@ -11,6 +11,7 @@
 #include "translation.hpp"
 #include "types.hpp"
 #include "unzip.hpp"
+#include <algorithm>
 #include <audio.hpp>
 #include <cmath>
 #include <cstddef>
@@ -22,6 +23,7 @@
 #include <log.hpp>
 #include <math.h>
 #include <memory>
+#include <onScreenControls.hpp>
 #include <os.hpp>
 #include <parser.hpp>
 #include <renderer.hpp>
@@ -297,6 +299,56 @@ void Scratch::cleanupScratchProject() {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     Unzip::UnpackedInSD = false;
     Unzip::filePath.clear();
+    OnScreenControls::cleanup();
 
     Log::log("Cleaned up Scratch project.");
+}
+
+std::vector<std::string> Scratch::getUsedControls() {
+    std::vector<std::string> controls;
+
+    auto addControl = [&controls](const std::string &control) {
+        if (control.empty()) return;
+        if (std::find(controls.begin(), controls.end(), control) == controls.end()) {
+            controls.push_back(control);
+        }
+    };
+
+    for (Block *block : blocks) {
+        if (block == nullptr) continue;
+
+        std::string buttonCheck;
+        if (block->opcode == "sensing_keypressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
+        } else if (block->opcode == "event_whenkeypressed") {
+            buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            const ParsedInput *input = Scratch::getInput(block, "KEY");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.get<std::string>();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
+            if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
+
+            const std::string inputSequence = input->value.get<std::string>();
+            size_t start = 0;
+            size_t end = 0;
+            while ((end = inputSequence.find(' ', start)) != std::string::npos) {
+                addControl(inputSequence.substr(start, end - start));
+                start = end + 1;
+            }
+            addControl(inputSequence.substr(start));
+            continue;
+        } else {
+            continue;
+        }
+
+        addControl(buttonCheck);
+    }
+
+    return controls;
 }

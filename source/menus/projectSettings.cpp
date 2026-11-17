@@ -6,6 +6,7 @@
 #include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <log.hpp>
+#include <onScreenControls.hpp>
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
     Log::log(existUnpacked ? "Project exists Unpacked" : "Project does not exist Unpacked");
@@ -102,6 +103,35 @@ std::string runtimeText(RuntimeMode mode) {
     return TranslationManager::getTranslation("ui.settings.runtime") + ": " + runtimeModeName(mode);
 }
 
+const char *onScreenControlsModeKey(OnScreenControls::Mode mode) {
+    switch (mode) {
+    case OnScreenControls::Mode::On:
+        return "ui.settings.on";
+    case OnScreenControls::Mode::Off:
+        return "ui.settings.off";
+    case OnScreenControls::Mode::Auto:
+        break;
+    }
+    return "ui.settings.auto";
+}
+
+std::string onScreenControlsText(OnScreenControls::Mode mode) {
+    return TranslationManager::getTranslation("ui.settings.onScreenControls") + ": " +
+           TranslationManager::getTranslation(onScreenControlsModeKey(mode));
+}
+
+OnScreenControls::Mode nextOnScreenControlsMode(OnScreenControls::Mode mode) {
+    switch (mode) {
+    case OnScreenControls::Mode::Auto:
+        return OnScreenControls::Mode::On;
+    case OnScreenControls::Mode::On:
+        return OnScreenControls::Mode::Off;
+    case OnScreenControls::Mode::Off:
+        break;
+    }
+    return OnScreenControls::Mode::Auto;
+}
+
 } // namespace
 
 void ProjectSettings::init() {
@@ -150,6 +180,13 @@ void ProjectSettings::init() {
     runtimeButton->text->setScale(0.5);
     runtimeButton->shouldNineslice = true;
 
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    onScreenControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.onScreenControls"), "gfx/menu/submenuButton.svg", 200, 400, "gfx/menu/Ubuntu-Bold");
+    onScreenControlsButton->text->setColor(Math::color(255, 255, 255, 255));
+    onScreenControlsButton->text->setScale(0.5);
+    onScreenControlsButton->shouldNineslice = true;
+#endif
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -187,6 +224,13 @@ void ProjectSettings::init() {
     runtimeButton->buttonDown = changeControlsButton;
     runtimeButton->buttonUp = refreshLimitButton;
 
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    runtimeButton->buttonDown = onScreenControlsButton;
+    onScreenControlsButton->buttonUp = runtimeButton;
+    onScreenControlsButton->buttonDown = changeControlsButton;
+    changeControlsButton->buttonUp = onScreenControlsButton;
+#endif
+
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
@@ -199,6 +243,9 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(ramButton);
     settingsControl->buttonObjects.push_back(refreshLimitButton);
     settingsControl->buttonObjects.push_back(runtimeButton);
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    settingsControl->buttonObjects.push_back(onScreenControlsButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -242,6 +289,12 @@ void ProjectSettings::init() {
     } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
 
     runtimeButton->text->setText(runtimeText(runtimeModeOf(settings)));
+
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    const OnScreenControls::Mode onScreenControlsMode =
+        OnScreenControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto")));
+    onScreenControlsButton->text->setText(onScreenControlsText(onScreenControlsMode));
+#endif
 
     isInitialized = true;
 }
@@ -309,6 +362,16 @@ void ProjectSettings::render() {
         SettingsManager::saveProjectSettings(settings, projectPath);
         runtimeButton->text->setText(runtimeText(mode));
     }
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    if (onScreenControlsButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        const OnScreenControls::Mode mode =
+            nextOnScreenControlsMode(OnScreenControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto"))));
+        settings["settings"]["onScreenControls"] = OnScreenControls::modeToString(mode);
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        onScreenControlsButton->text->setText(onScreenControlsText(mode));
+    }
+#endif
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
         UnpackMenu unpackMenu;
@@ -402,6 +465,12 @@ void ProjectSettings::cleanup() {
         delete runtimeButton;
         runtimeButton = nullptr;
     }
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    if (onScreenControlsButton != nullptr) {
+        delete onScreenControlsButton;
+        onScreenControlsButton = nullptr;
+    }
+#endif
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);
     // Input::getInput();

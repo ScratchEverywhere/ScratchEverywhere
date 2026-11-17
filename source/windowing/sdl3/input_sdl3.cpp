@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <input_sdl3.hpp>
 #include <map>
+#include <onScreenControls.hpp>
 #include <renderer.hpp>
 #include <string>
 #include <types.hpp>
@@ -77,6 +78,50 @@ std::array<int, 2> InputDevice_SDL3::getTouchPosition() {
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
     return pos;
+}
+
+std::vector<InputTouch> InputDevice_SDL3::getTouches() {
+    std::vector<InputTouch> touches;
+#ifdef PLATFORM_HAS_TOUCH
+    int numDevices = 0;
+    SDL_TouchID *touchDevices = SDL_GetTouchDevices(&numDevices);
+    if (!touchDevices) return touches;
+
+    const int renderWidth = Render::getWidth();
+    const int renderHeight = Render::getHeight();
+
+    for (int i = 0; i < numDevices; ++i) {
+        int numFingers = 0;
+        SDL_Finger **fingers = SDL_GetTouchFingers(touchDevices[i], &numFingers);
+        if (!fingers) continue;
+
+        for (int f = 0; f < numFingers; ++f) {
+            int x = static_cast<int>(fingers[f]->x * renderWidth);
+            int y = static_cast<int>(fingers[f]->y * renderHeight);
+
+            Input::applyInputViewportOffset(x, y);
+            Input::scaleViewportToRenderSpace(x, y, renderWidth, renderHeight);
+
+            InputTouch touch;
+            touch.x = x;
+            touch.y = y;
+            touches.push_back(touch);
+        }
+
+        SDL_free(fingers);
+    }
+
+    SDL_free(touchDevices);
+#endif
+    return touches;
+}
+
+bool InputDevice_SDL3::hasConnectedGamepad() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller != nullptr;
+#else
+    return false;
+#endif
 }
 
 void InputDevice_SDL3::getInput() {
@@ -216,7 +261,8 @@ void InputDevice_SDL3::getInput() {
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
         Input::clampMouseToStage();
-        Input::mousePointer.isPressed = touchActive;
+        // Touches on the on-screen controls drive game keys, not the stage.
+        Input::mousePointer.isPressed = touchActive && !OnScreenControls::isPointOverControls(touchX, touchY);
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
 
         SDL_free(touchID);

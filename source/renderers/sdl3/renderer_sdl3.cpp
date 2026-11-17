@@ -617,6 +617,7 @@ void Renderer_SDL3::renderSprites() {
 
     drawBlackBars(Sdlrenderer, getWidth(), getHeight());
     Render::renderMonitors();
+    Render::renderOnScreenControls();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {

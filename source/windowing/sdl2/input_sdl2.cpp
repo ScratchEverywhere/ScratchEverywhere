@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <onScreenControls.hpp>
 #include <renderer.hpp>
 #include <string>
 #include <types.hpp>
@@ -113,6 +114,45 @@ std::array<int, 2> InputDevice_SDL2::getTouchPosition() {
     Input::applyInputViewportOffset(pos[0], pos[1]);
     Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
     return pos;
+}
+
+std::vector<InputTouch> InputDevice_SDL2::getTouches() {
+    std::vector<InputTouch> touches;
+#ifdef PLATFORM_HAS_TOUCH
+    const int renderWidth = Render::getWidth();
+    const int renderHeight = Render::getHeight();
+    const int numDevices = SDL_GetNumTouchDevices();
+
+    for (int i = 0; i < numDevices; ++i) {
+        const SDL_TouchID touchID = SDL_GetTouchDevice(i);
+        const int numFingers = SDL_GetNumTouchFingers(touchID);
+
+        for (int f = 0; f < numFingers; ++f) {
+            const SDL_Finger *finger = SDL_GetTouchFinger(touchID, f);
+            if (!finger) continue;
+
+            int x = static_cast<int>(finger->x * renderWidth);
+            int y = static_cast<int>(finger->y * renderHeight);
+
+            Input::applyInputViewportOffset(x, y);
+            Input::scaleViewportToRenderSpace(x, y, renderWidth, renderHeight);
+
+            InputTouch touch;
+            touch.x = x;
+            touch.y = y;
+            touches.push_back(touch);
+        }
+    }
+#endif
+    return touches;
+}
+
+bool InputDevice_SDL2::hasConnectedGamepad() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller != nullptr;
+#else
+    return false;
+#endif
 }
 
 void InputDevice_SDL2::getInput() {
@@ -286,7 +326,8 @@ void InputDevice_SDL2::getInput() {
         Input::mousePointer.x = coords.first;
         Input::mousePointer.y = coords.second;
         Input::clampMouseToStage();
-        Input::mousePointer.isPressed = touchActive;
+        // Touches on the on-screen controls drive game keys, not the stage.
+        Input::mousePointer.isPressed = touchActive && !OnScreenControls::isPointOverControls(touchX, touchY);
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
         return;

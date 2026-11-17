@@ -8,6 +8,10 @@ class SE_EXPORT InputDevice_SDL2 : public InputDevice {
 
     std::array<int, 2> getTouchPosition() override;
 
+    std::vector<InputTouch> getTouches() override;
+
+    bool hasConnectedGamepad() override;
+
     void getInput() override;
 
     std::string openSoftwareKeyboard(const char *hintText) override;

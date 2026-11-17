@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <audio.hpp>
 #include <input.hpp>
+#include <onScreenControls.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
@@ -11,6 +12,8 @@
 
 // ToDo: That could be optimized, but it works for now and i want to move on to other stuff
 void BlockExecutor::executeKeyHats() {
+    OnScreenControls::update();
+
 #if defined(__XBOX__) && defined(ENABLE_MENU)
     const bool paused = Scratch::pauseMenu != nullptr;
 #else

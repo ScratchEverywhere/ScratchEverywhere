@@ -13,12 +13,22 @@
 
 #include <input_strings.hpp>
 
+struct SE_EXPORT InputTouch {
+    int x = 0;
+    int y = 0;
+};
+
 class SE_EXPORT InputDevice {
   public:
     InputDevice() = default;
     virtual ~InputDevice() = default;
 
     virtual std::array<int, 2> getTouchPosition() = 0;
+
+    // all currently-held touch points in render/window pixel space
+    virtual std::vector<InputTouch> getTouches() { return {}; }
+
+    virtual bool hasConnectedGamepad() { return false; }
 
     virtual void getInput() = 0;
 
@@ -86,6 +96,12 @@ class SE_EXPORT Input {
     // TODO: remove these and rely on getInputDevice to access functions
 
     static std::array<int, 2> getTouchPosition();
+
+    // all currently-held touch points
+    // (falls back to the primary touch point)
+    static std::vector<InputTouch> getTouches();
+
+    static bool hasConnectedGamepad();
 
     static void getInput();
 
