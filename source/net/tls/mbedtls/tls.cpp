@@ -2,6 +2,7 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/version.h>
+#include <cstdio>
 #include <net/tls.hpp>
 #include <timer.hpp>
 #if defined(SE_MBEDTLS_USER_CONFIG)
@@ -91,18 +92,25 @@ TlsStream::~TlsStream() {
 }
 
 bool TlsStream::handshake(const std::string &hostname, int timeoutMs) {
-    if (mbedtls_entropy_add_source(&impl->entropy, entropySource, nullptr, 32, MBEDTLS_ENTROPY_SOURCE_STRONG) != 0) return false;
-    if (mbedtls_ctr_drbg_seed(&impl->drbg, mbedtls_entropy_func, &impl->entropy, nullptr, 0) != 0) return false;
+    auto fail = [this](const char *step, int code) {
+        char hex[16];
+        snprintf(hex, sizeof(hex), "-0x%04X", (unsigned)-code);
+        lastError = std::string(step) + " " + hex;
+        return false;
+    };
+    int ret;
+    if ((ret = mbedtls_entropy_add_source(&impl->entropy, entropySource, nullptr, 32, MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0) return fail("entropy", ret);
+    if ((ret = mbedtls_ctr_drbg_seed(&impl->drbg, mbedtls_entropy_func, &impl->entropy, nullptr, 0)) != 0) return fail("drbg seed", ret);
 
-    if (mbedtls_ssl_config_defaults(&impl->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) return false;
+    if ((ret = mbedtls_ssl_config_defaults(&impl->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) return fail("ssl config", ret);
     mbedtls_ssl_conf_authmode(&impl->conf, MBEDTLS_SSL_VERIFY_NONE);
     mbedtls_ssl_conf_rng(&impl->conf, mbedtls_ctr_drbg_random, &impl->drbg);
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
     mbedtls_ssl_conf_max_tls_version(&impl->conf, MBEDTLS_SSL_VERSION_TLS1_2);
 #endif
 
-    if (mbedtls_ssl_setup(&impl->ssl, &impl->conf) != 0) return false;
-    if (mbedtls_ssl_set_hostname(&impl->ssl, hostname.c_str()) != 0) return false;
+    if ((ret = mbedtls_ssl_setup(&impl->ssl, &impl->conf)) != 0) return fail("ssl setup", ret);
+    if ((ret = mbedtls_ssl_set_hostname(&impl->ssl, hostname.c_str())) != 0) return fail("set hostname", ret);
     mbedtls_ssl_set_bio(&impl->ssl, &impl->bio, bioSend, bioRecv, nullptr);
 
     impl->bio.timeoutMs = timeoutMs;
@@ -110,10 +118,10 @@ bool TlsStream::handshake(const std::string &hostname, int timeoutMs) {
     int r;
     while ((r = mbedtls_ssl_handshake(&impl->ssl)) != 0) {
         if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
-            if (impl->bio.timedOut) return false;
+            if (impl->bio.timedOut) return fail("handshake timed out", r);
             continue;
         }
-        return false;
+        return fail("handshake", r);
     }
     impl->bio.timeoutMs = 30000;
     return true;

@@ -108,10 +108,15 @@ NetStream::~NetStream() {
 
 bool NetStream::open(const NetUrl &url, int timeoutMs) {
     close();
-    if (!socket.connect(url.host, url.port, timeoutMs)) return false;
+    lastError.clear();
+    if (!socket.connect(url.host, url.port, timeoutMs)) {
+        lastError = socket.lastError();
+        return false;
+    }
     if (url.secure()) {
         tls = std::make_unique<TlsStream>(socket);
         if (!tls->handshake(url.host, timeoutMs)) {
+            lastError = "TLS handshake failed" + (tls->error().empty() ? std::string() : " (" + tls->error() + ")");
             close();
             return false;
         }

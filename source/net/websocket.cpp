@@ -119,7 +119,7 @@ bool WebSocket::connect(const std::string &urlStr, const std::vector<std::string
     state->networkHeld = true;
 
     if (!state->stream.open(url, timeoutMs)) {
-        state->error = "Could not connect to " + url.host;
+        state->error = "Could not connect to " + url.host + ": " + state->stream.error();
         close();
         return false;
     }

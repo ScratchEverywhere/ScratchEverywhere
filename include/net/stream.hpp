@@ -36,6 +36,7 @@ class SE_EXPORT NetStream {
     int read(void *buf, size_t len, int timeoutMs = 30000);
     int write(const void *buf, size_t len, int timeoutMs = 30000);
     bool timedOut() const;
+    const std::string &error() const { return lastError; }
 
     bool waitReadable(int timeoutMs);
 
@@ -45,4 +46,5 @@ class SE_EXPORT NetStream {
     SE_Socket socket;
     std::unique_ptr<TlsStream> tls;
     bool timedOutFlag = false;
+    std::string lastError;
 };

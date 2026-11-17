@@ -24,6 +24,7 @@ class SE_EXPORT SE_Socket {
 
     int recv(void *buf, size_t len, int timeoutMs = 30000);
     bool timedOut() const;
+    const std::string &lastError() const;
 
     bool waitReadable(int timeoutMs);
 

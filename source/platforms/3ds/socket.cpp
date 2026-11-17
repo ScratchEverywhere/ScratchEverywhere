@@ -8,4 +8,6 @@ static bool se_3dsRandom(void *buf, size_t len) {
 }
 #define SE_NET_RANDOM(buf, len) se_3dsRandom(buf, len)
 
+#define SE_NET_BLOCKING_CONNECT
+
 #include <socket_bsd.hpp>

@@ -19,10 +19,12 @@ class SE_EXPORT TlsStream {
     int write(const void *buf, size_t len, int timeoutMs = 30000);
 
     bool timedOut() const;
+    const std::string &error() const { return lastError; }
 
     void close();
 
   private:
+    std::string lastError;
     struct Impl;
     Impl *impl;
 };

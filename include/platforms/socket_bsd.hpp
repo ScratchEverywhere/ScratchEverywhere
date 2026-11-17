@@ -114,6 +114,7 @@ struct SeAddress {
 struct SE_Socket::Impl {
     se_sock_t fd = SE_SOCK_INVALID;
     bool timedOut = false;
+    std::string lastError;
 };
 
 static int se_refCount = 0;
@@ -252,24 +253,39 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
     impl->timedOut = false;
 
     std::vector<SeAddress> addresses;
-    if (!se_resolve(host, port, addresses)) return false;
+    impl->lastError.clear();
+    if (!se_resolve(host, port, addresses)) {
+        impl->lastError = "DNS lookup failed";
+        return false;
+    }
 
     for (const SeAddress &address : addresses) {
         se_sock_t fd = SE_NET_SOCKET(address.family, address.type, address.protocol);
-        if (fd == SE_SOCK_INVALID) continue;
+        if (fd == SE_SOCK_INVALID) {
+            impl->lastError = "socket() failed (error " + std::to_string(SE_NET_LAST_ERROR()) + ")";
+            continue;
+        }
 
+#ifndef SE_NET_BLOCKING_CONNECT
         SE_NET_SET_NONBLOCK(fd);
+#endif
 
         bool ok = false;
         int r = SE_NET_CONNECT(fd, reinterpret_cast<const struct sockaddr *>(address.storage), (int)address.length);
         if (r == 0) {
             ok = true;
         } else if (SE_NET_IS_BLOCKED(SE_NET_LAST_ERROR())) {
-            if (se_waitFor(fd, POLLOUT, timeoutMs) > 0) {
+            int w = se_waitFor(fd, POLLOUT, timeoutMs);
+            if (w > 0) {
                 int err = 0;
                 socklen_t errLen = sizeof(err);
                 ok = SE_NET_GETSOCKOPT(fd, SOL_SOCKET, SO_ERROR, (char *)&err, &errLen) == 0 && err == 0;
+                if (!ok) impl->lastError = "connect failed (SO_ERROR " + std::to_string(err) + ")";
+            } else {
+                impl->lastError = w == 0 ? "connect timed out" : "poll failed (error " + std::to_string(SE_NET_LAST_ERROR()) + ")";
             }
+        } else {
+            impl->lastError = "connect failed (error " + std::to_string(SE_NET_LAST_ERROR()) + ")";
         }
 
         if (!ok) {
@@ -277,6 +293,9 @@ bool SE_Socket::connect(const std::string &host, uint16_t port, int timeoutMs) {
             continue;
         }
 
+#ifdef SE_NET_BLOCKING_CONNECT
+        SE_NET_SET_NONBLOCK(fd);
+#endif
         int one = 1;
         SE_NET_SETSOCKOPT(fd, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
 #ifdef SO_NOSIGPIPE
@@ -331,6 +350,10 @@ int SE_Socket::recv(void *buf, size_t len, int timeoutMs) {
         impl->timedOut = w == 0;
         return -1;
     }
+}
+
+const std::string &SE_Socket::lastError() const {
+    return impl->lastError;
 }
 
 bool SE_Socket::timedOut() const {
