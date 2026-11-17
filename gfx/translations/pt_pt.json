@@ -49,5 +49,6 @@
   "ui.settings.deleteUnpacked": "Eliminar Projeto Desempacotado",
   "ui.settings.dectalk": "Usar DECtalk",
   "ui.loading.caching": "Cache de Imagens",
-  "ui.popup.bytecodeCacheTooNew": "Este projeto desempacotado é de uma versão mais recente do Scratch Everywhere!, por favor desempacote o projeto outra vez or use a versão empacotada."
+  "ui.popup.bytecodeCacheTooNew": "Este projeto desempacotado é de uma versão mais recente do Scratch Everywhere!, por favor desempacote o projeto outra vez or use a versão empacotada.",
+  "ui.settings.discord": "Presença Do Discord"
 }

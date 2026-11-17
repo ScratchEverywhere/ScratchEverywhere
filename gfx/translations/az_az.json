@@ -41,7 +41,7 @@
   "version.prefix.release": "Buraxılış",
   "version.prefix.releaseCanidate": "Buraxılış namizədi",
   "version.prefix.nightly": "Gecə yığımı",
-  "ui.settings.runtime": "",
+  "ui.settings.runtime": "İcra müddəti",
   "ui.settings.renderer": "",
   "ui.settings.windowing": "",
   "ui.settings.audioEngine": "",
