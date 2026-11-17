@@ -3,7 +3,7 @@
 #include <string>
 
 
-namespace OnScreenControls {
+namespace TouchControls {
     enum class Mode {
         Auto,
         On,
@@ -20,4 +20,4 @@ namespace OnScreenControls {
 
     Mode modeFromString(const std::string &value);
     const char *modeToString(Mode mode);
-} // namespace OnScreenControls
+} // namespace TouchControls

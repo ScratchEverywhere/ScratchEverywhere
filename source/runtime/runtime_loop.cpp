@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <input.hpp>
 #include <iostream>
-#include <onScreenControls.hpp>
+#include <touch_controls.hpp>
 #include <os.hpp>
 #include <renderer.hpp>
 #include <speech_manager.hpp>
@@ -54,7 +54,7 @@ void Scratch::initializeScratchProject() {
 
     Render::setRenderScale();
 
-    OnScreenControls::init();
+    TouchControls::init();
 
     Scratch::greenFlagClicked();
 
@@ -239,7 +239,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #else
         bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
 #endif
-        pauseRequested = pauseRequested || OnScreenControls::consumePauseRequest();
+        pauseRequested = pauseRequested || TouchControls::consumePauseRequest();
         if (pauseRequested) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);

@@ -17,7 +17,7 @@ class SE_EXPORT ProjectSettings : public Menu {
     ButtonObject *collisionButton = nullptr;
     ButtonObject *refreshLimitButton = nullptr;
     ButtonObject *runtimeButton = nullptr;
-    ButtonObject *onScreenControlsButton = nullptr;
+    ButtonObject *touchControlsButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

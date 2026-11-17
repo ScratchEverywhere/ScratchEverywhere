@@ -378,7 +378,7 @@ void Renderer_SDL1::renderSprites() {
 
     drawBlackBars(mainSurface, getWidth(), getHeight());
     Render::renderMonitors();
-    Render::renderOnScreenControls();
+    Render::renderTouchControls();
 
     if (window) window->swapBuffers();
 }

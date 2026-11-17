@@ -6,7 +6,7 @@
 #include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <log.hpp>
-#include <onScreenControls.hpp>
+#include <touch_controls.hpp>
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
     Log::log(existUnpacked ? "Project exists Unpacked" : "Project does not exist Unpacked");
@@ -103,33 +103,33 @@ std::string runtimeText(RuntimeMode mode) {
     return TranslationManager::getTranslation("ui.settings.runtime") + ": " + runtimeModeName(mode);
 }
 
-const char *onScreenControlsModeKey(OnScreenControls::Mode mode) {
+const char *touchControlsModeKey(TouchControls::Mode mode) {
     switch (mode) {
-    case OnScreenControls::Mode::On:
+    case TouchControls::Mode::On:
         return "ui.settings.on";
-    case OnScreenControls::Mode::Off:
+    case TouchControls::Mode::Off:
         return "ui.settings.off";
-    case OnScreenControls::Mode::Auto:
+    case TouchControls::Mode::Auto:
         break;
     }
     return "ui.settings.auto";
 }
 
-std::string onScreenControlsText(OnScreenControls::Mode mode) {
+std::string touchControlsText(TouchControls::Mode mode) {
     return TranslationManager::getTranslation("ui.settings.onScreenControls") + ": " +
-           TranslationManager::getTranslation(onScreenControlsModeKey(mode));
+           TranslationManager::getTranslation(touchControlsModeKey(mode));
 }
 
-OnScreenControls::Mode nextOnScreenControlsMode(OnScreenControls::Mode mode) {
+TouchControls::Mode nextTouchControlsMode(TouchControls::Mode mode) {
     switch (mode) {
-    case OnScreenControls::Mode::Auto:
-        return OnScreenControls::Mode::On;
-    case OnScreenControls::Mode::On:
-        return OnScreenControls::Mode::Off;
-    case OnScreenControls::Mode::Off:
+    case TouchControls::Mode::Auto:
+        return TouchControls::Mode::On;
+    case TouchControls::Mode::On:
+        return TouchControls::Mode::Off;
+    case TouchControls::Mode::Off:
         break;
     }
-    return OnScreenControls::Mode::Auto;
+    return TouchControls::Mode::Auto;
 }
 
 } // namespace
@@ -181,10 +181,10 @@ void ProjectSettings::init() {
     runtimeButton->shouldNineslice = true;
 
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    onScreenControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.onScreenControls"), "gfx/menu/submenuButton.svg", 200, 400, "gfx/menu/Ubuntu-Bold");
-    onScreenControlsButton->text->setColor(Math::color(255, 255, 255, 255));
-    onScreenControlsButton->text->setScale(0.5);
-    onScreenControlsButton->shouldNineslice = true;
+    touchControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.onScreenControls"), "gfx/menu/submenuButton.svg", 200, 400, "gfx/menu/Ubuntu-Bold");
+    touchControlsButton->text->setColor(Math::color(255, 255, 255, 255));
+    touchControlsButton->text->setScale(0.5);
+    touchControlsButton->shouldNineslice = true;
 #endif
 
     settingsControl = new ControlObject();
@@ -225,10 +225,10 @@ void ProjectSettings::init() {
     runtimeButton->buttonUp = refreshLimitButton;
 
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    runtimeButton->buttonDown = onScreenControlsButton;
-    onScreenControlsButton->buttonUp = runtimeButton;
-    onScreenControlsButton->buttonDown = changeControlsButton;
-    changeControlsButton->buttonUp = onScreenControlsButton;
+    runtimeButton->buttonDown = touchControlsButton;
+    touchControlsButton->buttonUp = runtimeButton;
+    touchControlsButton->buttonDown = changeControlsButton;
+    changeControlsButton->buttonUp = touchControlsButton;
 #endif
 
     // add buttons to control
@@ -244,7 +244,7 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(refreshLimitButton);
     settingsControl->buttonObjects.push_back(runtimeButton);
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    settingsControl->buttonObjects.push_back(onScreenControlsButton);
+    settingsControl->buttonObjects.push_back(touchControlsButton);
 #endif
 
     settingsControl->enableScrolling = true;
@@ -291,9 +291,9 @@ void ProjectSettings::init() {
     runtimeButton->text->setText(runtimeText(runtimeModeOf(settings)));
 
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    const OnScreenControls::Mode onScreenControlsMode =
-        OnScreenControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto")));
-    onScreenControlsButton->text->setText(onScreenControlsText(onScreenControlsMode));
+    const TouchControls::Mode touchControlsMode =
+        TouchControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto")));
+    touchControlsButton->text->setText(touchControlsText(touchControlsMode));
 #endif
 
     isInitialized = true;
@@ -363,13 +363,13 @@ void ProjectSettings::render() {
         runtimeButton->text->setText(runtimeText(mode));
     }
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    if (onScreenControlsButton->isPressed()) {
+    if (touchControlsButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        const OnScreenControls::Mode mode =
-            nextOnScreenControlsMode(OnScreenControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto"))));
-        settings["settings"]["onScreenControls"] = OnScreenControls::modeToString(mode);
+        const TouchControls::Mode mode =
+            nextTouchControlsMode(TouchControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto"))));
+        settings["settings"]["onScreenControls"] = TouchControls::modeToString(mode);
         SettingsManager::saveProjectSettings(settings, projectPath);
-        onScreenControlsButton->text->setText(onScreenControlsText(mode));
+        touchControlsButton->text->setText(touchControlsText(mode));
     }
 #endif
     if (UnpackProjectButton->isPressed({"a"})) {
@@ -466,9 +466,9 @@ void ProjectSettings::cleanup() {
         runtimeButton = nullptr;
     }
 #if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
-    if (onScreenControlsButton != nullptr) {
-        delete onScreenControlsButton;
-        onScreenControlsButton = nullptr;
+    if (touchControlsButton != nullptr) {
+        delete touchControlsButton;
+        touchControlsButton = nullptr;
     }
 #endif
     // Render::beginFrame(0, 147, 138, 168);

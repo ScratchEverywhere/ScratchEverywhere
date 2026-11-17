@@ -10,10 +10,14 @@
 #include <cstddef>
 #include <input.hpp>
 #include <map>
-#include <onScreenControls.hpp>
+#include <touch_controls.hpp>
 #include <renderer.hpp>
 #include <string>
 #include <types.hpp>
+#ifdef __UBUNTUTOUCH__
+#include <platforms/ut/swkbd_ut.hpp>
+#endif
+#include <utf8.hpp>
 #include <vector>
 
 #ifdef __WIIU__
@@ -327,7 +331,7 @@ void InputDevice_SDL2::getInput() {
         Input::mousePointer.y = coords.second;
         Input::clampMouseToStage();
         // Touches on the on-screen controls drive game keys, not the stage.
-        Input::mousePointer.isPressed = touchActive && !OnScreenControls::isPointOverControls(touchX, touchY);
+        Input::mousePointer.isPressed = touchActive && !TouchControls::isPointOverControls(touchX, touchY);
         Input::mousePointer.mouseButton = Input::Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
         return;
@@ -377,6 +381,13 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
     enterText->setColor(Math::color(219, 145, 219, 255));
 
     SDL_StartTextInput();
+
+    // SDL cannot raise the Ubuntu Touch keyboard, so drive Maliit directly.
+    // SDL text input remains enabled as a fallback when Maliit is unavailable.
+#ifdef __UBUNTUTOUCH__
+    UbuntuTouchKeyboard maliitKeyboard;
+    maliitKeyboard.show();
+#endif
 
     std::string inputText = "";
     bool inputActive = true;
@@ -433,6 +444,39 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
             }
         }
 
+#ifdef __UBUNTUTOUCH__
+        maliitKeyboard.poll();
+        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
+            switch (oskEvent.type) {
+            case UbuntuTouchKeyboard::Event::Type::CommitString:
+                utf8::eraseLast(inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
+                inputText += oskEvent.text;
+                text->setText(inputText);
+                text->setColor(Math::color(255, 255, 255, 255));
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Backspace:
+                utf8::eraseLast(inputText, 1);
+                if (inputText.empty()) {
+                    text->setText(std::string(hintText));
+                    text->setColor(Math::color(0, 0, 0, 170));
+                } else {
+                    text->setText(inputText);
+                }
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Enter:
+            case UbuntuTouchKeyboard::Event::Type::Escape:
+            case UbuntuTouchKeyboard::Event::Type::Dismissed:
+                inputActive = false;
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Preedit:
+                break;
+            }
+        }
+#endif
+
         // set text size
         text->setScale(1.0f);
         if (text->getSize()[0] > Render::getWidth() * 0.95) {
@@ -451,6 +495,9 @@ std::string InputDevice_SDL2::openSoftwareKeyboard(const char *hintText) {
     }
 
     SDL_StopTextInput();
+#ifdef __UBUNTUTOUCH__
+    maliitKeyboard.hide();
+#endif
     return inputText;
 #endif
 

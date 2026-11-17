@@ -555,7 +555,7 @@ void Renderer_C2D::renderSprites() {
             Render::renderMonitors();
         }
 
-        Render::renderOnScreenControls();
+        Render::renderTouchControls();
     }
 
     C3D_FrameEnd(0);

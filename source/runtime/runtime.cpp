@@ -23,7 +23,7 @@
 #include <log.hpp>
 #include <math.h>
 #include <memory>
-#include <onScreenControls.hpp>
+#include <touch_controls.hpp>
 #include <os.hpp>
 #include <parser.hpp>
 #include <renderer.hpp>
@@ -299,7 +299,7 @@ void Scratch::cleanupScratchProject() {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     Unzip::UnpackedInSD = false;
     Unzip::filePath.clear();
-    OnScreenControls::cleanup();
+    TouchControls::cleanup();
 
     Log::log("Cleaned up Scratch project.");
 }

@@ -208,7 +208,7 @@ bool isPointOverMonitor(int screenX, int screenY);
 /**
  * Renders touch-only on-screen controls over the game frame.
  */
-void renderOnScreenControls();
+void renderTouchControls();
 
 // --- renderer specific render functions
 

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <log.hpp>
 #include <memory>
-#include <onScreenControls.hpp>
+#include <touch_controls.hpp>
 #include <pixel_snap.hpp>
 
 #ifdef RENDERER_OPENGL_CORE
@@ -368,8 +368,8 @@ void Render::renderPenLayer() {
         globalRenderer->renderPenLayer();
 }
 
-void Render::renderOnScreenControls() {
-    OnScreenControls::render();
+void Render::renderTouchControls() {
+    TouchControls::render();
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

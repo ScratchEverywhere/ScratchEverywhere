@@ -44,4 +44,15 @@ inline std::vector<uint32_t> decode(const std::string &text) {
     return out;
 }
 
+// Remove up to `count` code points from the end of a UTF-8 string
+inline void eraseLast(std::string &text, size_t count) {
+    for (size_t n = 0; n < count && !text.empty(); ++n) {
+        size_t i = text.size() - 1;
+        while (i > 0 && (static_cast<unsigned char>(text[i]) & 0xC0) == 0x80) {
+            --i;
+        }
+        text.erase(i);
+    }
+}
+
 } // namespace utf8

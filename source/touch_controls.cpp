@@ -1,4 +1,4 @@
-#include "onScreenControls.hpp"
+#include "touch_controls.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -69,7 +69,7 @@ struct Layout {
     std::vector<KeyButton> buttons;
 };
 
-OnScreenControls::Mode mode = OnScreenControls::Mode::Auto;
+TouchControls::Mode mode = TouchControls::Mode::Auto;
 bool initialized = false;
 bool active = false;
 bool pauseAvailable = false;
@@ -178,10 +178,10 @@ void readProjectControls() {
 }
 
 void readMode() {
-    mode = OnScreenControls::Mode::Auto;
+    mode = TouchControls::Mode::Auto;
     const nlohmann::json setting = Unzip::getSetting("onScreenControls");
     if (setting.is_string()) {
-        mode = OnScreenControls::modeFromString(setting.get<std::string>());
+        mode = TouchControls::modeFromString(setting.get<std::string>());
     }
 }
 
@@ -368,7 +368,7 @@ void drawButtons() {
 
 } // namespace
 
-namespace OnScreenControls {
+namespace TouchControls {
 
 Mode modeFromString(const std::string &value) {
     if (value == "on") return Mode::On;
@@ -596,11 +596,11 @@ bool isVisible() {
     return active && layout.visible;
 }
 
-} // namespace OnScreenControls
+} // namespace TouchControls
 
 #else // touch controls are not compiled on platforms with a mouse
 
-namespace OnScreenControls {
+namespace TouchControls {
 
 Mode modeFromString(const std::string &value) {
     if (value == "on") return Mode::On;
@@ -628,6 +628,6 @@ bool isPointOverControls(int, int) { return false; }
 bool consumePauseRequest() { return false; }
 bool isVisible() { return false; }
 
-} // namespace OnScreenControls
+} // namespace TouchControls
 
 #endif
