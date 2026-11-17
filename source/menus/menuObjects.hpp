@@ -118,10 +118,6 @@ class SE_EXPORT MenuText : public MenuObject {
 };
 
 class SE_EXPORT ButtonObject : public MenuObject {
-  private:
-    bool pressedLastFrame = false;
-    std::array<int, 2> lastFrameTouchPos;
-
   public:
     std::unique_ptr<TextObject> text;
     std::string imageId;
@@ -140,6 +136,7 @@ class SE_EXPORT ButtonObject : public MenuObject {
     void render(double xPos = 0, double yPos = 0) override;
     bool isPressed(std::vector<std::string> pressButton = {"a", "x"});
     bool isTouchingMouse();
+    bool containsPoint(int pointX, int pointY);
 
     /*
      * Simple button object.
@@ -157,8 +154,6 @@ class SE_EXPORT ControlObject : public MenuObject {
   private:
     Timer animationTimer;
     int minY, maxY;
-    std::array<int, 2> lastFrameTouchPos;
-    bool mousePriority = false;
 
   public:
     int cameraX = 0;
@@ -169,6 +164,7 @@ class SE_EXPORT ControlObject : public MenuObject {
     void input();
     void render(double xPos = 0, double yPos = 0) override;
     ButtonObject *getClosestObject();
+    void setSelected(ButtonObject *object);
     void setScrollLimits();
     ControlObject();
     virtual ~ControlObject();
