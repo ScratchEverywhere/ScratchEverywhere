@@ -6,6 +6,7 @@
 #include <cmath>
 #include <log.hpp>
 #include <memory>
+#include <touch_controls.hpp>
 #include <pixel_snap.hpp>
 
 #ifdef RENDERER_OPENGL_CORE
@@ -365,6 +366,10 @@ void Render::renderSprites() {
 void Render::renderPenLayer() {
     if (globalRenderer)
         globalRenderer->renderPenLayer();
+}
+
+void Render::renderTouchControls() {
+    TouchControls::render();
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

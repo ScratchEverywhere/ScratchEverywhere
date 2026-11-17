@@ -205,6 +205,11 @@ ColorRGBA getMonitorValueColor(const std::string &opcode);
 void renderMonitors(const int &offsetX = 0, const int &offsetY = 0);
 bool isPointOverMonitor(int screenX, int screenY);
 
+/**
+ * Renders touch-only on-screen controls over the game frame.
+ */
+void renderTouchControls();
+
 // --- renderer specific render functions
 
 bool init();

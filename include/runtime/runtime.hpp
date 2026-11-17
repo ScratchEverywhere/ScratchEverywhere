@@ -43,6 +43,12 @@ class SE_EXPORT Scratch {
     static void resetInput(Block *block, const std::string &inputName = "");
 
     /**
+     * Returns the distinct Scratch controls ("up arrow", "w", "space", ...) that
+     * the currently loaded project reacts to.
+     */
+    static std::vector<std::string> getUsedControls();
+
+    /**
      * Runs a single step of execution.
      * @return First bool for if loop should be continued, second bool for exit code
      */

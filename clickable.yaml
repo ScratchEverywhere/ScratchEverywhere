@@ -1,0 +1,44 @@
+clickable_minimum_required: 8.0.0
+framework: ubuntu-touch-24.04-1.x
+build_dir: ${ROOT}/build/ut/${ARCH_TRIPLET}
+builder: cmake
+build_args:
+    - -B ${BUILD_DIR}
+    - -S ${SRC_DIR}
+    - -DCMAKE_BUILD_TYPE=Release
+    - -DSE_CLOUDVARS=ON
+    - -DSE_DOWNLOAD=ON
+    - -DUBUNTU_TOUCH=ON
+    - -DSE_CUSTOM_EXTENSIONS=ON
+    - -DSE_CMAKERC=OFF
+    - -DSE_DECTALK=ON
+    - -DSE_RENDERER=sdl3
+    - -DSE_WINDOWING=sdl3
+    - -DSE_AUDIO_ENGINE=sdl3
+    - -DCMAKE_BUILD_RPATH='$ORIGIN/lib'
+    - -DCMAKE_INSTALL_RPATH='$ORIGIN/lib'
+make_args:
+    - -Wno-deprecated-declarations
+dependencies_target:
+    - libasound2-dev
+    - libpulse-dev
+    - libx11-dev
+    - libxext-dev
+    - libxrandr-dev
+    - libxcursor-dev
+    - libxi-dev
+    - libxinerama-dev
+    - libxfixes-dev
+    - libxss-dev
+    - libxtst-dev
+    - libxkbcommon-dev
+    - libwayland-dev
+    - libdrm-dev
+    - libgles2-mesa-dev
+    - libegl1-mesa-dev
+    - libdbus-1-dev
+    - libudev-dev
+    - libthai-dev
+    - libfreetype6-dev
+    - libnghttp2-dev
+    - libpsl-dev

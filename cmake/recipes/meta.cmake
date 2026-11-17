@@ -7,6 +7,7 @@ set(CATALOG_RECIPES
     plutovg:plutovg.cmake
     lunasvg:lunasvg.cmake
     miniz:miniz.cmake
+	SDL2:sdl2.cmake
     SDL3:sdl3.cmake
     nxdk:nxdk.cmake
     mbedtls:mbedtls.cmake
