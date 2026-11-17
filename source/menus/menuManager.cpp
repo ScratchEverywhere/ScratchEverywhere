@@ -2,6 +2,7 @@
 #include "ingameMenu.hpp"
 #include "languageMenu.hpp"
 #include "mainMenu.hpp"
+#include "pauseMenu.hpp"
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
 #include "renderer.hpp"
@@ -18,6 +19,7 @@ bool MenuManager::projectPendingLoad = false;
 bool MenuManager::menuMusicFailed = false;
 bool MenuManager::canChangeTabs = true;
 MenuId MenuManager::currentMenu = MenuId::None;
+MenuId MenuManager::toUnload = MenuId::None;
 std::unordered_map<MenuId, std::unique_ptr<Menu>> MenuManager::loadedMenus;
 UI::Builder MenuManager::builder = {};
 std::unique_ptr<UI::Pool> MenuManager::elements;
@@ -109,6 +111,11 @@ void MenuManager::changeMenu(MenuId id) {
         }
         case MenuId::Ingame: {
             loadedMenus[id] = std::make_unique<IngameMenu>();
+            break;
+        }
+        case MenuId::PauseMenu: {
+            loadedMenus[id] = std::make_unique<PauseMenu>();
+            break;
         }
         default: {
             // TODO: error message?
@@ -192,6 +199,10 @@ void MenuManager::render() {
     if (canChangeTabs != oldCanChangeTabs) {
         oldCanChangeTabs = canChangeTabs;
         builder.dirty = true;
+    }
+    if (toUnload != MenuId::None) {
+        unloadMenu(toUnload);
+        toUnload = MenuId::None;
     }
 }
 

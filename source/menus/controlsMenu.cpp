@@ -47,6 +47,7 @@ void ControlsMenu::buildNoControls(UI::Builder &b) {
     button(b, "ui.settings.back", [&] {
         MenuManager::changeMenu(MenuId::ProjectSettingsMenu);
         MenuManager::canChangeTabs = true;
+        MenuManager::toUnload = MenuId::ControlsMenu;
         return;
     });
 }
@@ -117,6 +118,7 @@ void ControlsMenu::buildControls(UI::Builder &b) {
                       listeningControl.clear();
                       MenuManager::changeMenu(MenuId::ProjectSettingsMenu);
                       MenuManager::canChangeTabs = true;
+                      MenuManager::toUnload = MenuId::ControlsMenu;
                   });
               });
 }

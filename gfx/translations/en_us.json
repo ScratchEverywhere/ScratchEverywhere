@@ -35,6 +35,7 @@
   "ui.settings.audioEngine": "Audio Backend",
   "ui.unpack.wait": "Please wait a moment",
   "ui.unpack.warning": "Do not turn off the device",
+  "ui.pause.unpause": "Unpause Project",
   "ui.pause.exit": "Exit Project",
   "ui.pause.flag": "Click Green Flag",
   "ui.pause.stop": "Click Stop Button",
