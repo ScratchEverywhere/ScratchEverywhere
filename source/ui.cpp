@@ -175,14 +175,19 @@ static int gap1D(int p1, int l1, int p2, int l2) {
 }
 
 void Builder::input() {
+    constexpr int dragActivation = 8;
+    constexpr float friction = 0.95f;
+    constexpr float maxVel = 4.0f;
+    constexpr float stopVel = 0.01f;
+    constexpr double flingWindow = 100.0;
+
+    const double dt = std::clamp(frameTimer.getTimeMsDouble(), 1.0, 50.0);
+    frameTimer.start();
+
     const int mouseX = Input::mousePointer.rawX;
     const int mouseY = Input::mousePointer.rawY;
     const bool mouseDown = Input::mousePointer.isPressed;
     const size_t mouseHeldFrames = Input::mousePointer.heldFrames;
-
-    static size_t oldHeldFrames = 0;
-    static int oldMouseX = 0;
-    static int oldMouseY = 0;
 
     const bool mouseActive = mouseDown || mouseX != lastMouseX || mouseY != lastMouseY;
     lastMouseX = mouseX;
@@ -195,7 +200,64 @@ void Builder::input() {
     if (mouseActive) navMode = false;
 
     const uint16_t h = hitTest(mouseX, mouseY, true);
-    if (!navMode && h != NONE && h != focusedIndex) setFocus(h);
+
+    const bool pressStart = mouseDown && mouseHeldFrames == 1;
+    const bool released = !mouseDown && mouseHeldFrames == 0 && oldHeldFrames != 0;
+    bool endedDrag = false;
+
+    if (pressStart) {
+        pressX = lastDragY = mouseX;
+        pressY = lastDragY = mouseY;
+        dragging = false;
+        dragVel = 0.0f;
+        sinceMove = 0.0;
+        flingVel = 0.0f;
+
+        dragTarget = scrollAncestor(hitTest(mouseX, mouseY, false));
+        if (dragTarget != NONE) {
+            if (const ScrollState *s = findScrollState(pool->elements[dragTarget].id)) scrollPos = s->y;
+            else dragTarget = NONE;
+        }
+    }
+
+    if (mouseDown && dragTarget != NONE) {
+        if (!dragging && std::abs(mouseY - pressY) >= dragActivation) {
+            dragging = true;
+            lastDragY = mouseY;
+        }
+        if (dragging) {
+            const float delta = static_cast<float>(lastDragY - mouseY);
+            if (delta != 0.0f) {
+                const bool free = scrollTo(dragTarget, scrollPos + delta);
+                dragVel = free ? dragVel * 0.6f + (delta / static_cast<float>(dt)) * 0.4f : 0.0f;
+                sinceMove = 0.0;
+            } else {
+                sinceMove += dt;
+            }
+            lastDragY = mouseY;
+        }
+    }
+
+    if (released) {
+        if (dragging) {
+            endedDrag = true;
+            if (sinceMove < flingWindow && std::fabs(dragVel) > stopVel) {
+                flingVel = std::clamp(dragVel, -maxVel, maxVel);
+                flingTarget = dragTarget;
+            }
+        }
+        dragging = false;
+        dragTarget = NONE;
+    }
+
+    // inertia
+    if (!mouseDown && flingVel != 0.0f && flingTarget != NONE && flingTarget < pool->count) {
+        const bool free = scrollTo(flingTarget, scrollPos + flingVel * static_cast<float>(dt));
+        flingVel *= std::pow(friction, static_cast<float>(dt) / 16.0f);
+        if (!free || std::fabs(flingVel) < stopVel) flingVel = 0.0f;
+    }
+
+    if (!navMode && !dragging && h != NONE && h != focusedIndex) setFocus(h);
 
     uint16_t activate = NONE;
 
@@ -208,6 +270,7 @@ void Builder::input() {
 
         if (dir >= 0) {
             navMode = true;
+            flingVel = 0.0f;
             const uint16_t next = (focusedIndex == NONE) ? firstFocusable() : findNeighbor(focusedIndex, dir);
             if (next != NONE) {
                 setFocus(next);
@@ -223,11 +286,8 @@ void Builder::input() {
         }
     }
 
-    if (mouseDown && mouseHeldFrames == 1) {
-        oldMouseX = mouseX;
-        oldMouseY = mouseY;
-    } else if (h != NONE && !mouseDown && mouseHeldFrames == 0 && oldHeldFrames != 0 &&
-               std::abs(mouseX - oldMouseX) < 10 && std::abs(mouseY - oldMouseY) < 10) {
+    if (released && !endedDrag && h != NONE &&
+        std::abs(mouseX - pressX) < dragActivation && std::abs(mouseY - pressY) < dragActivation) {
         activate = h;
     }
 
@@ -235,12 +295,13 @@ void Builder::input() {
         Element &e = pool->elements[i];
         if (e.flags & Flag::Focusable) e.state = StateFlag::Normal;
     }
-    const uint16_t lit = navMode ? focusedIndex : h;
+    const uint16_t lit = dragging ? NONE : (navMode ? focusedIndex : h);
     if (lit != NONE) pool->elements[lit].state = StateFlag::Focused;
-    if (mouseDown && h != NONE) pool->elements[h].state = StateFlag::Pressed;
+    if (mouseDown && h != NONE && !dragging) pool->elements[h].state = StateFlag::Pressed;
     else if (navMode && focusedIndex != NONE && selectHeld()) pool->elements[focusedIndex].state = StateFlag::Pressed;
 
     if (Input::mouseScrollDelta != 0) {
+        flingVel = 0.0f;
         uint16_t target = scrollAncestor(hitTest(mouseX, mouseY, false));
         if (target != NONE) {
             const Element &e = pool->elements[target];
@@ -269,6 +330,19 @@ static float getScale(const Rect &r) {
     return effH / 1080.0f;
 }
 
+bool Builder::scrollTo(uint16_t container, float y) {
+    const Element &c = pool->elements[container];
+    ScrollState *s = findScrollState(c.id);
+    if (!s) return false;
+
+    const float maxY = static_cast<float>(std::max(0, s->extentH - c.rect.h));
+    const float clamped = std::clamp(y, 0.0f, maxY);
+    s->y = static_cast<int16_t>(std::lround(clamped));
+    scrollPos = clamped;
+    resolveScroll();
+    return clamped == y;
+}
+
 bool Builder::shouldRebuild() {
     const Renderer *renderer = Render::getGlobalRenderer();
     const int windowWidth = renderer->window->getWidth();
@@ -295,6 +369,10 @@ void Builder::begin(Pool *p) {
     pool->callbackCount = 0;
     depth = 0;
     skipped = 0;
+    dragging = false;
+    dragTarget = NONE;
+    flingTarget = NONE;
+    flingVel = 0.0f;
 }
 
 uint16_t Builder::append(const Element &e) {

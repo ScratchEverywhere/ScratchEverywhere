@@ -42,7 +42,7 @@ void ProjectMenu::buildProjects(UI::Builder &b) {
                                      return;
                                  }},
                                 [&] {
-                                    b.text({.text = project, .fontId = 1, .color = {0, 0, 0, 255}});
+                                    b.text({.text = project.substr(0, project.size() - 4), .fontId = 1, .color = {0, 0, 0, 255}, .align = UI::AlignMode::Center});
                                 });
                   }
 

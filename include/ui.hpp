@@ -7,6 +7,7 @@
 #include <renderer.hpp>
 #include <string>
 #include <text.hpp>
+#include <timer.hpp>
 
 // TODO: separate into different files, and general cleanup
 
@@ -258,6 +259,20 @@ class Builder {
     void restoreFocus();
     uint16_t findNeighbor(uint16_t from, uint8_t dir);
     void scrollIntoView(uint16_t index);
+
+    Timer frameTimer;
+    size_t oldHeldFrames = 0;
+    int pressX = 0, pressY = 0;
+    int lastDragY = 0;
+    bool dragging = false;
+    uint16_t dragTarget = NONE;
+    float scrollPos = 0.0f;
+    float dragVel = 0.0f;
+    double sinceMove = 0.0;
+    float flingVel = 0.0f;
+    uint16_t flingTarget = NONE;
+
+    bool scrollTo(uint16_t container, float y);
 
   public:
     float scale = 0.5f;
