@@ -48,6 +48,32 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
+std::vector<InputTouch> Input::getTouches() {
+    std::vector<InputTouch> touches;
+    if (globalInputDevice) touches = globalInputDevice->getTouches();
+
+    if (touches.empty() && globalInputDevice) {
+        const std::array<int, 2> pos = globalInputDevice->getTouchPosition();
+        if (pos[0] != 0 || pos[1] != 0) {
+            InputTouch touch;
+            touch.x = pos[0];
+            touch.y = pos[1];
+            touches.push_back(touch);
+        }
+    }
+
+    return touches;
+}
+
+bool Input::hasConnectedGamepad() {
+#if defined(__3DS__) || defined(__WIIU__) || defined(VITA) || defined(__NDS__) // touch platforms with built-in physical controls
+    return true;
+#else
+    if (globalInputDevice) return globalInputDevice->hasConnectedGamepad();
+    return false;
+#endif
+}
+
 void Input::getInput() {
     if (globalInputDevice) globalInputDevice->getInput();
 }
@@ -112,7 +138,7 @@ void Input::applyControls(std::string controlsFilePath) {
     Input::inputControls.clear();
 
     if (controlsFilePath != "" && Scratch::projectType == ProjectType::UNEMBEDDED) {
-        // load controls from file
+        // Load controls from file
         std::ifstream file(controlsFilePath);
         if (file.is_open()) {
             Log::log("Loading controls from file: " + controlsFilePath);
@@ -121,19 +147,29 @@ void Input::applyControls(std::string controlsFilePath) {
 
             // Access the "controls" object specifically
             if (controlsJson.contains("controls")) {
-                for (auto &[key, value] : controlsJson["controls"].items()) {
-                    if (key.empty() || value.empty()) continue;
-                    // A key can be bound to several physical inputs, e.g. both
-                    // D-pad Up and left-stick Up for arrow-only Scratch games.
-                    auto bind = [&](const nlohmann::json &button) {
-                        if (!button.is_string()) return;
+                const auto& controls = controlsJson["controls"];
+
+                for (auto it = controls.begin(); it != controls.end(); ++it) {
+                    const std::string key = it.key();
+                    const auto& value = it.value();
+
+                    if (key.empty() || value.empty())
+                        continue;
+
+                    // A key can be bound to several physical inputs.
+                    auto bind = [&key](const nlohmann::json& button) {
+                        if (!button.is_string())
+                            return;
+
                         const auto name = button.get<std::string>();
-                        if (name.empty()) return;
+                        if (name.empty())
+                            return;
+
                         Input::inputControls[name] = key;
                         Log::log("Loaded control: " + key + " -> " + name);
                     };
                     if (value.is_array()) {
-                        for (const auto &button : value)
+                        for (const auto& button : value)
                             bind(button);
                     } else {
                         bind(value);
@@ -150,12 +186,8 @@ void Input::applyControls(std::string controlsFilePath) {
         }
     }
 
-    // default controls
-    size_t arr_size = sizeof(SCRATCH_CONTROLS) / sizeof(SCRATCH_CONTROLS[0]);
-
-    // for ()
-
-    for (size_t i = 0; i < static_cast<int>(SCRATCH_KEY_INDEX::COUNT); i++) {
+    // Default controls
+    for (size_t i = 0; i < static_cast<size_t>(SCRATCH_KEY_INDEX::COUNT); i++) {
         Input::inputControls[CONTROLLER_STRINGS[i]] = SCRATCH_CONTROLS[i];
     }
 }

@@ -1,0 +1,30 @@
+#      ______________
+#    /  ------------  \        ____________
+# / | /              \ | \    |            |
+# \ | |   ●      ●   | | /   <  fockerdile |
+#    \ \_____◥______/ /      |            |
+#      ''''''''''''''          """"""""""""
+#      -/          \-
+#     / |  ♻       | \
+#    |  |          |  |
+#    |  |          |  |
+#     \/ \        / \/
+#         \      /
+#          ''''''
+
+# syntax=docker/dockerfile:1.6
+
+FROM clickable/ci-ut24.04-1.x-arm64:8.10.0 AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+ENV CLICKABLE_NON_INTERACTIVE=1
+WORKDIR /app
+
+COPY . .
+
+RUN mkdir -p romfs && \
+    clickable build --config clickable.yaml --arch arm64 --accept-review-warnings && \
+    mkdir -p /out && \
+    cp build/ut/aarch64-linux-gnu/*.click /out/scratch-ut-24.04-arm64.click
+
+FROM scratch AS exporter
+COPY --from=main_builder /out/ /

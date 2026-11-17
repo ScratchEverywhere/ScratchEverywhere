@@ -31,48 +31,9 @@ void ControlsMenu::init() {
     Unzip::filePath = "";
 
     // get controls
-    std::vector<std::string> controls;
-
-    for (auto &block : Scratch::blocks) {
-        std::string buttonCheck;
-        if (block->opcode == "sensing_keypressed") {
-            const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
-            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
-                buttonCheck = input->value.get<std::string>();
-            }
-        } else if (block->opcode == "event_whenkeypressed") {
-            buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
-        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
-            const ParsedInput *input = Scratch::getInput(block, "KEY");
-            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
-                buttonCheck = input->value.get<std::string>();
-            }
-        } else if (block->opcode == "makeymakey_whenCodePressed") {
-            const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
-            if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
-
-            std::string inputSequence = input->value.get<std::string>();
-            size_t start = 0;
-            size_t end;
-            while ((end = inputSequence.find(' ', start)) != std::string::npos) {
-                buttonCheck = inputSequence.substr(start, end - start);
-                if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
-                    Log::log("Found new control: " + buttonCheck);
-                    controls.push_back(buttonCheck);
-                }
-                start = end + 1;
-            }
-            buttonCheck = inputSequence.substr(start);
-            if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
-                Log::log("Found new control: " + buttonCheck);
-                controls.push_back(buttonCheck);
-            }
-            continue;
-        } else continue;
-        if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
-            Log::log("Found new control: " + buttonCheck);
-            controls.push_back(buttonCheck);
-        }
+    const std::vector<std::string> controls = Scratch::getUsedControls();
+    for (const std::string &control : controls) {
+        Log::log("Found new control: " + control);
     }
 
     Scratch::cleanupScratchProject();

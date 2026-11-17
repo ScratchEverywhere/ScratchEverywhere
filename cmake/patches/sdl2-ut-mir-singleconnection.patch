@@ -1,0 +1,22 @@
+--- a/src/video/mir/SDL_mirvideo.c
++++ b/src/video/mir/SDL_mirvideo.c
+@@ -111,19 +111,9 @@
+ {
+     MIR_Data* mir_data;
+     SDL_VideoDevice* device = NULL;
+-    MirConnection* connection;
+ 
+     if (!SDL_MIR_LoadSymbols()) {
+         return NULL;
+     }
+ 
+-    /* Ensure we can connect to the Mir server before claiming the driver */
+-    connection = MIR_mir_connect_sync(NULL, SDL_FUNCTION);
+-    if (!MIR_mir_connection_is_valid(connection)) {
+-        MIR_mir_connection_release(connection);
+-        SDL_MIR_UnloadSymbols();
+-        return NULL;
+-    }
+-    MIR_mir_connection_release(connection);
+-
+     device = SDL_calloc(1, sizeof(SDL_VideoDevice));
