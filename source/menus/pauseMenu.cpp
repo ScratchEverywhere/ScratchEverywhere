@@ -1,7 +1,6 @@
 #include "pauseMenu.hpp"
 #include "menuManager.hpp"
 #include "translation.hpp"
-#include "ui.hpp"
 #include <runtime.hpp>
 
 PauseMenu::PauseMenu() {

@@ -1,5 +1,4 @@
 #include "ingameMenu.hpp"
-#include "ui.hpp"
 #include <algorithm>
 #include <cmath>
 #include <log.hpp>
@@ -81,7 +80,7 @@ void frame(UI::Builder &b, float scale, float x, float y, UI::Size w, UI::Size h
 }
 
 float gutterWidth(size_t count, float fontScale, float scale) {
-    auto probe = createTextObject(std::to_string(count), 0, 0, UI::fontPaths[kFont]);
+    auto probe = createTextObject(std::to_string(count), 0, 0, UI::Theme::fonts[kFont]);
     probe->setScale(fontScale);
     return std::max(20.0f * scale, probe->getSize()[0] + 10.0f * scale);
 }

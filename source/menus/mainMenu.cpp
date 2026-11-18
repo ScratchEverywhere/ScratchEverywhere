@@ -1,5 +1,4 @@
 #include "mainMenu.hpp"
-#include "ui.hpp"
 #include <translation.hpp>
 
 MainMenu::MainMenu() : splash(TranslationManager::getSplashText()) {

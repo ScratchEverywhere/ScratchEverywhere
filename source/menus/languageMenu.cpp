@@ -1,7 +1,6 @@
 #include "languageMenu.hpp"
 #include "menuManager.hpp"
 #include "translation.hpp"
-#include "ui.hpp"
 
 LanguageMenu::LanguageMenu() {
     languages = TranslationManager::getLanguages();

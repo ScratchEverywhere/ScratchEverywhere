@@ -2,7 +2,6 @@
 #include "menuManager.hpp"
 #include "os.hpp"
 #include "projectSettings.hpp"
-#include "ui.hpp"
 #include <log.hpp>
 #include <memory>
 #include <translation.hpp>

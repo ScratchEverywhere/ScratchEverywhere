@@ -1,6 +1,6 @@
 #pragma once
 #include <se_export.hpp>
-#include <ui.hpp>
+#include <ui/ui.hpp>
 
 class SE_EXPORT Menu {
   public:

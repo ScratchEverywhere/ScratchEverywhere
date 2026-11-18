@@ -7,7 +7,6 @@
 #include "projectSettings.hpp"
 #include "renderer.hpp"
 #include "settingsMenu.hpp"
-#include "ui.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <log.hpp>
@@ -66,16 +65,8 @@ void MenuManager::tickMenuMusic() {
 }
 
 bool MenuManager::initMainMenu() {
-#ifdef __NDS__
-    UI::fontPaths[0] = "gfx/ingame/fonts/Grand9KPixel";
-    UI::fontPaths[1] = "gfx/ingame/fonts/Grand9KPixel";
-#else
-    UI::fontPaths[0] = "gfx/menu/RedditSansFudge-Bold";
-    UI::fontPaths[1] = "gfx/menu/RedditSansFudge-Regular";
-#endif
-
     if (!elements) elements = std::make_unique<UI::Pool>();
-    UI::loadTheme();
+    UI::Theme::load();
     Input::applyControls();
     initMenuMusic();
 
