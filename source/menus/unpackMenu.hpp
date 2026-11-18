@@ -12,6 +12,15 @@ struct UnpackTask {
     bool alreadyUnpacked = false;
 };
 
+struct BoxThing {
+    float x = 0;
+    float y = 0;
+    float velX = 0;
+    float velY = 0;
+    int width = 16;
+    int height = 16;
+};
+
 class SE_EXPORT UnpackMenu : public Menu {
   private:
     std::string projectPath;
@@ -19,6 +28,7 @@ class SE_EXPORT UnpackMenu : public Menu {
     UnpackTask task;
     SE_Thread thread;
     bool threadStarted = false;
+    BoxThing thing;
 
   public:
     UnpackMenu(const std::string &projectPath);

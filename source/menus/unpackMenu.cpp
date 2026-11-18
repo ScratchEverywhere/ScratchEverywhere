@@ -2,7 +2,9 @@
 #include "log.hpp"
 #include "menuManager.hpp"
 #include "os.hpp"
+#include "renderer.hpp"
 #include "translation.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include <filesystem.hpp>
 
@@ -46,6 +48,11 @@ UnpackMenu::UnpackMenu(const std::string &projectPath) {
     } else {
         unpackWorker(&task);
     }
+
+    thing.velX = 3.4;
+    thing.velY = 1.2;
+    thing.x = 100;
+    thing.y = 50;
 }
 
 UnpackMenu::~UnpackMenu() {
@@ -56,6 +63,16 @@ UnpackMenu::~UnpackMenu() {
 }
 
 void UnpackMenu::callback(UI::Builder &b) {
+
+    thing.x += thing.velX;
+    thing.y += thing.velY;
+    thing.velY += 0.15;
+    if (thing.x < 0) thing.velX += 3.0;
+    if (thing.x + thing.width > Render::getWidth()) thing.velX -= 3.0;
+    if (thing.y < 0) thing.velY += 14.0;
+    if (thing.y + thing.height > Render::getHeight()) thing.velY -= 5.0;
+    b.dirty = true;
+
     task.mtx.lock();
     const bool done = task.done;
     const bool success = task.success;
@@ -79,6 +96,15 @@ void UnpackMenu::callback(UI::Builder &b) {
 }
 
 void UnpackMenu::build(UI::Builder &b) {
+    b.element({
+        .flags = UI::Flag::Floating,
+        .w = UI::Size::fixed(thing.width),
+        .h = UI::Size::fixed(thing.height),
+        .x = static_cast<int16_t>(thing.x),
+        .y = static_cast<int16_t>(thing.y),
+        .color = {255, 255, 255, 255},
+    });
+
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
