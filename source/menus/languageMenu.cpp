@@ -18,7 +18,7 @@ void LanguageMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-                  b.text({.text = "Language", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = TranslationManager::getTranslation("ui.settings.language"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
                                 .flags = UI::Flag::ScrollY,

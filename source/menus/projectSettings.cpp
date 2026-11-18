@@ -68,7 +68,7 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-                  b.text({.text = "Project", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.project"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
                                 .flags = UI::Flag::ScrollY,
@@ -104,7 +104,7 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                           },
                                           [&] {
                                               b.text({
-                                                  .text = "Play!",
+                                                  .text = TranslationManager::getTranslation("ui.menu.play"),
                                                   .color = {255, 255, 255, 255},
                                                   .align = UI::AlignMode::Center,
                                               });
@@ -125,6 +125,10 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                         return;
                                     });
                                 }
+
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+                                dropdown(b, "onScreenControls", "ui.settings.onScreenControls", {"auto", "on", "off"}, "auto");
+#endif
 
                                 toggle(b, "debugVars", "ui.settings.fps", false);
 #if defined(__3DS__) || defined(__NDS__)

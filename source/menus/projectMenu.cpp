@@ -16,7 +16,7 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::buildProjects(UI::Builder &b) {
-    b.text({.text = std::to_string(projectFiles.size()) + " Projects", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+    b.text({.text = std::to_string(projectFiles.size()) + " " + TranslationManager::getTranslation("ui.menu.projects"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
     b.element({.flags = UI::Flag::ScrollY,
                .w = UI::Size::grow(),

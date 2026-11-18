@@ -34,7 +34,7 @@ void ControlsMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-                  b.text({.text = "Controls", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.controls"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   if (controls.empty()) buildNoControls(b);
                   else buildControls(b);

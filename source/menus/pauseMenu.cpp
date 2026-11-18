@@ -51,7 +51,7 @@ void PauseMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-                  b.text({.text = "Project Paused", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.paused"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
                                 .flags = UI::Flag::ScrollY,

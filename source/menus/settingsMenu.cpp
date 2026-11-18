@@ -196,7 +196,7 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                   .align = UI::AlignMode::Center,
               },
               [&] {
-                  b.text({.text = "Global Settings", .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.settings"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
                   b.element({
                                 .flags = UI::Flag::ScrollY,
