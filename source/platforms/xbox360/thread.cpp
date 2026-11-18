@@ -26,7 +26,7 @@ bool SE_Thread::create(void (*function)(void *), void *argument, size_t stackSiz
     pthread_attr_t attr;
     if (pthread_attr_init(&attr) != 0) return false;
     if (stackSize) {
-        const size_t clampedStack = std::max<size_t>(stackSize, 64 * 1024);
+        const size_t clampedStack = std::max<size_t>(stackSize, 128 * 1024);
         if (pthread_attr_setstacksize(&attr, clampedStack) != 0) {
             pthread_attr_destroy(&attr);
             return false;
@@ -41,15 +41,23 @@ bool SE_Thread::create(void (*function)(void *), void *argument, size_t stackSiz
     return true;
 }
 void SE_Thread::join() {
-    if (impl && impl->active) {
-        pthread_join(impl->thread, nullptr);
-        impl->active = false;
+    if (impl) {
+        if (impl->active) {
+            pthread_join(impl->thread, nullptr);
+            impl->active = false;
+        }
+        delete impl;
+        impl = nullptr;
     }
 }
 void SE_Thread::detach() {
-    if (impl && impl->active) {
-        pthread_detach(impl->thread);
-        impl->active = false;
+    if (impl) {
+        if (impl->active) {
+            pthread_detach(impl->thread);
+            impl->active = false;
+        }
+        delete impl;
+        impl = nullptr;
     }
 }
 void SE_Thread::sleep(uint16_t ms) { xsdk_thread_sleep(ms); }

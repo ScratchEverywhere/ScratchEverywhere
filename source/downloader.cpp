@@ -65,12 +65,14 @@ void DownloadManager::join() {
 void DownloadManager::addDownload(const std::string &url, const std::string &filepath) {
     mtx.lock();
     if (pendingMap.find(url) != pendingMap.end()) {
+        mtx.unlock();
         return;
     }
 
     if (downloadedMap.find(url) != downloadedMap.end()) {
         struct stat st;
         if (stat(filepath.c_str(), &st) == 0) {
+            mtx.unlock();
             return;
         } else {
             downloadedMap.erase(url);
@@ -189,7 +191,6 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
-    curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "SE-Downloader/1.0");

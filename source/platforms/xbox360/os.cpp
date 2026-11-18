@@ -3,6 +3,7 @@
 #include <log.hpp>
 #include <os.hpp>
 #include <platforms/xbox360/diagnostics.hpp>
+#include <xsdk/kernel.h>
 #include <xsdk/net.h>
 #include <xsdk/thread.h>
 #include <xsdk/xam.h>
@@ -81,3 +82,12 @@ std::string getUsername() {
     return "Player";
 }
 } // namespace OS
+
+extern "C" int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t *olen) {
+    (void)data;
+    if (output && len > 0) {
+        XeCryptRandom(output, static_cast<uint32_t>(len));
+    }
+    if (olen) *olen = len;
+    return 0;
+}

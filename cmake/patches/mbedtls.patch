@@ -256,7 +256,7 @@ diff -Naur a/library/net_sockets.c b/library/net_sockets.c
 diff -Naur a/library/platform_util.c b/library/platform_util.c
 --- a/library/platform_util.c
 +++ b/library/platform_util.c
-@@ -221,10 +221,10 @@
+@@ -221,8 +221,8 @@
  #if !defined(_WIN32) && \
      (defined(unix) || defined(__unix) || defined(__unix__) || \
 -    (defined(__APPLE__) && defined(__MACH__)) || defined(__HAIKU__) || defined(__midipix__))
@@ -268,3 +268,26 @@ diff -Naur a/library/platform_util.c b/library/platform_util.c
 +#if (defined(_POSIX_VERSION) && _POSIX_VERSION >= 199309L) || defined(__HAIKU__) || defined(__XBOX360__)
  mbedtls_ms_time_t mbedtls_ms_time(void)
  {
+diff -Naur a/include/mbedtls/mbedtls_config.h b/include/mbedtls/mbedtls_config.h
+--- a/include/mbedtls/mbedtls_config.h
++++ b/include/mbedtls/mbedtls_config.h
+@@ -540,6 +540,9 @@
+  *
+  * Uncomment to use your own hardware entropy collector.
+  */
++#if defined(__XBOX360__)
++#define MBEDTLS_ENTROPY_HARDWARE_ALT
++#endif
+ //#define MBEDTLS_ENTROPY_HARDWARE_ALT
+ 
+ /**
+@@ -1206,6 +1209,9 @@
+  *
+  * Uncomment this macro to disable the built-in platform entropy functions.
+  */
++#if defined(__XBOX360__)
++#define MBEDTLS_NO_PLATFORM_ENTROPY
++#endif
+ //#define MBEDTLS_NO_PLATFORM_ENTROPY
+ 
+ /**
