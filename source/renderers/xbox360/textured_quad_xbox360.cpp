@@ -1,4 +1,6 @@
+#include "costume_shader_select_xbox360.hpp"
 #include "costume_shaders_xbox360.hpp"
+#include "gpu_stats_xbox360.hpp"
 #include "texture_shaders_xbox360.hpp"
 #include <algorithm>
 #include <cmath>
@@ -6,27 +8,60 @@
 #include <log.hpp>
 #include <stdexcept>
 #include <textured_quad_xbox360.hpp>
+#include <time.h>
 
 static void checked(NTSTATUS status, const char *operation) {
     if (!NT_SUCCESS(status)) throw std::runtime_error(std::string(operation) + ": " + std::to_string(uint32_t(status)));
 }
+
+static uint64_t monotonicUs() {
+    timespec now{};
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return static_cast<uint64_t>(now.tv_sec) * 1000000ULL + static_cast<uint64_t>(now.tv_nsec) / 1000ULL;
+}
+
+static NTSTATUS timedGpuWait(uint32_t fence, uint32_t timeoutMs) {
+    const uint64_t t0 = monotonicUs();
+    const NTSTATUS status = xsdk_gpu_wait(fence, timeoutMs);
+    const uint64_t t1 = monotonicUs();
+    auto &stats = xbox360GpuStats();
+    ++stats.gpuWaits;
+    if (t1 >= t0) stats.gpuWaitUs += (t1 - t0);
+    return status;
+}
+
 namespace {
 XsdkShader sharedQuadVertex{};
-XsdkShader sharedQuadPixel{};
+XsdkShader sharedQuadPixelFull{};
+XsdkShader sharedQuadPixelFast{};
 unsigned sharedQuadShaderRefs = 0;
 
 void acquireQuadShaders() {
     if (sharedQuadShaderRefs == 0) {
-        checked(xsdk_shader_load(&sharedQuadVertex, texture_vertex_shader, sizeof texture_vertex_shader), "vertex shader");
-        checked(xsdk_shader_load(&sharedQuadPixel, costume_frag.container, costume_frag.container_bytes), "pixel shader");
-        XsdkVertexElement layout[2]{};
-        layout[0].usage = XSDK_USAGE_POSITION;
-        layout[0].format = XSDK_VERTEX_FLOAT4;
-        layout[1].usage = XSDK_USAGE_TEXCOORD;
-        layout[1].format = XSDK_VERTEX_FLOAT2;
-        layout[1].offset_bytes = 16;
-        const uint32_t stride = 24;
-        checked(xsdk_shader_set_vertex_layout(&sharedQuadVertex, layout, 2, &stride), "vertex layout");
+        bool vertLoaded = false;
+        bool fullLoaded = false;
+        bool fastLoaded = false;
+        try {
+            checked(xsdk_shader_load(&sharedQuadVertex, texture_vertex_shader, sizeof texture_vertex_shader), "vertex shader");
+            vertLoaded = true;
+            checked(xsdk_shader_load(&sharedQuadPixelFull, costume_frag.container, costume_frag.container_bytes), "full pixel shader");
+            fullLoaded = true;
+            checked(xsdk_shader_load(&sharedQuadPixelFast, costume_fast_frag.container, costume_fast_frag.container_bytes), "fast pixel shader");
+            fastLoaded = true;
+            XsdkVertexElement layout[2]{};
+            layout[0].usage = XSDK_USAGE_POSITION;
+            layout[0].format = XSDK_VERTEX_FLOAT4;
+            layout[1].usage = XSDK_USAGE_TEXCOORD;
+            layout[1].format = XSDK_VERTEX_FLOAT2;
+            layout[1].offset_bytes = 16;
+            const uint32_t stride = 24;
+            checked(xsdk_shader_set_vertex_layout(&sharedQuadVertex, layout, 2, &stride), "vertex layout");
+        } catch (...) {
+            if (fastLoaded) xsdk_shader_free(&sharedQuadPixelFast);
+            if (fullLoaded) xsdk_shader_free(&sharedQuadPixelFull);
+            if (vertLoaded) xsdk_shader_free(&sharedQuadVertex);
+            throw;
+        }
     }
     ++sharedQuadShaderRefs;
 }
@@ -35,7 +70,8 @@ void releaseQuadShaders() {
     if (sharedQuadShaderRefs == 0) return;
     --sharedQuadShaderRefs;
     if (sharedQuadShaderRefs == 0) {
-        xsdk_shader_free(&sharedQuadPixel);
+        xsdk_shader_free(&sharedQuadPixelFast);
+        xsdk_shader_free(&sharedQuadPixelFull);
         xsdk_shader_free(&sharedQuadVertex);
     }
 }
@@ -49,6 +85,7 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
         checked(xsdk_texture_create(&texture_, XSDK_FORMAT_R8G8B8A8, image.width, image.height, 1, false), "texture_create");
         // This SDK format explicitly consumes R,G,B,A bytes, not host-native packed words.
         xsdk_texture_upload(&texture_, 0, image.pixels, image.pitch);
+        ++xbox360GpuStats().textureUploads;
         acquireQuadShaders();
         shadersAcquired_ = true;
         XsdkSampler sampler{};
@@ -86,29 +123,57 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
     }
 }
 void TexturedQuadXbox360::render() {
-    xsdk_gpu_set_shaders(&sharedQuadVertex, &sharedQuadPixel);
-    xsdk_built_shader_set_literals(&costume_frag);
-    const float effects[12] = {
-        opacity_,
-        brightness_,
-        colorEffect_,
-        mosaicEffect_,
-        pixelateEffect_,
-        whirlEffect_,
-        fisheyeEffect_,
-        0.0f,
-        static_cast<float>(texWidth_),
-        static_cast<float>(texHeight_),
-        0.0f,
-        0.0f,
-    };
-    xsdk_gpu_set_pixel_constants(COSTUME_FRAG_PUSH, effects, COSTUME_FRAG_PUSH_REGISTERS);
+    auto &stats = xbox360GpuStats();
+    const bool useFull = xbox360_shader::requiresFullCostumeShader(
+        colorEffect_, mosaicEffect_, pixelateEffect_, whirlEffect_, fisheyeEffect_);
+    if (useFull) {
+        xsdk_gpu_set_shaders(&sharedQuadVertex, &sharedQuadPixelFull);
+        xsdk_built_shader_set_literals(&costume_frag);
+        if (costume_frag.literal_count > 0) {
+            ++stats.literalUploads;
+            stats.literalRegisters += costume_frag.literal_count;
+        }
+        const float effects[12] = {
+            opacity_,
+            brightness_,
+            colorEffect_,
+            mosaicEffect_,
+            pixelateEffect_,
+            whirlEffect_,
+            fisheyeEffect_,
+            0.0f,
+            static_cast<float>(texWidth_),
+            static_cast<float>(texHeight_),
+            0.0f,
+            0.0f,
+        };
+        xsdk_gpu_set_pixel_constants(COSTUME_FRAG_PUSH, effects, COSTUME_FRAG_PUSH_REGISTERS);
+        ++stats.constantUploads;
+        stats.constantRegisters += COSTUME_FRAG_PUSH_REGISTERS;
+        ++stats.fullQuadDraws;
+    } else {
+        xsdk_gpu_set_shaders(&sharedQuadVertex, &sharedQuadPixelFast);
+        xsdk_built_shader_set_literals(&costume_fast_frag);
+        if (costume_fast_frag.literal_count > 0) {
+            ++stats.literalUploads;
+            stats.literalRegisters += costume_fast_frag.literal_count;
+        }
+        const float fastEffects[4] = {opacity_, brightness_, 0.0f, 0.0f};
+        xsdk_gpu_set_pixel_constants(COSTUME_FAST_FRAG_PUSH, fastEffects, COSTUME_FAST_FRAG_PUSH_REGISTERS);
+        ++stats.constantUploads;
+        stats.constantRegisters += COSTUME_FAST_FRAG_PUSH_REGISTERS;
+        ++stats.fastQuadDraws;
+    }
+    ++stats.shaderSwitches;
     xsdk_gpu_set_blend(blendEnabled_ ? &blend_ : &blendOpaque_);
     xsdk_gpu_set_depth_stencil(&depth_);
     xsdk_gpu_set_raster(&raster_);
+    stats.stateChanges += 3;
     xsdk_gpu_set_texture(0, &texture_, &sampler_);
+    ++stats.textureBindings;
     xsdk_gpu_set_vertices(0, xsdk_gpu_address(vertices_ + vertexSlot_ * 36), 144);
     xsdk_gpu_draw(XSDK_PRIMITIVE_TRIANGLE_LIST, 6);
+    ++stats.drawCalls;
     if ((vertexSlot_ % fenceBatchSize_) == fenceBatchSize_ - 1) {
         const uint32_t batch = vertexSlot_ / fenceBatchSize_;
         batchFences_[batch] = xsdk_gpu_fence();
@@ -125,7 +190,7 @@ void TexturedQuadXbox360::release() {
     xsdk_texture_free(&texture_);
 }
 TexturedQuadXbox360::~TexturedQuadXbox360() {
-    if (!NT_SUCCESS(xsdk_gpu_wait(xsdk_gpu_fence(), 5000))) {
+    if (!NT_SUCCESS(timedGpuWait(xsdk_gpu_fence(), 5000))) {
         Log::logError("Texture GPU wait failed; retaining resources until title termination");
         return;
     }
@@ -163,7 +228,7 @@ void TexturedQuadXbox360::renderRegion(const ImageRenderParams &p, float w, floa
     if ((vertexSlot_ % fenceBatchSize_) == 0) {
         const uint32_t batch = vertexSlot_ / fenceBatchSize_;
         if (batchUsed_[batch] && !xsdk_gpu_fence_done(batchFences_[batch]))
-            checked(xsdk_gpu_wait(batchFences_[batch], 5000), "image vertex ring reuse fence");
+            checked(timedGpuWait(batchFences_[batch], 5000), "image vertex ring reuse fence");
     }
     volatile uint32_t *const slot = vertices_ + vertexSlot_ * 36;
     const float cx = p.centered ? p.x : p.x + w / 2, cy = p.centered ? p.y : p.y + h / 2;

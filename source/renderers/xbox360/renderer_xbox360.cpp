@@ -1,5 +1,6 @@
 #include <cstddef>
 #include "costume_shaders_xbox360.hpp"
+#include "gpu_stats_xbox360.hpp"
 #include "pen_shaders_xbox360.hpp"
 #include "texture_shaders_xbox360.hpp"
 #include <algorithm>
@@ -13,15 +14,35 @@
 #include <runtime/color.hpp>
 #include <runtime/runtime.hpp>
 #include <stdexcept>
+#include <time.h>
 #include <xsdk/gpu.h>
 #include <xsdk/text.h>
 
 namespace {
 constexpr size_t kMaxPenBatchVerts = 4096;
 constexpr float kPi = 3.14159265358979323846f;
+constexpr uint64_t kStatsReportIntervalFrames = 300;
+constexpr double kGpuClockTicksPerUs = 498.75;
+
+uint64_t monotonicUs() {
+    timespec now{};
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return static_cast<uint64_t>(now.tv_sec) * 1000000ULL + static_cast<uint64_t>(now.tv_nsec) / 1000ULL;
+}
+
+NTSTATUS timedGpuWait(uint32_t fence, uint32_t timeoutMs) {
+    const uint64_t t0 = monotonicUs();
+    const NTSTATUS status = xsdk_gpu_wait(fence, timeoutMs);
+    const uint64_t t1 = monotonicUs();
+    auto &stats = xbox360GpuStats();
+    ++stats.gpuWaits;
+    if (t1 >= t0) stats.gpuWaitUs += (t1 - t0);
+    return status;
+}
 } // namespace
 
 Renderer_Xbox360::Renderer_Xbox360() {
+    xbox360GpuStats().reset();
     window = createWindow(1280, 720, "Scratch Everywhere!", WindowingBackends::Xbox360);
     surface_ = static_cast<WindowXbox360 *>(window);
     if (!surface_ || surface_->error) {
@@ -34,22 +55,97 @@ Renderer_Xbox360::Renderer_Xbox360() {
         return;
     }
     textOpen_ = true;
+    frameClocks_ = xsdk_gpu_alloc(uint32_t(kGpuClockSlots * 2 * XSDK_GPU_CLOCK_WORDS * sizeof(uint32_t)));
+    if (frameClocks_) {
+        for (size_t i = 0; i < kGpuClockSlots * 2 * XSDK_GPU_CLOCK_WORDS; ++i)
+            frameClocks_[i] = 0;
+    }
+    XsdkGpuStats baseGpu{};
+    xsdk_gpu_stats(&baseGpu);
+    lastXsdkWaits_ = baseGpu.waits;
+    lastXsdkWaitedUs_ = baseGpu.waited_us;
+    lastXsdkDwords_ = baseGpu.dwords;
+    lastXsdkKicks_ = baseGpu.kicks;
     Log::log("Xbox 360 renderer initialized");
 }
 Renderer_Xbox360::~Renderer_Xbox360() {
     if (hasFrameBegan) endFrame(false);
+    harvestGpuFrameClocks();
+    if (xbox360GpuStats().frames > lastReportedFrames_) {
+        logGpuStatsSummary("shutdown");
+    }
     destroySpeechManager();
     releasePen();
+    if (frameClocks_) {
+        if (NT_SUCCESS(timedGpuWait(xsdk_gpu_fence(), 5000))) {
+            xsdk_gpu_free(frameClocks_);
+        }
+        frameClocks_ = nullptr;
+    }
     if (textOpen_) xsdk_text_close();
     delete window;
     window = nullptr;
     Log::log("Xbox 360 renderer shutdown complete");
+}
+void Renderer_Xbox360::harvestGpuFrameClocks() {
+    if (!frameClocks_) return;
+    XsdkGpuStats gpu{};
+    xsdk_gpu_stats(&gpu);
+    auto &stats = xbox360GpuStats();
+    for (size_t i = 0; i < kGpuClockSlots; ++i) {
+        if (!clockPending_[i]) continue;
+        if (static_cast<int32_t>(gpu.swap_fence_landed - clockSwapFences_[i]) < 0) continue;
+        volatile const uint32_t *const base = frameClocks_ + i * 2 * XSDK_GPU_CLOCK_WORDS;
+        const uint64_t startClk = xsdk_gpu_clock_value(base);
+        const uint64_t endClk = xsdk_gpu_clock_value(base + XSDK_GPU_CLOCK_WORDS);
+        if (endClk >= startClk) {
+            stats.gpuDrawUs += static_cast<uint64_t>(double(endClk - startClk) / kGpuClockTicksPerUs);
+            ++stats.gpuMeasuredFrames;
+        }
+        clockPending_[i] = false;
+    }
+}
+void Renderer_Xbox360::logGpuStatsSummary(const char *reason) {
+    const auto &s = xbox360GpuStats();
+    XsdkGpuStats gpu{};
+    xsdk_gpu_stats(&gpu);
+    char line[320];
+    snprintf(line, sizeof line,
+             "[XenosStats:%s] frames=%llu draws=%llu (fast=%llu full=%llu penQ=%llu penB=%llu) shaders=%llu const=%llu/%llur lit=%llu/%llur state=%llu tex=%llu up=%llu res=%llu wait=%llu/%lluus cpuPrepUs=%llu gpuDrawUs=%llu/%lluf xsdk(dw=%llu k=%u w=%u/%lluus)",
+             reason,
+             static_cast<unsigned long long>(s.frames),
+             static_cast<unsigned long long>(s.drawCalls),
+             static_cast<unsigned long long>(s.fastQuadDraws),
+             static_cast<unsigned long long>(s.fullQuadDraws),
+             static_cast<unsigned long long>(s.penQuadDraws),
+             static_cast<unsigned long long>(s.penBatchDraws),
+             static_cast<unsigned long long>(s.shaderSwitches),
+             static_cast<unsigned long long>(s.constantUploads),
+             static_cast<unsigned long long>(s.constantRegisters),
+             static_cast<unsigned long long>(s.literalUploads),
+             static_cast<unsigned long long>(s.literalRegisters),
+             static_cast<unsigned long long>(s.stateChanges),
+             static_cast<unsigned long long>(s.textureBindings),
+             static_cast<unsigned long long>(s.textureUploads),
+             static_cast<unsigned long long>(s.resolves),
+             static_cast<unsigned long long>(s.gpuWaits),
+             static_cast<unsigned long long>(s.gpuWaitUs),
+             static_cast<unsigned long long>(s.cpuPrepUs),
+             static_cast<unsigned long long>(s.gpuDrawUs),
+             static_cast<unsigned long long>(s.gpuMeasuredFrames),
+             static_cast<unsigned long long>(gpu.dwords - lastXsdkDwords_),
+             static_cast<unsigned>(gpu.kicks - lastXsdkKicks_),
+             static_cast<unsigned>(gpu.waits - lastXsdkWaits_),
+             static_cast<unsigned long long>(gpu.waited_us - lastXsdkWaitedUs_));
+    Log::log(line);
+    lastReportedFrames_ = s.frames;
 }
 void Renderer_Xbox360::beginFrame(int, int r, int g, int b) {
     // Menus submit both logical screens before endFrame on single-display backends.
     if (hasFrameBegan) return;
     if (penTargetActive_) {
         xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+        ++xbox360GpuStats().resolves;
         penTargetActive_ = false;
         penReadbackDirty_ = true;
     }
@@ -58,6 +154,7 @@ void Renderer_Xbox360::beginFrame(int, int r, int g, int b) {
         Log::logWarning("Renderer_Xbox360::beginFrame failed");
         return;
     }
+    harvestGpuFrameClocks();
     static bool loggedFirstFrame = false;
     if (!loggedFirstFrame) {
         loggedFirstFrame = true;
@@ -69,7 +166,15 @@ void Renderer_Xbox360::beginFrame(int, int r, int g, int b) {
     xsdk_gpu_set_target(getWidth(), getHeight());
     // Resolve clears after copying: discard this copy to initialize the current frame.
     xsdk_gpu_resolve(surface_->frameAddress(), getWidth(), getHeight(), background_);
+    ++xbox360GpuStats().resolves;
     xsdk_gpu_set_target(getWidth(), getHeight());
+    if (frameClocks_ && !clockPending_[clockSlot_]) {
+        volatile uint32_t *const slotBase = frameClocks_ + clockSlot_ * 2 * XSDK_GPU_CLOCK_WORDS;
+        xsdk_gpu_write_clock(xsdk_gpu_address(slotBase), false);
+        frameClockOpen_ = true;
+    } else {
+        frameClockOpen_ = false;
+    }
     hasFrameBegan = true;
 }
 void Renderer_Xbox360::endFrame(bool) {
@@ -79,8 +184,29 @@ void Renderer_Xbox360::endFrame(bool) {
         drawBox(12, 12, cursor[0], cursor[1], 0, 0, 0, 255);
         drawBox(8, 8, cursor[0], cursor[1], 255, 255, 255, 255);
     }
+    const size_t activeClockSlot = clockSlot_;
+    const bool recordEndClock = frameClockOpen_ && frameClocks_;
+    if (recordEndClock) {
+        volatile uint32_t *const endBase = frameClocks_ + activeClockSlot * 2 * XSDK_GPU_CLOCK_WORDS + XSDK_GPU_CLOCK_WORDS;
+        xsdk_gpu_write_clock(xsdk_gpu_address(endBase), true);
+        frameClockOpen_ = false;
+    }
     xsdk_gpu_resolve(surface_->frameAddress(), getWidth(), getHeight(), background_);
+    ++xbox360GpuStats().resolves;
     surface_->swapBuffers();
+    if (recordEndClock) {
+        XsdkGpuStats gpu{};
+        xsdk_gpu_stats(&gpu);
+        clockSwapFences_[activeClockSlot] = gpu.swap_fence;
+        clockPending_[activeClockSlot] = true;
+        clockSlot_ = (clockSlot_ + 1) % kGpuClockSlots;
+    }
+    auto &stats = xbox360GpuStats();
+    ++stats.frames;
+    if (stats.frames - lastReportedFrames_ >= kStatsReportIntervalFrames) {
+        harvestGpuFrameClocks();
+        logGpuStatsSummary("interval");
+    }
     hasFrameBegan = false;
 }
 void Renderer_Xbox360::fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -101,6 +227,7 @@ void Renderer_Xbox360::fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g
     for (int row = top; row < bottom; row += 160)
         xsdk_text_draw(left, row, 8, argb, blocks.c_str());
     xsdk_gpu_set_scissor(0, 0, getWidth(), getHeight());
+    xbox360GpuStats().stateChanges += 2;
 }
 void Renderer_Xbox360::drawBox(int w, int h, int x, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     fillRect(x - w / 2, y - h / 2, w, h, r, g, b, a);
@@ -119,7 +246,7 @@ bool Renderer_Xbox360::appShouldRun() {
 }
 void Renderer_Xbox360::releasePen() {
     if (!penInitialized_ && !penQuadVerts_ && !penDrawVerts_) return;
-    if (!NT_SUCCESS(xsdk_gpu_wait(xsdk_gpu_fence(), 5000))) {
+    if (!NT_SUCCESS(timedGpuWait(xsdk_gpu_fence(), 5000))) {
         Log::logError("Pen GPU wait failed; retaining pen resources until title termination");
         penInitialized_ = false;
         return;
@@ -164,7 +291,7 @@ bool Renderer_Xbox360::initPen() {
     if (!NT_SUCCESS(xsdk_shader_load(&penVert_, pen_vert.container, pen_vert.container_bytes)) ||
         !NT_SUCCESS(xsdk_shader_load(&penFrag_, pen_frag.container, pen_frag.container_bytes)) ||
         !NT_SUCCESS(xsdk_shader_load(&penTexVert_, texture_vertex_shader, sizeof texture_vertex_shader)) ||
-        !NT_SUCCESS(xsdk_shader_load(&penTexFrag_, costume_frag.container, costume_frag.container_bytes))) {
+        !NT_SUCCESS(xsdk_shader_load(&penTexFrag_, costume_fast_frag.container, costume_fast_frag.container_bytes))) {
         Log::logError("Xbox 360 pen shader load failed");
         releasePen();
         return false;
@@ -253,6 +380,7 @@ bool Renderer_Xbox360::initPen() {
 void Renderer_Xbox360::setRenderTarget(void *renderTarget, int width, int height) {
     if (overrideTarget_ && overrideTarget_ != renderTarget) {
         xsdk_gpu_resolve_texture(overrideTarget_, 0x00000000);
+        ++xbox360GpuStats().resolves;
     }
     if (!renderTarget && width <= 0 && height <= 0) {
         clearRenderTarget();
@@ -269,6 +397,7 @@ void Renderer_Xbox360::setRenderTarget(void *renderTarget, int width, int height
 void Renderer_Xbox360::clearRenderTarget() {
     if (overrideTarget_) {
         xsdk_gpu_resolve_texture(overrideTarget_, 0x00000000);
+        ++xbox360GpuStats().resolves;
         overrideTarget_ = nullptr;
     }
     targetWidth_ = 0;
@@ -319,6 +448,8 @@ void Renderer_Xbox360::renderSprites() {
     // complete frame, as the other single-display backends do.
     beginFrame(0, 255, 255, 255);
     if (!hasFrameBegan) return;
+    const uint64_t waitStartUs = xbox360GpuStats().gpuWaitUs;
+    const uint64_t prepStartUs = monotonicUs();
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *sprite = *it;
         if (!sprite || !sprite->visible) continue;
@@ -370,11 +501,17 @@ void Renderer_Xbox360::renderSprites() {
     }
     Render::renderMonitors();
     Render::renderTouchControls();
+    const uint64_t prepEndUs = monotonicUs();
+    const uint64_t waitDeltaUs = xbox360GpuStats().gpuWaitUs - waitStartUs;
+    if (prepEndUs >= prepStartUs) {
+        const uint64_t totalPrepUs = prepEndUs - prepStartUs;
+        xbox360GpuStats().cpuPrepUs += (totalPrepUs > waitDeltaUs) ? (totalPrepUs - waitDeltaUs) : 0;
+    }
     endFrame();
 }
 void Renderer_Xbox360::drawPenQuad(float x, float y, float w, float h, int sw, int sh, bool opaque) {
     if (penQuadUsed_[penQuadSlot_] && !xsdk_gpu_fence_done(penQuadFences_[penQuadSlot_])) {
-        xsdk_gpu_wait(penQuadFences_[penQuadSlot_], 5000);
+        timedGpuWait(penQuadFences_[penQuadSlot_], 5000);
     }
     volatile uint32_t *const slot = penQuadVerts_ + penQuadSlot_ * 36;
     const float x0 = 2.0f * (x - 0.5f) / sw - 1.0f;
@@ -397,16 +534,28 @@ void Renderer_Xbox360::drawPenQuad(float x, float y, float w, float h, int sw, i
     __asm__ volatile("sync" ::: "memory");
     xsdk_gpu_invalidate(xsdk_gpu_address(slot), sizeof data);
 
+    auto &stats = xbox360GpuStats();
     xsdk_gpu_set_shaders(&penTexVert_, &penTexFrag_);
-    xsdk_built_shader_set_literals(&costume_frag);
-    const float effects[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, float(penW_), float(penH_), 0.0f, 0.0f};
-    xsdk_gpu_set_pixel_constants(COSTUME_FRAG_PUSH, effects, COSTUME_FRAG_PUSH_REGISTERS);
+    ++stats.shaderSwitches;
+    xsdk_built_shader_set_literals(&costume_fast_frag);
+    if (costume_fast_frag.literal_count > 0) {
+        ++stats.literalUploads;
+        stats.literalRegisters += costume_fast_frag.literal_count;
+    }
+    const float effects[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    xsdk_gpu_set_pixel_constants(COSTUME_FAST_FRAG_PUSH, effects, COSTUME_FAST_FRAG_PUSH_REGISTERS);
+    ++stats.constantUploads;
+    stats.constantRegisters += COSTUME_FAST_FRAG_PUSH_REGISTERS;
     xsdk_gpu_set_blend(opaque ? &penBlendOpaque_ : &penBlend_);
     xsdk_gpu_set_depth_stencil(&penDepth_);
     xsdk_gpu_set_raster(&penRaster_);
+    stats.stateChanges += 3;
     xsdk_gpu_set_texture(0, &penTexture_, opaque ? &penPointSampler_ : &penSampler_);
+    ++stats.textureBindings;
     xsdk_gpu_set_vertices(0, xsdk_gpu_address(slot), sizeof data);
     xsdk_gpu_draw(XSDK_PRIMITIVE_TRIANGLE_LIST, 6);
+    ++stats.penQuadDraws;
+    ++stats.drawCalls;
     penQuadFences_[penQuadSlot_] = xsdk_gpu_fence();
     penQuadUsed_[penQuadSlot_] = true;
     penQuadSlot_ = (penQuadSlot_ + 1) % kPenQuadSlots;
@@ -429,7 +578,7 @@ void Renderer_Xbox360::flushPen() {
     while (offset < penVerts_.size()) {
         const size_t count = std::min(kMaxPenBatchVerts, penVerts_.size() - offset);
         if (penDrawUsed_ && !xsdk_gpu_fence_done(penDrawFence_)) {
-            xsdk_gpu_wait(penDrawFence_, 5000);
+            timedGpuWait(penDrawFence_, 5000);
         }
         const size_t bytes = count * sizeof(PenVertex);
         const uint32_t *words = reinterpret_cast<const uint32_t *>(penVerts_.data() + offset);
@@ -439,12 +588,17 @@ void Renderer_Xbox360::flushPen() {
         __asm__ volatile("sync" ::: "memory");
         xsdk_gpu_invalidate(xsdk_gpu_address(penDrawVerts_), bytes);
 
+        auto &stats = xbox360GpuStats();
         xsdk_gpu_set_shaders(&penVert_, &penFrag_);
+        ++stats.shaderSwitches;
         xsdk_gpu_set_blend(&penBlend_);
         xsdk_gpu_set_depth_stencil(&penDepth_);
         xsdk_gpu_set_raster(&penRaster_);
+        stats.stateChanges += 3;
         xsdk_gpu_set_vertices(0, xsdk_gpu_address(penDrawVerts_), uint32_t(bytes));
         xsdk_gpu_draw(XSDK_PRIMITIVE_TRIANGLE_LIST, uint32_t(count));
+        ++stats.penBatchDraws;
+        ++stats.drawCalls;
         penDrawFence_ = xsdk_gpu_fence();
         penDrawUsed_ = true;
         offset += count;
@@ -642,6 +796,7 @@ void Renderer_Xbox360::penClear() {
     xsdk_gpu_set_target(penW_, penH_);
     xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
     xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+    xbox360GpuStats().resolves += 2;
     penTargetActive_ = false;
     if (hasFrameBegan) {
         xsdk_gpu_set_target(uint32_t(getWidth()), uint32_t(getHeight()));
@@ -654,6 +809,7 @@ void Renderer_Xbox360::preparePenColorQuery(float minX, float minY, float maxX, 
     if (!penVerts_.empty()) flushPen();
     if (penTargetActive_) {
         xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+        ++xbox360GpuStats().resolves;
         penTargetActive_ = false;
         penReadbackDirty_ = true;
     }
@@ -668,7 +824,7 @@ void Renderer_Xbox360::preparePenColorQuery(float minX, float minY, float maxX, 
         return;
     }
     if (!penReadbackDirty_ && y0 >= penReadbackRowStart_ && y1 <= penReadbackRowEnd_) return;
-    if (!NT_SUCCESS(xsdk_gpu_wait(xsdk_gpu_fence(), 5000))) {
+    if (!NT_SUCCESS(timedGpuWait(xsdk_gpu_fence(), 5000))) {
         Log::logWarning("Pen readback GPU wait failed");
         return;
     }

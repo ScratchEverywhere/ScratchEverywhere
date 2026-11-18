@@ -48,6 +48,20 @@ class SE_EXPORT Renderer_Xbox360 final : public Renderer {
     int penReadbackRowStart_ = 0;
     int penReadbackRowEnd_ = -1;
 
+    static constexpr size_t kGpuClockSlots = 8;
+    volatile uint32_t *frameClocks_ = nullptr;
+    uint32_t clockSwapFences_[kGpuClockSlots]{};
+    bool clockPending_[kGpuClockSlots]{};
+    size_t clockSlot_ = 0;
+    bool frameClockOpen_ = false;
+    uint64_t lastReportedFrames_ = 0;
+    uint32_t lastXsdkWaits_ = 0;
+    uint64_t lastXsdkWaitedUs_ = 0;
+    uint64_t lastXsdkDwords_ = 0;
+    uint32_t lastXsdkKicks_ = 0;
+
+    void harvestGpuFrameClocks();
+    void logGpuStatsSummary(const char *reason);
     void releasePen();
     void flushPen();
     void drawPenQuad(float x, float y, float w, float h, int sw, int sh, bool opaque);
