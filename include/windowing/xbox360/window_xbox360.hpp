@@ -10,14 +10,9 @@ class WindowXbox360 final : public WindowSE {
     uint32_t width_ = 0, height_ = 0, address_ = 0;
     bool gpuOpen_ = false, presentOpen_ = false, close_ = false, frameOpen_ = false;
     Xbox360::ControllerCache<INPUT_STATE> controller_;
-    unsigned inconsistentPacketsLogged_ = 0;
     Timer holdClock_;
-    Xbox360::ButtonHold exitHold_{2000};
     Xbox360::ButtonHold pauseHold_{3000};
-    bool exitRequested_ = false;
     bool pauseRequested_ = false;
-    bool startWasHeld_ = false;
-    uint64_t startPressedMs_ = 0;
     bool fail(NTSTATUS status, const char *operation);
 
   public:

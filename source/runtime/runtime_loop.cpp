@@ -18,10 +18,9 @@
 
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
-#endif
 #ifdef __XBOX360__
-#include <log.hpp>
 #include <windowing/xbox360/window_xbox360.hpp>
+#endif
 #endif
 
 #ifdef ENABLE_INSPECTOR
@@ -42,9 +41,9 @@ void Scratch::initializeScratchProject() {
 
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
-#endif
 #ifdef __XBOX360__
     WindowXbox360::clearPauseRequest();
+#endif
 #endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
@@ -84,17 +83,20 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         return std::make_pair(false, false);
     }
 #ifdef ENABLE_MENU
+    const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
     if (pauseMenu != nullptr) {
         MenuManager::render();
         if (pauseMenu->shouldUnpause) {
             MenuManager::cleanup();
             pauseMenu = nullptr;
+#ifdef __XBOX360__
+            WindowXbox360::clearPauseRequest();
+#endif
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
 #ifdef __XBOX360__
-    if (WindowXbox360::consumePauseRequest()) {
-        Log::log("Opening pause menu from native Start request");
+    if (WindowXbox360::consumePauseRequest() && browserProject) {
         pauseMenu = new PauseMenu();
         MenuManager::changeMenu(pauseMenu);
         return std::make_pair(true, false);
@@ -234,7 +236,6 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         }
 #ifdef ENABLE_MENU
 
-        const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
 #if defined(__XBOX__)
         // Count wall time, not game frames: slow projects must remain escapable.
         static Timer pauseHoldTimer(false);
@@ -246,11 +247,13 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
                 pauseHoldTimer.start();
                 holdingPauseStart = true;
             }
-            pauseRequested = pauseHoldTimer.hasElapsed(3000);
+            if (pauseHoldTimer.hasElapsed(3000)) {
+                pauseRequested = true;
+                holdingPauseStart = false;
+            }
         } else {
             holdingPauseStart = false;
         }
-        if (pauseRequested) holdingPauseStart = false;
 #elif defined(__XBOX360__)
         bool pauseRequested = false;
 #else

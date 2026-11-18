@@ -63,54 +63,19 @@ void WindowXbox360::swapBuffers() {
     if (!frameOpen_) return;
     xsdk_present_end();
     frameOpen_ = false;
-    if (exitRequested_) {
-        close_ = true;
-        OS::toExit = true;
-    }
 }
 void WindowXbox360::resize(int, int) { Log::logWarning("Xbox 360 uses a fixed 720p rendering surface"); }
 void WindowXbox360::pollEvents() {
     INPUT_STATE sample{};
-    const uint32_t status = XamInputGetState(0, 0, &sample);
-    const auto update = controller_.update(status, sample, ERROR_SUCCESS);
+    const auto update = controller_.update(XamInputGetState(0, 0, &sample), sample, ERROR_SUCCESS);
     if (update.statusChanged) {
         Log::log("Controller 1 status: " + std::to_string(update.status));
     }
-    if (update.inconsistentSamePacket && inconsistentPacketsLogged_ < 8) {
-        char diagnostic[160];
-        snprintf(diagnostic, sizeof diagnostic,
-                 "Unchanged input packet %u: cached buttons=0x%04X sampled=0x%04X",
-                 unsigned(update.packetNumber), unsigned(update.cachedButtons),
-                 unsigned(update.sampledButtons));
-        Log::log(diagnostic);
-        ++inconsistentPacketsLogged_;
-    }
 
-    const INPUT_STATE &state = controller_.state();
+    const uint16_t buttons = controller_.state().gamepad.buttons;
     const uint64_t nowMs = holdClock_.getTimeMs();
-    const bool startHeld = (state.gamepad.buttons & INPUT_GAMEPAD_START) != 0;
-    if (!startHeld) {
-        if (startWasHeld_) {
-            Log::log("Start released after " + std::to_string(nowMs - startPressedMs_) +
-                     " ms; packet=" + std::to_string(state.packet_number) +
-                     " buttons=" + std::to_string(state.gamepad.buttons));
-        }
-        startWasHeld_ = false;
-    } else if (!startWasHeld_ || nowMs < startPressedMs_) {
-        startWasHeld_ = true;
-        startPressedMs_ = nowMs;
-        Log::log("Controller Start hold began; packet=" + std::to_string(state.packet_number) +
-                 " buttons=" + std::to_string(state.gamepad.buttons));
-    }
-    if (pauseHold_.update(startHeld, nowMs)) {
+    if (pauseHold_.update((buttons & INPUT_GAMEPAD_START) != 0, nowMs)) {
         pauseRequested_ = true;
         Log::log("Controller requested pause: Start held for three seconds");
-    }
-
-    // Back+Start is captured by the screenshot shortcut in the tested launch environment.
-    // Submit one final status frame before the normal engine/SDK shutdown path.
-    if (!exitRequested_ && exitHold_.update((state.gamepad.buttons & INPUT_GAMEPAD_B) != 0, nowMs)) {
-        Log::log("Controller requested shutdown: B held for two seconds");
-        exitRequested_ = true;
     }
 }

@@ -6,7 +6,9 @@
 #include <renderer.hpp>
 #include <vector>
 #include <windowing/xbox360/window_xbox360.hpp>
+#include <xsdk/thread.h>
 #include <xsdk/xam.h>
+
 bool InputDeviceXbox360::hasConnectedGamepad() {
     const WindowXbox360 *window = WindowXbox360::active();
     return window && window->hasConnectedGamepad();
@@ -27,53 +29,69 @@ void InputDeviceXbox360::getInput() {
         BlockExecutor::doSpriteClicking();
         return;
     }
-    const INPUT_STATE &state = window->controllerState();
-    const auto &pad = state.gamepad;
-    const struct {
-        unsigned mask;
+    const auto &pad = window->controllerState().gamepad;
+    static constexpr struct {
+        uint16_t mask;
         const char *name;
-    } buttons[] = {{INPUT_GAMEPAD_A, "A"}, {INPUT_GAMEPAD_B, "B"}, {INPUT_GAMEPAD_X, "X"}, {INPUT_GAMEPAD_Y, "Y"}, {INPUT_GAMEPAD_DPAD_UP, "dpadUp"}, {INPUT_GAMEPAD_DPAD_DOWN, "dpadDown"}, {INPUT_GAMEPAD_DPAD_LEFT, "dpadLeft"}, {INPUT_GAMEPAD_DPAD_RIGHT, "dpadRight"}, {INPUT_GAMEPAD_START, "start"}, {INPUT_GAMEPAD_BACK, "back"}, {INPUT_GAMEPAD_LEFT_SHOULDER, "shoulderL"}, {INPUT_GAMEPAD_RIGHT_SHOULDER, "shoulderR"}, {INPUT_GAMEPAD_LEFT_THUMB, "LeftStickPressed"}, {INPUT_GAMEPAD_RIGHT_THUMB, "RightStickPressed"}};
-    for (const auto &button : buttons)
+    } buttons[] = {
+        {INPUT_GAMEPAD_A, "A"},
+        {INPUT_GAMEPAD_B, "B"},
+        {INPUT_GAMEPAD_X, "X"},
+        {INPUT_GAMEPAD_Y, "Y"},
+        {INPUT_GAMEPAD_DPAD_UP, "dpadUp"},
+        {INPUT_GAMEPAD_DPAD_DOWN, "dpadDown"},
+        {INPUT_GAMEPAD_DPAD_LEFT, "dpadLeft"},
+        {INPUT_GAMEPAD_DPAD_RIGHT, "dpadRight"},
+        {INPUT_GAMEPAD_START, "start"},
+        {INPUT_GAMEPAD_BACK, "back"},
+        {INPUT_GAMEPAD_LEFT_SHOULDER, "shoulderL"},
+        {INPUT_GAMEPAD_RIGHT_SHOULDER, "shoulderR"},
+        {INPUT_GAMEPAD_LEFT_THUMB, "LeftStickPressed"},
+        {INPUT_GAMEPAD_RIGHT_THUMB, "RightStickPressed"},
+    };
+    for (const auto &button : buttons) {
         if (pad.buttons & button.mask) Input::buttonPress(button.name);
-    auto axis = [](int v, int deadzone = 10000) { return std::abs(v) <= deadzone ? 0.0f : std::clamp(float(v) / 32767.0f, -1.0f, 1.0f); };
-    Input::leftJoystick = {axis(pad.thumb_lx), -axis(pad.thumb_ly, 18000)};
-    Input::rightJoystick = {axis(pad.thumb_rx), -axis(pad.thumb_ry, 18000)};
-    if (Input::leftJoystick.first > 0) Input::buttonPress("LeftStickRight");
-    if (Input::leftJoystick.first < 0) Input::buttonPress("LeftStickLeft");
-    if (Input::leftJoystick.second > 0) Input::buttonPress("LeftStickDown");
-    if (Input::leftJoystick.second < 0) Input::buttonPress("LeftStickUp");
-    if (Input::rightJoystick.first > 0) Input::buttonPress("RightStickRight");
-    if (Input::rightJoystick.first < 0) Input::buttonPress("RightStickLeft");
-    if (Input::rightJoystick.second > 0) Input::buttonPress("RightStickDown");
-    if (Input::rightJoystick.second < 0) Input::buttonPress("RightStickUp");
-    if (pad.left_trigger > 30) Input::buttonPress("LT");
-    if (pad.right_trigger > 30) Input::buttonPress("RT");
-    // As on original Xbox, analog axes retain their range; direction buttons use deadzones.
+    }
+
+    auto axis = [](int v, int deadzone = 10000) {
+        return std::abs(v) <= deadzone ? 0.0f : std::clamp(float(v) / 32767.0f, -1.0f, 1.0f);
+    };
     auto normalized = [](int v) { return std::clamp(v / 32767.0f, -1.0f, 1.0f); };
     Input::leftJoystick = {normalized(pad.thumb_lx), -normalized(pad.thumb_ly)};
     Input::rightJoystick = {normalized(pad.thumb_rx), -normalized(pad.thumb_ry)};
-    // Original Xbox White/Black map to LB/RB. LB enables pointer movement.
+    if (axis(pad.thumb_lx) > 0) Input::buttonPress("LeftStickRight");
+    if (axis(pad.thumb_lx) < 0) Input::buttonPress("LeftStickLeft");
+    if (axis(pad.thumb_ly, 18000) < 0) Input::buttonPress("LeftStickDown");
+    if (axis(pad.thumb_ly, 18000) > 0) Input::buttonPress("LeftStickUp");
+    if (axis(pad.thumb_rx) > 0) Input::buttonPress("RightStickRight");
+    if (axis(pad.thumb_rx) < 0) Input::buttonPress("RightStickLeft");
+    if (axis(pad.thumb_ry, 18000) < 0) Input::buttonPress("RightStickDown");
+    if (axis(pad.thumb_ry, 18000) > 0) Input::buttonPress("RightStickUp");
+    if (pad.left_trigger > 30) Input::buttonPress("LT");
+    if (pad.right_trigger > 30) Input::buttonPress("RT");
+
     if (pad.buttons & INPUT_GAMEPAD_LEFT_SHOULDER) {
         if (!cursorActive_) {
-            cursorX_ = Input::mousePointer.x;
-            cursorY_ = Input::mousePointer.y;
+            cursorX_ = float(Input::mousePointer.x);
+            cursorY_ = float(Input::mousePointer.y);
         }
         cursorActive_ = true;
         Input::mousePointer.isMoving = true;
         Input::mousePointer.isPressed = (pad.buttons & INPUT_GAMEPAD_RIGHT_SHOULDER) != 0 || pad.right_trigger > 30;
-        float dx = axis(pad.thumb_lx) * 240, dy = axis(pad.thumb_ly, 18000) * 240;
-        if (pad.buttons & INPUT_GAMEPAD_DPAD_LEFT) dx -= 180;
-        if (pad.buttons & INPUT_GAMEPAD_DPAD_RIGHT) dx += 180;
-        if (pad.buttons & INPUT_GAMEPAD_DPAD_UP) dy += 180;
-        if (pad.buttons & INPUT_GAMEPAD_DPAD_DOWN) dy -= 180;
+        float dx = axis(pad.thumb_lx) * 240.0f;
+        float dy = axis(pad.thumb_ly, 18000) * 240.0f;
+        if (pad.buttons & INPUT_GAMEPAD_DPAD_LEFT) dx -= 180.0f;
+        if (pad.buttons & INPUT_GAMEPAD_DPAD_RIGHT) dx += 180.0f;
+        if (pad.buttons & INPUT_GAMEPAD_DPAD_UP) dy += 180.0f;
+        if (pad.buttons & INPUT_GAMEPAD_DPAD_DOWN) dy -= 180.0f;
         const float scale = std::max(0.001f, Render::renderScale);
-        cursorX_ += dx * elapsed;
-        cursorY_ += dy * elapsed;
-        cursorX_ = std::clamp(cursorX_, std::ceil(-Render::getWidth() / (2 * scale)), std::floor((Render::getWidth() * 0.5f - 1) / scale));
-        cursorY_ = std::clamp(cursorY_, std::ceil((1 - Render::getHeight() * 0.5f) / scale), std::floor(Render::getHeight() / (2 * scale)));
+        cursorX_ = std::clamp(cursorX_ + dx * elapsed, std::ceil(-Render::getWidth() / (2 * scale)), std::floor((Render::getWidth() * 0.5f - 1) / scale));
+        cursorY_ = std::clamp(cursorY_ + dy * elapsed, std::ceil((1 - Render::getHeight() * 0.5f) / scale), std::floor(Render::getHeight() / (2 * scale)));
         Input::mousePointer.x = int(std::round(cursorX_));
         Input::mousePointer.y = int(std::round(cursorY_));
-    } else cursorActive_ = false;
+    } else {
+        cursorActive_ = false;
+    }
     if (!Input::inputKeys.empty()) Input::inputKeys.push_back("any");
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
@@ -93,13 +111,24 @@ std::string InputDeviceXbox360::openSoftwareKeyboard(const char *hintText) {
     std::vector<uint16_t> result(kMaxChars, 0);
 
     XAM_OVERLAPPED overlapped{};
-    xsdk_xam_prepare(&overlapped);
     uint32_t status = xsdk_xam_keyboard(userIndex, title.data(), prompt.data(), emptyDefault.data(),
                                         result.data(), kMaxChars, &overlapped);
     if (status == ERROR_IO_PENDING) {
-        while ((status = xsdk_xam_wait(&overlapped, 16, nullptr)) == ERROR_IO_INCOMPLETE) {
-            // Keep polling window/controller state while waiting; never return while XAM owns overlapped/result.
-            Render::appShouldRun();
+        const bool wasFrameOpen = Render::getGlobalRenderer() && Render::getGlobalRenderer()->hasFrameBegan;
+        if (wasFrameOpen) {
+            Render::endFrame();
+        }
+        while ((status = xsdk_xam_wait(&overlapped, 0, nullptr)) == ERROR_IO_INCOMPLETE) {
+            // XAM's on-screen keyboard renders inside VdSwap/present; keep presenting frames while waiting.
+            if (Render::appShouldRun()) {
+                Render::beginFrame(0, 0, 0, 0);
+                Render::endFrame();
+            } else {
+                xsdk_thread_sleep(16);
+            }
+        }
+        if (wasFrameOpen) {
+            Render::beginFrame(0, 0, 0, 0);
         }
     }
     if (status != ERROR_SUCCESS || overlapped.extended_error != 0) {
