@@ -4,6 +4,7 @@
 class SE_EXPORT MainMenu : public Menu {
   private:
     const std::string splash;
+    const std::string version;
 
   public:
     MainMenu();

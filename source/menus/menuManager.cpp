@@ -205,7 +205,7 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
                   .h = UI::Size::fixed(50),
                   .childDirection = UI::ChildDir::LeftRight,
                   .childGap = 30,
-                  .padding = UI::Padding::axis(50, 0),
+                  .padding = UI::Padding::axis(50, 5),
                   .align = UI::AlignMode::Center,
                   .color = {0, 0, 0, 0},
               },

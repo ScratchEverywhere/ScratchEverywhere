@@ -1,7 +1,34 @@
 #include "mainMenu.hpp"
+#include "types.hpp"
 #include <translation.hpp>
+#include <version_config.h>
 
-MainMenu::MainMenu() : splash(TranslationManager::getSplashText()) {
+static std::string getVersion() {
+    std::string versionStr;
+    switch (SE_VERSION_TYPE) {
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
+    }
+    return versionStr;
+}
+
+MainMenu::MainMenu() : splash(TranslationManager::getSplashText()), version(getVersion()) {
 }
 
 MainMenu::~MainMenu() {
@@ -28,4 +55,7 @@ void MainMenu::build(UI::Builder &b) {
                       .align = UI::AlignMode::Center,
                   });
               });
+    b.element({.padding = UI::Padding::axis(10, 3), .align = UI::AlignMode::Right}, [&] {
+        b.text({.text = version, .fontId = 1, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Right});
+    });
 }
