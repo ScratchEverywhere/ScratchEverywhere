@@ -44,7 +44,8 @@ void main()
 
     if (abs(pc.distort.y) > 0.001) {
         float whirlRad = pc.distort.y * 3.14159265 / 180.0;
-        float dist = length(centered);
+        // Explicit 2D sum avoids xsc lowering vec2 length() to dp4 over unused z/w lanes.
+        float dist = sqrt(centered.x * centered.x + centered.y * centered.y);
         float whirlFactor = max(1.0 - (dist / 0.5), 0.0);
         float whirlActual = whirlRad * whirlFactor * whirlFactor;
         float s = sin(whirlActual);
@@ -55,7 +56,7 @@ void main()
     if (abs(pc.distort.z) > 0.001) {
         float fisheyeAmount = max(0.0, (pc.distort.z + 100.0) / 100.0);
         vec2 v = centered / 0.5;
-        float len = length(v);
+        float len = sqrt(v.x * v.x + v.y * v.y);
         if (len > 0.0001) {
             float r = pow(min(len, 1.0), fisheyeAmount) * max(1.0, len);
             centered = r * (v / len) * 0.5;
