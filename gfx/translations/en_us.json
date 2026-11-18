@@ -33,7 +33,7 @@
   "ui.settings.renderer": "Renderer",
   "ui.settings.windowing": "Window Backend",
   "ui.settings.audioEngine": "Audio Backend",
-  "ui.unpack.wait": "Please wait a moment",
+  "ui.unpack.wait": "Unpacking Project, this may take a few minutes.",
   "ui.unpack.warning": "Do not turn off the device",
   "ui.pause.unpause": "Unpause Project",
   "ui.pause.exit": "Exit Project",

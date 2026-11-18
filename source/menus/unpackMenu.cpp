@@ -2,45 +2,78 @@
 #include "log.hpp"
 #include "menuManager.hpp"
 #include "os.hpp"
-#include "thread.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
 #include <filesystem.hpp>
 
+static void unpackWorker(void *arg) {
+    UnpackTask *task = static_cast<UnpackTask *>(arg);
+
+    bool shouldUnpack = false;
+    if (FileSystem::fileExists(task->unpackedPath)) {
+        if (FileSystem::fileModifiedTime(task->sb3Path) > FileSystem::fileModifiedTime(task->unpackedPath)) {
+            shouldUnpack = true;
+        }
+    } else {
+        shouldUnpack = true;
+    }
+
+    bool success = true;
+    if (shouldUnpack) {
+        success = Unzip::extractProject(task->sb3Path, task->unpackedPath);
+    }
+
+    task->mtx.lock();
+    task->alreadyUnpacked = !shouldUnpack;
+    task->success = success;
+    task->done = true;
+    task->mtx.unlock();
+}
+
 UnpackMenu::UnpackMenu(const std::string &projectPath) {
     MenuManager::canChangeTabs = false;
     this->projectPath = projectPath;
+
+    const std::string projectName = projectPath.substr(0, projectPath.size() - 4);
+    unpackedPath = OS::getScratchFolderLocation() + "cache/" + projectName;
+
+    task.sb3Path = OS::getScratchFolderLocation() + projectPath;
+    task.unpackedPath = unpackedPath;
+    task.mtx.init();
+
+    if (thread.create(unpackWorker, &task, 32 * 1024, 1, -1, "UnpackThread")) {
+        threadStarted = true;
+    } else {
+        unpackWorker(&task);
+    }
 }
 
 UnpackMenu::~UnpackMenu() {
+    if (threadStarted) {
+        thread.join();
+    }
     MenuManager::canChangeTabs = true;
 }
 
 void UnpackMenu::callback(UI::Builder &b) {
-    const std::string projectName = projectPath.substr(0, projectPath.size() - 4);
-    const std::string sb3Path = OS::getScratchFolderLocation() + projectPath;
-    const std::string unpackedPath = OS::getScratchFolderLocation() + "cache/" + projectName;
+    task.mtx.lock();
+    const bool done = task.done;
+    const bool success = task.success;
+    const bool alreadyUnpacked = task.alreadyUnpacked;
+    task.mtx.unlock();
 
-    bool shouldUnpack = false;
-    if (FileSystem::fileExists(unpackedPath)) {
-        if (FileSystem::fileModifiedTime(sb3Path) > FileSystem::fileModifiedTime(unpackedPath)) {
-            shouldUnpack = true;
-        }
-    } else shouldUnpack = true;
+    if (!done) return;
 
-    if (shouldUnpack) {
-        if (Unzip::extractProject(sb3Path, unpackedPath)) {
-            goto load;
-        } else {
-            Log::logError("Failed to unpack project!");
-            MenuManager::changeMenu(MenuId::ProjectMenu);
-            MenuManager::toUnload = MenuId::UnpackMenu;
+    if (success) {
+        if (alreadyUnpacked) {
+            Log::log("Unpacked project already exists, no need to unpack");
         }
-    } else {
-        Log::log("Unpacked project already exists, no need to unpack");
-    load:
         Unzip::filePath = unpackedPath;
         MenuManager::projectPendingLoad = true;
+        MenuManager::toUnload = MenuId::UnpackMenu;
+    } else {
+        Log::logError("Failed to unpack project!");
+        MenuManager::changeMenu(MenuId::ProjectMenu);
         MenuManager::toUnload = MenuId::UnpackMenu;
     }
 }

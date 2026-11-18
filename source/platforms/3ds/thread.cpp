@@ -55,7 +55,7 @@ struct SE_Mutex::Impl {
     LightLock mtx;
 };
 
-SE_Mutex::SE_Mutex() {
+SE_Mutex::SE_Mutex() : impl(nullptr) {
     init();
 }
 
