@@ -29,13 +29,19 @@ class SE_EXPORT Renderer_Xbox360 final : public Renderer {
     XsdkShader penVert_{}, penFrag_{};
     XsdkShader penTexVert_{}, penTexFrag_{};
     XsdkSamplerState penSampler_{};
+    XsdkSamplerState penPointSampler_{};
     XsdkBlendState penBlend_{}, penBlendOpaque_{};
     XsdkDepthStencilState penDepth_{};
     XsdkRasterState penRaster_{};
+    static constexpr size_t kPenQuadSlots = 16;
     volatile uint32_t *penQuadVerts_ = nullptr;
     volatile uint32_t *penDrawVerts_ = nullptr;
-    uint32_t penQuadFence_ = 0, penDrawFence_ = 0;
-    bool penQuadUsed_ = false, penDrawUsed_ = false;
+    uint32_t penQuadFences_[kPenQuadSlots]{};
+    bool penQuadUsed_[kPenQuadSlots]{};
+    size_t penQuadSlot_ = 0;
+    uint32_t penDrawFence_ = 0;
+    bool penDrawUsed_ = false;
+    bool penTargetActive_ = false;
     std::vector<PenVertex> penVerts_;
     std::vector<uint8_t> penReadback_;
     bool penReadbackDirty_ = true;
@@ -48,6 +54,7 @@ class SE_EXPORT Renderer_Xbox360 final : public Renderer {
     void pushPenTri(const PenVertex &a, const PenVertex &b, const PenVertex &c);
     void pushPenQuad(const PenVertex &v0, const PenVertex &v1, const PenVertex &v2, const PenVertex &v3);
     void addPenCircle(float cx, float cy, float radius, float r, float g, float b, float a, unsigned segments);
+    void fillRect(int left, int top, int w, int h, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA);
     [[noreturn]] void unsupported(const char *feature);
 
   public:

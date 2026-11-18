@@ -7,21 +7,23 @@
 // Native GPU resource consuming the engine byte-array image format.
 class TexturedQuadXbox360 {
     XsdkTexture texture_{};
-    XsdkShader vertex_{}, pixel_{};
     XsdkSamplerState sampler_{};
     XsdkBlendState blend_{};
     XsdkBlendState blendOpaque_{};
     XsdkDepthStencilState depth_{};
     XsdkRasterState raster_{};
     volatile uint32_t *vertices_ = nullptr;
-    static constexpr uint32_t vertexSlots_ = 32;
+    static constexpr uint32_t vertexSlots_ = 512;
+    static constexpr uint32_t fenceBatchSize_ = 64;
+    static constexpr uint32_t fenceBatchCount_ = vertexSlots_ / fenceBatchSize_;
     uint32_t vertexSlot_ = 0;
     int texWidth_ = 0, texHeight_ = 0;
     bool blendEnabled_ = true;
     float opacity_ = 1, brightness_ = 0, colorEffect_ = 0;
     float mosaicEffect_ = 0, pixelateEffect_ = 0, whirlEffect_ = 0, fisheyeEffect_ = 0;
-    uint32_t reuseFences_[vertexSlots_]{};
-    bool usedSlots_[vertexSlots_]{};
+    uint32_t batchFences_[fenceBatchCount_]{};
+    bool batchUsed_[fenceBatchCount_]{};
+    bool shadersAcquired_ = false;
     void release();
     void render();
 

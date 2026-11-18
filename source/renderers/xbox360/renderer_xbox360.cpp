@@ -48,6 +48,11 @@ Renderer_Xbox360::~Renderer_Xbox360() {
 void Renderer_Xbox360::beginFrame(int, int r, int g, int b) {
     // Menus submit both logical screens before endFrame on single-display backends.
     if (hasFrameBegan) return;
+    if (penTargetActive_) {
+        xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+        penTargetActive_ = false;
+        penReadbackDirty_ = true;
+    }
     if (!surface_->beginFrame()) {
         if (surface_->error) error = *surface_->error;
         Log::logWarning("Renderer_Xbox360::beginFrame failed");
@@ -72,13 +77,13 @@ void Renderer_Xbox360::endFrame(bool) {
     if (Input::mousePointer.isMoving) {
         auto cursor = Input::getTouchPosition();
         drawBox(12, 12, cursor[0], cursor[1], 0, 0, 0, 255);
-        drawBox(8, 8, cursor[0] + 2, cursor[1] + 2, 255, 255, 255, 255);
+        drawBox(8, 8, cursor[0], cursor[1], 255, 255, 255, 255);
     }
     xsdk_gpu_resolve(surface_->frameAddress(), getWidth(), getHeight(), background_);
     surface_->swapBuffers();
     hasFrameBegan = false;
 }
-void Renderer_Xbox360::drawBox(int w, int h, int x, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+void Renderer_Xbox360::fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (!hasFrameBegan) throw std::logic_error("Xbox 360 drawBox requires beginFrame");
     if (w <= 0 || h <= 0 || a == 0) return;
     const int left = std::max(0, x), top = std::max(0, y);
@@ -96,6 +101,9 @@ void Renderer_Xbox360::drawBox(int w, int h, int x, int y, uint8_t r, uint8_t g,
     for (int row = top; row < bottom; row += 160)
         xsdk_text_draw(left, row, 8, argb, blocks.c_str());
     xsdk_gpu_set_scissor(0, 0, getWidth(), getHeight());
+}
+void Renderer_Xbox360::drawBox(int w, int h, int x, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    fillRect(x - w / 2, y - h / 2, w, h, r, g, b, a);
 }
 int Renderer_Xbox360::getWidth() { return targetWidth_ > 0 ? targetWidth_ : surface_->getWidth(); }
 int Renderer_Xbox360::getHeight() { return targetHeight_ > 0 ? targetHeight_ : surface_->getHeight(); }
@@ -131,7 +139,9 @@ void Renderer_Xbox360::releasePen() {
     penReadbackRowStart_ = 0;
     penReadbackRowEnd_ = -1;
     penInitialized_ = false;
-    penQuadUsed_ = false;
+    penTargetActive_ = false;
+    for (bool &used : penQuadUsed_) used = false;
+    penQuadSlot_ = 0;
     penDrawUsed_ = false;
 }
 
@@ -146,10 +156,11 @@ bool Renderer_Xbox360::initPen() {
     penW = std::clamp(penW, 1, int(XSDK_TEXTURE_MAX_SIZE));
     penH = std::clamp(penH, 1, int(XSDK_TEXTURE_MAX_SIZE));
 
-    if (!NT_SUCCESS(xsdk_texture_create(&penTexture_, XSDK_FORMAT_R8G8B8A8, penW, penH, 1, false))) {
+    if (!NT_SUCCESS(xsdk_texture_create(&penTexture_, XSDK_FORMAT_R8G8B8A8, penW, penH, 1, true))) {
         Log::logError("Xbox 360 pen texture creation failed");
         return false;
     }
+    xsdk_texture_base_at_corner(&penTexture_);
     if (!NT_SUCCESS(xsdk_shader_load(&penVert_, pen_vert.container, pen_vert.container_bytes)) ||
         !NT_SUCCESS(xsdk_shader_load(&penFrag_, pen_frag.container, pen_frag.container_bytes)) ||
         !NT_SUCCESS(xsdk_shader_load(&penTexVert_, texture_vertex_shader, sizeof texture_vertex_shader)) ||
@@ -189,6 +200,12 @@ bool Renderer_Xbox360::initPen() {
     sampler.address_u = sampler.address_v = XSDK_ADDRESS_CLAMP;
     xsdk_texture_sampler_state(&penSampler_, &sampler);
 
+    XsdkSampler pointSampler{};
+    pointSampler.mag_filter = pointSampler.min_filter = XSDK_FILTER_POINT;
+    pointSampler.mip_filter = XSDK_FILTER_POINT;
+    pointSampler.address_u = pointSampler.address_v = XSDK_ADDRESS_CLAMP;
+    xsdk_texture_sampler_state(&penPointSampler_, &pointSampler);
+
     XsdkBlend blend{};
     blend.color_source = XSDK_BLEND_SRC_ALPHA;
     blend.color_dest = XSDK_BLEND_ONE_MINUS_SRC_ALPHA;
@@ -213,7 +230,7 @@ bool Renderer_Xbox360::initPen() {
     raster.cull = XSDK_CULL_NONE;
     xsdk_gpu_raster_state(&penRaster_, &raster);
 
-    penQuadVerts_ = xsdk_gpu_alloc(6 * 6 * sizeof(float));
+    penQuadVerts_ = xsdk_gpu_alloc(kPenQuadSlots * 6 * 6 * sizeof(float));
     penDrawVerts_ = xsdk_gpu_alloc(kMaxPenBatchVerts * sizeof(PenVertex));
     if (!penQuadVerts_ || !penDrawVerts_) {
         releasePen();
@@ -273,16 +290,18 @@ void Renderer_Xbox360::destroySpeechManager() {
 void Renderer_Xbox360::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (w <= 0 || h <= 0) return;
     radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    const int boxLeft = x - w / 2;
+    const int boxTop = y - h / 2;
     if (radius == 0) {
-        drawBox(w, h, x, y, r, g, b, a);
+        fillRect(boxLeft, boxTop, w, h, r, g, b, a);
         return;
     }
-    drawBox(w, h - 2 * radius, x, y + radius, r, g, b, a);
+    fillRect(boxLeft, boxTop + radius, w, h - 2 * radius, r, g, b, a);
     for (int row = 0; row < radius; ++row) {
         const double dy = radius - row - 0.5;
         const int inset = int(std::ceil(radius - std::sqrt(double(radius) * radius - dy * dy)));
-        drawBox(w - 2 * inset, 1, x + inset, y + row, r, g, b, a);
-        drawBox(w - 2 * inset, 1, x + inset, y + h - 1 - row, r, g, b, a);
+        fillRect(boxLeft + inset, boxTop + row, w - 2 * inset, 1, r, g, b, a);
+        fillRect(boxLeft + inset, boxTop + h - 1 - row, w - 2 * inset, 1, r, g, b, a);
     }
 }
 void Renderer_Xbox360::renderSprites() {
@@ -338,12 +357,12 @@ void Renderer_Xbox360::renderSprites() {
         const int left = int(std::ceil((getWidth() - Scratch::projectWidth * scale) / 2));
         const int top = int(std::ceil((getHeight() - Scratch::projectHeight * scale) / 2));
         if (left > 0) {
-            drawBox(left, getHeight(), 0, 0, 0, 0, 0, 255);
-            drawBox(left, getHeight(), getWidth() - left, 0, 0, 0, 0, 255);
+            fillRect(0, 0, left, getHeight(), 0, 0, 0, 255);
+            fillRect(getWidth() - left, 0, left, getHeight(), 0, 0, 0, 255);
         }
         if (top > 0) {
-            drawBox(getWidth(), top, 0, 0, 0, 0, 0, 255);
-            drawBox(getWidth(), top, 0, getHeight() - top, 0, 0, 0, 255);
+            fillRect(0, 0, getWidth(), top, 0, 0, 0, 255);
+            fillRect(0, getHeight() - top, getWidth(), top, 0, 0, 0, 255);
         }
     }
     if (speechManager_) {
@@ -354,9 +373,10 @@ void Renderer_Xbox360::renderSprites() {
     endFrame();
 }
 void Renderer_Xbox360::drawPenQuad(float x, float y, float w, float h, int sw, int sh, bool opaque) {
-    if (penQuadUsed_ && !xsdk_gpu_fence_done(penQuadFence_)) {
-        xsdk_gpu_wait(penQuadFence_, 5000);
+    if (penQuadUsed_[penQuadSlot_] && !xsdk_gpu_fence_done(penQuadFences_[penQuadSlot_])) {
+        xsdk_gpu_wait(penQuadFences_[penQuadSlot_], 5000);
     }
+    volatile uint32_t *const slot = penQuadVerts_ + penQuadSlot_ * 36;
     const float x0 = 2.0f * (x - 0.5f) / sw - 1.0f;
     const float y0 = 1.0f - 2.0f * (y - 0.5f) / sh;
     const float x1 = 2.0f * (x + w - 0.5f) / sw - 1.0f;
@@ -372,10 +392,10 @@ void Renderer_Xbox360::drawPenQuad(float x, float y, float w, float h, int sw, i
     for (unsigned i = 0; i < sizeof data / 4; ++i) {
         uint32_t word;
         memcpy(&word, reinterpret_cast<const uint8_t *>(data) + i * 4, 4);
-        penQuadVerts_[i] = word;
+        slot[i] = word;
     }
     __asm__ volatile("sync" ::: "memory");
-    xsdk_gpu_invalidate(xsdk_gpu_address(penQuadVerts_), sizeof data);
+    xsdk_gpu_invalidate(xsdk_gpu_address(slot), sizeof data);
 
     xsdk_gpu_set_shaders(&penTexVert_, &penTexFrag_);
     xsdk_built_shader_set_literals(&costume_frag);
@@ -384,11 +404,12 @@ void Renderer_Xbox360::drawPenQuad(float x, float y, float w, float h, int sw, i
     xsdk_gpu_set_blend(opaque ? &penBlendOpaque_ : &penBlend_);
     xsdk_gpu_set_depth_stencil(&penDepth_);
     xsdk_gpu_set_raster(&penRaster_);
-    xsdk_gpu_set_texture(0, &penTexture_, &penSampler_);
-    xsdk_gpu_set_vertices(0, xsdk_gpu_address(penQuadVerts_), sizeof data);
+    xsdk_gpu_set_texture(0, &penTexture_, opaque ? &penPointSampler_ : &penSampler_);
+    xsdk_gpu_set_vertices(0, xsdk_gpu_address(slot), sizeof data);
     xsdk_gpu_draw(XSDK_PRIMITIVE_TRIANGLE_LIST, 6);
-    penQuadFence_ = xsdk_gpu_fence();
-    penQuadUsed_ = true;
+    penQuadFences_[penQuadSlot_] = xsdk_gpu_fence();
+    penQuadUsed_[penQuadSlot_] = true;
+    penQuadSlot_ = (penQuadSlot_ + 1) % kPenQuadSlots;
 }
 
 void Renderer_Xbox360::flushPen() {
@@ -398,8 +419,11 @@ void Renderer_Xbox360::flushPen() {
         Log::log("Renderer_Xbox360::flushPen vertices=" + std::to_string(penVerts_.size()));
         ++flushLogs;
     }
-    xsdk_gpu_set_target(penW_, penH_);
-    drawPenQuad(0.0f, 0.0f, float(penW_), float(penH_), penW_, penH_, true);
+    if (!penTargetActive_) {
+        xsdk_gpu_set_target(penW_, penH_);
+        drawPenQuad(0.0f, 0.0f, float(penW_), float(penH_), penW_, penH_, true);
+        penTargetActive_ = true;
+    }
 
     size_t offset = 0;
     while (offset < penVerts_.size()) {
@@ -426,7 +450,6 @@ void Renderer_Xbox360::flushPen() {
         offset += count;
     }
 
-    xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
     penVerts_.clear();
     penReadbackDirty_ = true;
 }
@@ -556,8 +579,11 @@ void Renderer_Xbox360::penStamp(Sprite *sprite) {
     if (found == Scratch::costumeImages.end() || !found->second) return;
 
     flushPen();
-    xsdk_gpu_set_target(penW_, penH_);
-    drawPenQuad(0.0f, 0.0f, float(penW_), float(penH_), penW_, penH_, true);
+    if (!penTargetActive_) {
+        xsdk_gpu_set_target(penW_, penH_);
+        drawPenQuad(0.0f, 0.0f, float(penW_), float(penH_), penW_, penH_, true);
+        penTargetActive_ = true;
+    }
 
     const bool prevFrameBegan = hasFrameBegan;
     targetWidth_ = penW_;
@@ -606,7 +632,6 @@ void Renderer_Xbox360::penStamp(Sprite *sprite) {
     targetWidth_ = 0;
     targetHeight_ = 0;
     hasFrameBegan = prevFrameBegan;
-    xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
     penReadbackDirty_ = true;
 }
 
@@ -616,12 +641,22 @@ void Renderer_Xbox360::penClear() {
     Log::log("Renderer_Xbox360::penClear");
     xsdk_gpu_set_target(penW_, penH_);
     xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+    xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+    penTargetActive_ = false;
+    if (hasFrameBegan) {
+        xsdk_gpu_set_target(uint32_t(getWidth()), uint32_t(getHeight()));
+    }
     penReadbackDirty_ = true;
 }
 
 void Renderer_Xbox360::preparePenColorQuery(float minX, float minY, float maxX, float maxY) {
     if (!penInitialized_ || penReadback_.empty()) return;
     if (!penVerts_.empty()) flushPen();
+    if (penTargetActive_) {
+        xsdk_gpu_resolve_texture(&penTexture_, 0x00000000);
+        penTargetActive_ = false;
+        penReadbackDirty_ = true;
+    }
 
     const int x0 = std::clamp(int(std::floor(minX * penScaleY_ + penW_ * 0.5f)), 0, penW_ - 1);
     const int x1 = std::clamp(int(std::ceil(maxX * penScaleY_ + penW_ * 0.5f)), 0, penW_ - 1);

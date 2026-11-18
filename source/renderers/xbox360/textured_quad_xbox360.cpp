@@ -10,6 +10,37 @@
 static void checked(NTSTATUS status, const char *operation) {
     if (!NT_SUCCESS(status)) throw std::runtime_error(std::string(operation) + ": " + std::to_string(uint32_t(status)));
 }
+namespace {
+XsdkShader sharedQuadVertex{};
+XsdkShader sharedQuadPixel{};
+unsigned sharedQuadShaderRefs = 0;
+
+void acquireQuadShaders() {
+    if (sharedQuadShaderRefs == 0) {
+        checked(xsdk_shader_load(&sharedQuadVertex, texture_vertex_shader, sizeof texture_vertex_shader), "vertex shader");
+        checked(xsdk_shader_load(&sharedQuadPixel, costume_frag.container, costume_frag.container_bytes), "pixel shader");
+        XsdkVertexElement layout[2]{};
+        layout[0].usage = XSDK_USAGE_POSITION;
+        layout[0].format = XSDK_VERTEX_FLOAT4;
+        layout[1].usage = XSDK_USAGE_TEXCOORD;
+        layout[1].format = XSDK_VERTEX_FLOAT2;
+        layout[1].offset_bytes = 16;
+        const uint32_t stride = 24;
+        checked(xsdk_shader_set_vertex_layout(&sharedQuadVertex, layout, 2, &stride), "vertex layout");
+    }
+    ++sharedQuadShaderRefs;
+}
+
+void releaseQuadShaders() {
+    if (sharedQuadShaderRefs == 0) return;
+    --sharedQuadShaderRefs;
+    if (sharedQuadShaderRefs == 0) {
+        xsdk_shader_free(&sharedQuadPixel);
+        xsdk_shader_free(&sharedQuadVertex);
+    }
+}
+} // namespace
+
 TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool linear)
     : texWidth_(image.width), texHeight_(image.height) {
     if (!image.pixels || image.width <= 0 || image.height <= 0 || image.width > XSDK_TEXTURE_MAX_SIZE || image.height > XSDK_TEXTURE_MAX_SIZE || image.format != IMAGE_FORMAT_RGBA32 || int64_t(image.pitch) < int64_t(image.width) * 4)
@@ -18,16 +49,8 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
         checked(xsdk_texture_create(&texture_, XSDK_FORMAT_R8G8B8A8, image.width, image.height, 1, false), "texture_create");
         // This SDK format explicitly consumes R,G,B,A bytes, not host-native packed words.
         xsdk_texture_upload(&texture_, 0, image.pixels, image.pitch);
-        checked(xsdk_shader_load(&vertex_, texture_vertex_shader, sizeof texture_vertex_shader), "vertex shader");
-        checked(xsdk_shader_load(&pixel_, costume_frag.container, costume_frag.container_bytes), "pixel shader");
-        XsdkVertexElement layout[2]{};
-        layout[0].usage = XSDK_USAGE_POSITION;
-        layout[0].format = XSDK_VERTEX_FLOAT4;
-        layout[1].usage = XSDK_USAGE_TEXCOORD;
-        layout[1].format = XSDK_VERTEX_FLOAT2;
-        layout[1].offset_bytes = 16;
-        const uint32_t stride = 24;
-        checked(xsdk_shader_set_vertex_layout(&vertex_, layout, 2, &stride), "vertex layout");
+        acquireQuadShaders();
+        shadersAcquired_ = true;
         XsdkSampler sampler{};
         sampler.mag_filter = sampler.min_filter = linear ? XSDK_FILTER_LINEAR : XSDK_FILTER_POINT;
         sampler.mip_filter = XSDK_FILTER_POINT;
@@ -63,7 +86,7 @@ TexturedQuadXbox360::TexturedQuadXbox360(const ImageData &image, int, int, bool 
     }
 }
 void TexturedQuadXbox360::render() {
-    xsdk_gpu_set_shaders(&vertex_, &pixel_);
+    xsdk_gpu_set_shaders(&sharedQuadVertex, &sharedQuadPixel);
     xsdk_built_shader_set_literals(&costume_frag);
     const float effects[12] = {
         opacity_,
@@ -86,14 +109,19 @@ void TexturedQuadXbox360::render() {
     xsdk_gpu_set_texture(0, &texture_, &sampler_);
     xsdk_gpu_set_vertices(0, xsdk_gpu_address(vertices_ + vertexSlot_ * 36), 144);
     xsdk_gpu_draw(XSDK_PRIMITIVE_TRIANGLE_LIST, 6);
-    reuseFences_[vertexSlot_] = xsdk_gpu_fence();
-    usedSlots_[vertexSlot_] = true;
+    if ((vertexSlot_ % fenceBatchSize_) == fenceBatchSize_ - 1) {
+        const uint32_t batch = vertexSlot_ / fenceBatchSize_;
+        batchFences_[batch] = xsdk_gpu_fence();
+        batchUsed_[batch] = true;
+    }
 }
 void TexturedQuadXbox360::release() {
     xsdk_gpu_free(vertices_);
     vertices_ = nullptr;
-    xsdk_shader_free(&pixel_);
-    xsdk_shader_free(&vertex_);
+    if (shadersAcquired_) {
+        releaseQuadShaders();
+        shadersAcquired_ = false;
+    }
     xsdk_texture_free(&texture_);
 }
 TexturedQuadXbox360::~TexturedQuadXbox360() {
@@ -131,9 +159,12 @@ void TexturedQuadXbox360::renderRegion(const ImageRenderParams &p, float w, floa
     pixelateEffect_ = p.pixelateEffect;
     whirlEffect_ = p.whirlEffect;
     fisheyeEffect_ = p.fisheyeEffect;
-    // A draw owns its slot until its fence passes. Never overwrite in-flight vertices.
-    if (usedSlots_[vertexSlot_] && !xsdk_gpu_fence_done(reuseFences_[vertexSlot_]))
-        checked(xsdk_gpu_wait(reuseFences_[vertexSlot_], 5000), "image vertex ring reuse fence");
+    // A draw batch owns its slots until its fence passes. Never overwrite in-flight vertices.
+    if ((vertexSlot_ % fenceBatchSize_) == 0) {
+        const uint32_t batch = vertexSlot_ / fenceBatchSize_;
+        if (batchUsed_[batch] && !xsdk_gpu_fence_done(batchFences_[batch]))
+            checked(xsdk_gpu_wait(batchFences_[batch], 5000), "image vertex ring reuse fence");
+    }
     volatile uint32_t *const slot = vertices_ + vertexSlot_ * 36;
     const float cx = p.centered ? p.x : p.x + w / 2, cy = p.centered ? p.y : p.y + h / 2;
     const float cosine = std::cos(p.rotation), sine = std::sin(p.rotation);
