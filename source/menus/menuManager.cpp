@@ -1,6 +1,7 @@
 #include "menuManager.hpp"
 #include "ingameMenu.hpp"
 #include "languageMenu.hpp"
+#include "loadingMenu.hpp"
 #include "mainMenu.hpp"
 #include "pauseMenu.hpp"
 #include "projectMenu.hpp"
@@ -106,6 +107,10 @@ void MenuManager::changeMenu(MenuId id) {
         }
         case MenuId::PauseMenu: {
             loadedMenus[id] = std::make_unique<PauseMenu>();
+            break;
+        }
+        case MenuId::LoadingMenu: {
+            loadedMenus[id] = std::make_unique<LoadingMenu>();
             break;
         }
         default: {

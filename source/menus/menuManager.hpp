@@ -23,6 +23,7 @@ enum class MenuId : uint8_t {
     UnpackMenu,
     ControlsMenu,
     LanguageMenu,
+    LoadingMenu,
     Ingame,
     PauseMenu,
 };

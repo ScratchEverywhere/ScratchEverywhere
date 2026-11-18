@@ -158,13 +158,7 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
             file = nullptr;
         }
     }
-    // Main menu
-    // Log::logWarning("No sb3 project, trying Main Menu.");
     Scratch::projectType = ProjectType::UNEMBEDDED;
-    // if (filePath == "") {
-    //     Log::log("Activating main menu...");
-    //     return -1;
-    // }
     // SD card Project
     Log::logWarning("No embedded SB3 project, loading SD card project.");
 
@@ -239,11 +233,14 @@ bool Unzip::load() {
     SE_Thread projectThread;
     constexpr size_t loaderStackSize = 0x262144;
     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
-
+        MenuManager::changeMenu(MenuId::LoadingMenu);
         while (!Unzip::threadFinished) {
-            SE_Thread::sleep(10);
+            Render::beginFrame(1, 0, 0, 0);
+            MenuManager::render();
+            Render::endFrame();
         }
 
+        MenuManager::toUnload = MenuId::LoadingMenu;
         projectThread.join();
 
         if (Unzip::projectOpened != 1) {

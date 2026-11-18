@@ -2,6 +2,7 @@
 #include "menuManager.hpp"
 #include "os.hpp"
 #include "projectSettings.hpp"
+#include "types.hpp"
 #include <log.hpp>
 #include <memory>
 #include <translation.hpp>
@@ -88,6 +89,7 @@ void ProjectMenu::buildProjects(UI::Builder &b) {
 }
 
 void ProjectMenu::noProjects(UI::Builder &b) {
+    b.image({.imagePath = "gfx/menu/noProjects.svg", .align = UI::AlignMode::Center});
     b.text({.text = TranslationManager::getTranslation("ui.projects.noProjects"), .color = {255, 255, 255, 255}});
     b.text({.text = TranslationManager::getTranslation("ui.projects.path"), .color = {255, 255, 255, 255}});
     b.text({.text = OS::getScratchFolderLocation(), .color = {255, 255, 255, 255}, .align = UI::AlignMode::Left});
