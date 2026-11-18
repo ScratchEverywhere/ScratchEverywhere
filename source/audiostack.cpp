@@ -464,13 +464,92 @@ void Mixer::registerStream(const std::string &name, SoundStream *stream) {
 #endif
 }
 
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+namespace {
+uint16_t sf2ReadLe16(const uint8_t *p) {
+    return static_cast<uint16_t>(p[0] | (static_cast<uint16_t>(p[1]) << 8));
+}
+
+uint32_t sf2ReadLe32(const uint8_t *p) {
+    return static_cast<uint32_t>(p[0] | (static_cast<uint32_t>(p[1]) << 8) |
+                                 (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24));
+}
+
+void sf2Swap16(uint8_t *p) {
+    std::swap(p[0], p[1]);
+}
+
+void sf2Swap32(uint8_t *p) {
+    std::swap(p[0], p[3]);
+    std::swap(p[1], p[2]);
+}
+
+void convertSf2ChunksBigEndian(uint8_t *buf, size_t pos, size_t end) {
+    while (pos + 8 <= end) {
+        const std::string_view id(reinterpret_cast<const char *>(buf + pos), 4);
+        const uint32_t sz = sf2ReadLe32(buf + pos + 4);
+        if (sz > end - (pos + 8)) return;
+        sf2Swap32(buf + pos + 4);
+
+        const size_t dataPos = pos + 8;
+        const size_t dataEnd = dataPos + sz;
+        if (id == "RIFF" || id == "LIST") {
+            if (sz >= 4) convertSf2ChunksBigEndian(buf, dataPos + 4, dataEnd);
+        } else if (id == "smpl") {
+            for (size_t off = dataPos; off + 2 <= dataEnd; off += 2) sf2Swap16(buf + off);
+        } else if (id == "phdr") {
+            for (size_t off = dataPos; off + 38 <= dataEnd; off += 38) {
+                sf2Swap16(buf + off + 20);
+                sf2Swap16(buf + off + 22);
+                sf2Swap16(buf + off + 24);
+                sf2Swap32(buf + off + 26);
+                sf2Swap32(buf + off + 30);
+                sf2Swap32(buf + off + 34);
+            }
+        } else if (id == "pbag" || id == "ibag") {
+            for (size_t off = dataPos; off + 4 <= dataEnd; off += 4) {
+                sf2Swap16(buf + off);
+                sf2Swap16(buf + off + 2);
+            }
+        } else if (id == "pmod" || id == "imod") {
+            for (size_t off = dataPos; off + 10 <= dataEnd; off += 10) {
+                for (size_t fld = 0; fld < 10; fld += 2) sf2Swap16(buf + off + fld);
+            }
+        } else if (id == "pgen" || id == "igen") {
+            for (size_t off = dataPos; off + 4 <= dataEnd; off += 4) {
+                const uint16_t oper = sf2ReadLe16(buf + off);
+                sf2Swap16(buf + off);
+                // KeyRange (43) and VelRange (44) are unsigned {lo, hi} bytes rather than 16-bit integers.
+                if (oper != 43 && oper != 44) sf2Swap16(buf + off + 2);
+            }
+        } else if (id == "inst") {
+            for (size_t off = dataPos; off + 22 <= dataEnd; off += 22) sf2Swap16(buf + off + 20);
+        } else if (id == "shdr") {
+            for (size_t off = dataPos; off + 46 <= dataEnd; off += 46) {
+                sf2Swap32(buf + off + 20);
+                sf2Swap32(buf + off + 24);
+                sf2Swap32(buf + off + 28);
+                sf2Swap32(buf + off + 32);
+                sf2Swap32(buf + off + 36);
+                sf2Swap16(buf + off + 42);
+                sf2Swap16(buf + off + 44);
+            }
+        }
+        pos = dataEnd + (sz & 1U);
+    }
+}
+} // namespace
+#endif
+#endif
+
 void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     if (Mixer::musicInitialized) return;
 
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";
-    size_t size;
+    size_t size = 0;
 
 #ifdef USE_BUNDLE
     const auto assets = Bundle::assets();
@@ -494,21 +573,33 @@ void Mixer::initMusic() {
     }
 #else
     std::ifstream ifs(path, std::ios::binary);
-
-    ifs.seekg(0, std::ios::end);
-    size = ifs.tellg();
-    ifs.seekg(0);
-
-    if (ifs.good()) {
-        Mixer::sf2_buffer = malloc(size);
-        ifs.read((char *)Mixer::sf2_buffer, size);
+    if (ifs.is_open()) {
+        ifs.seekg(0, std::ios::end);
+        const std::streampos endPos = ifs.tellg();
+        ifs.seekg(0);
+        if (endPos > 0) {
+            size = static_cast<size_t>(endPos);
+            Mixer::sf2_buffer = malloc(size);
+            if (Mixer::sf2_buffer && !ifs.read(reinterpret_cast<char *>(Mixer::sf2_buffer), size)) {
+                free(Mixer::sf2_buffer);
+                Mixer::sf2_buffer = nullptr;
+            }
+        }
         ifs.close();
+    } else {
+        Log::logWarning("Failed to open SoundFont: " + path);
     }
 #endif
 #endif
 
     if (Mixer::sf2_buffer) {
-        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        convertSf2ChunksBigEndian(reinterpret_cast<uint8_t *>(Mixer::sf2_buffer), 0, size);
+#endif
+        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, static_cast<int>(size));
+        if (!Mixer::hTsf) {
+            Log::logError("Failed to parse SoundFont: " + path);
+        }
     }
 
     if (Mixer::hTsf) {
