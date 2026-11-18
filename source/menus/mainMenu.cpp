@@ -56,6 +56,6 @@ void MainMenu::build(UI::Builder &b) {
                   });
               });
     b.element({.padding = UI::Padding::axis(10, 3), .align = UI::AlignMode::Right}, [&] {
-        b.text({.text = version, .fontId = 1, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Right});
+        b.text({.text = version, .fontId = 1, .scale = 0.75, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Right});
     });
 }

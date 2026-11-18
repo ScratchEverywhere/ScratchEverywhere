@@ -3,6 +3,13 @@
 #include <optional>
 #include <timer.hpp>
 
+// fucking xbox bro
+#ifdef __XBOX__
+#ifdef select
+#undef select
+#endif
+#endif
+
 namespace UI {
 
 class InputHandler {
