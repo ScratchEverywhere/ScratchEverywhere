@@ -4,6 +4,7 @@
 .vscode/
 out/
 build/
+release/
 build-*/
 romfs/
 scratch-everywhere/
@@ -70,6 +71,7 @@ main.code-workspace
 *.wbfs
 *.vpk
 *.ipk
+*.click
 *.nds
 *.pkg
 *.iso
@@ -93,6 +95,9 @@ cloud-username.txt
 
 # macOS
 .DS_Store
+
+# Ubuntu Touch
+.clickable/
 
 # fockerdile
 !docker/Dockerfile.nds

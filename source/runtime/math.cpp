@@ -50,9 +50,8 @@ int Math::color(int r, int g, int b, int a) {
     case Renderers::SDL1:
     case Renderers::SDL2:
     case Renderers::SDL3:
-    case Renderers::Xbox:
     case Renderers::GX2:
-    case Renderers::NV2A:
+    case Renderers::Xbox:
     case Renderers::OpenGL:
     case Renderers::OpenGLCore:
     case Renderers::GDI:
@@ -62,6 +61,7 @@ int Math::color(int r, int g, int b, int a) {
                (b << 8) |
                a;
     case Renderers::Headless:
+    case Renderers::Flatland:
         break;
     default: {
         Log::logCritical("Looks like someone forgot to add their new renderer to Math::color... :grin:", true);

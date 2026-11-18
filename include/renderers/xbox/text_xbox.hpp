@@ -1,11 +1,12 @@
 #pragma once
-#include <SDL3/SDL.h>
 #include <se_export.hpp>
 #include <text.hpp>
 
+class Renderer_Xbox;
+
 class SE_EXPORT TextObjectXbox : public TextObjectBase {
   private:
-    SDL_Renderer *renderer = nullptr;
+    Renderer_Xbox *renderer = nullptr;
 
   protected:
     void uploadAtlas(FontGeneration &gen) override;

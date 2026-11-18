@@ -40,13 +40,14 @@
   "version.prefix.release": "Release",
   "version.prefix.releaseCanidate": "Release Candidat",
   "version.prefix.nightly": "Nightly",
-  "ui.settings.runtime": "",
-  "ui.settings.dectalk": "",
-  "ui.settings.renderer": "",
-  "ui.settings.windowing": "",
-  "ui.settings.audioEngine": "",
-  "ui.loading.caching": "",
-  "ui.popup.bytecodeCacheTooNew": "",
-  "version.prefix.alpha": "",
-  "version.prefix.dev": ""
+  "ui.settings.runtime": "Runtime",
+  "ui.settings.dectalk": "Verwende DECtalk",
+  "ui.settings.renderer": "Renderer",
+  "ui.settings.windowing": "Grafik-Backend",
+  "ui.settings.audioEngine": "Audio-Backend",
+  "ui.loading.caching": "Bilder cachen",
+  "ui.popup.bytecodeCacheTooNew": "Dieses entpackte Projekt stammt aus einer neueren Version von Scratch Everywhere! Bitte entpacke es erneut oder verwende die nicht-entpackte Version.",
+  "version.prefix.alpha": "Alpha-Build",
+  "version.prefix.dev": "Dev-Build",
+  "ui.settings.discord": "Discord-Aktivitätsstatus"
 }
