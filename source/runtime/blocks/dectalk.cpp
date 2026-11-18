@@ -21,10 +21,10 @@
 struct tts_value {
     SE_Thread thread;
     SE_Mutex mutex;
-    bool finished;
-    bool threaded;
-    bool stop;
-    void *tts;
+    bool finished = false;
+    bool threaded = false;
+    bool stop = false;
+    void *tts = nullptr;
     std::string name;
     std::string text;
     std::vector<short> buffer;
@@ -68,9 +68,11 @@ static int dtc_callback(SoundStream *strm, float *iwave, int length) {
     if (v->stop) return 0;
 
     do {
+        if (v->stop) return 0;
         v->mutex.lock();
         wait_buffer = !v->finished && (v->buffer.size() < length);
         v->mutex.unlock();
+        if (wait_buffer) SE_Thread::sleep(1);
     } while (wait_buffer);
 
     v->mutex.lock();

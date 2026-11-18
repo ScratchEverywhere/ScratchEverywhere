@@ -6,8 +6,12 @@
 #include <cmath>
 #include <log.hpp>
 #include <memory>
-#include <touch_controls.hpp>
 #include <pixel_snap.hpp>
+#include <touch_controls.hpp>
+
+#ifdef RENDERER_XBOX360
+#include <renderer_xbox360.hpp>
+#endif
 
 #ifdef RENDERER_OPENGL_CORE
 #include "renderer_gl_core.hpp"
@@ -115,6 +119,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
     add(Renderers::Flatland);
 #endif
 
+#ifdef RENDERER_XBOX360
+    add(Renderers::Xbox360);
+#endif
     return renderers;
 }
 
@@ -177,6 +184,15 @@ bool Render::init() {
 #ifdef RENDERER_D3D9
             Render::currentRenderer = Renderers::D3D9;
             globalRenderer = new Renderer_D3D9;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::Xbox360: {
+#ifdef RENDERER_XBOX360
+            Render::currentRenderer = Renderers::Xbox360;
+            globalRenderer = new Renderer_Xbox360;
             break;
 #else
             continue;

@@ -1,0 +1,11 @@
+# Delegate the ABI, runtime link rules and XEX packer to xsdk.
+set(XSDK_ROOT "$ENV{XSDK_ROOT}" CACHE PATH "Path to the xsdk checkout")
+if(NOT XSDK_ROOT)
+    set(XSDK_ROOT "$ENV{HOME}/xsdk" CACHE PATH "Path to the xsdk checkout" FORCE)
+endif()
+if(NOT EXISTS "${XSDK_ROOT}/cmake/xsdk.cmake")
+    message(FATAL_ERROR "Set XSDK_ROOT to an xsdk checkout")
+endif()
+set(XBOX360 TRUE CACHE BOOL "Build for Xbox 360 using xsdk")
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES XSDK_ROOT)
+include("${XSDK_ROOT}/cmake/xsdk.cmake")

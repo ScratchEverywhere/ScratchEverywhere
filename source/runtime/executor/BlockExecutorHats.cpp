@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <audio.hpp>
 #include <input.hpp>
-#include <touch_controls.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -14,7 +14,7 @@
 void BlockExecutor::executeKeyHats() {
     TouchControls::update();
 
-#if defined(__XBOX__) && defined(ENABLE_MENU)
+#if (defined(__XBOX__) || defined(__XBOX360__)) && defined(ENABLE_MENU)
     const bool paused = Scratch::pauseMenu != nullptr;
 #else
     constexpr bool paused = false;
@@ -95,7 +95,7 @@ void BlockExecutor::executeWhenGreaterThanHats() {
 }
 
 void BlockExecutor::doSpriteClicking() {
-#if defined(__XBOX__) && defined(ENABLE_MENU)
+#if (defined(__XBOX__) || defined(__XBOX360__)) && defined(ENABLE_MENU)
     if (Scratch::pauseMenu != nullptr) {
         Input::mousePointer.heldFrames = 0;
         Input::draggingSprite = nullptr;

@@ -51,6 +51,7 @@ body:
               - PS4
               - Libretro
               - Original Xbox
+              - Xbox 360
     - type: textarea
       id: additional-context
       attributes:

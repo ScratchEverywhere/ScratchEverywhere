@@ -79,6 +79,10 @@ static bool hasSVGExtension(const std::string &path) {
 #include <image_d3d9.hpp>
 #endif
 
+#ifdef RENDERER_XBOX360
+#include <image_xbox360.hpp>
+#endif
+
 #ifdef USE_BUNDLE
 #include <bundle_archives.hpp>
 #endif
@@ -181,6 +185,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
     Image *rawImg = nullptr;
 
     switch (Render::currentRenderer) {
+#if defined(RENDERER_XBOX360)
+    case Renderers::Xbox360:
+        rawImg = new Image_Xbox360(filePath, fromScratchProject, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_SDL1)
     case Renderers::SDL1:
         rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
@@ -281,6 +290,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
     Image *rawImg = nullptr;
 
     switch (Render::currentRenderer) {
+#if defined(RENDERER_XBOX360)
+    case Renderers::Xbox360:
+        rawImg = new Image_Xbox360(filePath, zip, bitmapHalfQuality, scale);
+        break;
+#endif
 #if defined(RENDERER_SDL1)
     case Renderers::SDL1:
         rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);

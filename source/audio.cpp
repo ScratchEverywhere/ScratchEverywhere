@@ -28,6 +28,9 @@
 #ifdef AUDIO_XBOX
 #include "audio_xbox.hpp"
 #endif
+#ifdef AUDIO_XBOX360
+#include "audio_xbox360.hpp"
+#endif
 #ifdef AUDIO_SDL3
 #include "audio_sdl3.hpp"
 #endif
@@ -73,6 +76,9 @@ const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
 #endif
 #ifdef AUDIO_XBOX
     add(AudioBackends::XboxAudio);
+#endif
+#ifdef AUDIO_XBOX360
+    add(AudioBackends::Xbox360);
 #endif
 #ifdef AUDIO_SDL3
     add(AudioBackends::SDL3);
@@ -187,6 +193,15 @@ bool SoundPlayer::init() {
 #ifdef AUDIO_XBOX
             currentSoundBackend = AudioBackends::XboxAudio;
             globalSoundDevice = new SoundDevice_XboxAudio;
+            break;
+#else
+            continue;
+#endif
+        }
+        case AudioBackends::Xbox360: {
+#ifdef AUDIO_XBOX360
+            currentSoundBackend = AudioBackends::Xbox360;
+            globalSoundDevice = new SoundDevice_Xbox360;
             break;
 #else
             continue;

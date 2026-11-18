@@ -20,6 +20,7 @@ enum class SE_EXPORT WindowingBackends : uint8_t {
     Libretro,
     Headless,
     Flatland,
+    Xbox360,
     _default,
 };
 
@@ -35,7 +36,8 @@ constexpr std::array WindowingBackendNames = {
     "Windows Native",
     "Libretro",
     "Headless",
-    "Flatland"};
+    "Flatland",
+    "Xbox 360"};
 
 struct WindowingBackendInfo {
     uint8_t id;

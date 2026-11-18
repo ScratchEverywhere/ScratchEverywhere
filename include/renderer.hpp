@@ -25,6 +25,7 @@ enum class SE_EXPORT Renderers : uint8_t {
     GDI,
     Headless,
     Flatland,
+    Xbox360,
     _count,
 };
 
@@ -41,7 +42,8 @@ constexpr std::array RendererNames = {
     "SDL1",
     "GDI",
     "Headless",
-    "Flatland"};
+    "Flatland",
+    "Xbox 360"};
 
 struct RendererInfo {
     uint8_t id;
