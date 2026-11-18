@@ -1,4 +1,5 @@
 #include "ingameMenu.hpp"
+#include "menuManager.hpp"
 #include <algorithm>
 #include <cmath>
 #include <log.hpp>
@@ -88,6 +89,7 @@ float gutterWidth(size_t count, float fontScale, float scale) {
 } // namespace
 
 IngameMenu::IngameMenu() {
+    MenuManager::canChangeTabs = false;
 }
 
 IngameMenu::~IngameMenu() {
@@ -219,6 +221,7 @@ void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
 }
 
 void IngameMenu::build(UI::Builder &b) {
+    MenuManager::canChangeTabs = false;
     scale = Render::renderScale;
     const float screenW = Render::getWidth();
     const float screenH = Render::getHeight();
