@@ -710,6 +710,7 @@ void Renderer_GX2::renderSprites() {
 
     if (!dualScreen) drawBlackBars(getWidth(), getHeight(), proj);
     Render::renderMonitors();
+    Render::renderTouchControls();
 
     if (dualScreen) {
         flushPenTarget(window);

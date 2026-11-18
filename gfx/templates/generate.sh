@@ -113,6 +113,7 @@ mkdir -p \
     ../linux \
     ../wii \
     ../wiiu \
+    ../ut \
     ../3ds
 
 # --- PSP ---
@@ -162,6 +163,14 @@ cp -f "$GENERATION_PATH/background-logo.png" ../ps4/pic1.png
 echo "[PLATFORMS]-> Linux"
 
 cp -f "$ITCHY_PATH" ../linux/scratch-everywhere.svg
+
+
+# --- Ubuntu Touch ---
+echo "[PLATFORMS]-> Ubuntu Touch"
+
+magick "$GENERATION_PATH/icon.png" \
+    -resize 256x256! \
+    ../ut/assets/logo.png
 
 
 # --- Wii ---

@@ -4,9 +4,11 @@
 
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include "hasdeps.hpp"
+#ifndef SE_NO_LIBDLGMOD
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
+#endif
 #endif
 #include <algorithm>
 #include <climits>
@@ -24,6 +26,9 @@
 #include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <renderer.hpp>
+#ifdef RENDERER_FLATLAND
+#include <flatland_backend.hpp>
+#endif
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -129,7 +134,7 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
-#if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+#if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(__UBUNTUTOUCH__) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
     in_path = false;
     bool is_qt = false;
     const char *path = std::getenv("PATH");
@@ -243,16 +248,24 @@ int main(int argc, char **argv) {
             Render::currentRenderer = Renderers::GDI;
         } else if (arg == "--headless") {
             Render::currentRenderer = Renderers::Headless;
-        } else if (arg == "--sdl1") {
+        }
+#ifdef RENDERER_FLATLAND
+        else if (arg == "--flatland") {
+            Render::currentRenderer = Renderers::Flatland;
+        } else if (arg == "--flatland-port" && i + 1 < argc) {
+            FlatlandBackend::port = static_cast<uint16_t>(std::atoi(argv[++i]));
+            Render::currentRenderer = Renderers::Flatland;
+        }
+#endif
+        else if (arg == "--sdl1") {
             Render::currentRenderer = Renderers::SDL1;
         } else if (arg == "--sdl2") {
             Render::currentRenderer = Renderers::SDL2;
         } else if (arg == "--sdl3") {
             Render::currentRenderer = Renderers::SDL3;
-        } else if (arg == "--xbox") {
+        } else if (arg == "--xbox" || arg == "--nv2a") {
+            // Keep the former command-line name as a compatibility alias.
             Render::currentRenderer = Renderers::Xbox;
-        } else if (arg == "--nv2a") {
-            Render::currentRenderer = Renderers::NV2A;
         }
         // these will never ever be used but like consistency i guess
         else if (arg == "--c2d") {

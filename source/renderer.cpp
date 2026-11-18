@@ -1,8 +1,12 @@
+#ifdef __XBOX__
+#include <platforms/xbox/backend_names.hpp>
+#endif
 #include "renderer.hpp"
 #include "settings.hpp"
 #include <cmath>
 #include <log.hpp>
 #include <memory>
+#include <touch_controls.hpp>
 #include <pixel_snap.hpp>
 
 #ifdef RENDERER_OPENGL_CORE
@@ -13,9 +17,6 @@
 #endif
 #ifdef RENDERER_XBOX
 #include "renderer_xbox.hpp"
-#endif
-#ifdef RENDERER_NV2A
-#include "renderer_nv2a.hpp"
 #endif
 #ifdef RENDERER_GX2
 #include "renderer_gx2.hpp"
@@ -43,6 +44,9 @@
 #endif
 #ifdef RENDERER_HEADLESS
 #include "renderer_headless.hpp"
+#endif
+#ifdef RENDERER_FLATLAND
+#include "renderer_flatland.hpp"
 #endif
 
 Renderer *globalRenderer = nullptr;
@@ -80,9 +84,6 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_D3D9
     add(Renderers::D3D9);
 #endif
-#ifdef RENDERER_NV2A
-    add(Renderers::NV2A);
-#endif
 #ifdef RENDERER_XBOX
     add(Renderers::Xbox);
 #endif
@@ -110,6 +111,9 @@ const std::vector<RendererInfo> Render::getAvailableRenderers() {
 #ifdef RENDERER_HEADLESS
     add(Renderers::Headless);
 #endif
+#ifdef RENDERER_FLATLAND
+    add(Renderers::Flatland);
+#endif
 
     return renderers;
 }
@@ -128,9 +132,8 @@ bool Render::init() {
 
     if (!found && j.contains("Renderer") && j["Renderer"].is_string()) {
         std::string rendererString = j["Renderer"].get<std::string>();
-#if defined(RENDERER_XBOX) && !defined(RENDERER_SDL3)
-        // Settings saved before the dedicated Xbox renderer existed still say "SDL3".
-        if (rendererString == "SDL3") rendererString = "Xbox";
+#ifdef __XBOX__
+        rendererString = XboxBackend::rendererName(rendererString);
 #endif
         for (auto &r : RendererNames) {
             if (r == rendererString) {
@@ -174,15 +177,6 @@ bool Render::init() {
 #ifdef RENDERER_D3D9
             Render::currentRenderer = Renderers::D3D9;
             globalRenderer = new Renderer_D3D9;
-            break;
-#else
-            continue;
-#endif
-        }
-        case Renderers::NV2A: {
-#ifdef RENDERER_NV2A
-            Render::currentRenderer = Renderers::NV2A;
-            globalRenderer = new Renderer_NV2A;
             break;
 #else
             continue;
@@ -264,6 +258,15 @@ bool Render::init() {
 #ifdef RENDERER_HEADLESS
             Render::currentRenderer = Renderers::Headless;
             globalRenderer = new Renderer_Headless;
+            break;
+#else
+            continue;
+#endif
+        }
+        case Renderers::Flatland: {
+#ifdef RENDERER_FLATLAND
+            Render::currentRenderer = Renderers::Flatland;
+            globalRenderer = new Renderer_Flatland;
             break;
 #else
             continue;
@@ -363,6 +366,10 @@ void Render::renderSprites() {
 void Render::renderPenLayer() {
     if (globalRenderer)
         globalRenderer->renderPenLayer();
+}
+
+void Render::renderTouchControls() {
+    TouchControls::render();
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

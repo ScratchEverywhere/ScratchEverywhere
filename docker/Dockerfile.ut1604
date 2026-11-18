@@ -1,0 +1,33 @@
+#      ______________
+#    /  ------------  \        ____________
+# / | /              \ | \    |            |
+# \ | |   ●      ●   | | /   <  fockerdile |
+#    \ \_____◥______/ /      |            |
+#      ''''''''''''''          """"""""""""
+#      -/          \-
+#     / |  ♻       | \
+#    |  |          |  |
+#    |  |          |  |
+#     \/ \        / \/
+#         \      /
+#          ''''''
+
+# syntax=docker/dockerfile:1.6
+
+FROM clickable/ci-16.04-armhf:16.04.5 AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+ENV CLICKABLE_NON_INTERACTIVE=1
+WORKDIR /app
+
+# the 16.04 CI image ships Clickable 7.x so we need to upgrade to 8.x
+RUN pip3 install --no-cache-dir "clickable-ut==8.10.0"
+
+COPY . .
+
+RUN mkdir -p romfs && \
+    clickable build --config clickable-16.04.yaml --arch armhf --accept-review-warnings && \
+    mkdir -p /out && \
+    cp build/ut/arm-linux-gnueabihf/*.click /out/scratch-ut-16.04-armhf.click
+
+FROM scratch AS exporter
+COPY --from=main_builder /out/ /

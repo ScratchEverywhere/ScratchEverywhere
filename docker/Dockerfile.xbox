@@ -27,9 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal && \
     rm -rf /var/lib/apt/lists/*
 
-# Point to both the nxdk and nxdk-sdl3 as environment variables for the container itself
+# Point to the NXDK toolchain used by the container.
 ENV NXDK_DIR=/app/nxdk
-ENV NXDK_SDL3_DIR=/app/nxdk-sdl3
 ENV PATH="/app/nxdk/bin:/root/.cargo/bin:$PATH"
 
 # Clone the github.com/xboxDev/nxdk repository
@@ -38,17 +37,10 @@ RUN git clone https://github.com/xboxDev/nxdk.git /app/nxdk && \
     git checkout 14d5ee97e73347c973f1f57b68b79ec08c9e77f2 && \
     git submodule update --init --recursive
 
-# Clone the github.com/Ryzee119/nxdk-sdl3 repository
-RUN git clone https://github.com/Ryzee119/nxdk-sdl3.git /app/nxdk-sdl3 && \
-    cd /app/nxdk-sdl3 && \
-    git checkout ea09abc9164d8142414d482af011c4904cc61b53 && \
-    git submodule update --init --recursive
-
 COPY . .
 
-# Ensure nxdk and nxdk-sdl3 have patches applied
-RUN cd /app/nxdk && patch -p1 < /app/cmake/patches/nxdk.patch && \
-    cd /app/nxdk-sdl3 && patch -p1 < /app/cmake/patches/nxdk-sdl3.patch
+# Apply the NXDK compatibility patch. CMake fetches nxaudio separately.
+RUN cd /app/nxdk && patch -p1 < /app/cmake/patches/nxdk.patch
 
 # Create a build-xbox directory and run the necessary cmake commands
 RUN mkdir build-xbox && cd build-xbox && \

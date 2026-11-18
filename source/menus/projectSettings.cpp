@@ -6,6 +6,7 @@
 #include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <log.hpp>
+#include <touch_controls.hpp>
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
     Log::log(existUnpacked ? "Project exists Unpacked" : "Project does not exist Unpacked");
@@ -102,6 +103,35 @@ std::string runtimeText(RuntimeMode mode) {
     return TranslationManager::getTranslation("ui.settings.runtime") + ": " + runtimeModeName(mode);
 }
 
+const char *touchControlsModeKey(TouchControls::Mode mode) {
+    switch (mode) {
+    case TouchControls::Mode::On:
+        return "ui.settings.on";
+    case TouchControls::Mode::Off:
+        return "ui.settings.off";
+    case TouchControls::Mode::Auto:
+        break;
+    }
+    return "ui.settings.auto";
+}
+
+std::string touchControlsText(TouchControls::Mode mode) {
+    return TranslationManager::getTranslation("ui.settings.onScreenControls") + ": " +
+           TranslationManager::getTranslation(touchControlsModeKey(mode));
+}
+
+TouchControls::Mode nextTouchControlsMode(TouchControls::Mode mode) {
+    switch (mode) {
+    case TouchControls::Mode::Auto:
+        return TouchControls::Mode::On;
+    case TouchControls::Mode::On:
+        return TouchControls::Mode::Off;
+    case TouchControls::Mode::Off:
+        break;
+    }
+    return TouchControls::Mode::Auto;
+}
+
 } // namespace
 
 void ProjectSettings::init() {
@@ -150,6 +180,13 @@ void ProjectSettings::init() {
     runtimeButton->text->setScale(0.5);
     runtimeButton->shouldNineslice = true;
 
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    touchControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.onScreenControls"), "gfx/menu/submenuButton.svg", 200, 400, "gfx/menu/Ubuntu-Bold");
+    touchControlsButton->text->setColor(Math::color(255, 255, 255, 255));
+    touchControlsButton->text->setScale(0.5);
+    touchControlsButton->shouldNineslice = true;
+#endif
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -187,6 +224,13 @@ void ProjectSettings::init() {
     runtimeButton->buttonDown = changeControlsButton;
     runtimeButton->buttonUp = refreshLimitButton;
 
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    runtimeButton->buttonDown = touchControlsButton;
+    touchControlsButton->buttonUp = runtimeButton;
+    touchControlsButton->buttonDown = changeControlsButton;
+    changeControlsButton->buttonUp = touchControlsButton;
+#endif
+
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
@@ -199,6 +243,9 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(ramButton);
     settingsControl->buttonObjects.push_back(refreshLimitButton);
     settingsControl->buttonObjects.push_back(runtimeButton);
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    settingsControl->buttonObjects.push_back(touchControlsButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -209,7 +256,7 @@ void ProjectSettings::init() {
         bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
     }
 
-    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox || Render::currentRenderer == Renderers::NV2A) {
+    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3 || Render::currentRenderer == Renderers::Xbox) {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
     } else {
         penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
@@ -242,6 +289,12 @@ void ProjectSettings::init() {
     } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
 
     runtimeButton->text->setText(runtimeText(runtimeModeOf(settings)));
+
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    const TouchControls::Mode touchControlsMode =
+        TouchControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto")));
+    touchControlsButton->text->setText(touchControlsText(touchControlsMode));
+#endif
 
     isInitialized = true;
 }
@@ -309,6 +362,16 @@ void ProjectSettings::render() {
         SettingsManager::saveProjectSettings(settings, projectPath);
         runtimeButton->text->setText(runtimeText(mode));
     }
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    if (touchControlsButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        const TouchControls::Mode mode =
+            nextTouchControlsMode(TouchControls::modeFromString(settings["settings"].value("onScreenControls", std::string("auto"))));
+        settings["settings"]["onScreenControls"] = TouchControls::modeToString(mode);
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        touchControlsButton->text->setText(touchControlsText(mode));
+    }
+#endif
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
         UnpackMenu unpackMenu;
@@ -402,6 +465,12 @@ void ProjectSettings::cleanup() {
         delete runtimeButton;
         runtimeButton = nullptr;
     }
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+    if (touchControlsButton != nullptr) {
+        delete touchControlsButton;
+        touchControlsButton = nullptr;
+    }
+#endif
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);
     // Input::getInput();

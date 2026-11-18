@@ -164,6 +164,7 @@ void Renderer_GL2D::renderSprites() {
     }
 
     Render::renderMonitors();
+    Render::renderTouchControls();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
 #ifdef ENABLE_AUDIO

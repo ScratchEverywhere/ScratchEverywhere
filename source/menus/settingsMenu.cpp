@@ -9,11 +9,13 @@
 #include "translation.hpp"
 #include "window.hpp"
 #if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
+#ifndef SE_NO_LIBDLGMOD
 #include <libdlgmod/libdlgmod.h>
+#endif
 #if defined(_WIN32) || defined(_WIN64)
 #include <algorithm>
 #endif
-#if !defined(USE_LIBDLGMOD)
+#if !defined(USE_LIBDLGMOD) && !defined(SE_NO_LIBDLGMOD)
 #define USE_LIBDLGMOD
 #endif
 #endif
