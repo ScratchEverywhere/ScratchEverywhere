@@ -9,6 +9,10 @@
 #include <value.hpp>
 #include <vector>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
 SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
@@ -296,7 +300,11 @@ SCRATCH_BLOCK_POSITIONAL_SPRITE_S_B(sensing, touchingobject) {
 }
 
 static uint8_t toColorByte(float channel) {
-    return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
+    #ifndef __DOS__
+        return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
+    #else
+        return static_cast<uint8_t>(DosMath::clamp(round(channel), 0.0f, 255.0f));
+    #endif
 }
 
 SCRATCH_BLOCK_BOOLEAN(sensing, touchingcolor) {

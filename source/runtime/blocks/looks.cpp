@@ -13,6 +13,10 @@
 #include <types.hpp>
 #include <value.hpp>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
 SCRATCH_BLOCK(looks, say) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
 
@@ -563,7 +567,11 @@ SCRATCH_BLOCK_POSITIONAL_VOID(looks, cleargraphiceffects) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(looks, size) {
-    return std::round(sprite->size);
+    #ifndef __DOS__
+        return std::round(sprite->size);
+    #else
+        return DosMath::round(sprite->size);
+    #endif
 }
 SCRATCH_BLOCK_DOUBLE(looks, size) {
     *outValue = block_looks_size_pos_(sprite);

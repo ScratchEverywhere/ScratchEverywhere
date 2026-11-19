@@ -202,7 +202,11 @@ static void applyShapeEffects(const Sprite *sprite, float &localX, float &localY
     if (u < 0.0 || u >= 1.0 || v < 0.0 || v >= 1.0) return;
 
     if (sprite->mosaicEffect != 0.0f) {
-        const double mosaic = std::clamp(std::round((std::fabs(sprite->mosaicEffect) + 10.0) / 10.0), 1.0, 512.0);
+        #ifndef __DOS__
+            const double mosaic = std::clamp(std::round((std::fabs(sprite->mosaicEffect) + 10.0) / 10.0), 1.0, 512.0);
+        #else
+            const double mosaic = DosMath::clamp(round((std::fabs(sprite->mosaicEffect) + 10.0) / 10.0), 1.0, 512.0);
+        #endif
         u = std::fmod(mosaic * u, 1.0);
         v = std::fmod(mosaic * v, 1.0);
     }
@@ -533,9 +537,15 @@ static bool environmentColorAt(const std::vector<Sprite *> &environment, float x
 
     if (accAlpha <= 0.0f) return false;
 
-    r = static_cast<uint8_t>(std::clamp(std::round(accR), 0.0f, 255.0f));
-    g = static_cast<uint8_t>(std::clamp(std::round(accG), 0.0f, 255.0f));
-    b = static_cast<uint8_t>(std::clamp(std::round(accB), 0.0f, 255.0f));
+    #ifndef __DOS__
+        r = static_cast<uint8_t>(std::clamp(std::round(accR), 0.0f, 255.0f));
+        g = static_cast<uint8_t>(std::clamp(std::round(accG), 0.0f, 255.0f));
+        b = static_cast<uint8_t>(std::clamp(std::round(accB), 0.0f, 255.0f));
+    #else
+        r = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accR), 0.0f, 255.0f));
+        g = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accG), 0.0f, 255.0f));
+        b = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accB), 0.0f, 255.0f));
+    #endif
     return true;
 }
 
@@ -654,9 +664,15 @@ static bool environmentColorAtPrepared(const std::vector<ColorQuery> &env, float
 
     if (accAlpha <= 0.0f) return false;
 
-    r = static_cast<uint8_t>(std::clamp(std::round(accR), 0.0f, 255.0f));
-    g = static_cast<uint8_t>(std::clamp(std::round(accG), 0.0f, 255.0f));
-    b = static_cast<uint8_t>(std::clamp(std::round(accB), 0.0f, 255.0f));
+    #ifndef __DOS__
+        r = static_cast<uint8_t>(std::clamp(std::round(accR), 0.0f, 255.0f));
+        g = static_cast<uint8_t>(std::clamp(std::round(accG), 0.0f, 255.0f));
+        b = static_cast<uint8_t>(std::clamp(std::round(accB), 0.0f, 255.0f));
+    #else
+        r = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accR), 0.0f, 255.0f));
+        g = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accG), 0.0f, 255.0f));
+        b = static_cast<uint8_t>(DosMath::clamp(DosMath::round(accB), 0.0f, 255.0f));
+    #endif
     return true;
 }
 
@@ -794,8 +810,13 @@ bool collision::spriteOnEdge(Sprite *sprite) {
         for (int x = rowMinX; x <= rowMaxX; ++x) {
             const bool inside = ((float)x > -halfWidth) && ((float)x < halfWidth) && (fy > -halfHeight) && (fy < halfHeight);
             if (!inside) {
-                const int finalX = (int)std::round((localX + rcX) * invScale);
-                const int finalY = (int)std::round((localY + rcY) * invScale);
+                #ifndef __DOS__
+                    const int finalX = (int)std::round((localX + rcX) * invScale);
+                    const int finalY = (int)std::round((localY + rcY) * invScale);
+                #else
+                    const int finalX = (int)DosMath::round((localX + rcX) * invScale);
+                    const int finalY = (int)DosMath::round((localY + rcY) * invScale);
+                #endif
                 if (mask->getPixel(finalX, finalY)) return true;
             }
             localX += stepXLocalX;

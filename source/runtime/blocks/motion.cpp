@@ -11,6 +11,10 @@
 #include <types.hpp>
 #include <value.hpp>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
 static bool targetPosition(const std::string &name, double &x, double &y) {
     if (name == "_mouse_") {
         x = Input::mousePointer.x;
@@ -18,8 +22,13 @@ static bool targetPosition(const std::string &name, double &x, double &y) {
         return true;
     }
     if (name == "_random_") {
-        x = std::round(Scratch::projectWidth * (rand() / (RAND_MAX + 1.0) - 0.5));
-        y = std::round(Scratch::projectHeight * (rand() / (RAND_MAX + 1.0) - 0.5));
+        #ifndef __DOS__
+            x = std::round(Scratch::projectWidth * (rand() / (RAND_MAX + 1.0) - 0.5));
+            y = std::round(Scratch::projectHeight * (rand() / (RAND_MAX + 1.0) - 0.5));
+        #else
+            x = DosMath::round(Scratch::projectWidth * (rand() / (RAND_MAX + 1.0) - 0.5));
+            y = DosMath::round(Scratch::projectHeight * (rand() / (RAND_MAX + 1.0) - 0.5));
+        #endif
         return true;
     }
     for (Sprite *currentSprite : Scratch::sprites) {
@@ -33,7 +42,11 @@ static bool targetPosition(const std::string &name, double &x, double &y) {
 
 static void pointTowardsName(Sprite *sprite, const std::string &name) {
     if (name == "_random_") {
-        Scratch::setDirection(sprite, std::round(rand() / (RAND_MAX + 1.0) * 360) - 180);
+        #ifndef __DOS__
+            Scratch::setDirection(sprite, std::round(rand() / (RAND_MAX + 1.0) * 360) - 180);
+        #else
+            Scratch::setDirection(sprite, DosMath::round(rand() / (RAND_MAX + 1.0) * 360) - 180);
+        #endif
         return;
     }
 
@@ -357,7 +370,11 @@ SCRATCH_BLOCK_POSITIONAL_VOID(motion, ifonedgebounce) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, xposition) {
-    const double rounded = std::round(sprite->xPosition);
+    #ifndef __DOS__
+        const double rounded = std::round(sprite->xPosition);
+    #else
+        const double rounded = DosMath::round(sprite->xPosition);
+    #endif
     const double delta = std::fabs(sprite->xPosition - rounded);
     return (delta < 1e-9) ? rounded : sprite->xPosition;
 }
@@ -368,7 +385,11 @@ SCRATCH_BLOCK_DOUBLE(motion, xposition) {
 SCRATCH_BLOCK_SIGNATURE(motion, xposition);
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(motion, yposition) {
-    const double rounded = std::round(sprite->yPosition);
+    #ifndef __DOS__
+        const double rounded = std::round(sprite->yPosition);
+    #else
+        const double rounded = DosMath::round(sprite->yPosition);
+    #endif
     const double delta = std::fabs(sprite->yPosition - rounded);
     return (delta < 1e-9) ? rounded : sprite->yPosition;
 }
