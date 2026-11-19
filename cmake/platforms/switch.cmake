@@ -21,6 +21,8 @@ set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_PLATFORM "switch")
 
+set(SE_SWITCH_MESA_DIR "" CACHE PATH "Path to the mesa-switch folder (containing include/ and lib/). No path uses devkitPro's switch-mesa.")
+
 macro(package_platform)
 	nx_generate_nacp(OUTPUT "${SE_OUTPUT_NAME}.nacp" NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" VERSION "${SE_APP_VERSION}")
 	if(SE_BUNDLE)
