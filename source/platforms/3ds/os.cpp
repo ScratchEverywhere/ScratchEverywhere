@@ -54,39 +54,51 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
-    u32 wifiEnabled = 0;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled == AC_AP_TYPE_NONE) return false;
+    if (R_FAILED(acInit())) return true;
+    u32 wifiStatus = 0;
+    Result res = ACU_GetWifiStatus(&wifiStatus);
+    acExit();
+    if (R_FAILED(res)) return true;
+    return wifiStatus != AC_AP_TYPE_NONE;
+}
+
+static uint32_t *socBuffer = nullptr;
+static bool socketsUp = false;
+
+bool OS::initWifi() {
+    if (socketsUp) return true;
+
+    if (!OS::isOnline()) return false;
+
+    const uint32_t SOC_ALIGN = 0x1000;
+    const uint32_t SOC_BUFFERSIZE = 0x100000;
+
+    socBuffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+    if (socBuffer == NULL) {
+        Log::logError("memalign: failed to allocate");
+        return false;
+    }
+
+    int ret = socInit(socBuffer, SOC_BUFFERSIZE);
+    if (ret != 0) {
+        std::ostringstream err;
+        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+        Log::logError(err.str());
+        free(socBuffer);
+        socBuffer = nullptr;
+        return false;
+    }
+
+    socketsUp = true;
     return true;
 }
 
-bool OS::initWifi() {
-    u32 wifiEnabled = false;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled == AC_AP_TYPE_NONE) {
-        int ret;
-        uint32_t SOC_ALIGN = 0x1000;
-        uint32_t SOC_BUFFERSIZE = 0x100000;
-        uint32_t *SOC_buffer = NULL;
-
-        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
-        if (SOC_buffer == NULL) {
-            Log::logError("memalign: failed to allocate");
-            return false;
-        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
-            std::ostringstream err;
-            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
-            Log::logError(err.str());
-            return false;
-        }
-    }
-}
-
 void OS::deInitWifi() {
-    u32 wifiEnabled = false;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled != AC_AP_TYPE_NONE)
-        socExit();
+    if (!socketsUp) return;
+    socExit();
+    free(socBuffer);
+    socBuffer = nullptr;
+    socketsUp = false;
 }
 
 std::string OS::getUsername() {

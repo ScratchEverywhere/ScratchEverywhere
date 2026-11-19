@@ -29,7 +29,7 @@ class SE_EXPORT SE_Thread {
 
   private:
     struct Impl;
-    Impl *impl;
+    Impl *impl = nullptr;
 };
 
 class SE_EXPORT SE_Mutex {
@@ -47,5 +47,5 @@ class SE_EXPORT SE_Mutex {
 
   private:
     struct Impl;
-    Impl *impl;
+    Impl *impl = nullptr;
 };

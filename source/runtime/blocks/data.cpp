@@ -92,6 +92,9 @@ Block *matchSelfAppend(Block *setBlock, const std::string &varId) {
 SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
+#ifdef ENABLE_CLOUDVARS
+    if (var != nullptr && var->cloud) return false;
+#endif
     BytecodeStackKind varKind = BytecodeStackKind::Value;
     if (var != nullptr) {
         if (std::holds_alternative<double>(var->value)) varKind = BytecodeStackKind::Number;
@@ -142,6 +145,10 @@ SCRATCH_BLOCK(data, changevariableby) {
 }
 SCRATCH_BYTECODE_BLOCK(data, changevariableby) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+#ifdef ENABLE_CLOUDVARS
+    Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
+    if (var != nullptr && var->cloud) return false;
+#endif
 
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
