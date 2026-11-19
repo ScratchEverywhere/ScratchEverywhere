@@ -12,6 +12,10 @@
 #include <types.hpp>
 #include <value.hpp>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
 SCRATCH_BLOCK(control, if) {
     bool condition;
     if (!Scratch::getInputValueAs(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
@@ -318,7 +322,11 @@ SCRATCH_BLOCK(control, repeat) {
     if (state->completedSteps == 0) { // start
         double repeatTimes;
         if (!Scratch::getInputValueAs(block, "TIMES", thread, sprite, repeatTimes)) return BlockResult::REPEAT;
-        state->repeatTimes = std::round(repeatTimes);
+        #ifndef __DOS__
+            state->repeatTimes = std::round(repeatTimes);
+        #else
+            state->repeatTimes = DosMath::round(repeatTimes);
+        #endif
 
         state->completedSteps = 1;
     }

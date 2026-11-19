@@ -4,6 +4,10 @@
 #include <cmath>
 #include <cstdint>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
 // Scratch color and brightness operate on straight RGB, before ghost/alpha.
 // The grayscale floors and effect order follow scratch-render's sprite shader.
 struct ScratchColorTransform {
@@ -55,8 +59,14 @@ struct ScratchColorTransform {
             else { r = chroma; g = 0.0f; b = x; }
             r += m; g += m; b += m;
         }
-        red = static_cast<uint8_t>(std::round(std::clamp(r + brightness, 0.0f, 1.0f) * 255.0f));
-        green = static_cast<uint8_t>(std::round(std::clamp(g + brightness, 0.0f, 1.0f) * 255.0f));
-        blue = static_cast<uint8_t>(std::round(std::clamp(b + brightness, 0.0f, 1.0f) * 255.0f));
+        #ifndef __DOS__
+            red = static_cast<uint8_t>(std::round(std::clamp(r + brightness, 0.0f, 1.0f) * 255.0f));
+            green = static_cast<uint8_t>(std::round(std::clamp(g + brightness, 0.0f, 1.0f) * 255.0f));
+            blue = static_cast<uint8_t>(std::round(std::clamp(b + brightness, 0.0f, 1.0f) * 255.0f));
+        #else
+            red = static_cast<uint8_t>(DosMath::round(std::clamp(r + brightness, 0.0f, 1.0f) * 255.0f));
+            green = static_cast<uint8_t>(DosMath::round(std::clamp(g + brightness, 0.0f, 1.0f) * 255.0f));
+            blue = static_cast<uint8_t>(DosMath::round(std::clamp(b + brightness, 0.0f, 1.0f) * 255.0f));
+        #endif
     }
 };

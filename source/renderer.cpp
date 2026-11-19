@@ -507,9 +507,13 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
 
         float renderX;
         float renderY;
+#ifndef __DOS__
         float spriteX = std::round(sprite->xPosition);
         float spriteY = std::round(sprite->yPosition);
-
+#else
+        float spriteX = round(sprite->xPosition);
+        float spriteY = round(sprite->yPosition);
+#endif
         float rotCenterX = costume.rotationCenterX * 2;
         float rotCenterY = costume.rotationCenterY * 2;
 
@@ -619,7 +623,11 @@ bool Render::checkFramerate() {
 
 std::string Render::getVariableValueString(Value value) {
     if (value.isDouble()) {
+    #ifndef __DOS__
         return Math::toString(std::round(value.get<double>() * 1e6) / 1e6); // js Number(value.toFixed(6))
+    #else
+        return Math::toString(DosMath::round(value.get<double>() * 1e6) / 1e6);
+    #endif
     } else if (value.isUndefined()) {
         return ""; // Scratch keeps the original value, leave blank for now
     } else {
@@ -1141,7 +1149,13 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                         if (var.isDiscrete) {
                             newValue = static_cast<int>(newValue);
-                        } else newValue = std::round(newValue * 100.0) / 100.0;
+                        } else {
+                        #ifndef __DOS__
+                            newValue = std::round(newValue * 100.0) / 100.0;
+                        #else
+                            newValue = round(newValue * 100.0) / 100.0;
+                        #endif
+                        }
 
                         if (clampedX <= minPos + 5 * scale) {
                             newValue = sliderMin;
@@ -1284,7 +1298,13 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                         if (var.isDiscrete) {
                             newValue = static_cast<int>(newValue);
-                        } else newValue = std::round(newValue * 100.0) / 100.0;
+                        } else {
+                        #ifndef __DOS__
+                            newValue = std::round(newValue * 100.0) / 100.0;
+                        #else
+                            newValue = round(newValue * 100.0) / 100.0;
+                        #endif
+                        }
 
                         // snap to edges
                         if (clampedX <= minPos + 5 * scale) {

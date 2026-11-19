@@ -8,6 +8,11 @@
 #include <unzip.hpp>
 #include <value.hpp>
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
+
 bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName) {
     if (soundValue.isStringTyped()) {
         for (const Sound &sound : sprite->sounds) {
@@ -19,7 +24,11 @@ bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::str
     }
 
     if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return false;
-    double index = std::trunc(soundValue.get<double>());
+    #ifndef __DOS__
+        double index = std::trunc(soundValue.get<double>());
+    #else
+        double index = (double)( static_cast<uint64_t>(soundValue.get<double>() ) );
+    #endif
     double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
     outFullName = sprite->sounds[soundIndex].fullName;
     return true;

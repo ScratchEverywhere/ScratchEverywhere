@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <cmath>
 
+#if defined (__DOS__)
+#include "dos_math.hpp"
+#endif
+
 // I don't see any reason for these to be double so i just made them float to save memory
 struct SE_EXPORT Color {
     float hue;
@@ -58,8 +62,13 @@ inline Color RGBA2CSBO(const ColorRGBA &color) {
         a = (1.0f - (color.a / 255.0f)) * 100.0f;
     }
 
-    const float cmax = fmax(r, fmax(g, b));
-    const float diff = cmax - fmin(r, fmin(g, b));
+    #ifndef __DOS__
+        const float cmax = fmax(r, fmax(g, b));
+        const float diff = cmax - fmin(r, fmin(g, b));
+    #else
+        const float cmax = DosMath::fmax(r, DosMath::fmax(g, b));
+        const float diff = cmax - DosMath::fmin(r, DosMath::fmin(g, b));
+    #endif
 
     const float s = (cmax == 0) ? 0 : (diff / cmax) * 100;
 
