@@ -7,6 +7,7 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
 #include "renderer.hpp"
+#include "settings.hpp"
 #include "settingsMenu.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
@@ -75,7 +76,13 @@ bool MenuManager::initMainMenu() {
     loadedMenus[MenuId::ProjectMenu] = std::make_unique<ProjectMenu>();
     loadedMenus[MenuId::GlobalSettingsMenu] = std::make_unique<GlobalSettingsMenu>();
 
-    currentMenu = MenuId::MainMenu;
+    // go to language menu for first time startup
+    if (SettingsManager::getConfigSettings().empty()) {
+        changeMenu(MenuId::LanguageMenu);
+        canChangeTabs = false;
+    } else {
+        currentMenu = MenuId::MainMenu;
+    }
 
     return true;
 }

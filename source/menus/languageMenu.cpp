@@ -13,8 +13,8 @@ void LanguageMenu::build(UI::Builder &b) {
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
-                  .childGap = 20,
-                  .padding = {5, 5, 20, 0},
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
                   .align = UI::AlignMode::Center,
               },
               [&] {
@@ -31,10 +31,14 @@ void LanguageMenu::build(UI::Builder &b) {
                             [&] {
                                 for (auto &lang : languages) {
                                     button(b, lang.name, [&] {
-                                        TranslationManager::loadLanguage(lang.key);
-                                        MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
-                                        // there has to be a better way of doing this
                                         nlohmann::json &json = reinterpret_cast<GlobalSettingsMenu *>(MenuManager::loadedMenus[MenuId::GlobalSettingsMenu].get())->json;
+                                        if (json.empty()) {
+                                            MenuManager::canChangeTabs = true;
+                                            MenuManager::changeMenu(MenuId::MainMenu);
+                                        } else {
+                                            MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
+                                        }
+                                        TranslationManager::loadLanguage(lang.key);
                                         json["Language"] = lang.key;
                                         return;
                                     });

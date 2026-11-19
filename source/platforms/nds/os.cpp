@@ -63,7 +63,7 @@ std::string OS::getConfigFolderLocation() {
 std::string OS::getScratchFolderLocation() {
     const std::string custom = getCustomScratchFolderLocation();
     if (!custom.empty()) return custom;
-    return getFilesystemRootPrefix() + "/scratch-ds/";
+    return getFilesystemRootPrefix() + "scratch-ds/";
 }
 
 std::string OS::getRomFSLocation() {

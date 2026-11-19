@@ -63,8 +63,8 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
-                  .childGap = 20,
-                  .padding = {5, 5, 20, 0},
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
                   .align = UI::AlignMode::Center,
               },
               [&] {
@@ -126,7 +126,7 @@ void ProjectSettingsMenu::build(UI::Builder &b) {
                                     });
                                 }
 
-#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE) && !defined(__3DS__) && !defined(__NDS__)
                                 dropdown(b, "onScreenControls", "ui.settings.onScreenControls", {"auto", "on", "off"}, "auto");
 #endif
 

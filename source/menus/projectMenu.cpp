@@ -99,8 +99,8 @@ void ProjectMenu::build(UI::Builder &b) {
     b.element({
                   .w = UI::Size::grow(),
                   .h = UI::Size::grow(),
-                  .childGap = 20,
-                  .padding = {5, 5, 20, 0},
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
                   .align = UI::AlignMode::Center,
               },
               [&] {

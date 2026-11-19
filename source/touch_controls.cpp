@@ -17,7 +17,7 @@
 #include <unzip.hpp>
 #include <vector>
 
-#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE) && !defined(__3DS__) && !defined(__NDS__)
 
 namespace {
 

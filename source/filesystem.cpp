@@ -67,8 +67,8 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
     size_t pos = 0;
     while ((pos = p.find('/', pos)) != std::string::npos) {
         std::string dir = p.substr(0, pos++);
-        if (dir.empty()) continue;
-        if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
+        if (dir.empty() || dir.back() == ':') continue;
+        if (dir == OS::getFilesystemRootPrefix()) continue;
 
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
@@ -78,6 +78,19 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
             if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
 #endif
                 return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
+            }
+        }
+    }
+
+    if (!p.empty() && p.back() != ':' && p.back() != '/' && p != OS::getFilesystemRootPrefix()) {
+        struct stat st;
+        if (stat(p.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(p.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(p.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                return nonstd::make_unexpected("Failed to create directory, " + p + ", " + std::to_string(errno));
             }
         }
     }
