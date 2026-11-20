@@ -19,16 +19,30 @@ SCRATCH_BLOCK_POSITIONAL_VOID(sensing, resettimer) {
 }
 
 SCRATCH_BLOCK(sensing, askandwait) {
-    std::string input;
-    if (!Scratch::getInputValueAs(block, "QUESTION", thread, sprite, input)) return BlockResult::REPEAT;
-    Scratch::answer = Input::openSoftwareKeyboard(input.c_str());
+    BlockState *state = thread->getState(block);
+    if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (state->completedSteps == 0) {
+        std::string message;
+        if (!Scratch::getInputValueAs(block, "QUESTION", thread, sprite, message)) return BlockResult::REPEAT;
 
-    return BlockResult::CONTINUE;
+        Input::startTextInput(message);
+
+        speechManager->showSpeech(sprite, message, -1, "say");
+        state->completedSteps = 1;
+        return BlockResult::REPEAT;
+    }
+
+    if (!Input::isTextInputActive()) {
+        thread->eraseState(block);
+        speechManager->showSpeech(sprite, "", 0.01, "say");
+        Scratch::answer = Input::inputText;
+        Input::inputText.clear();
+        return BlockResult::CONTINUE;
+    }
+    return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(sensing, askandwait, {"QUESTION", BytecodeStackKind::String});
-SCRATCH_BLOCK_POSITIONAL_S_VOID(sensing, askandwait) {
-    Scratch::answer = Input::openSoftwareKeyboard(str.c_str());
-}
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(sensing, askandwait, {"QUESTION", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(sensing, setdragmode) {
     const std::string mode = Scratch::getFieldValue(*block, "DRAG_MODE");
@@ -50,11 +64,7 @@ SCRATCH_BYTECODE_BLOCK(sensing, setdragmode) {
 }
 
 SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sensing, timer) {
-#if defined(__XBOX__)
-    return BlockExecutor::timer.getTimeMsDouble() / 1000.0;
-#else
     return BlockExecutor::timer.getTimeMs() / 1000.0;
-#endif
 }
 SCRATCH_BLOCK_DOUBLE(sensing, timer) {
     *outValue = block_sensing_timer_pos_(sprite);

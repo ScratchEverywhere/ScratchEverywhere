@@ -47,6 +47,20 @@ void Theme::load() {
         .pressed = styles[StyleId::Button].pressed,
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    styles[StyleId::AskBox] = {
+        .normal = {.color = {255, 255, 255, 255}, .round = 4, .borderColor = {217, 217, 217, 255}, .borderThickness = 3}};
+    styles[StyleId::AskTextInput] = {
+        .normal = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {217, 217, 217, 255}, .borderThickness = 2},
+        .focused = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {118, 75, 114, 255}, .borderThickness = 8},
+        .pressed = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {225, 225, 235, 255}, .borderThickness = 8},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
+    styles[StyleId::AskConfirm] = {
+        .normal = {.color = {118, 75, 114, 255}, .round = 15},
+        .focused = {.color = {225, 225, 235, 255}, .round = 15},
+        .pressed = {.color = {79, 42, 76, 255}, .round = 15},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
 }
 
 } // namespace UI

@@ -13,6 +13,9 @@ enum StyleId : uint8_t {
     ProjectButton,
     Button,
     TransparentButton,
+    AskBox,
+    AskTextInput,
+    AskConfirm,
 };
 
 struct StateStyle {

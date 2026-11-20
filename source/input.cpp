@@ -19,6 +19,8 @@ Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 int Input::mouseScrollDelta = 0;
 
+std::string Input::inputText = "";
+
 int Input::inputViewportX = 0;
 int Input::inputViewportY = 0;
 int Input::inputViewportW = 0;
@@ -26,6 +28,10 @@ int Input::inputViewportH = 0;
 
 InputDevice *Input::getGlobalInputDevice() {
     return globalInputDevice;
+}
+
+void InputDevice::startTextInput(const std::string &hintText, bool numberKeyboard) {
+    Input::inputText = openSoftwareKeyboard(hintText.c_str());
 }
 
 void Input::setGlobalInputDevice(InputDevice *device) {
@@ -76,6 +82,19 @@ bool Input::hasConnectedGamepad() {
 
 void Input::getInput() {
     if (globalInputDevice) globalInputDevice->getInput();
+}
+
+void Input::startTextInput(const std::string &hintText, bool numberKeyboard) {
+    if (globalInputDevice) globalInputDevice->startTextInput(hintText, numberKeyboard);
+}
+
+bool Input::isTextInputActive() {
+    if (globalInputDevice) return globalInputDevice->isTextInputActive();
+    return false;
+}
+
+void Input::endTextInput() {
+    if (globalInputDevice) globalInputDevice->endTextInput();
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
@@ -147,17 +166,17 @@ void Input::applyControls(std::string controlsFilePath) {
 
             // Access the "controls" object specifically
             if (controlsJson.contains("controls")) {
-                const auto& controls = controlsJson["controls"];
+                const auto &controls = controlsJson["controls"];
 
                 for (auto it = controls.begin(); it != controls.end(); ++it) {
                     const std::string key = it.key();
-                    const auto& value = it.value();
+                    const auto &value = it.value();
 
                     if (key.empty() || value.empty())
                         continue;
 
                     // A key can be bound to several physical inputs.
-                    auto bind = [&key](const nlohmann::json& button) {
+                    auto bind = [&key](const nlohmann::json &button) {
                         if (!button.is_string())
                             return;
 
@@ -169,7 +188,7 @@ void Input::applyControls(std::string controlsFilePath) {
                         Log::log("Loaded control: " + key + " -> " + name);
                     };
                     if (value.is_array()) {
-                        for (const auto& button : value)
+                        for (const auto &button : value)
                             bind(button);
                     } else {
                         bind(value);

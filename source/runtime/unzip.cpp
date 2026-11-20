@@ -266,12 +266,11 @@ bool Unzip::load() {
 #endif
 
 #ifdef __3DS__
-    // is this unsafe? nah fuck it :grin:
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);
     Render::endFrame(false);
 #endif
-
+    MenuManager::changeMenu(MenuId::Ingame);
     return true;
 }
 
@@ -316,7 +315,6 @@ void Unzip::openScratchProject(void *arg) {
     }
 #endif
 
-    MenuManager::changeMenu(MenuId::Ingame);
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
     return;

@@ -1,5 +1,7 @@
 #include "ingameMenu.hpp"
 #include "menuManager.hpp"
+#include "theme.hpp"
+#include "types.hpp"
 #include <algorithm>
 #include <cmath>
 #include <log.hpp>
@@ -232,18 +234,78 @@ void IngameMenu::build(UI::Builder &b) {
     if (screenAspect > projectAspect) barX = (screenW - Scratch::projectWidth * scale) / 2.0f;
     else if (screenAspect < projectAspect) barY = (screenH - Scratch::projectHeight * scale) / 2.0f;
 
-    for (auto &[id, var] : Render::monitors) {
-        if (!var.visible) continue;
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childDirection = UI::ChildDir::UpDown,
+              },
+              [&] {
+                  b.element({
+                      .w = UI::Size::grow(),
+                      .h = UI::Size::grow(),
+                  });
 
-        // Turbowarp's monitor position math
-        const float projectX = (var.x + offsetX) + (Scratch::projectWidth - 480) * 0.5f;
-        const float projectY = (var.y + offsetY) + (Scratch::projectHeight - 360) * 0.5f;
-        const float x = projectX * scale + barX;
-        const float y = projectY * scale + barY;
+                  for (auto &[id, var] : Render::monitors) {
+                      if (!var.visible) continue;
 
-        if (var.mode == "list") list(b, var, x + 4 * scale, y + 2 * scale);
-        else if (var.mode == "large") variableBig(b, var, x, y);
-        else if (var.mode == "slider") variableSlider(b, var, x, y);
-        else variableNormal(b, var, x, y);
-    }
+                      // Turbowarp's monitor position math
+                      const float projectX = (var.x + offsetX) + (Scratch::projectWidth - 480) * 0.5f;
+                      const float projectY = (var.y + offsetY) + (Scratch::projectHeight - 360) * 0.5f;
+                      const float x = projectX * scale + barX;
+                      const float y = projectY * scale + barY;
+
+                      if (var.mode == "list") list(b, var, x + 4 * scale, y + 2 * scale);
+                      else if (var.mode == "large") variableBig(b, var, x, y);
+                      else if (var.mode == "slider") variableSlider(b, var, x, y);
+                      else variableNormal(b, var, x, y);
+                  }
+
+                  if (Input::isTextInputActive()) {
+                      b.element({
+                                    .w = UI::Size::grow(),
+                                    .h = UI::Size::fit(),
+                                    .padding = UI::Padding::all(10),
+                                },
+                                [&] {
+                                    b.element({
+                                                  .w = UI::Size::grow(),
+                                                  .h = UI::Size::fit(),
+                                                  .childDirection = UI::ChildDir::LeftRight,
+                                                  .childGap = 5,
+                                                  .padding = UI::Padding::all(15),
+                                                  .align = UI::AlignMode::Center,
+                                                  .style = UI::StyleId::AskBox,
+                                              },
+                                              [&] {
+                                                  b.element({
+                                                                .flags = UI::Flag::Focusable,
+                                                                .w = UI::Size::grow(),
+                                                                .h = UI::Size::fit(),
+                                                                .childDirection = UI::ChildDir::LeftRight,
+                                                                .padding = UI::Padding::axis(5, 0),
+                                                                .style = UI::StyleId::AskTextInput,
+                                                            },
+                                                            [&] {
+                                                                b.text({
+                                                                    .text = Input::inputText + "|",
+                                                                    .fontId = 1,
+                                                                    .scale = 0.75,
+                                                                    .color = {0, 0, 0, 255},
+                                                                    .align = UI::AlignMode::Left,
+                                                                });
+                                                            });
+
+                                                  b.element({.flags = UI::Flag::Focusable,
+                                                             .w = UI::Size::fixed(32),
+                                                             .h = UI::Size::fixed(32),
+                                                             .style = UI::StyleId::AskConfirm,
+                                                             .onClick = [&] {
+                                                                 Input::endTextInput();
+                                                             }
+
+                                                  });
+                                              });
+                                });
+                  }
+              });
 }

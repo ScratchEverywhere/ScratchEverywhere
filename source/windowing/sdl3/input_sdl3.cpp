@@ -1,4 +1,9 @@
+#include "SDL3/SDL_error.h"
+#include "SDL3/SDL_keyboard.h"
+#include "SDL3/SDL_properties.h"
+#include "input.hpp"
 #include "window_sdl3.hpp"
+#include <log.hpp>
 #ifdef __SWITCH__
 #include <switch.h>
 #endif
@@ -449,4 +454,28 @@ void InputDevice_SDL3::setClipboardText(const std::string &text) {
 #if defined(__PC__)
     SDL_SetClipboardText(text.c_str());
 #endif
+}
+
+void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKeyboard) {
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    const Sint64 keyboardType = numberKeyboard ? SDL_TEXTINPUT_TYPE_NUMBER : SDL_TEXTINPUT_TYPE_TEXT;
+
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetBooleanProperty(props, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+    SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_TYPE_NUMBER, keyboardType);
+
+    if (!SDL_StartTextInputWithProperties(window, props)) {
+        // TODO: open menumanager on screen keyboard when i make that
+        Log::logError("Failed to open keyboard: " + std::string(SDL_GetError()));
+    }
+}
+
+bool InputDevice_SDL3::isTextInputActive() {
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    return SDL_TextInputActive(window);
+}
+
+void InputDevice_SDL3::endTextInput() {
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    SDL_StopTextInput(window);
 }

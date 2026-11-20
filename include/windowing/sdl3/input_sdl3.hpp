@@ -17,4 +17,8 @@ class SE_EXPORT InputDevice_SDL3 : public InputDevice {
     std::string openSoftwareKeyboard(const char *hintText) override;
 
     void setClipboardText(const std::string &text) override;
+
+    void startTextInput(const std::string &hintText = "", bool numberKeyboard = false) override;
+    bool isTextInputActive() override;
+    void endTextInput() override;
 };
