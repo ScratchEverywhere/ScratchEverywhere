@@ -131,6 +131,10 @@ bool hasdeps() {
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {
+#elif defined(WINDOWING_SDL3)
+#include <SDL3/SDL_main.h>
+
+extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
