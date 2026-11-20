@@ -7,7 +7,9 @@
 class SE_EXPORT ProjectSettingsMenu : public SettingsMenu {
   private:
     std::string projectPath;
-    float fileSize;
+    std::string fileSize;
+
+    std::string getSizeText();
 
   public:
     ProjectSettingsMenu(const std::string &projectPath);

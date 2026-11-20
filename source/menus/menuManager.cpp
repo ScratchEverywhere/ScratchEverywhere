@@ -71,6 +71,7 @@ bool MenuManager::initMainMenu() {
     UI::Theme::load();
     Input::applyControls();
     initMenuMusic();
+    Input::endTextInput();
 
     loadedMenus[MenuId::MainMenu] = std::make_unique<MainMenu>();
     loadedMenus[MenuId::ProjectMenu] = std::make_unique<ProjectMenu>();

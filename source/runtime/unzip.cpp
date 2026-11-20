@@ -345,7 +345,10 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
                                    const auto hasExtension = [&](const std::string &ext) {
                                        return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0;
                                    };
-                                   return !hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb");
+                                   const auto hasPrefix = [&](const std::string &pre) -> bool {
+                                       return file.size() >= pre.size() && file.compare(0, pre.size(), pre) == 0;
+                                   };
+                                   return hasPrefix("._") || (!hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb"));
                                }),
                                projectFiles.value().end());
 
