@@ -67,8 +67,8 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
     size_t pos = 0;
     while ((pos = p.find('/', pos)) != std::string::npos) {
         std::string dir = p.substr(0, pos++);
-        if (dir.empty()) continue;
-        if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
+        if (dir.empty() || dir.back() == ':') continue;
+        if (dir == OS::getFilesystemRootPrefix()) continue;
 
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
@@ -78,6 +78,19 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
             if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
 #endif
                 return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
+            }
+        }
+    }
+
+    if (!p.empty() && p.back() != ':' && p.back() != '/' && p != OS::getFilesystemRootPrefix()) {
+        struct stat st;
+        if (stat(p.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(p.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(p.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                return nonstd::make_unexpected("Failed to create directory, " + p + ", " + std::to_string(errno));
             }
         }
     }
@@ -355,4 +368,50 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
 #endif
 
     return files;
+}
+
+long FileSystem::getFileSize(const std::string &path) {
+    long size;
+    FILE *fp = fopen(path.c_str(), "r");
+    if (!fp) return 0;
+    long current_pos = ftell(fp);
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, current_pos, SEEK_SET);
+    fclose(fp);
+    return size;
+}
+
+long FileSystem::fileModifiedTime(const std::string &path) {
+#if defined(__XBOX__)
+    std::string norm = path;
+    for (char &c : norm) {
+        if (c == '/') c = '\\';
+    }
+    while (norm.size() > 3 && norm.back() == '\\') {
+        norm.pop_back();
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA attrData;
+    if (!GetFileAttributesExA(norm.c_str(), GetFileExInfoStandard, &attrData)) {
+        return 0;
+    }
+
+    ULARGE_INTEGER ull;
+    ull.LowPart = attrData.ftLastWriteTime.dwLowDateTime;
+    ull.HighPart = attrData.ftLastWriteTime.dwHighDateTime;
+    return static_cast<long>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+#elif defined(_WIN32)
+    struct _stat64 st;
+    if (_stat64(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#else
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#endif
 }

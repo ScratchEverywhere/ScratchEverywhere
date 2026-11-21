@@ -1,206 +1,123 @@
 #include "controlsMenu.hpp"
+#include "input.hpp"
+#include "menuManager.hpp"
 #include "translation.hpp"
-#include "types.hpp"
-#include "unpackMenu.hpp"
 #include <log.hpp>
-#include <settings.hpp>
+#include <unzip.hpp>
 
-ControlsMenu::ControlsMenu(std::string projPath) {
-    projectPath = projPath;
-    init();
+ControlsMenu::ControlsMenu(const std::string &projectPath, nlohmann::json &json) : json(json) {
+    MenuManager::canChangeTabs = false;
+    ProjectFormat format;
+    Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+    if (!Unzip::load()) {
+        Log::logCritical("Failed to load project for ControlsMenu.", false);
+        return;
+    }
+
+    Unzip::filePath = "";
+
+    controls = Scratch::getUsedControls();
+
+    Scratch::cleanupScratchProject();
+    Input::applyControls();
 }
 
 ControlsMenu::~ControlsMenu() {
-    cleanup();
 }
 
-void ControlsMenu::init() {
-    ProjectFormat format;
-    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
-    if (!resolved.empty()) {
-        Unzip::filePath = resolved;
-    } else {
-        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
-        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
-    }
-    if (!Unzip::load()) {
-        Log::logCritical("Failed to load project for ControlsMenu.", false);
-        OS::toExit = true;
-        return;
-    }
-    Unzip::filePath = "";
+void ControlsMenu::build(UI::Builder &b) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
+                  .align = UI::AlignMode::Center,
+              },
+              [&] {
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.controls"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
-    // get controls
-    const std::vector<std::string> controls = Scratch::getUsedControls();
-    for (const std::string &control : controls) {
-        Log::log("Found new control: " + control);
-    }
-
-    Scratch::cleanupScratchProject();
-
-    if (controls.empty()) {
-        Log::logWarning("No controls found in project");
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
-
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    settingsControl = new ControlObject();
-    settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject(TranslationManager::getTranslation("ui.controls.apply"), "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
-    applyButton->scale = 0.6;
-    applyButton->needsToBeSelected = false;
-    backButton->scale = 1.0;
-    backButton->needsToBeSelected = false;
-
-    double yPosition = 100;
-    for (auto &control : controls) {
-        key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/controlsButton.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
-        controlButton->text->setColor(Math::color(255, 255, 255, 255));
-        controlButton->scale = 1.0;
-        controlButton->y -= controlButton->text->getSize()[1] / 2;
-        if (controlButton->text->getSize()[0] > controlButton->buttonTexture->image->getWidth() * 0.3) {
-            float scale = (float)controlButton->buttonTexture->image->getWidth() / (controlButton->text->getSize()[0] * 3);
-            controlButton->textScale = scale;
-        }
-        controlButton->canBeClicked = false;
-        newControl.button = controlButton;
-        newControl.control = control;
-
-        for (const auto &pair : Input::inputControls) {
-            if (pair.second == newControl.control) {
-                newControl.controlValue = pair.first;
-                break;
-            }
-        }
-
-        controlButtons.push_back(newControl);
-        settingsControl->buttonObjects.push_back(controlButton);
-        yPosition += 50;
-    }
-    if (!controls.empty()) {
-        settingsControl->selectedObject = controlButtons.front().button;
-        settingsControl->selectedObject->isSelected = true;
-        settingsControl->y = settingsControl->selectedObject->y - settingsControl->selectedObject->buttonTexture->image->getHeight() * 0.7;
-        settingsControl->x = -205;
-        settingsControl->enableScrolling = true;
-        settingsControl->setScrollLimits();
-    }
-
-    // link buttons
-    for (size_t i = 0; i < controlButtons.size(); i++) {
-        if (i > 0) {
-            controlButtons[i].button->buttonUp = controlButtons[i - 1].button;
-        }
-        if (i < controlButtons.size() - 1) {
-            controlButtons[i].button->buttonDown = controlButtons[i + 1].button;
-        }
-    }
-
-    Input::applyControls();
-    Render::renderMode = Render::BOTH_SCREENS;
-    isInitialized = true;
+                  if (controls.empty()) buildNoControls(b);
+                  else buildControls(b);
+              });
 }
 
-void ControlsMenu::render() {
-    Input::getInput();
-    settingsControl->input();
-
-    if (backButton->isPressed({"b"})) {
-        MenuManager::changeMenu(MenuManager::previousMenu);
+void ControlsMenu::buildNoControls(UI::Builder &b) {
+    b.text({.text = TranslationManager::getTranslation("ui.controls.none"), .color = {255, 255, 255, 255}});
+    button(b, "ui.settings.back", [&] {
+        MenuManager::changeMenu(MenuId::ProjectSettingsMenu);
+        MenuManager::canChangeTabs = true;
+        MenuManager::toUnload = MenuId::ControlsMenu;
         return;
-    }
-    if (applyButton->isPressed({"y"})) {
-        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        for (const auto &c : controlButtons) {
-            settings["controls"][c.control] = c.controlValue;
-        }
-        SettingsManager::saveProjectSettings(settings, projectPath);
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
+    });
+}
 
-    if (settingsControl->selectedObject->isPressed()) {
-
-        // wait till A isnt pressed
-        while (!Input::inputKeys.empty() && Render::appShouldRun()) {
-            Input::getInput();
+void ControlsMenu::callback(UI::Builder &b) {
+    if (!listeningControl.empty()) {
+        auto it = std::find(Input::inputKeys.begin(), Input::inputKeys.end(), "any");
+        if (it != Input::inputKeys.end()) {
+            Input::inputKeys.erase(it);
         }
 
-        while (Input::inputKeys.empty() && Render::appShouldRun()) {
-            Input::getInput();
-        }
         if (!Input::inputKeys.empty()) {
-
-            // remove "any" first
-            auto it = std::find(Input::inputKeys.begin(), Input::inputKeys.end(), "any");
-            if (it != Input::inputKeys.end()) {
-                Input::inputKeys.erase(it);
-            }
-
-            std::string key = Input::inputKeys.back();
+            std::string pressedKey = Input::inputKeys.back();
             for (const auto &pair : Input::inputControls) {
-                if (pair.second == key) {
-                    // Update the control value
-                    for (auto &newControl : controlButtons) {
-                        if (newControl.button == settingsControl->selectedObject) {
-                            newControl.controlValue = pair.first;
-                            Log::log("Updated control: " + newControl.control + " -> " + newControl.controlValue);
-                            break;
-                        }
-                    }
+                if (pair.second == pressedKey) {
+                    json["controls"][listeningControl] = pair.first;
                     break;
                 }
             }
-        } else {
-            Log::logWarning("No input detected for control assignment.");
+            listeningControl.clear();
+            b.dirty = true;
+            // wait till nothing is pressed;
+            while (!Input::inputKeys.empty() && Render::appShouldRun()) {
+                Input::getInput();
+            }
         }
     }
-
-    Render::beginFrame(0, 181, 165, 111);
-    Render::beginFrame(1, 181, 165, 111);
-
-    for (key &controlButton : controlButtons) {
-        if (controlButton.button == nullptr) continue;
-
-        // Update button text
-        controlButton.button->text->setText(
-            controlButton.control + " = " + controlButton.controlValue);
-
-        // Highlight selected
-        if (settingsControl->selectedObject == controlButton.button)
-            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
-        else
-            controlButton.button->text->setColor(Math::color(255, 255, 255, 255));
-    }
-
-    // Render UI elements
-    settingsControl->render();
-    backButton->render();
-    applyButton->render();
-
-    Render::endFrame();
 }
 
-void ControlsMenu::cleanup() {
-    if (backButton != nullptr) {
-        delete backButton;
-        backButton = nullptr;
-    }
-    if (settingsControl != nullptr) {
-        delete settingsControl;
-        settingsControl = nullptr;
-    }
-    if (applyButton != nullptr) {
-        delete applyButton;
-        applyButton = nullptr;
-    }
-    // Render::beginFrame(0, 181, 165, 111);
-    // Render::beginFrame(1, 181, 165, 111);
-    // Input::getInput();
-    // Render::endFrame();
-    isInitialized = false;
+void ControlsMenu::buildControls(UI::Builder &b) {
+    b.element({
+                  .flags = UI::Flag::ScrollY,
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childDirection = UI::ChildDir::UpDown,
+                  .childGap = 20,
+                  .align = UI::AlignMode::Left,
+              },
+              [&] {
+                  for (const std::string &control : controls) {
+                      std::string controllerControl;
+
+                      if (json.contains("controls") && json["controls"].contains(control)) {
+                          controllerControl = json["controls"][control].get<std::string>();
+                      } else {
+                          for (const auto &pair : Input::inputControls) {
+                              if (pair.second == control) {
+                                  controllerControl = pair.first;
+                                  break;
+                              }
+                          }
+                      }
+
+                      std::string label = (listeningControl == control)
+                                              ? (control + " -> ...")
+                                              : (control + " -> " + controllerControl);
+
+                      button(b, label, [this, control] {
+                          // wait till A isnt pressed
+                          while (!Input::inputKeys.empty() && Render::appShouldRun()) {
+                              Input::getInput();
+                          }
+                          listeningControl = control;
+                      });
+                  }
+
+                  button(b, "ui.controls.apply", [&] {
+                      listeningControl.clear();
+                      MenuManager::changeMenu(MenuId::ProjectSettingsMenu);
+                      MenuManager::canChangeTabs = true;
+                      MenuManager::toUnload = MenuId::ControlsMenu;
+                  });
+              });
 }

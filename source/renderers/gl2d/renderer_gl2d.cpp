@@ -5,6 +5,7 @@
 #ifdef ENABLE_AUDIO
 #include <maxmod9.h>
 #endif
+#include "menuManager.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
@@ -70,6 +71,9 @@ SpeechManager *Renderer_GL2D::getSpeechManager() {
 
 void Renderer_GL2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (hasFrameBegan) return;
+    if (screen == 1) lcdMainOnBottom();
+    else lcdMainOnTop();
+
     glBegin2D();
     int r5 = colorR >> 3;
     int g5 = colorG >> 3;
@@ -163,8 +167,7 @@ void Renderer_GL2D::renderSprites() {
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
     }
 
-    Render::renderMonitors();
-    Render::renderTouchControls();
+    MenuManager::render();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
 #ifdef ENABLE_AUDIO
@@ -181,6 +184,13 @@ void Renderer_GL2D::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t 
 
 void Renderer_GL2D::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+}
+
+// as far as i know, GL2D does not support scissoring.
+void Renderer_GL2D::setClip(int x, int y, int w, int h) {
+}
+
+void Renderer_GL2D::clearClip() {
 }
 
 bool Renderer_GL2D::appShouldRun() {

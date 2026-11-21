@@ -2,6 +2,7 @@
 #include "input.hpp"
 #include "os.hpp"
 #include "parser.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include "translation.hpp"
 #include <cstring>
@@ -12,7 +13,7 @@
 #include <image.hpp>
 #include <istream>
 #include <log.hpp>
-#include <menus/loading.hpp>
+#include <menuManager.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -107,7 +108,7 @@ std::string Unzip::resolveZipProjectPath(const std::string &baseNoExt, ProjectFo
 }
 
 int Unzip::openFile(std::istream *&file, ProjectFormat format) {
-    Log::log("Unzipping Scratch project...");
+    Log::log("Unzipping " + Unzip::filePath);
 
     // load Scratch project into memory
     Log::log("Loading SB3 into memory...");
@@ -157,15 +158,9 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
             file = nullptr;
         }
     }
-    // Main menu
-    Log::logWarning("No sb3 project, trying Main Menu.");
     Scratch::projectType = ProjectType::UNEMBEDDED;
-    if (filePath == "") {
-        Log::log("Activating main menu...");
-        return -1;
-    }
     // SD card Project
-    Log::logWarning("Main Menu already done, loading SD card project.");
+    Log::logWarning("No embedded SB3 project, loading SD card project.");
 
     if (format == ProjectFormat::SB1) {
         Log::log(".sb project in SD card");
@@ -238,52 +233,27 @@ bool Unzip::load() {
     SE_Thread projectThread;
     constexpr size_t loaderStackSize = 0x262144;
     if (projectThread.create(projectLoaderThread, nullptr, loaderStackSize, 0, -1, "ProjectLoader")) {
-        Loading loading;
-        loading.init();
-
+        MenuManager::changeMenu(MenuId::LoadingMenu);
         while (!Unzip::threadFinished) {
-            loading.render();
-#ifdef __XBOX__
-            SE_Thread::sleep(10);
-#endif
+            Render::beginFrame(1, 0, 0, 0);
+            MenuManager::render();
+            Render::endFrame();
         }
 
+        MenuManager::toUnload = MenuId::LoadingMenu;
         projectThread.join();
 
         if (Unzip::projectOpened != 1) {
-            loading.cleanup();
             return false;
         }
-
-#ifdef __XBOX__
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-        loading.render();
         loadInitialImages();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-        loading.render();
-#else
-        loadInitialImages();
-#endif
-        loading.cleanup();
-        return true;
     } else {
-        Loading loading;
-        loading.init();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.opening"));
-        loading.render();
-
         Unzip::openScratchProject(nullptr);
         if (Unzip::projectOpened != 1) {
-            loading.cleanup();
             return false;
         }
         Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.images"));
-        loading.render();
         loadInitialImages();
-        Unzip::setLoadingState(TranslationManager::getTranslation("ui.loading.finish"));
-        loading.render();
-        loading.cleanup();
-        return true;
     }
 
 #else
@@ -293,8 +263,15 @@ bool Unzip::load() {
         return false;
     }
     loadInitialImages();
-    return true;
 #endif
+
+#ifdef __3DS__
+    Render::beginFrame(0, 0, 0, 0);
+    Render::beginFrame(1, 0, 0, 0);
+    Render::endFrame(false);
+#endif
+    MenuManager::changeMenu(MenuId::Ingame);
+    return true;
 }
 
 void Unzip::openScratchProject(void *arg) {
@@ -368,7 +345,10 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
                                    const auto hasExtension = [&](const std::string &ext) {
                                        return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0;
                                    };
-                                   return !hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb");
+                                   const auto hasPrefix = [&](const std::string &pre) -> bool {
+                                       return file.size() >= pre.size() && file.compare(0, pre.size(), pre) == 0;
+                                   };
+                                   return hasPrefix("._") || (!hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb"));
                                }),
                                projectFiles.value().end());
 
@@ -498,8 +478,8 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         return nlohmann::json();
     }
 
-    if (json.contains("settings") && json["settings"].contains(settingName)) {
-        return json["settings"][settingName];
+    if (json.contains(settingName)) {
+        return json[settingName];
     }
 
     return nlohmann::json();

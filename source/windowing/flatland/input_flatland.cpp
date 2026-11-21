@@ -49,6 +49,10 @@ void InputDevice_Flatland::getInput() {
     BlockExecutor::executeKeyHats();
 
     auto [cursorX, cursorY] = backend.cursorPosition();
+
+    Input::mousePointer.rawX = static_cast<int>(cursorX);
+    Input::mousePointer.rawY = static_cast<int>(cursorY);
+
     Input::mousePointer.x = static_cast<int>(cursorX - Scratch::projectWidth * 0.5);
     Input::mousePointer.y = static_cast<int>(Scratch::projectHeight * 0.5 - cursorY);
 

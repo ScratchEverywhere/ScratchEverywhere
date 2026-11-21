@@ -92,6 +92,9 @@ class SE_EXPORT Renderer {
     virtual int getHeight() = 0;
     virtual float getPixelDensity() = 0;
 
+    virtual void setClip(int x, int y, int w, int h) = 0;
+    virtual void clearClip() = 0;
+
     virtual void renderSprites() = 0;
     virtual void renderPenLayer() = 0;
 
@@ -131,20 +134,9 @@ enum RenderModes {
 };
 
 extern RenderModes renderMode;
-extern std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
-
-struct ListMonitorRenderObjects {
-    std::unique_ptr<TextObject> name;
-    std::unique_ptr<TextObject> length;
-    std::vector<std::unique_ptr<TextObject>> items;
-    std::vector<std::unique_ptr<TextObject>> indices;
-    std::unique_ptr<TextObject> copyLabel;
-};
-extern std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
-
 extern std::unordered_map<std::string, Monitor> monitors;
 
-const std::vector<RendererInfo> getAvailableRenderers();
+const std::vector<std::string> getAvailableRenderers();
 Renderer *getGlobalRenderer();
 
 // --- global renderer functions
@@ -200,12 +192,6 @@ std::string getListValueString(Value value);
 ColorRGBA getMonitorValueColor(const std::string &opcode);
 
 /**
- * Renders all visible variable and list monitors
- */
-void renderMonitors(const int &offsetX = 0, const int &offsetY = 0);
-bool isPointOverMonitor(int screenX, int screenY);
-
-/**
  * Renders touch-only on-screen controls over the game frame.
  */
 void renderTouchControls();
@@ -220,11 +206,6 @@ void deInit();
 
 void setRenderTarget(void *renderTarget, int width, int height);
 void clearRenderTarget();
-
-/**
- * [SDL] returns the current renderer.
- */
-// void *getRenderer();
 
 /**
  * Creates a global speech manager instance.
@@ -285,6 +266,9 @@ void renderPenLayer();
  */
 void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
 void drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
+
+void setClip(int x, int y, int w, int h);
+void clearClip();
 
 /**
  * Returns whether or not the app should be running.

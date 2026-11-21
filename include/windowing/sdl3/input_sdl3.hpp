@@ -1,6 +1,10 @@
 #include <renderer.hpp>
 #include <se_export.hpp>
 
+#if defined(__PSP__)
+#define SDL3_NO_TEXT_INPUT
+#endif
+
 class SE_EXPORT InputDevice_SDL3 : public InputDevice {
   public:
     InputDevice_SDL3();
@@ -14,7 +18,9 @@ class SE_EXPORT InputDevice_SDL3 : public InputDevice {
 
     void getInput() override;
 
-    std::string openSoftwareKeyboard(const char *hintText) override;
-
     void setClipboardText(const std::string &text) override;
+
+    void startTextInput(const std::string &hintText = "", bool numberKeyboard = false) override;
+    bool isTextInputActive() override;
+    void endTextInput() override;
 };

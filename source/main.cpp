@@ -1,3 +1,4 @@
+#include "menuManager.hpp"
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
@@ -20,11 +21,10 @@
 #include <discord.hpp>
 #include <log.hpp>
 #ifdef ENABLE_MENU
-#include <menus/mainMenu.hpp>
+#include <mainMenu.hpp>
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <renderer.hpp>
 #ifdef RENDERER_FLATLAND
 #include <flatland_backend.hpp>
@@ -66,16 +66,21 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+    if (!MenuManager::initMainMenu()) return false;
     Discord::setInMenu();
-    MainMenu *menu = new MainMenu();
-    MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {
+        // TODO: move these somewhere else?
+        Input::getInput();
+#ifdef __3DS__
+        Render::beginFrame(0, 68, 44, 66);
+#endif
+        Render::beginFrame(1, 68, 44, 66);
         MenuManager::render();
+        Render::endFrame(false);
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) return false;
-            MenuManager::isProjectLoaded = 0;
+        if (MenuManager::isProjectLoaded) {
+            MenuManager::isProjectLoaded = false;
             return true;
         }
 
@@ -343,6 +348,8 @@ int main(int argc, char **argv) {
     }
 #endif
 
+// load RomFS project (only if no main menu because otherwise some platforms get weird)
+#if defined(__EMSCRIPTEN__) || !defined(ENABLE_MENU)
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
@@ -373,6 +380,12 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
+#else // load main menu
+    if (!activateMainMenu()) {
+        exitApp();
+        return 0;
+    }
+#endif
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);

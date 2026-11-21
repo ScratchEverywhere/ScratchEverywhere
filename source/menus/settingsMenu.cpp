@@ -1,482 +1,280 @@
 #include "settingsMenu.hpp"
-#include "audio.hpp"
 #include "discord.hpp"
-#include "hasdeps.hpp"
-#include "languageMenu.hpp"
-#include "menuObjects.hpp"
+#include "menuManager.hpp"
+#include "os.hpp"
 #include "renderer.hpp"
-#include "settings.hpp"
-#include "translation.hpp"
-#include "window.hpp"
-#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || (defined(__FreeBSD__) && !defined(__PS4__)) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
-#ifndef SE_NO_LIBDLGMOD
-#include <libdlgmod/libdlgmod.h>
-#endif
-#if defined(_WIN32) || defined(_WIN64)
-#include <algorithm>
-#endif
-#if !defined(USE_LIBDLGMOD) && !defined(SE_NO_LIBDLGMOD)
-#define USE_LIBDLGMOD
-#endif
-#endif
 #include <filesystem.hpp>
 #include <log.hpp>
+#include <settings.hpp>
+#include <translation.hpp>
 
-SettingsMenu::SettingsMenu() {
-    init();
+bool SettingsMenu::isToggled(const std::string &jsonKey) {
+    return (json.contains(jsonKey) && json[jsonKey].is_boolean() && json[jsonKey].get<bool>());
 }
 
-SettingsMenu::~SettingsMenu() {
-    cleanup();
+void SettingsMenu::toggle(UI::Builder &b, const std::string &jsonKey, const std::string &name, bool defaultValue, std::function<void(bool)> onChange) {
+
+    bool toggled = defaultValue;
+    if (json.contains(jsonKey) && json[jsonKey].is_boolean()) {
+        toggled = json[jsonKey].get<bool>();
+    }
+
+    const UI::Color color = toggled ? UI::Color{255, 151, 46, 255} : UI::Color{67, 57, 34, 255};
+
+    b.element({.flags = UI::Flag::Focusable,
+               .w = UI::Size::fit(),
+               .h = UI::Size::fit(),
+               .childDirection = UI::ChildDir::LeftRight,
+               .childGap = 5,
+               .padding = UI::Padding::axis(5, 0),
+               .style = UI::StyleId::TransparentButton,
+               .onClick = [jsonKey, toggled, onChange, &b, this] {
+                   bool newState = !toggled;
+                   this->json[jsonKey] = newState;
+                   if (onChange) {
+                       onChange(newState);
+                   }
+                   b.dirty = true;
+               }},
+              [&] {
+                  b.element({
+                      .w = UI::Size::fixed(32),
+                      .h = UI::Size::fixed(32),
+                      .color = color,
+                  });
+                  b.text({.text = TranslationManager::getTranslation(name),
+                          .color = {255, 255, 255, 255},
+                          .align = UI::AlignMode::Left});
+              });
 }
 
-std::string SettingsMenu::getDectalkString() {
-    return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
+void SettingsMenu::button(UI::Builder &b, const std::string &name, std::function<void()> onClick) {
+
+    b.element({.flags = UI::Flag::Focusable,
+               .w = UI::Size::fit(),
+               .h = UI::Size::fit(),
+               .childDirection = UI::ChildDir::LeftRight,
+               .childGap = 5,
+               .padding = UI::Padding::all(8),
+               .style = UI::StyleId::Button,
+               .onClick = [&b, onClick] {
+                   if (onClick) {
+                       onClick();
+                   }
+                   b.dirty = true;
+               }},
+              [&] {
+                  b.text({.text = TranslationManager::getTranslation(name),
+                          .color = {255, 255, 255, 255},
+                          .align = UI::AlignMode::Center});
+              });
 }
 
-#ifdef ENABLE_DISCORD_RPC
-std::string SettingsMenu::getDiscordString() {
-    return TranslationManager::getTranslation("ui.settings.discord") + ": " + TranslationManager::getTranslation(UseDiscord ? "ui.settings.on" : "ui.settings.off");
-}
-#endif
+// not really a dropdown beacuse LAAAAAZZZYYY
+void SettingsMenu::dropdown(UI::Builder &b, const std::string &jsonKey, const std::string &name, const std::vector<std::string> &options, const std::string &fallback) {
+    if (options.size() < 2) return;
 
-void SettingsMenu::init() {
-    settingsControl = new ControlObject();
+    std::string current = fallback;
+    if (json.contains(jsonKey) && json[jsonKey].is_string())
+        current = json[jsonKey].get<std::string>();
 
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    backButton->scale = 1.0;
-    backButton->needsToBeSelected = false;
-    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/genericButton.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-    // Credits->text->setColor(Math::color(255, 255, 255, 255));
-    // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/genericButton.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
-    EnableUsername->text->setColor(Math::color(255, 255, 255, 255));
-    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/genericButton.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
-    ChangeUsername->text->setColor(Math::color(255, 255, 255, 255));
+    size_t index = 0;
+    const auto it = std::find(options.begin(), options.end(), current);
+    if (it != options.end()) index = it - options.begin();
+    else current = options[0];
 
-    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/upperButton.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
-    EnableCustomFolderPath->text->setColor(Math::color(255, 255, 255, 255));
-    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/lowerButton.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
-    ChangeFolderPath->text->setColor(Math::color(255, 255, 255, 255));
+    const std::string next = options[(index + 1) % options.size()];
 
-    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/genericButton.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
-    EnableMenuMusic->text->setColor(Math::color(255, 255, 255, 255));
+    b.element({.flags = UI::Flag::Focusable,
 
-    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/genericButton.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
-    ClearCache->text->setColor(Math::color(255, 255, 255, 255));
+               .childDirection = UI::ChildDir::LeftRight,
+               .childGap = 10,
+               .padding = UI::Padding::axis(5, 0),
+               .style = UI::StyleId::TransparentButton,
+               .onClick = [this, &b, jsonKey, next] {
+                   json[jsonKey] = next;
+                   b.dirty = true;
+               }},
+              [&] {
+                  b.text({.text = TranslationManager::getTranslation(name),
+                          .color = {255, 255, 255, 255},
+                          .align = UI::AlignMode::Left});
+                  b.element({
+                                .w = UI::Size::fit(),
+                                .h = UI::Size::fit(),
+                                .padding = UI::Padding::all(5),
+                                .style = UI::StyleId::Button,
+                            },
+                            [&] {
+                                b.text({
+                                    .text = current,
+                                    .fontId = 1,
+                                    .color = {255, 255, 255, 255},
+                                    .align = UI::AlignMode::Center,
+                                });
+                            });
+                  b.text({
+                      .text = std::to_string(index + 1) + " / " + std::to_string(options.size()),
+                      .fontId = 1,
+                      .scale = 0.95,
+                      .color = {255, 255, 255, 255},
 
-    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/genericButton.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
-    Language->text->setColor(Math::color(255, 255, 255, 255));
-    Language->textScale = 1.0;
-
-#ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/genericButton.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(255, 255, 255, 255));
-#endif
-
-    RendererButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.renderer"), "gfx/menu/upperButton.svg", 200, 420, "gfx/menu/Ubuntu-Bold", true);
-    RendererButton->text->setColor(Math::color(255, 255, 255, 255));
-    RendererButton->textScale = 1.0;
-    validRenderers = Render::getAvailableRenderers();
-
-    WindowingButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.windowing"), "gfx/menu/midButton.svg", 200, 470, "gfx/menu/Ubuntu-Bold", true);
-    WindowingButton->text->setColor(Math::color(255, 255, 255, 255));
-    WindowingButton->textScale = 1.0;
-    validWindowingBackends = WindowSE::getAvailableWindowingBackends();
-
-    AudioEngineButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.audioEngine"), "gfx/menu/lowerButton.svg", 200, 520, "gfx/menu/Ubuntu-Bold", true);
-    AudioEngineButton->text->setColor(Math::color(255, 255, 255, 255));
-    AudioEngineButton->textScale = 1.0;
-    validAudioBackends = SoundPlayer::getAvailableAudioBackends();
-
-#ifdef ENABLE_DISCORD_RPC
-    discordButton = new ButtonObject(getDiscordString(), "gfx/menu/genericButton.svg", 200, 570, "gfx/menu/Ubuntu-Bold", true);
-    discordButton->text->setColor(Math::color(255, 255, 255, 255));
-    discordButton->textScale = 1.0;
-#endif
-
-    // initial selected object
-    settingsControl->selectedObject = EnableUsername;
-    EnableUsername->isSelected = true;
-
-    UseCostumeUsername = false;
-    username = "Player";
-
-    nlohmann::json json = SettingsManager::getConfigSettings();
-
-    if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
-        UseDectalk = json["UseDectalk"].get<bool>();
-    }
-
-    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
-        UseCostumeUsername = json["EnableUsername"].get<bool>();
-    }
-    if (json.contains("Username") && json["Username"].is_string()) {
-        if (json["Username"].get<std::string>().length() <= 9) {
-            bool hasNonSpace = false;
-            for (char c : json["Username"].get<std::string>()) {
-                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                    hasNonSpace = true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    break;
-                }
-            }
-            if (hasNonSpace) username = json["Username"].get<std::string>();
-            else username = "Player";
-        }
-    }
-    if (json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean()) {
-        UseProjectsPath = json["UseProjectsPath"].get<bool>();
-    }
-    if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string()) {
-        projectsPath = json["ProjectsPath"].get<std::string>();
-    }
-    if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
-        menuMusic = json["MenuMusic"].get<bool>();
-    }
-#ifdef ENABLE_DISCORD_RPC
-    UseDiscord = Discord::isEnabled();
-#endif
-
-    auto getBackendOption = [](std::string_view currentName, const auto &validOptions, auto &outIdx, std::string &outOption) {
-        auto it = std::find_if(validOptions.begin(), validOptions.end(),
-                               [currentName](const auto &info) { return info.name == currentName; });
-
-        if (it != validOptions.end()) {
-            outIdx = std::distance(validOptions.begin(), it);
-            outOption = std::string(currentName);
-        } else {
-            outIdx = 0;
-            outOption = std::string(validOptions.front().name);
-        }
-    };
-    getBackendOption(RendererNames[static_cast<uint8_t>(Render::currentRenderer)],
-                     validRenderers, rendererIdx, rendererOption);
-    getBackendOption(WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)],
-                     validWindowingBackends, windowingIdx, windowingOption);
-    getBackendOption(AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)],
-                     validAudioBackends, audioIdx, audioOption);
-
-    updateButtonStates();
-
-    // settingsControl->buttonObjects.push_back(Credits);
-    settingsControl->buttonObjects.push_back(EnableMenuMusic);
-    settingsControl->buttonObjects.push_back(ChangeFolderPath);
-    settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
-    settingsControl->buttonObjects.push_back(ChangeUsername);
-    settingsControl->buttonObjects.push_back(EnableUsername);
-    settingsControl->buttonObjects.push_back(ClearCache);
-    settingsControl->buttonObjects.push_back(Language);
-    settingsControl->buttonObjects.push_back(RendererButton);
-    settingsControl->buttonObjects.push_back(WindowingButton);
-    settingsControl->buttonObjects.push_back(AudioEngineButton);
-#ifdef ENABLE_DECTALK
-    settingsControl->buttonObjects.push_back(dectalkButton);
-#endif
-#ifdef ENABLE_DISCORD_RPC
-    settingsControl->buttonObjects.push_back(discordButton);
-#endif
-
-    settingsControl->enableScrolling = true;
-    settingsControl->setScrollLimits();
-
-    isInitialized = true;
+                  });
+              });
 }
 
-void SettingsMenu::updateButtonStates() {
-    ChangeUsername->buttonUp = EnableUsername;
-    ChangeUsername->buttonDown = EnableCustomFolderPath;
-    ChangeFolderPath->buttonUp = EnableCustomFolderPath;
-    ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = WindowingButton;
-    EnableMenuMusic->buttonDown = ClearCache;
-    ClearCache->buttonUp = EnableMenuMusic;
-    ClearCache->buttonDown = Language;
-    Language->buttonUp = ClearCache;
-    Language->buttonDown = RendererButton;
-    RendererButton->buttonUp = Language;
-    RendererButton->buttonDown = WindowingButton;
-    WindowingButton->buttonUp = RendererButton;
-    WindowingButton->buttonDown = AudioEngineButton;
-    AudioEngineButton->buttonUp = WindowingButton;
-
-#ifdef ENABLE_DECTALK
-    Language->buttonDown = dectalkButton;
-    dectalkButton->buttonUp = Language;
-    dectalkButton->buttonDown = RendererButton;
-    RendererButton->buttonUp = dectalkButton;
-#endif
-#ifdef ENABLE_DISCORD_RPC
-    AudioEngineButton->buttonDown = discordButton;
-    discordButton->buttonUp = AudioEngineButton;
-    discordButton->buttonDown = EnableUsername;
-    EnableUsername->buttonUp = discordButton;
-    discordButton->text->setText(getDiscordString());
-#else
-    AudioEngineButton->buttonDown = EnableUsername;
-#endif
-
-    ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
-    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
-    ChangeFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.changePath"));
-
-    if (UseCostumeUsername) {
-        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
-        ChangeUsername->text->setText(TranslationManager::getTranslation("ui.settings.name") + ": " + username);
-        ChangeUsername->canBeClicked = true;
-        ChangeUsername->hidden = false;
-
-        EnableUsername->buttonDown = ChangeUsername;
-        EnableCustomFolderPath->buttonUp = ChangeUsername;
-    } else {
-        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
-        ChangeUsername->canBeClicked = false;
-        ChangeUsername->hidden = true;
-
-        EnableUsername->buttonDown = EnableCustomFolderPath;
-        EnableCustomFolderPath->buttonUp = EnableUsername;
-    }
-
-    if (UseProjectsPath) {
-        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
-        ChangeFolderPath->canBeClicked = true;
-        ChangeFolderPath->hidden = false;
-
-        EnableCustomFolderPath->buttonDown = ChangeFolderPath;
-        EnableMenuMusic->buttonUp = ChangeFolderPath;
-    } else {
-        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.off"));
-        ChangeFolderPath->canBeClicked = false;
-        ChangeFolderPath->hidden = true;
-
-        EnableCustomFolderPath->buttonDown = EnableMenuMusic;
-        EnableMenuMusic->buttonUp = EnableCustomFolderPath;
-    }
-
-    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
-
-#ifdef ENABLE_DECTALK
-    dectalkButton->text->setText(getDectalkString());
-#endif
-
-    RendererButton->text->setText(TranslationManager::getTranslation("ui.settings.renderer") + ": " + std::string(RendererNames[validRenderers[rendererIdx].id]));
-    WindowingButton->text->setText(TranslationManager::getTranslation("ui.settings.windowing") + ": " + std::string(WindowingBackendNames[validWindowingBackends[windowingIdx].id]));
-    AudioEngineButton->text->setText(TranslationManager::getTranslation("ui.settings.audioEngine") + ": " + std::string(AudioBackendNames[validAudioBackends[audioIdx].id]));
+void SettingsMenu::section(UI::Builder &b, const std::string &name) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::fit(),
+                  .childDirection = UI::ChildDir::UpDown,
+                  .childGap = 5,
+              },
+              [&] {
+                  b.text({.text = name, .scale = 1.15, .color = {255, 255, 255, 255}});
+                  b.element({
+                      .w = UI::Size::grow(),
+                      .h = UI::Size::fixed(2),
+                      .color = {255, 255, 255, 255},
+                  });
+              });
 }
 
-void SettingsMenu::render() {
-    Input::getInput();
-    settingsControl->input();
-    if (backButton->isPressed({"b", "y"})) {
-        MainMenu *mainMenu = new MainMenu();
-        MenuManager::changeMenu(mainMenu);
-        return;
-    }
+GlobalSettingsMenu::GlobalSettingsMenu() {
+    json = SettingsManager::getConfigSettings();
+    rendererList = Render::getAvailableRenderers();
+    windowingList = WindowSE::getAvailableWindowingBackends();
+    audioEngineList = SoundPlayer::getAvailableAudioBackends();
+}
 
-    Render::beginFrame(0, 88, 58, 88);
-    Render::beginFrame(1, 88, 58, 88);
+GlobalSettingsMenu::~GlobalSettingsMenu() {
+    SettingsManager::saveConfigSettings(json);
+}
 
-    if (ClearCache->isPressed({"a"})) {
-        const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
-        if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
-    }
-
-    if (EnableMenuMusic->isPressed({"a"})) {
-        menuMusic = !menuMusic;
-        updateButtonStates();
-    }
-
-    if (EnableUsername->isPressed({"a"})) {
-        UseCostumeUsername = !UseCostumeUsername;
-        updateButtonStates();
-    }
-
-    if (EnableCustomFolderPath->isPressed({"a"}) && OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
-        UseProjectsPath = !UseProjectsPath;
-        updateButtonStates();
-
-        OS::customProjectsPath = nullptr;
-        OS::loadedSettings = false;
-    }
-
-    if (ChangeUsername->isPressed({"a"})) {
-        std::string newUsername = Input::openSoftwareKeyboard(username.c_str());
-        // You could also use regex here, Idk what would be more sensible
-        // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
-        if (newUsername.length() <= 9) {
-            bool hasNonSpace = false;
-            for (char c : newUsername) {
-                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                    hasNonSpace = true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    break;
-                }
-            }
-            if (hasNonSpace) username = newUsername;
-
-            updateButtonStates();
-        }
-    }
-
-    if (ChangeFolderPath->isPressed({"a"})) {
+void GlobalSettingsMenu::changeProjectPath() {
+    std::string projectsPath = json.contains("ProjectsPath") && json["ProjectsPath"].is_string() ? json["ProjectsPath"].get<std::string>() : OS::getScratchFolderLocation();
 
 #if defined(USE_LIBDLGMOD)
-
-        // FIXME: Translate this into every localization supported by SE!
-        const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+    // FIXME: Translate this into every localization supported by SE!
+    const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
-        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+    std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 
 #if defined(_WIN32) || defined(_WIN64)
-        std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
+    std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
 #endif
 
-        const std::string newPath = ((newPathGui.empty()) ? ((!hasdeps()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : projectsPath) : newPathGui);
+    const std::string newPath = ((newPathGui.empty()) ? ((!hasdeps()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : projectsPath) : newPathGui);
 
 #endif
 
 #else
 
-        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+    const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
 
 #endif
 
-        if (newPath.length() > 0) {
-            projectsPath = newPath;
-            updateButtonStates();
-        }
-
-        OS::customProjectsPath = nullptr;
-        OS::loadedSettings = false;
+    if (newPath.length() > 0) {
+        projectsPath = newPath;
     }
 
-    if (Language->isPressed({"a"})) {
-        LanguageMenu *langMenu = new LanguageMenu();
-        MenuManager::changeMenu(langMenu);
-        return;
-    }
+    json["ProjectsPath"] = projectsPath;
 
-#ifdef ENABLE_DECTALK
-    if (dectalkButton->isPressed({"a"})) {
-        UseDectalk = !UseDectalk;
-        dectalkButton->text->setText(getDectalkString());
-        return;
-    }
-#endif
-
-#ifdef ENABLE_DISCORD_RPC
-    if (discordButton->isPressed({"a"})) {
-        UseDiscord = !UseDiscord;
-        Discord::setEnabled(UseDiscord);
-        updateButtonStates();
-        return;
-    }
-#endif
-
-    if (RendererButton->isPressed({"a"})) {
-        rendererIdx = (rendererIdx + 1) % validRenderers.size();
-        rendererOption = validRenderers[rendererIdx].name;
-        updateButtonStates();
-    }
-
-    if (WindowingButton->isPressed({"a"})) {
-        windowingIdx = (windowingIdx + 1) % validWindowingBackends.size();
-        windowingOption = validWindowingBackends[windowingIdx].name;
-        updateButtonStates();
-    }
-
-    if (AudioEngineButton->isPressed({"a"})) {
-        audioIdx = (audioIdx + 1) % validAudioBackends.size();
-        audioOption = validAudioBackends[audioIdx].name;
-        updateButtonStates();
-    }
-
-    backButton->render();
-    settingsControl->render();
-    Render::endFrame();
+    // uhhh what do these do? are these even needed in new UI? err
+    OS::customProjectsPath = nullptr;
+    OS::loadedSettings = false;
 }
 
-void SettingsMenu::cleanup() {
-    if (backButton != nullptr) {
-        delete backButton;
-        backButton = nullptr;
-    }
-    if (Credits != nullptr) {
-        delete Credits;
-        Credits = nullptr;
-    }
-    if (EnableUsername != nullptr) {
-        delete EnableUsername;
-        EnableUsername = nullptr;
-    }
-    if (ChangeUsername != nullptr) {
-        delete ChangeUsername;
-        ChangeUsername = nullptr;
-    }
-    if (EnableCustomFolderPath != nullptr) {
-        delete EnableCustomFolderPath;
-        EnableCustomFolderPath = nullptr;
-    }
-    if (ChangeFolderPath != nullptr) {
-        delete ChangeFolderPath;
-        ChangeFolderPath = nullptr;
-    }
-    if (EnableMenuMusic != nullptr) {
-        delete EnableMenuMusic;
-        EnableMenuMusic = nullptr;
-    }
-    if (ClearCache != nullptr) {
-        delete ClearCache;
-        ClearCache = nullptr;
-    }
-    if (Language != nullptr) {
-        delete Language;
-        Language = nullptr;
-    }
-    if (settingsControl != nullptr) {
-        delete settingsControl;
-        settingsControl = nullptr;
-    }
-    if (dectalkButton != nullptr) {
-        delete dectalkButton;
-        dectalkButton = nullptr;
-    }
-    if (discordButton != nullptr) {
-        delete discordButton;
-        discordButton = nullptr;
-    }
-    if (RendererButton != nullptr) {
-        delete RendererButton;
-        RendererButton = nullptr;
-    }
-    if (WindowingButton != nullptr) {
-        delete WindowingButton;
-        WindowingButton = nullptr;
-    }
-    if (AudioEngineButton != nullptr) {
-        delete AudioEngineButton;
-        AudioEngineButton = nullptr;
-    }
+void GlobalSettingsMenu::build(UI::Builder &b) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
+                  .align = UI::AlignMode::Center,
+              },
+              [&] {
+                  b.text({.text = TranslationManager::getTranslation("ui.menu.settings"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
-    // save settings
-    nlohmann::json json = SettingsManager::getConfigSettings();
-    json["EnableUsername"] = UseCostumeUsername;
-    json["Username"] = username;
-    json["UseProjectsPath"] = UseProjectsPath;
-    json["ProjectsPath"] = projectsPath;
-    json["MenuMusic"] = menuMusic;
-    json["Language"] = TranslationManager::getLoadedLanguage().key;
-    json["UseDectalk"] = UseDectalk;
-#ifdef ENABLE_DISCORD_RPC
-    json["DiscordPresence"] = UseDiscord;
+                  b.element({
+                                .flags = UI::Flag::ScrollY,
+                                .w = UI::Size::grow(),
+                                .h = UI::Size::grow(),
+                                .childDirection = UI::ChildDir::UpDown,
+                                .childGap = 20,
+                                .align = UI::AlignMode::Left,
+                            },
+                            [&] {
+                                section(b, "Menu");
+
+                                button(b, "ui.settings.language", [&] {
+                                    MenuManager::changeMenu(MenuId::LanguageMenu);
+                                    return;
+                                });
+
+                                toggle(b, "MenuMusic", "ui.settings.music", true, [](bool enabled) {
+                                    if (enabled) MenuManager::initMenuMusic();
+                                    else MenuManager::deinitMenuMusic();
+                                });
+
+                                if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
+                                    toggle(b, "UseProjectsPath", "ui.settings.path", false);
+                                    if (isToggled("UseProjectsPath")) {
+                                        button(b, "ui.settings.changePath", [&] {
+                                            changeProjectPath();
+                                        });
+                                    }
+                                }
+
+                                button(b, "ui.settings.cache", [&] {
+                                    const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+                                    const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+                                    if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
+                                });
+
+                                section(b, "Project");
+
+                                toggle(b, "EnableUsername", "ui.settings.username", false);
+                                if (isToggled("EnableUsername")) {
+                                    button(b, "ui.settings.name", [&] {
+                                        std::string username = json.contains("Username") && json["Username"].is_string() ? json["Username"].get<std::string>() : "";
+                                        std::string newUsername = Input::openSoftwareKeyboard(username.c_str());
+                                        // You could also use regex here, Idk what would be more sensible
+                                        // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
+                                        if (newUsername.length() <= 9) {
+                                            bool hasNonSpace = false;
+                                            for (char c : newUsername) {
+                                                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                                                    hasNonSpace = true;
+                                                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                                                    break;
+                                                }
+                                            }
+                                            if (hasNonSpace) username = newUsername;
+                                        }
+                                        json["Username"] = username;
+                                    });
+                                }
+#ifdef ENABLE_DECTALK
+                                toggle(b, "UseDectalk", "ui.settings.dectalk", false);
 #endif
-    json["Renderer"] = rendererOption;
-    json["Windowing"] = windowingOption;
-    json["AudioEngine"] = audioOption;
-    SettingsManager::saveConfigSettings(json);
 
-    isInitialized = false;
+                                if (rendererList.size() >= 2 || windowingList.size() >= 2 || audioEngineList.size() >= 2) {
+                                    section(b, "Advanced");
+
+                                    dropdown(b, "Renderer", "ui.settings.renderer", rendererList, RendererNames[static_cast<uint8_t>(Render::currentRenderer)]);
+                                    dropdown(b, "Windowing", "ui.settings.windowing", windowingList, WindowingBackendNames[static_cast<uint8_t>(WindowSE::currentWindowingBackend)]);
+                                    dropdown(b, "AudioEngine", "ui.settings.audioEngine", audioEngineList, AudioBackendNames[static_cast<uint8_t>(SoundPlayer::currentSoundBackend)]);
+                                }
+#ifdef ENABLE_DISCORD_RPC
+                                section(b, "Other");
+
+                                toggle(b, "DiscordPresence", "ui.settings.discord", true, [](bool newState) {
+                                    Discord::setEnabled(newState);
+                                });
+#endif
+                            });
+              });
 }

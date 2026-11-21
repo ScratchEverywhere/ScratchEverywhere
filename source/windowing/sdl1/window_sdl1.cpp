@@ -92,6 +92,7 @@ bool WindowSDL1::shouldClose() {
 }
 
 void WindowSDL1::pollEvents() {
+    Input::mouseScrollDelta = 0;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -106,6 +107,25 @@ void WindowSDL1::pollEvents() {
         case SDL_MOUSEBUTTONDOWN:
             if (event.button.button == SDL_BUTTON_WHEELUP) Input::mouseScrollDelta += 1;
             else if (event.button.button == SDL_BUTTON_WHEELDOWN) Input::mouseScrollDelta -= 1;
+            break;
+#endif
+#ifdef PLATFORM_HAS_KEYBOARD
+        case SDL_KEYDOWN:
+            if (!Input::isTextInputActive()) break;
+            switch (event.key.keysym.sym) {
+            case SDLK_RETURN:
+            case SDLK_KP_ENTER:
+            case SDLK_ESCAPE:
+                Input::endTextInput();
+                break;
+            case SDLK_BACKSPACE:
+                if (!Input::inputText.empty()) Input::inputText.pop_back();
+                break;
+            default: {
+                const Uint16 ch = event.key.keysym.unicode;
+                if (ch >= 32 && ch < 127) Input::inputText += static_cast<char>(ch);
+            } break;
+            }
             break;
 #endif
         }

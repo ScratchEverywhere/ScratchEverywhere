@@ -1,37 +1,17 @@
 #pragma once
-#include "mainMenu.hpp"
-#include <se_export.hpp>
+#include "menuManager.hpp"
 
 class SE_EXPORT ProjectMenu : public Menu {
-  public:
-    bool hasProjects = false;
-#ifdef __XBOX__
-    bool awaitingConfirmRelease = true;
-    bool pendingProjectLoad = false;
-#endif
-    bool shouldGoBack = false;
-
-    std::string initProjectName;
+  private:
     std::vector<std::string> projectFiles;
-    std::vector<std::string> UnzippedFiles;
+    uint8_t page = 0;
+    uint8_t maxPages = 0;
+    static constexpr int projectsPerPage = 90;
 
-    std::vector<ButtonObject *> projects;
-
-    ControlObject *projectControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *noProjectsButton = nullptr;
-    std::unique_ptr<TextObject> noProjectInfo = nullptr;
-    std::unique_ptr<TextObject> noProjectsText = nullptr;
-
-    nlohmann::json settings;
-
-    /**
-     * @param selectedProjectName if specified, the selected object will be the project name on startup.
-     */
-    ProjectMenu(const std::string &selectedProjectName = "");
-    ~ProjectMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+  public:
+    ProjectMenu();
+    ~ProjectMenu() override;
+    void build(UI::Builder &b) override;
+    void buildProjects(UI::Builder &b);
+    void noProjects(UI::Builder &b);
 };

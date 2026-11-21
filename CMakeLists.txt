@@ -409,12 +409,12 @@ else()
     endif()
 endif()
 
-if(NOT SE_SVG)
-    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
-endif()
-
-if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
-    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
+if(NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox"))
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)(-small)?\\.ttf$")
+elseif(NINTENDO_DS)
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSans.*")
+else()
+    list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)-small\\.ttf$")
 endif()
 
 foreach(file IN LISTS GFXFILES)
@@ -428,14 +428,23 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")) AND (SE_MENU OR NINTENDO_DS OR XBOX OR (SE_PLATFORM STREQUAL "xbox")))
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+if(SE_MENU AND (NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR XBOX OR (SE_PLATFORM STREQUAL "xbox")))
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Bold-small.ttf"
+        "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Bold.ttf"
+        COPYONLY
+    )
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Regular-small.ttf"
+        "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Regular.ttf"
+        COPYONLY
+    )
 endif()
 
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/jit/ir" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} ${SE_EXTRA_SOURCE_DIRS})
+set(SOURCES "source" "source/runtime"  "source/ui" "source/menus" "source/runtime/executor" "source/runtime/blocks" "source/runtime/parser" "source/runtime/jit" "source/runtime/jit/ir" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} ${SE_EXTRA_SOURCE_DIRS})
 
 if(SE_JIT_SUPPORTED)
     list(APPEND SOURCES "source/runtime/jit/backends/${SE_JIT_BACKEND}")
@@ -473,10 +482,6 @@ endif()
 
 if(SE_CUSTOM_EXTENSIONS)
     list(APPEND SOURCES "source/runtime/extensions")
-endif()
-
-if(SE_MENU)
-    list(APPEND SOURCES "source/menus")
 endif()
 
 set(ABSOLUTE_SOURCES "")

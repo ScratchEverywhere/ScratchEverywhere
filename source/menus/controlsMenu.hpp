@@ -1,27 +1,20 @@
 #pragma once
-#include "mainMenu.hpp"
-#include <se_export.hpp>
+#include "menuManager.hpp"
+#include "settingsMenu.hpp"
 
-class SE_EXPORT ControlsMenu : public Menu {
+class SE_EXPORT ControlsMenu : public SettingsMenu {
+  private:
+    std::vector<std::string> controls;
+    nlohmann::json &json;
+    std::string listeningControl;
+
   public:
-    ButtonObject *backButton = nullptr;
-    ButtonObject *applyButton = nullptr;
+    ControlsMenu(const std::string &projectPath, nlohmann::json &json);
+    ~ControlsMenu() override;
 
-    class key {
-      public:
-        ButtonObject *button;
-        std::string control;
-        std::string controlValue;
-    };
+    void buildNoControls(UI::Builder &b);
+    void buildControls(UI::Builder &b);
 
-    std::vector<key> controlButtons;
-    ControlObject *settingsControl = nullptr;
-    std::string projectPath;
-    bool shouldGoBack = false;
-    ControlsMenu(std::string projPath);
-    ~ControlsMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    void build(UI::Builder &b) override;
+    void callback(UI::Builder &b) override;
 };

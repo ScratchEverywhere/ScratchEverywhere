@@ -1,124 +1,10 @@
 #include "mainMenu.hpp"
-#include "projectMenu.hpp"
-#include "renderer.hpp"
-#include "settings.hpp"
-#include "settingsMenu.hpp"
-#include "unpackMenu.hpp"
-#include <audio.hpp>
-#include <audiostack.hpp>
-#include <cctype>
-#include <cmath>
-#include <font_atlas.hpp>
-#include <image.hpp>
-#include <log.hpp>
-#include <parser.hpp>
+#include "menuManager.hpp"
+#include "types.hpp"
 #include <translation.hpp>
-
-#include <nlohmann/json.hpp>
-
 #include <version_config.h>
 
-Menu::~Menu() = default;
-
-Menu *MenuManager::currentMenu = nullptr;
-Menu *MenuManager::previousMenu = nullptr;
-int MenuManager::isProjectLoaded = 0;
-
-void MenuManager::changeMenu(Menu *menu) {
-    if (currentMenu != nullptr)
-        currentMenu->cleanup();
-
-    if (previousMenu != nullptr && previousMenu != menu) {
-        delete previousMenu;
-        previousMenu = nullptr;
-    }
-
-    if (menu != nullptr) {
-        previousMenu = currentMenu;
-        currentMenu = menu;
-        if (!currentMenu->isInitialized)
-            currentMenu->init();
-    } else {
-        currentMenu = nullptr;
-    }
-}
-
-void MenuManager::render() {
-    if (currentMenu && currentMenu != nullptr) {
-        currentMenu->render();
-    }
-}
-
-bool MenuManager::loadProject() {
-    cleanup();
-    Mixer::cleanupAudio();
-
-    if (!Unzip::load()) {
-        Log::logWarning("Could not load project: " + Unzip::filePath + ". closing app.");
-        isProjectLoaded = -1;
-        return false;
-    }
-    isProjectLoaded = 1;
-    return true;
-}
-
-void MenuManager::cleanup() {
-    if (currentMenu != nullptr) {
-        currentMenu->cleanup();
-        delete currentMenu;
-        currentMenu = nullptr;
-    }
-    if (previousMenu != nullptr) {
-        delete previousMenu;
-        previousMenu = nullptr;
-    }
-    FontManager::cleanup();
-}
-
-MainMenu::MainMenu() {
-    init();
-}
-MainMenu::~MainMenu() {
-    cleanup();
-}
-
-void MainMenu::init() {
-#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
-    if (Render::currentRenderer == Renderers::Headless) {
-#endif
-        // let the user type what project they want to open
-        std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
-
-        for (const std::string &ext : {".sb3", ".sb2", ".sb"}) {
-            if (answer.size() >= ext.size() &&
-                answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
-                answer = answer.substr(0, answer.size() - ext.size());
-                break;
-            }
-        }
-
-        ProjectFormat format;
-        std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + answer, format);
-        if (!resolved.empty()) {
-            Unzip::filePath = resolved;
-        } else {
-            Unzip::filePath = OS::getScratchFolderLocation() + answer;
-            Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", answer);
-        }
-
-        MenuManager::loadProject();
-        return;
-#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
-    }
-#endif
-
-    Input::applyControls();
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    logo = new MenuImage("gfx/menu/logo.png");
-    logo->x = 200;
-    logoStartTime.start();
-
+static std::string getVersion() {
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
     case SE_VERSION_TYPE_RELEASE:
@@ -140,121 +26,38 @@ void MainMenu::init() {
         versionStr = TranslationManager::getTranslation("version.prefix.dev");
         break;
     }
-    versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
-    versionNumber->setCenterAligned(false);
-    versionNumber->setScale(0.75);
-
-    splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
-    splashText->setCenterAligned(true);
-    splashText->setColor(Math::color(255, 255, 255, 128));
-    if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
-        splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
-        splashText->scale = splashTextOriginalScale;
-    } else {
-        splashTextOriginalScale = splashText->scale;
-    }
-    loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
-    loadButton->isSelected = true;
-    settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
-
-    mainMenuControl = new ControlObject();
-    mainMenuControl->selectedObject = loadButton;
-    loadButton->buttonRight = settingsButton;
-    settingsButton->buttonLeft = loadButton;
-    mainMenuControl->buttonObjects.push_back(loadButton);
-    mainMenuControl->buttonObjects.push_back(settingsButton);
-    isInitialized = true;
-
-    settings = SettingsManager::getConfigSettings();
+    return versionStr;
 }
 
-void MainMenu::render() {
-    Input::getInput();
-    mainMenuControl->input();
-
-    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
-        static bool menuMusicFailed = false;
-#ifdef __NDS__
-        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
-            if (strm->error.has_value()) {
-                Log::log(strm->error.value());
-                delete strm;
-                menuMusicFailed = true;
-            } else
-                Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
-        }
-#else
-        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
-            if (strm->error.has_value()) {
-                Log::log(strm->error.value());
-                delete strm;
-                menuMusicFailed = true;
-            } else {
-                Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
-            }
-        }
-#endif
-    }
-
-    if (loadButton->isPressed()) {
-        ProjectMenu *projectMenu = new ProjectMenu();
-        MenuManager::changeMenu(projectMenu);
-        return;
-    }
-
-    Render::beginFrame(0, 117, 77, 117);
-
-    // move and render logo
-    const float elapsed = logoStartTime.getTimeMs();
-    // fmod to prevent precision issues with large elapsed times
-    float bobbingOffset = std::sin(std::fmod(elapsed * 0.0025f, 2.0f * M_PI)) * 5.0f;
-    float splashZoom = std::sin(std::fmod(elapsed * 0.0085f, 2.0f * M_PI)) * 0.05f;
-    splashText->scale = splashTextOriginalScale + splashZoom;
-    logo->y = 75 + bobbingOffset;
-    logo->render();
-
-    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
-    splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
-
-    // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
-
-    if (settingsButton->isPressed()) {
-        SettingsMenu *settingsMenu = new SettingsMenu();
-        MenuManager::changeMenu(settingsMenu);
-        return;
-    }
-
-    mainMenuControl->render();
-
-    Render::endFrame();
+MainMenu::MainMenu() : splash(TranslationManager::getSplashText()), version(getVersion()) {
+    MenuManager::canChangeTabs = true;
 }
-void MainMenu::cleanup() {
-    if (!isInitialized) return;
-    isInitialized = false;
 
-    if (!settings.empty()) {
-        settings.clear();
-    }
+MainMenu::~MainMenu() {
+}
 
-    if (logo) {
-        delete logo;
-        logo = nullptr;
-    }
-    if (loadButton) {
-        delete loadButton;
-        loadButton = nullptr;
-    }
-    if (settingsButton) {
-        delete settingsButton;
-        settingsButton = nullptr;
-    }
-    if (mainMenuControl) {
-        delete mainMenuControl;
-        mainMenuControl = nullptr;
-    }
-    versionNumber.reset();
-    splashText.reset();
+void MainMenu::build(UI::Builder &b) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childDirection = UI::ChildDir::UpDown,
+                  .childGap = 10,
+                  .padding = UI::Padding::all(20),
+                  .align = UI::AlignMode::Center,
+              },
+              [&] {
+                  b.image({
+                      .imagePath = "gfx/menu/logo.svg",
+                  });
+                  b.text({
+                      .text = splash,
+                      .fontId = 0,
+                      .scale = 1.0f,
+                      .color = {255, 177, 66, 255},
+                      .align = UI::AlignMode::Center,
+                  });
+              });
+    b.element({.padding = UI::Padding::axis(10, 3), .align = UI::AlignMode::Right}, [&] {
+        b.text({.text = version, .fontId = 1, .scale = 0.75, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Right});
+    });
 }

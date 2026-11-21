@@ -237,11 +237,6 @@ void InputDevice_Xbox::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string InputDevice_Xbox::openSoftwareKeyboard(const char *hintText) {
-    (void)hintText;
-    return "";
-}
-
 void InputDevice_Xbox::setClipboardText(const std::string &text) {
     (void)text;
 }

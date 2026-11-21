@@ -1,96 +1,48 @@
 #include "languageMenu.hpp"
-#include "mainMenu.hpp"
-#include "math.hpp"
-#include "menuObjects.hpp"
-#include "settings.hpp"
-#include <log.hpp>
-#include <translation.hpp>
+#include "menuManager.hpp"
+#include "translation.hpp"
 
 LanguageMenu::LanguageMenu() {
-    init();
+    languages = TranslationManager::getLanguages();
 }
 
 LanguageMenu::~LanguageMenu() {
-    cleanup();
 }
 
-void LanguageMenu::init() {
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    backButton->scale = 1.0;
-    backButton->needsToBeSelected = false;
+void LanguageMenu::build(UI::Builder &b) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::grow(),
+                  .childGap = 5,
+                  .padding = UI::Padding::axis(5, 0),
+                  .align = UI::AlignMode::Center,
+              },
+              [&] {
+                  b.text({.text = TranslationManager::getTranslation("ui.settings.language"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
-    const std::vector<TranslationManager::LanguageInfo> &languages = TranslationManager::getLanguages();
-    control = new ControlObject();
-
-    int y = 0;
-    for (auto &lang : languages) {
-        ButtonObject *button = new ButtonObject(lang.name, "gfx/menu/submenuButton.svg", 200, y, "gfx/menu/Ubuntu-Bold");
-        button->shouldNineslice = true;
-        button->text->setColor(Math::color(255, 255, 255, 255));
-        control->buttonObjects.push_back(button);
-        y += 40;
-    }
-
-    for (size_t i = 0; i < control->buttonObjects.size(); i++) {
-        ButtonObject *but = control->buttonObjects[i];
-
-        if (i > 0) {
-            but->buttonUp = control->buttonObjects[i - 1];
-        }
-        if (i < control->buttonObjects.size() - 1) {
-            but->buttonDown = control->buttonObjects[i + 1];
-        }
-    }
-
-    control->selectedObject = control->buttonObjects[0];
-    control->buttonObjects[0]->isSelected = true;
-    control->enableScrolling = true;
-    control->setScrollLimits();
-}
-
-void LanguageMenu::render() {
-    Input::getInput();
-    control->input();
-
-    if (backButton->isPressed({"b", "y"})) {
-        MainMenu *mainMenu = new MainMenu();
-        MenuManager::changeMenu(mainMenu);
-        return;
-    }
-
-    for (size_t i = 0; i < control->buttonObjects.size(); i++) {
-        ButtonObject *but = control->buttonObjects[i];
-        if (!but->isPressed()) continue;
-
-        const auto &languages = TranslationManager::getLanguages();
-        TranslationManager::loadLanguage(languages[i].key);
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
-
-    Render::beginFrame(0, 66, 44, 66);
-    Render::beginFrame(1, 66, 44, 66);
-
-    control->render(0, 0);
-    backButton->render();
-
-    Render::endFrame(false);
-}
-
-void LanguageMenu::cleanup() {
-    if (backButton != nullptr) {
-        delete backButton;
-        backButton = nullptr;
-    }
-    if (control != nullptr) {
-        for (auto *but : control->buttonObjects) {
-            delete but;
-        }
-        control->buttonObjects.clear();
-        delete control;
-        control = nullptr;
-    }
-    nlohmann::json json = SettingsManager::getConfigSettings();
-    json["Language"] = TranslationManager::getLoadedLanguage().key;
-    SettingsManager::saveConfigSettings(json);
+                  b.element({
+                                .flags = UI::Flag::ScrollY,
+                                .w = UI::Size::grow(),
+                                .h = UI::Size::grow(),
+                                .childDirection = UI::ChildDir::UpDown,
+                                .childGap = 20,
+                                .align = UI::AlignMode::Left,
+                            },
+                            [&] {
+                                for (auto &lang : languages) {
+                                    button(b, lang.name, [&] {
+                                        nlohmann::json &json = reinterpret_cast<GlobalSettingsMenu *>(MenuManager::loadedMenus[MenuId::GlobalSettingsMenu].get())->json;
+                                        if (json.empty()) {
+                                            MenuManager::canChangeTabs = true;
+                                            MenuManager::changeMenu(MenuId::MainMenu);
+                                        } else {
+                                            MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
+                                        }
+                                        TranslationManager::loadLanguage(lang.key);
+                                        json["Language"] = lang.key;
+                                        return;
+                                    });
+                                }
+                            });
+              });
 }

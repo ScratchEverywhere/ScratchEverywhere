@@ -1,32 +1,19 @@
 #pragma once
-#include "mainMenu.hpp"
-#include "menuObjects.hpp"
-#include <se_export.hpp>
+#include "menuManager.hpp"
+#include "settingsMenu.hpp"
+#include <nlohmann/json.hpp>
+#include <translation.hpp>
 
-class SE_EXPORT ProjectSettings : public Menu {
+class SE_EXPORT ProjectSettingsMenu : public SettingsMenu {
   private:
-  public:
-    ControlObject *settingsControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *changeControlsButton = nullptr;
-    ButtonObject *UnpackProjectButton = nullptr;
-    ButtonObject *bottomScreenButton = nullptr;
-    ButtonObject *penModeButton = nullptr;
-    ButtonObject *debugVarsButton = nullptr;
-    ButtonObject *ramButton = nullptr;
-    ButtonObject *collisionButton = nullptr;
-    ButtonObject *refreshLimitButton = nullptr;
-    ButtonObject *runtimeButton = nullptr;
-    ButtonObject *touchControlsButton = nullptr;
-
-    bool canUnpacked = true;
-    bool shouldGoBack = false;
     std::string projectPath;
+    std::string fileSize;
 
-    ProjectSettings(std::string projPath = "", bool existUnpacked = false);
-    ~ProjectSettings();
+    std::string getSizeText();
 
-    void init() override;
-    void render() override;
-    void cleanup() override;
+  public:
+    ProjectSettingsMenu(const std::string &projectPath);
+    ~ProjectSettingsMenu() override;
+    void info(UI::Builder &b, const std::string &text);
+    void build(UI::Builder &b) override;
 };

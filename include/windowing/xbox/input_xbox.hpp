@@ -11,6 +11,5 @@ class SE_EXPORT InputDevice_Xbox : public InputDevice {
 
     std::array<int, 2> getTouchPosition() override;
     void getInput() override;
-    std::string openSoftwareKeyboard(const char *hintText) override;
     void setClipboardText(const std::string &text) override;
 };

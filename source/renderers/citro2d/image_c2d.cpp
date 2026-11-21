@@ -2,6 +2,7 @@
 #include "nonstd/expected.hpp"
 #include <algorithm>
 #include <cmath>
+#include <log.hpp>
 #include <math.hpp>
 #include <os.hpp>
 #include <pixel_snap.hpp>
@@ -252,6 +253,12 @@ ImageData Image_C2D::getPixels(ImageSubrect rect) {
     const int dstPitch = rect.w * bytesPerPixel;
 
     uint32_t *dstPixels = (uint32_t *)malloc(rect.w * rect.h * sizeof(uint32_t));
+    if (!dstPixels) {
+        Log::logError("[C2D] Failed to allocate " + std::to_string(rect.w * rect.h * 4) + " bytes in getPixels");
+        out.format = IMAGE_FORMAT_NONE;
+        return out;
+    }
+
     const uint32_t *src = (const uint32_t *)texture.tex->data;
 
     int texWidth = texture.tex->width;

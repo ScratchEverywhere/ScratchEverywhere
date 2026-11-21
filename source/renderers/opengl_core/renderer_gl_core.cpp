@@ -1,5 +1,6 @@
 #include "renderer_gl_core.hpp"
 #include "image_gl_core.hpp"
+#include "menuManager.hpp"
 #include "speech_manager_gl_core.hpp"
 #include <algorithm>
 #include <cmath>
@@ -1002,6 +1003,15 @@ void Renderer_GLCore::drawRoundedBox(int w, int h, int x, int y, int radius,
     drawSolidFan(verts, proj);
 }
 
+void Renderer_GLCore::setClip(int x, int y, int w, int h) {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x, getHeight() - (y + h), w, h);
+}
+
+void Renderer_GLCore::clearClip() {
+    glDisable(GL_SCISSOR_TEST);
+}
+
 void Renderer_GLCore::renderPenLayer() {
     if (penTexture == 0) return;
 
@@ -1103,7 +1113,7 @@ void Renderer_GLCore::renderSprites() {
     if (speechManager) speechManager->render();
 
     drawBlackBars(getWidth(), getHeight(), proj);
-    Render::renderMonitors();
+    MenuManager::render();
     Render::renderTouchControls();
 
     endFrame(true);

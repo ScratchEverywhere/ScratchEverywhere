@@ -8,5 +8,7 @@ class SE_EXPORT InputDevice_NDS : public InputDevice {
 
     std::array<int, 2> getTouchPosition() override;
 
+    bool hasConnectedGamepad() override { return true; }
+
     void getInput() override;
 };

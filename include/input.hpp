@@ -32,9 +32,13 @@ class SE_EXPORT InputDevice {
 
     virtual void getInput() = 0;
 
-    virtual std::string openSoftwareKeyboard(const char *hintText) { return ""; };
+    virtual std::string openSoftwareKeyboard(const char *hintText);
 
     virtual void setClipboardText(const std::string &text) {};
+
+    virtual void startTextInput(const std::string &hintText = "", bool numberKeyboard = false);
+    virtual bool isTextInputActive();
+    virtual void endTextInput();
 };
 
 extern InputDevice *globalInputDevice;
@@ -44,6 +48,8 @@ class SE_EXPORT Input {
     struct Mouse {
         int x;
         int y;
+        int rawX;
+        int rawY;
         size_t heldFrames;
         bool isPressed;
         bool isMoving;
@@ -68,6 +74,8 @@ class SE_EXPORT Input {
     static std::vector<std::string> inputBuffer;
     static std::unordered_map<std::string, int> keyHeldDuration;
     static std::unordered_set<Block *> codePressedBlockOpcodes;
+
+    static std::string inputText;
 
     static InputDevice *getGlobalInputDevice();
     static void setGlobalInputDevice(InputDevice *device);
@@ -108,4 +116,8 @@ class SE_EXPORT Input {
     static std::string openSoftwareKeyboard(const char *hintText);
 
     static void setClipboardText(const std::string &text);
+
+    static void startTextInput(const std::string &hintText = "", bool numberKeyboard = false);
+    static bool isTextInputActive();
+    static void endTextInput();
 };
