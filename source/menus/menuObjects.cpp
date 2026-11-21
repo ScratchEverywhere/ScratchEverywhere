@@ -1,6 +1,10 @@
 #include "menuObjects.hpp"
 #include "text.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <input.hpp>
+#include <limits>
 #include <log.hpp>
 #include <renderer.hpp>
 
@@ -19,6 +23,198 @@ constexpr bool enableNineslice = false;
 #else
 constexpr bool enableNineslice = true;
 #endif
+
+namespace {
+struct MenuPointerState {
+    bool down = false;
+    bool justDown = false;
+    bool justUp = false;
+    bool dragged = false;
+    bool moved = false;
+    bool valid = false;
+    bool touchGesture = false;
+    bool tapConsumed = false;
+    bool suppressTap = false;
+    bool flung = false;
+    float velocityY = 0.0f;
+    float deltaSeconds = 1.0f / 60.0f;
+    int x = 0;
+    int y = 0;
+    int prevY = 0;
+    int startX = 0;
+    int startY = 0;
+};
+
+MenuPointerState menuPointer;
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+// no visible cursor on touch devices, show only after keyboard/mouse/gamepad interacts with menu
+bool menuTouchMode = true;
+#else
+bool menuTouchMode = false;
+#endif
+Timer lastTouchTimer;
+
+constexpr float TOUCH_DRAG_SLOP = 8.0f; // distance (in render pixels) a finger can move before counting as a drag
+constexpr uint64_t TOUCH_MOUSE_COOLDOWN_MS = 250; // time to ignore synthetic mouse events some backends emit after a touch
+
+constexpr float TOUCH_FLING_MIN_SPEED = 40.0f;
+constexpr float TOUCH_FLING_MAX_SPEED = 1800.0f;
+constexpr float TOUCH_FLING_FRICTION = 3.0f;
+Timer pointerTimer;
+uint64_t lastPointerUpdateMs = 0;
+
+void updateMenuPointerState(bool allowFling) {
+    const uint64_t now = pointerTimer.getTimeMs();
+    const float elapsed = static_cast<float>(now - lastPointerUpdateMs) / 1000.0f;
+    lastPointerUpdateMs = now;
+    menuPointer.deltaSeconds = std::clamp(elapsed, 0.001f, 0.05f);
+
+    menuPointer.prevY = menuPointer.y;
+    menuPointer.justDown = false;
+    menuPointer.justUp = false;
+    menuPointer.moved = false;
+    menuPointer.tapConsumed = false;
+
+    const bool wasDown = menuPointer.down;
+
+    bool touchDown = false;
+    int touchX = menuPointer.x;
+    int touchY = menuPointer.y;
+
+    InputDevice *device = Input::getGlobalInputDevice();
+    std::vector<InputTouch> touches;
+    if (device) touches = device->getTouches();
+    if (!touches.empty()) {
+        size_t best = 0;
+        if (wasDown) {
+            long bestDistance = std::numeric_limits<long>::max();
+            for (size_t i = 0; i < touches.size(); i++) {
+                const long dx = touches[i].x - menuPointer.x;
+                const long dy = touches[i].y - menuPointer.y;
+                const long distance = dx * dx + dy * dy;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = i;
+                }
+            }
+        }
+        touchDown = true;
+        touchX = touches[best].x;
+        touchY = touches[best].y;
+    } else {
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+        if (Input::mousePointer.isPressed) {
+            const std::array<int, 2> pos = Input::getTouchPosition();
+            if (pos[0] != 0 || pos[1] != 0) {
+                touchDown = true;
+                touchX = pos[0];
+                touchY = pos[1];
+            }
+        }
+#endif
+    }
+
+    bool pointerDown = false;
+#if defined(PLATFORM_HAS_MOUSE)
+    bool hasPointerPosition = false;
+    int pointerX = menuPointer.x;
+    int pointerY = menuPointer.y;
+    if (!touchDown) {
+        const std::array<int, 2> pos = Input::getTouchPosition();
+        pointerX = pos[0];
+        pointerY = pos[1];
+        hasPointerPosition = true;
+        pointerDown = Input::mousePointer.isPressed;
+    }
+#endif
+
+    const bool down = touchDown || pointerDown;
+#if defined(PLATFORM_HAS_MOUSE)
+    const bool releasingTouch = wasDown && menuPointer.touchGesture && !touchDown;
+#endif
+    int x = menuPointer.x;
+    int y = menuPointer.y;
+    bool valid = false;
+    if (touchDown) {
+        x = touchX;
+        y = touchY;
+        valid = true;
+    }
+#if defined(PLATFORM_HAS_MOUSE)
+    else if (hasPointerPosition && !releasingTouch) {
+        x = pointerX;
+        y = pointerY;
+        valid = true;
+    }
+#endif
+
+    if (valid) {
+        menuPointer.moved = (x != menuPointer.x) || (y != menuPointer.y);
+        menuPointer.x = x;
+        menuPointer.y = y;
+    }
+    menuPointer.valid = valid;
+
+    menuPointer.touchGesture = touchDown || (wasDown && menuPointer.touchGesture);
+    menuPointer.justDown = down && !wasDown;
+    menuPointer.justUp = !down && wasDown;
+
+    if (menuPointer.justDown) {
+        menuPointer.startX = menuPointer.x;
+        menuPointer.startY = menuPointer.y;
+        menuPointer.suppressTap = allowFling && menuPointer.flung && touchDown;
+        menuPointer.flung = false;
+        menuPointer.velocityY = 0.0f;
+        menuPointer.dragged = false;
+        menuPointer.touchGesture = touchDown;
+    } else if (down) {
+        const float slop = TOUCH_DRAG_SLOP * std::max(1.0f, static_cast<float>(MenuObject::getScaleFactor()));
+        const int dx = std::abs(menuPointer.x - menuPointer.startX);
+        const int dy = std::abs(menuPointer.y - menuPointer.startY);
+        if (dx > slop || dy > slop) menuPointer.dragged = true;
+
+        if (allowFling && menuPointer.dragged && menuPointer.moved) {
+            const float scale = Render::getHeight() > 0 ? static_cast<float>(REFERENCE_HEIGHT) / Render::getHeight() : 1.0f;
+            const float instantVelocity = (menuPointer.prevY - menuPointer.y) * scale / menuPointer.deltaSeconds;
+            menuPointer.velocityY += (instantVelocity - menuPointer.velocityY) * 0.4f;
+            menuPointer.velocityY = std::clamp(menuPointer.velocityY, -TOUCH_FLING_MAX_SPEED, TOUCH_FLING_MAX_SPEED);
+        } else if (!menuPointer.moved || !allowFling) {
+            menuPointer.velocityY = 0.0f;
+        }
+    }
+    menuPointer.down = down;
+
+    if (menuPointer.justUp) {
+        if (allowFling && menuPointer.touchGesture && menuPointer.dragged && std::abs(menuPointer.velocityY) >= TOUCH_FLING_MIN_SPEED) {
+            menuPointer.flung = true;
+        } else {
+            menuPointer.velocityY = 0.0f;
+        }
+    }
+
+    if (touchDown) {
+        menuTouchMode = true;
+        lastTouchTimer.start();
+    } else if (menuPointer.justUp && menuPointer.touchGesture) {
+        menuTouchMode = true;
+        lastTouchTimer.start();
+    }
+
+    if (!Input::inputKeys.empty() || !Input::inputButtons.empty()) {
+        menuTouchMode = false;
+        menuPointer.flung = false;
+        menuPointer.velocityY = 0.0f;
+    }
+
+#if defined(PLATFORM_HAS_MOUSE)
+    if (!touchDown && lastTouchTimer.getTimeMs() > TOUCH_MOUSE_COOLDOWN_MS) {
+        if (pointerDown || (hasPointerPosition && menuPointer.moved)) {
+            menuTouchMode = false;
+        }
+    }
+#endif
+}
+} // namespace
 
 double MenuObject::getScaleFactor() {
     double WindowScale = Render::getWidth() + Render::getHeight();
@@ -73,67 +269,38 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
     if (!canBeClicked) return false;
 
-    std::array<int, 2> touchPos = Input::getTouchPosition();
+    if (!menuPointer.justUp || menuPointer.dragged || menuPointer.tapConsumed) return false;
+    if (menuPointer.suppressTap && menuPointer.touchGesture) return false;
+    if (!containsPoint(menuPointer.x, menuPointer.y)) return false;
+    if (!containsPoint(menuPointer.startX, menuPointer.startY)) return false;
 
-    int touchX = touchPos[0];
-    int touchY = touchPos[1];
+    menuPointer.tapConsumed = true;
+    return true;
+}
 
-    // if not touching the screen on 3DS, set touch pos to the last frame one
-    if (touchX == 0 && !lastFrameTouchPos.empty()) touchX = lastFrameTouchPos[0];
-    if (touchY == 0 && !lastFrameTouchPos.empty()) touchY = lastFrameTouchPos[1];
+bool ButtonObject::containsPoint(int pointX, int pointY) {
+    if (!buttonTexture || !buttonTexture->image) return false;
 
-    // get position based on scale
-    std::vector<double> scaledPos = getScaledPosition(x - renderOffsetX, y - renderOffsetY);
-#if defined(__XBOX__)
-    int imgW = (buttonTexture && buttonTexture->image) ? buttonTexture->image->getWidth() : 32;
-    int imgH = (buttonTexture && buttonTexture->image) ? buttonTexture->image->getHeight() : 32;
-    double btnScale = buttonTexture ? buttonTexture->scale : 1.0;
-    double scaledWidth = imgW * btnScale * getScaleFactor();
-    double scaledHeight = imgH * btnScale * getScaleFactor();
-#else
-    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale * getScaleFactor();
-    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale * getScaleFactor();
-#endif
+    const std::vector<double> scaledPos = getScaledPosition(x - renderOffsetX, y - renderOffsetY);
+    const double renderScale = scale * getScaleFactor();
 
-    // simple box collision
-    bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
-    bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
+    double scaledWidth = buttonTexture->image->getWidth() * renderScale;
+    double scaledHeight = buttonTexture->image->getHeight() * renderScale;
 
-    // if colliding and mouse state just changed
-    if ((withinX && withinY) && pressedLastFrame != Input::mousePointer.isPressed) {
-
-        pressedLastFrame = Input::mousePointer.isPressed;
-
-        // if just stopped clicking, count as a button press
-        if (!pressedLastFrame) {
-            if (std::abs(lastFrameTouchPos[0] - touchX) < 8 * getScaleFactor() && std::abs(lastFrameTouchPos[1] - touchY) < 8 * getScaleFactor()) return true;
-        } else {
-            lastFrameTouchPos = touchPos;
-        }
+    if (enableNineslice && shouldNineslice && text) {
+        scaledWidth = std::max(text->getSize()[0], static_cast<float>(scaledWidth));
+        scaledHeight = std::max(text->getSize()[1], static_cast<float>(scaledHeight));
     }
 
-    return false;
+    const bool withinX = pointX >= (scaledPos[0] - (scaledWidth / 2)) && pointX <= (scaledPos[0] + (scaledWidth / 2));
+    const bool withinY = pointY >= (scaledPos[1] - (scaledHeight / 2)) && pointY <= (scaledPos[1] + (scaledHeight / 2));
+
+    return withinX && withinY;
 }
 
 bool ButtonObject::isTouchingMouse() {
-    if (!canBeClicked) return false;
-    std::array<int, 2> touchPos = Input::getTouchPosition();
-
-    int touchX = touchPos[0];
-    int touchY = touchPos[1];
-
-    // get position based on scale
-    std::vector<double> scaledPos = getScaledPosition(x - renderOffsetX, y - renderOffsetY);
-    double scaledWidth = buttonTexture->image->getWidth() * getScaleFactor();
-    double scaledHeight = buttonTexture->image->getHeight() * getScaleFactor();
-
-    // simple box collision
-    bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
-    bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
-
-    if ((withinX && withinY)) return true;
-
-    return false;
+    if (!canBeClicked || !menuPointer.valid) return false;
+    return containsPoint(menuPointer.x, menuPointer.y);
 }
 
 void ButtonObject::render(double xPos, double yPos) {
@@ -259,36 +426,57 @@ ControlObject::ControlObject() {
 }
 
 void ControlObject::input() {
+    updateMenuPointerState(enableScrolling);
+
     if (selectedObject == nullptr) return;
 
     ButtonObject *newSelection = nullptr;
 
-    if (Input::keyHeldDuration["any"] == 1) mousePriority = false;
     if (Input::keyHeldDuration["up arrow"] == 1 || Input::keyHeldDuration["u"] == 1) newSelection = selectedObject->buttonUp;
     else if (Input::keyHeldDuration["down arrow"] == 1 || Input::keyHeldDuration["h"] == 1) newSelection = selectedObject->buttonDown;
     else if (Input::keyHeldDuration["left arrow"] == 1 || Input::keyHeldDuration["g"] == 1) newSelection = selectedObject->buttonLeft;
     else if (Input::keyHeldDuration["right arrow"] == 1 || Input::keyHeldDuration["j"] == 1) newSelection = selectedObject->buttonRight;
     else if (enableScrolling && Input::keyHeldDuration["r"] == 1) {
         this->y += REFERENCE_HEIGHT;
-        selectedObject = getClosestObject();
+        setSelected(getClosestObject());
     } else if (enableScrolling && Input::keyHeldDuration["l"] == 1) {
         this->y -= REFERENCE_HEIGHT;
-        selectedObject = getClosestObject();
+        setSelected(getClosestObject());
     }
 
-    if (newSelection != nullptr) {
-        selectedObject->isSelected = false;
-        selectedObject = newSelection;
-        selectedObject->isSelected = true;
-    } else {
+    if (menuPointer.justDown && menuPointer.valid) {
         for (ButtonObject *button : buttonObjects) {
-            if (mousePriority && button->isTouchingMouse()) {
-                selectedObject->isSelected = false;
-                selectedObject = button;
-                selectedObject->isSelected = true;
+            if (button->hidden) continue;
+            if (button->containsPoint(menuPointer.x, menuPointer.y)) {
+                setSelected(button);
+                break;
             }
         }
     }
+
+    if (newSelection != nullptr) {
+        setSelected(newSelection);
+    } else if (!menuTouchMode && menuPointer.valid && menuPointer.moved) {
+        for (ButtonObject *button : buttonObjects) {
+            if (button->isTouchingMouse()) {
+                setSelected(button);
+                break;
+            }
+        }
+    }
+}
+
+void ControlObject::setSelected(ButtonObject *object) {
+    if (object == nullptr) return;
+
+    if (selectedObject == object) {
+        object->isSelected = true;
+        return;
+    }
+
+    if (selectedObject != nullptr) selectedObject->isSelected = false;
+    selectedObject = object;
+    selectedObject->isSelected = true;
 }
 
 ButtonObject *ControlObject::getClosestObject() {
@@ -337,28 +525,28 @@ void ControlObject::setScrollLimits() {
 void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
-    std::array<int, 2> touchPos = Input::getTouchPosition();
-    bool isEmpty = (touchPos[0] == 0 || touchPos[1] == 0);
 
-    if (!isEmpty && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
-        mousePriority = true;
-    }
-
-    std::array<int, 2> empty;
+    bool touchDragging = false;
     if (enableScrolling) {
-        if (Input::mousePointer.isPressed) {
-            // Touch scrolling
-
-            if (!isEmpty) {
-                float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
-                scrollAmount /= guiScale;
+        if (menuPointer.down) {
+            if (menuPointer.dragged && menuPointer.valid) {
+                float scrollAmount = static_cast<float>(menuPointer.prevY - menuPointer.y);
+                if (Render::getHeight() > 0) scrollAmount *= static_cast<float>(REFERENCE_HEIGHT) / Render::getHeight();
                 y += scrollAmount;
-                if (std::abs(scrollAmount) > 3)
-                    selectedObject = getClosestObject();
+                touchDragging = true;
+                if (std::abs(scrollAmount) > 0.01f) setSelected(getClosestObject());
             }
+            menuPointer.flung = false;
+        } else if (menuPointer.flung) {
+            y += menuPointer.velocityY * menuPointer.deltaSeconds;
+            menuPointer.velocityY *= std::exp(-TOUCH_FLING_FRICTION * menuPointer.deltaSeconds);
+            if (std::abs(menuPointer.velocityY) < TOUCH_FLING_MIN_SPEED) {
+                menuPointer.flung = false;
+                menuPointer.velocityY = 0.0f;
+            }
+            touchDragging = true;
+            setSelected(getClosestObject());
         } else {
-            lastFrameTouchPos = {0, 0};
-
             // Controller scrolling
             if (std::abs((y - cameraY) * lerpSpeed) < 1) {
 #if defined(__XBOX__)
@@ -374,12 +562,19 @@ void ControlObject::render(double xPos, double yPos) {
                 }
             }
         }
-        if (y > maxY) y = maxY;
-        if (y < minY) y = minY;
+        if (maxY >= minY && (y > maxY || y < minY)) {
+            y = std::clamp(y, static_cast<double>(minY), static_cast<double>(maxY));
+            menuPointer.flung = false;
+            menuPointer.velocityY = 0.0f;
+        }
     }
 
     cameraX += (x - cameraX) * lerpSpeed;
-    cameraY += (y - cameraY) * lerpSpeed;
+    if (touchDragging) {
+        cameraY = y;
+    } else {
+        cameraY += (y - cameraY) * lerpSpeed;
+    }
     xPos += cameraX;
     yPos += cameraY;
 
@@ -394,72 +589,65 @@ void ControlObject::render(double xPos, double yPos) {
         object->renderOffsetX = xPos;
         object->renderOffsetY = yPos;
 
-        if (std::abs((y - cameraY) * lerpSpeed) < 1) {
-            object->canBeClicked = true;
-        } else {
-            object->canBeClicked = false;
-        }
-
         object->render(object->x - xPos, object->y - yPos);
     }
 
-    // Get the button's scaled position (center point)
-    std::vector<double> buttonCenter = getScaledPosition(selectedObject->x - xPos, selectedObject->y - yPos);
+    if (!menuTouchMode) {
+        std::vector<double> buttonCenter = getScaledPosition(selectedObject->x - xPos, selectedObject->y - yPos);
+        float renderScale = selectedObject->scale * getScaleFactor();
 
-    // Calculate the scaled dimensions of the button
-    float renderScale = selectedObject->scale * getScaleFactor();
-
-    double scaledWidth;
-    double scaledHeight;
+        double scaledWidth;
+        double scaledHeight;
 
 #if defined(__XBOX__)
-    int selImgWidth = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getWidth() : 32;
-    int selImgHeight = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getHeight() : 32;
+        int selImgWidth = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getWidth() : 32;
+        int selImgHeight = (selectedObject && selectedObject->buttonTexture && selectedObject->buttonTexture->image) ? selectedObject->buttonTexture->image->getHeight() : 32;
 
-    if (enableNineslice) {
-        scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selImgWidth * renderScale);
-        scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selImgHeight * renderScale);
-    } else {
-        scaledWidth = (float)selImgWidth * renderScale;
-        scaledHeight = (float)selImgHeight * renderScale;
-    }
+        if (enableNineslice) {
+            scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selImgWidth * renderScale);
+            scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selImgHeight * renderScale);
+        } else {
+            scaledWidth = (float)selImgWidth * renderScale;
+            scaledHeight = (float)selImgHeight * renderScale;
+        }
 #else
-    if (enableNineslice) {
-        scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
-        scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
-    } else {
-        scaledWidth = (float)selectedObject->buttonTexture->image->getWidth() * renderScale;
-        scaledHeight = (float)selectedObject->buttonTexture->image->getHeight() * renderScale;
-    }
+        if (!selectedObject->buttonTexture || !selectedObject->buttonTexture->image) return;
+
+        if (enableNineslice) {
+            scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
+            scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
+        } else {
+            scaledWidth = (float)selectedObject->buttonTexture->image->getWidth() * renderScale;
+            scaledHeight = (float)selectedObject->buttonTexture->image->getHeight() * renderScale;
+        }
 #endif
 
-    // animation effect
-    double time = animationTimer.getTimeMs() / 1000.0;
-    double breathingOffset = sin(time * 12.0) * 2.0 * getScaleFactor();
+        // animation effect
+        double time = animationTimer.getTimeMs() / 1000.0;
+        double breathingOffset = sin(time * 12.0) * 2.0 * getScaleFactor();
 
-    // corner positions
-    double leftX = buttonCenter[0] - (scaledWidth / 2) - breathingOffset;
-    double rightX = buttonCenter[0] + (scaledWidth / 2) + breathingOffset;
-    double topY = buttonCenter[1] - (scaledHeight / 2) - breathingOffset;
-    double bottomY = buttonCenter[1] + (scaledHeight / 2) + breathingOffset;
+        // corner positions
+        double leftX = buttonCenter[0] - (scaledWidth / 2) - breathingOffset;
+        double rightX = buttonCenter[0] + (scaledWidth / 2) + breathingOffset;
+        double topY = buttonCenter[1] - (scaledHeight / 2) - breathingOffset;
+        double bottomY = buttonCenter[1] + (scaledHeight / 2) + breathingOffset;
 
-    // Render boxes at all 4 corners
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, topY, 255, 255, 255, 255);     // Top-left
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, topY, 255, 255, 255, 255);    // Top-right
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, bottomY, 255, 255, 255, 255);  // Bottom-left
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, bottomY, 255, 255, 255, 255); // Bottom-right
+        // Render boxes at all 4 corners
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, topY, 255, 255, 255, 255);     // Top-left
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, topY, 255, 255, 255, 255);    // Top-right
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, bottomY, 255, 255, 255, 255);  // Bottom-left
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, bottomY, 255, 255, 255, 255); // Bottom-right
 
-    // Corner thingies for the corners
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), topY, 255, 255, 255, 255); // |""
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // |_
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // _|
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), topY, 255, 255, 255, 255); // ""|
-    Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
-
-    if (touchPos[0] != 0 && touchPos[1] != 0) lastFrameTouchPos = touchPos;
+        // Corner thingies for the corners
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), topY, 255, 255, 255, 255); // |""
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (leftX + 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // |_
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), leftX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), bottomY, 255, 255, 255, 255); // _|
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (bottomY - 4 * getScaleFactor()), 255, 255, 255, 255);
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), (rightX - 4 * getScaleFactor()), topY, 255, 255, 255, 255); // ""|
+        Render::drawBox(4 * getScaleFactor(), 4 * getScaleFactor(), rightX, (topY + 4 * getScaleFactor()), 255, 255, 255, 255);
+    }
 }
 
 ControlObject::~ControlObject() {

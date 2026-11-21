@@ -261,7 +261,7 @@ static bool silhouettePixel(const CollisionMask &mask, const Sprite *sprite, flo
 }
 
 bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) {
-    if (!sprite) return false;
+    if (!sprite || !sprite->visible || sprite->ghostEffect >= 100.0f) return false;
 
     if (clickMode && pointInSprite(getSpriteAbove(sprite), x, y)) return false;
 

@@ -160,7 +160,10 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
         }
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
-            if (newSprite->isStage) loadAdvancedProjectSettingsSb3(target);
+            if (newSprite->isStage) {
+                Scratch::stageSprite = newSprite;
+                loadAdvancedProjectSettingsSb3(target);
+            }
         }
 
         Parser::log(newSprite->name + " (" + std::string(newSprite->isStage ? "Stage" : "Sprite") + ")");
