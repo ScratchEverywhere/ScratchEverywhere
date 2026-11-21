@@ -98,6 +98,7 @@ void run(std::shared_ptr<CloudState> sp) {
         std::vector<std::string> protocols;
         if (!s.authToken.empty()) protocols.push_back("bearer!" + s.authToken);
 
+        Log::log("CloudProvider: connecting to " + s.url + " (attempt " + std::to_string(attempts) + ")");
         if (ws.connect(s.url, protocols, {{"User-Agent", s.userAgent}}, 10000) && !s.stopRequested.load()) {
             attempts = 1;
             s.connected = true;
