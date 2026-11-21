@@ -271,6 +271,7 @@ bool Unzip::load() {
     Render::endFrame(false);
 #endif
     MenuManager::changeMenu(MenuId::Ingame);
+    UI::Theme::loadIngameFonts();
     return true;
 }
 

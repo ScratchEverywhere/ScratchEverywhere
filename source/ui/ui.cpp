@@ -29,6 +29,7 @@ void Builder::begin(Pool *p) {
     pool->textCount = 0;
     pool->imageCount = 0;
     pool->callbackCount = 0;
+    pool->dragCallbackCount = 0;
     pool->viewport = windowRect();
 
     depth = 0;
@@ -75,6 +76,16 @@ Element Builder::makeElement(const ElementProps &p) {
             pool->callbacks[pool->callbackCount++] = p.onClick;
         } else {
             Log::logError("UI: callback pool full");
+        }
+    }
+    if (p.onDrag) {
+        if (p.id == 0) {
+            Log::logError("UI: onDrag needs a nonzero id, ignoring it");
+        } else if (pool->dragCallbackCount < MAX_DRAG_CALLBACKS) {
+            e.onDragId = pool->dragCallbackCount;
+            pool->dragCallbacks[pool->dragCallbackCount++] = p.onDrag;
+        } else {
+            Log::logError("UI: drag callback pool full");
         }
     }
     return e;

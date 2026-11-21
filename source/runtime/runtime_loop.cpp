@@ -75,6 +75,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         if (pauseMenu->shouldUnpause) {
             MenuManager::changeMenu(MenuId::Ingame);
             MenuManager::toUnload = MenuId::PauseMenu;
+            UI::Theme::loadIngameFonts();
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
@@ -231,6 +232,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         pauseRequested = pauseRequested || TouchControls::consumePauseRequest();
         if (pauseRequested) {
             MenuManager::changeMenu(MenuId::PauseMenu);
+            UI::Theme::loadMenuFonts();
             return std::make_pair(true, false);
         }
 

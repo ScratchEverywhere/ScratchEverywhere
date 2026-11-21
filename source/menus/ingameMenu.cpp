@@ -9,20 +9,8 @@
 
 namespace {
 
-constexpr uint8_t kFont = 1;
-
-// TODO: increase or something
-constexpr size_t kMaxListRows = 50;
-
-// TODO: mopve to styles
-constexpr UI::Color kBorder{194, 204, 217, 255};
-constexpr UI::Color kPanel{229, 240, 255, 255};
 constexpr UI::Color kWhite{255, 255, 255, 255};
 constexpr UI::Color kBlack{0, 0, 0, 255};
-constexpr UI::Color kListRow{252, 102, 44, 255};
-constexpr UI::Color kTrack{178, 178, 178, 255};
-constexpr UI::Color kTrackFill{239, 239, 239, 255};
-constexpr UI::Color kHandle{0, 115, 252, 255};
 
 uint8_t px(float v) { return static_cast<uint8_t>(std::clamp(static_cast<int>(std::lround(v)), 0, 255)); }
 int16_t pos(float v) { return static_cast<int16_t>(std::lround(v)); }
@@ -34,20 +22,31 @@ UI::Color toColor(const C &c) {
     return {static_cast<uint8_t>(c.r), static_cast<uint8_t>(c.g), static_cast<uint8_t>(c.b), 255};
 }
 
+void labelBold(UI::Builder &b, const std::string &s, float fontScale, UI::Color color,
+               UI::AlignMode align = UI::AlignMode::Left) {
+    b.text({.text = s, .fontId = 0, .scale = fontScale, .color = color, .align = align});
+}
+
 void label(UI::Builder &b, const std::string &s, float fontScale, UI::Color color,
            UI::AlignMode align = UI::AlignMode::Left) {
-    b.text({.text = s, .fontId = kFont, .scale = fontScale, .color = color, .align = align});
+    b.text({.text = s, .fontId = 1, .scale = fontScale, .color = color, .align = align});
 }
 
 void minWidth(UI::Builder &b, float w) {
     b.element({.w = fixedPx(w), .h = UI::Size::fixed(0)});
 }
 
-void valuePill(UI::Builder &b, UI::Color bg, const std::string &value, float fontScale, float padX, float minW) {
-    b.element({.padding = UI::Padding::axis(px(padX), 0), .align = UI::AlignMode::Center, .color = bg}, [&] {
-        minWidth(b, minW);
-        label(b, value, fontScale, kWhite);
-    });
+void valuePill(UI::Builder &b, float scale, UI::Color bg, const std::string &value, float fontScale, float padX, float minW) {
+    b.element({
+                  .padding = UI::Padding::axis(px(padX), 0),
+                  .align = UI::AlignMode::Center,
+                  .color = bg,
+                  .style = UI::StyleId::MonitorValue,
+              },
+              [&] {
+                  minWidth(b, minW);
+                  label(b, value, fontScale, kWhite);
+              });
 }
 
 struct Inner {
@@ -55,37 +54,69 @@ struct Inner {
     uint8_t gap = 0;
     UI::Padding pad = {};
     UI::AlignMode align = UI::AlignMode::Left;
+    UI::Color tint = {};
+    uint8_t flags = 0;
 };
 
 template <class F>
-void frame(UI::Builder &b, float scale, float x, float y, UI::Size w, UI::Size h,
-           UI::Color fill, const Inner &in, F &&body) {
-    const uint8_t border = std::max<uint8_t>(1, px(scale));
-    const bool sized = w.mode != UI::SizeMode::Fit;
-
-    b.element({.flags = UI::Flag::Floating,
-               .w = w,
-               .h = h,
-               .x = pos(x),
-               .y = pos(y),
-               .padding = UI::Padding::all(border),
-               .color = kBorder},
-              [&] {
-                  b.element({.w = sized ? UI::Size::grow() : UI::Size::fit(),
-                             .h = sized ? UI::Size::grow() : UI::Size::fit(),
-                             .childDirection = in.dir,
-                             .childGap = in.gap,
-                             .padding = in.pad,
-                             .align = in.align,
-                             .color = fill},
-                            body);
-              });
+void panel(UI::Builder &b, float scale, uint8_t style, float x, float y, UI::Size w, UI::Size h,
+           const Inner &in, F &&body) {
+    b.element({
+                  .flags = static_cast<uint8_t>(UI::Flag::Floating | in.flags),
+                  .w = w,
+                  .h = h,
+                  .x = pos(x),
+                  .y = pos(y),
+                  .childDirection = in.dir,
+                  .childGap = in.gap,
+                  .padding = in.pad,
+                  .align = in.align,
+                  .color = in.tint,
+                  .style = style,
+              },
+              body);
 }
 
 float gutterWidth(size_t count, float fontScale, float scale) {
-    auto probe = createTextObject(std::to_string(count), 0, 0, UI::Theme::fonts[kFont]);
+    auto probe = createTextObject(std::to_string(count), 0, 0, UI::Theme::fonts[0]);
     probe->setScale(fontScale);
     return std::max(20.0f * scale, probe->getSize()[0] + 10.0f * scale);
+}
+
+uint16_t sliderId(const std::string &id) { return 0x4000 | (std::hash<std::string>{}(id) & 0x3FFF); }
+
+void setSliderValue(const std::string &monitorId, double t) {
+    const auto it = Render::monitors.find(monitorId);
+    if (it == Render::monitors.end()) return;
+    auto &var = it->second;
+
+    double v = var.sliderMin + t * (var.sliderMax - var.sliderMin);
+    if (var.isDiscrete) v = static_cast<int>(v);
+    else v = std::round(v * 100.0) / 100.0;
+
+    var.value = Value(v);
+    if (var.opcode == "data_variable") {
+        for (auto &spr : Scratch::sprites)
+            if (spr->variables.find(var.id) != spr->variables.end())
+                BlockExecutor::setVariableValue(var.id, Value(v), spr);
+    }
+}
+
+void pageButton(UI::Builder &b, float scale, const char *glyph, bool enabled, std::function<void()> onClick) {
+    const UI::Size size = fixedPx(12 * scale);
+    if (!enabled) {
+        b.element({.w = size, .h = size});
+        return;
+    }
+    b.element({.flags = UI::Flag::Focusable,
+               .w = size,
+               .h = size,
+               .align = UI::AlignMode::Center,
+               .style = UI::StyleId::PageButton,
+               .onClick = std::move(onClick)},
+              [&] {
+                  labelBold(b, glyph, scale / 2.0f, kBlack, UI::AlignMode::Center);
+              });
 }
 
 } // namespace
@@ -100,21 +131,25 @@ IngameMenu::~IngameMenu() {
 void IngameMenu::variableNormal(UI::Builder &b, Monitor &var, float x, float y) {
     const float font = scale / 2.0f;
     const auto valueColor = toColor(Render::getMonitorValueColor(var.opcode));
+    x += scale;
+    y += scale;
 
-    frame(b, scale, x, y, UI::Size::fit(), UI::Size::fit(), kPanel,
+    panel(b, scale, UI::StyleId::MonitorPanel, x, y, UI::Size::fit(), UI::Size::fit(),
           Inner{UI::ChildDir::LeftRight, px(4 * scale), UI::Padding::axis(px(4 * scale), px(2 * scale)), UI::AlignMode::Center},
           [&] {
-              label(b, var.displayName, font, kBlack);
-              valuePill(b, valueColor, Render::getVariableValueString(var.value), font, 4 * scale, 32 * scale);
+              labelBold(b, var.displayName, font, kBlack);
+              valuePill(b, scale, valueColor, Render::getVariableValueString(var.value), font, 4 * scale, 32 * scale);
           });
 }
 
 void IngameMenu::variableBig(UI::Builder &b, Monitor &var, float x, float y) {
     const float font = scale / 2.0f;
     const auto valueColor = toColor(Render::getMonitorValueColor(var.opcode));
+    x += scale;
+    y += scale;
 
-    frame(b, scale, x, y, UI::Size::fit(), UI::Size::fit(), valueColor,
-          Inner{UI::ChildDir::UpDown, 0, UI::Padding::axis(px(2 * scale), 0), UI::AlignMode::Center},
+    panel(b, scale, UI::StyleId::MonitorLarge, x, y, UI::Size::fit(), UI::Size::fit(),
+          Inner{UI::ChildDir::UpDown, 0, UI::Padding::axis(px(2 * scale), 0), UI::AlignMode::Center, valueColor},
           [&] {
               minWidth(b, 36 * scale);
               label(b, Render::getVariableValueString(var.value), 1.25f * font, kWhite);
@@ -124,77 +159,109 @@ void IngameMenu::variableBig(UI::Builder &b, Monitor &var, float x, float y) {
 void IngameMenu::variableSlider(UI::Builder &b, Monitor &var, float x, float y) {
     const float font = scale / 2.0f;
     const auto valueColor = toColor(Render::getMonitorValueColor(var.opcode));
+    x += scale;
+    y += scale;
 
     const double lo = var.sliderMin, hi = var.sliderMax;
     const double value = var.value.get<double>();
     const double n = hi > lo ? std::clamp((value - lo) / (hi - lo), 0.0, 1.0) : 0.0;
     const int before = std::clamp(static_cast<int>(std::lround(n * 1000.0)), 1, 999);
 
-    frame(b, scale, x, y, UI::Size::fit(), UI::Size::fit(), kPanel,
+    panel(b, scale, UI::StyleId::MonitorPanel, x, y, UI::Size::fit(), UI::Size::fit(),
           Inner{UI::ChildDir::UpDown, px(4 * scale), UI::Padding::axis(px(4 * scale), px(2 * scale)), UI::AlignMode::Left},
           [&] {
               b.element({.childDirection = UI::ChildDir::LeftRight, .childGap = px(4 * scale), .align = UI::AlignMode::Center}, [&] {
-                  label(b, var.displayName, font, kBlack);
-                  valuePill(b, valueColor, Render::getVariableValueString(var.value), font, 4 * scale, 32 * scale);
+                  labelBold(b, var.displayName, font, kBlack);
+                  valuePill(b, scale, valueColor, Render::getVariableValueString(var.value), font, 4 * scale, 32 * scale);
               });
 
-              b.element({.w = UI::Size::grow(), .padding = UI::Padding::all(px(scale)), .color = kTrack}, [&] {
-                  b.element({.w = UI::Size::grow(),
-                             .h = fixedPx(7 * scale),
-                             .childDirection = UI::ChildDir::LeftRight,
-                             .align = UI::AlignMode::Center,
-                             .color = kTrackFill},
-                            [&] {
-                                b.element({.w = UI::Size::make(UI::SizeMode::Grow, before)});
-                                b.element({.w = fixedPx(13 * scale), .h = fixedPx(13 * scale), .color = kHandle});
-                                b.element({.w = UI::Size::make(UI::SizeMode::Grow, 1000 - before)});
-                            });
-              });
+              const float handleW = 13 * scale;
+              const float handlePx = std::round(handleW) * b.scale;
+
+              b.element({.w = UI::Size::grow(),
+                         .padding = UI::Padding::axis(0, px(8 * scale)),
+                         .id = sliderId(var.id),
+                         .onDrag = [monitorId = var.id, handlePx](const UI::DragPoint &p) {
+                             const float travel = std::max(1.0f, p.w - handlePx);
+                             const double t = std::clamp((p.x - handlePx / 2.0f) / travel, 0.0f, 1.0f);
+                             setSliderValue(monitorId, t);
+                         }},
+                        [&] {
+                            b.element({
+                                          .w = UI::Size::grow(),
+                                          .h = fixedPx(7 * scale),
+                                          .childDirection = UI::ChildDir::LeftRight,
+                                          .align = UI::AlignMode::Center,
+                                          .style = UI::StyleId::MonitorSliderTrack,
+                                      },
+                                      [&] {
+                                          b.element({.w = UI::Size::make(UI::SizeMode::Grow, before)});
+                                          b.element({
+                                              .w = fixedPx(13 * scale),
+                                              .h = fixedPx(13 * scale),
+                                              .style = UI::StyleId::MonitorSliderHandle,
+                                          });
+                                          b.element({.w = UI::Size::make(UI::SizeMode::Grow, 1000 - before)});
+                                      });
+                        });
           });
 }
 
 void IngameMenu::listVariable(UI::Builder &b, const Value &item, size_t index, float gutterW) {
     const float font = scale / 2.0f;
+    const std::string value = Render::getListValueString(item);
 
-    b.element({
-                  .flags = UI::Flag::Focusable,
-                  .w = UI::Size::grow(),
-                  .childDirection = UI::ChildDir::LeftRight,
-                  .align = UI::AlignMode::Center,
-                  .onClick = [&] {
-                      Input::setClipboardText(Render::getListValueString(item));
-                  },
-              },
+    b.element({.w = UI::Size::grow(),
+               .childDirection = UI::ChildDir::LeftRight,
+               .align = UI::AlignMode::Center},
               [&] {
                   b.element({.w = fixedPx(gutterW), .align = UI::AlignMode::Center}, [&] {
-                      label(b, std::to_string(index + 1), font, kBlack);
+                      labelBold(b, std::to_string(index + 1), font, kBlack);
                   });
-                  b.element({
-                                .w = UI::Size::grow(),
-                                .padding = UI::Padding::axis(px(4 * scale), px(2 * scale)),
-                                .color = kListRow,
-                            },
+
+                  b.element({.flags = UI::Flag::Focusable,
+                             .w = UI::Size::grow(),
+                             .padding = UI::Padding::axis(px(4 * scale), px(2 * scale)),
+                             .style = UI::StyleId::MonitorListItem,
+                             .onClick = [value] {
+                                 Input::setClipboardText(value);
+                             }},
                             [&] {
-                                label(b, Render::getListValueString(item), font, kWhite);
+                                label(b, value, font, kWhite);
                             });
               });
 }
 
 void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
+    const size_t maxListRows = 50;
     const float font = scale / 2.0f;
     const float w = var.width * scale;
     const float h = var.height * scale;
     const uint8_t gap = px(3 * scale);
     const float gutter = gutterWidth(var.list.size(), font, scale);
-    const size_t rows = std::min(var.list.size(), kMaxListRows);
 
-    frame(b, scale, x - scale, y - scale, fixedPx(w + 2 * scale), fixedPx(h + 2 * scale), kPanel, Inner{}, [&] {
-        b.element({.w = UI::Size::grow(),
-                   .padding = UI::Padding::axis(0, px(2 * scale)),
-                   .align = UI::AlignMode::Center,
-                   .color = kWhite},
+    const size_t pages = std::max<size_t>(1, (var.list.size() + maxListRows - 1) / maxListRows);
+    size_t &page = listPages[var.id];
+    page = std::min(page, pages - 1);
+    const size_t first = page * maxListRows;
+    const size_t last = std::min(var.list.size(), first + maxListRows);
+
+    auto changePage = [this, &b, id = var.id](int delta) {
+        size_t &p = listPages[id];
+        p = delta < 0 ? (p > 0 ? p - 1 : 0) : p + 1;
+        if (UI::ScrollState *s = MenuManager::elements->findOrCreateScroll(scrollId(id))) s->y = 0;
+        b.dirty = true;
+    };
+
+    panel(b, scale, UI::StyleId::MonitorPanel, x, y, fixedPx(w), fixedPx(h), Inner{}, [&] {
+        b.element({
+                      .w = UI::Size::grow(),
+                      .padding = UI::Padding::axis(0, px(2 * scale)),
+                      .align = UI::AlignMode::Center,
+                      .style = UI::StyleId::MonitorListBar,
+                  },
                   [&] {
-                      label(b, var.displayName, font, kBlack, UI::AlignMode::Center);
+                      labelBold(b, var.displayName, font, kBlack, UI::AlignMode::Center);
                   });
 
         b.element({.flags = UI::Flag::ScrollY,
@@ -205,19 +272,31 @@ void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
                    .id = scrollId(var.id)},
                   [&] {
                       if (var.list.empty()) {
-                          label(b, "(empty)", font, kBlack, UI::AlignMode::Center);
+                          labelBold(b, "(empty)", font, kBlack, UI::AlignMode::Center);
                           return;
                       }
-                      for (size_t i = 0; i < rows; ++i)
+                      for (size_t i = first; i < last; ++i)
                           listVariable(b, var.list[i], i, gutter);
                   });
 
-        b.element({.w = UI::Size::grow(),
-                   .padding = UI::Padding::axis(0, px(2 * scale)),
-                   .align = UI::AlignMode::Center,
-                   .color = kWhite},
+        b.element({
+                      .w = UI::Size::grow(),
+                      .childDirection = UI::ChildDir::LeftRight,
+                      .childGap = px(2 * scale),
+                      .padding = UI::Padding::axis(px(2 * scale), px(2 * scale)),
+                      .align = UI::AlignMode::Center,
+                      .style = UI::StyleId::MonitorListBar,
+                  },
                   [&] {
-                      label(b, "length " + std::to_string(var.list.size()), font, kBlack, UI::AlignMode::Center);
+                      if (pages > 1) pageButton(b, scale, "<", page > 0, [changePage] { changePage(-1); });
+
+                      std::string text = "length " + std::to_string(var.list.size());
+                      if (pages > 1) text += " (" + std::to_string(page + 1) + " / " + std::to_string(pages) + ")";
+                      b.element({.w = UI::Size::grow(), .align = UI::AlignMode::Center}, [&] {
+                          labelBold(b, text, font, kBlack, UI::AlignMode::Center);
+                      });
+
+                      if (pages > 1) pageButton(b, scale, ">", page + 1 < pages, [changePage] { changePage(1); });
                   });
     });
 }
@@ -274,6 +353,10 @@ void IngameMenu::askMenu(UI::Builder &b) {
 
 void IngameMenu::build(UI::Builder &b) {
     scale = Render::renderScale;
+
+    const float menuScale = b.scale;
+    b.scale = b.ingameScale;
+
     const float screenW = Render::getWidth();
     const float screenH = Render::getHeight();
 
@@ -310,10 +393,10 @@ void IngameMenu::build(UI::Builder &b) {
                   }
 
                   if (Input::isTextInputActive()) {
+                      b.scale = menuScale;
                       b.keyboardNav = true;
                       askMenu(b);
                   } else {
-                      b.scale = b.ingameScale;
                       b.keyboardNav = false;
                   }
               });

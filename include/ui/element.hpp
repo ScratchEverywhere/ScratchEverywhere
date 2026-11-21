@@ -31,6 +31,14 @@ struct ScrollState {
     int16_t extentW = 0, extentH = 0;
 };
 
+struct DragPoint {
+    int x = 0, y = 0;
+    int w = 0, h = 0;
+
+    float tx() const { return w > 0 ? std::clamp(static_cast<float>(x) / static_cast<float>(w), 0.0f, 1.0f) : 0.0f; }
+    float ty() const { return h > 0 ? std::clamp(static_cast<float>(y) / static_cast<float>(h), 0.0f, 1.0f) : 0.0f; }
+};
+
 struct Element {
     // children index is higher than parent
     uint16_t parent = NONE, firstChild = NONE, next = NONE;
@@ -42,6 +50,9 @@ struct Element {
 
     // index into Pool::callbacks
     uint16_t onClickId = NONE;
+
+    // index into Pool::dragCallbacks
+    uint16_t onDragId = NONE;
 
     // use UI::Flag for this
     uint8_t flags = 0;
@@ -81,6 +92,7 @@ struct ElementProps {
     uint8_t style = StyleId::None;
     uint16_t id = 0;
     std::function<void()> onClick = nullptr;
+    std::function<void(const DragPoint &)> onDrag = nullptr;
 
     static Element toElement(const ElementProps &p, float k = 1.0f) {
         Element e;
@@ -118,6 +130,9 @@ struct Pool {
     // Not cleared on rebuild
     std::array<ScrollState, MAX_SCROLL_CONTAINERS> scrollContainers;
     uint16_t scrollContainerCount = 0;
+
+    std::array<std::function<void(const DragPoint &)>, MAX_DRAG_CALLBACKS> dragCallbacks;
+    uint16_t dragCallbackCount = 0;
 
     Rect visibleArea(uint16_t clipOwner) const;
 

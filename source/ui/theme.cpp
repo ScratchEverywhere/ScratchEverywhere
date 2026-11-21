@@ -5,9 +5,7 @@ namespace UI {
 std::array<std::string, 2> Theme::fonts;
 std::array<Style, Theme::MAX_STYLES> Theme::styles;
 
-// just a default theme for now, later i want this to load from a file
-void Theme::load() {
-    // #soretro font for low resolution devices
+void Theme::loadMenuFonts() {
 #ifdef __NDS__
     fonts[0] = "gfx/ingame/fonts/Grand9KPixel";
     fonts[1] = "gfx/ingame/fonts/Grand9KPixel";
@@ -15,6 +13,21 @@ void Theme::load() {
     fonts[0] = "gfx/menu/RedditSansFudge-Bold";
     fonts[1] = "gfx/menu/RedditSansFudge-Regular";
 #endif
+}
+
+void Theme::loadIngameFonts() {
+#ifdef __NDS__
+    fonts[0] = "gfx/ingame/fonts/Grand9KPixel";
+    fonts[1] = "gfx/ingame/fonts/Grand9KPixel";
+#else
+    fonts[0] = "gfx/ingame/fonts/NotoSans-Medium";
+    fonts[1] = "gfx/ingame/fonts/NotoSerif-Regular";
+#endif
+}
+
+// just a default theme for now, later i want this to load from a file
+void Theme::load() {
+    // #soretro font for low resolution devices
 
     styles[StyleId::None] = {
         .normal = {.color = {0, 0, 0, 0}, .round = 0},
@@ -47,6 +60,11 @@ void Theme::load() {
         .pressed = styles[StyleId::Button].pressed,
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    styles[StyleId::PageButton] = {
+        .normal = {.color = {255, 255, 255, 255}, .round = 3, .borderColor = {194, 204, 217, 255}, .borderThickness = 2},
+        .focused = {.color = {229, 240, 255, 255}, .round = 3, .borderColor = {194, 204, 217, 255}, .borderThickness = 2},
+        .pressed = {.color = {194, 204, 217, 255}, .round = 3, .borderColor = {194, 204, 217, 255}, .borderThickness = 2},
+        .has = StateFlag::Pressed | StateFlag::Focused};
     styles[StyleId::AskBox] = {
         .normal = {.color = {255, 255, 255, 255}, .round = 4, .borderColor = {217, 217, 217, 255}, .borderThickness = 3}};
     styles[StyleId::AskTextInput] = {
@@ -70,6 +88,18 @@ void Theme::load() {
         .pressed = {.color = {129, 110, 128, 255}},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    const Color monitorBorder = {194, 204, 217, 255};
+    styles[StyleId::MonitorPanel] = {.normal = {.color = {229, 240, 255, 255}, .round = 5, .borderColor = monitorBorder, .borderThickness = 2}};
+    styles[StyleId::MonitorLarge] = {.normal = {.color = {0, 0, 0, 255}, .round = 5, .borderColor = monitorBorder, .borderThickness = 2}, .tint = true};
+    styles[StyleId::MonitorValue] = {.normal = {.color = {0, 0, 0, 255}, .round = 5}, .tint = true};
+    styles[StyleId::MonitorListBar] = {.normal = {.color = {255, 255, 255, 255}}};
+    styles[StyleId::MonitorListItem] = {
+        .normal = {.color = {252, 102, 44, 255}, .round = 3, .borderColor = {0, 0, 0, 38}, .borderThickness = 2},
+        .focused = {.color = {255, 128, 72, 255}, .round = 3, .borderColor = {0, 0, 0, 38}, .borderThickness = 2},
+        .pressed = {.color = {214, 84, 28, 255}, .round = 3, .borderColor = {0, 0, 0, 38}, .borderThickness = 2},
+        .has = StateFlag::Pressed | StateFlag::Focused};
+    styles[StyleId::MonitorSliderTrack] = {.normal = {.color = {239, 239, 239, 255}, .round = 3, .borderColor = {178, 178, 178, 255}, .borderThickness = 2}};
+    styles[StyleId::MonitorSliderHandle] = {.normal = {.color = {0, 115, 252, 255}, .round = 15, .borderColor = {255, 255, 255, 255}, .borderThickness = 2}};
 }
 
 } // namespace UI

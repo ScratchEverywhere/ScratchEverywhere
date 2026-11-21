@@ -12,7 +12,15 @@ enum StyleId : uint8_t {
     TabPressed,
     ProjectButton,
     Button,
+    PageButton,
     TransparentButton,
+    MonitorPanel,
+    MonitorLarge,
+    MonitorValue,
+    MonitorListBar,
+    MonitorListItem,
+    MonitorSliderTrack,
+    MonitorSliderHandle,
     AskBox,
     AskTextInput,
     AskConfirm,
@@ -31,6 +39,7 @@ struct StateStyle {
 struct Style {
     StateStyle normal, focused, pressed;
     uint8_t has = 0;
+    bool tint = false;
 
     const StateStyle &get(uint8_t state) const {
         if ((state & StateFlag::Pressed) && (has & StateFlag::Pressed)) return pressed;
@@ -47,6 +56,8 @@ class Theme {
 
     // TODO: load from a file
     static void load();
+    static void loadMenuFonts();
+    static void loadIngameFonts();
 
     static const Style &get(uint8_t id) {
         return styles[id < MAX_STYLES ? id : static_cast<uint8_t>(StyleId::None)];

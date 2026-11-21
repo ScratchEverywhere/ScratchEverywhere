@@ -166,6 +166,7 @@ bool Scratch::startScratchProject() {
             return false;
         }
         MenuManager::changeMenu(MenuId::Ingame);
+        UI::Theme::loadIngameFonts();
     }
 
     if (bytecodeCacheTooNew) {

@@ -13,12 +13,14 @@ constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
 constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
 constexpr uint16_t MAX_CALLBACKS = 128;
 constexpr uint16_t MAX_SCROLL_CONTAINERS = 8;
+constexpr uint16_t MAX_DRAG_CALLBACKS = 8;
 #else
 constexpr uint16_t MAX_ELEMENTS = 1024;
 constexpr uint16_t MAX_TEXT_ELEMENTS = 256;
 constexpr uint16_t MAX_IMAGE_ELEMENTS = 128;
 constexpr uint16_t MAX_CALLBACKS = 128;
 constexpr uint16_t MAX_SCROLL_CONTAINERS = 16;
+constexpr uint16_t MAX_DRAG_CALLBACKS = 16;
 #endif
 
 namespace Flag {

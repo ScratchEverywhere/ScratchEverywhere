@@ -68,6 +68,9 @@ class InputHandler {
     int ordinalOf(const Pool &pool, uint16_t index) const;
     uint16_t findNeighbor(const Pool &pool, uint16_t from, Direction dir) const;
 
+    void beginSlide(Pool &pool, const Pointer &pointer);
+    void updateSlide(Pool &pool, const Pointer &pointer);
+
     Timer frameTimer;
 
     uint16_t focusedIndex = NONE;
@@ -87,6 +90,9 @@ class InputHandler {
 
     float flingVel = 0.0f;
     uint16_t flingTarget = NONE;
+
+    uint16_t slideId = 0;
+    bool sliding = false;
 };
 
 } // namespace UI

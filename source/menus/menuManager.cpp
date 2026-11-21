@@ -71,6 +71,7 @@ void MenuManager::tickMenuMusic() {
 bool MenuManager::initMainMenu() {
     if (!elements) elements = std::make_unique<UI::Pool>();
     UI::Theme::load();
+    UI::Theme::loadMenuFonts();
     Input::applyControls();
     initMenuMusic();
     Input::endTextInput();

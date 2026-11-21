@@ -52,8 +52,9 @@ void Painter::fillBox(Renderer *renderer, const Rect &bounds, int grow, const Co
 }
 
 void Painter::drawBox(Renderer *renderer, const Element &e, const Rect &bounds) {
-    const StateStyle &style = Theme::get(e.style).get(e.state);
-    const Color color = (e.style == StyleId::None) ? e.color : style.color;
+    const Style &theme = Theme::get(e.style);
+    const StateStyle &style = theme.get(e.state);
+    const Color color = (e.style == StyleId::None || theme.tint) ? e.color : style.color;
     if (color.a == 0) return;
 
     if (style.borderThickness > 0) fillBox(renderer, bounds, style.borderThickness, style.borderColor, style.round);

@@ -2,6 +2,7 @@
 #include "menuManager.hpp"
 #include "os.hpp"
 #include "projectSettings.hpp"
+#include "theme.hpp"
 #include "types.hpp"
 #include <log.hpp>
 #include <memory>
@@ -57,15 +58,18 @@ void ProjectMenu::buildProjects(UI::Builder &b) {
 
                                     if (page != 0)
                                         b.element({
-                                            .flags = UI::Flag::Focusable,
-                                            .w = UI::Size::fixed(32),
-                                            .h = UI::Size::fixed(32),
-                                            .color = {255, 255, 255, 255},
-                                            .onClick = [&] {
-                                                page--;
-                                                b.dirty = true;
-                                            },
-                                        });
+                                                      .flags = UI::Flag::Focusable,
+                                                      .w = UI::Size::fixed(32),
+                                                      .h = UI::Size::fixed(32),
+                                                      .style = UI::StyleId::PageButton,
+                                                      .onClick = [&] {
+                                                          page--;
+                                                          b.dirty = true;
+                                                      },
+                                                  },
+                                                  [&] {
+                                                      b.text({.text = "<", .color = {0, 0, 0, 255}, .align = UI::AlignMode::Center});
+                                                  });
 
                                     b.text({
                                         .text = "Page " + std::to_string(page + 1) + "/" + std::to_string(maxPages),
@@ -74,15 +78,18 @@ void ProjectMenu::buildProjects(UI::Builder &b) {
 
                                     if (page != maxPages - 1)
                                         b.element({
-                                            .flags = UI::Flag::Focusable,
-                                            .w = UI::Size::fixed(32),
-                                            .h = UI::Size::fixed(32),
-                                            .color = {255, 255, 255, 255},
-                                            .onClick = [&] {
-                                                page++;
-                                                b.dirty = true;
-                                            },
-                                        });
+                                                      .flags = UI::Flag::Focusable,
+                                                      .w = UI::Size::fixed(32),
+                                                      .h = UI::Size::fixed(32),
+                                                      .style = UI::StyleId::PageButton,
+                                                      .onClick = [&] {
+                                                          page++;
+                                                          b.dirty = true;
+                                                      },
+                                                  },
+                                                  [&] {
+                                                      b.text({.text = ">", .color = {0, 0, 0, 255}, .align = UI::AlignMode::Center});
+                                                  });
                                 }
                             });
               });

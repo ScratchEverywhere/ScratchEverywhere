@@ -48,9 +48,17 @@ void InputHandler::update(Pool &pool, bool keyboardNav) {
 
     const uint16_t hovered = pool.hitTest(pointer.x, pointer.y, true);
 
-    if (pointer.pressStart) beginPress(pool, pointer);
+    if (pointer.pressStart) {
+        beginPress(pool, pointer);
+        beginSlide(pool, pointer);
+    }
+    updateSlide(pool, pointer);
     updateDrag(pool, pointer, dt);
-    const bool endedDrag = pointer.released && endPress();
+    bool endedDrag = pointer.released && endPress();
+    if (pointer.released && sliding) {
+        endedDrag = true;
+        sliding = false;
+    }
     updateFling(pool, pointer, dt);
 
     if (!navMode && !dragging && hovered != NONE && hovered != focusedIndex)
@@ -67,6 +75,33 @@ void InputHandler::update(Pool &pool, bool keyboardNav) {
 
     if (activate != NONE && pool.elements[activate].onClickId != NONE)
         pool.callbacks[pool.elements[activate].onClickId]();
+}
+
+void InputHandler::beginSlide(Pool &pool, const Pointer &pointer) {
+    sliding = false;
+
+    uint16_t i = pool.hitTest(pointer.x, pointer.y, false);
+    while (i != NONE && pool.elements[i].onDragId == NONE)
+        i = pool.elements[i].parent;
+    if (i == NONE) return;
+
+    sliding = true;
+    slideId = pool.elements[i].id;
+    dragTarget = NONE;
+    flingVel = 0.0f;
+}
+
+void InputHandler::updateSlide(Pool &pool, const Pointer &pointer) {
+    if (!sliding || !pointer.down) return;
+
+    for (uint16_t i = 0; i < pool.count; i++) {
+        const Element &e = pool.elements[i];
+        if (e.id != slideId || e.onDragId == NONE) continue;
+
+        const Rect bounds = e.screenRect();
+        pool.dragCallbacks[e.onDragId](DragPoint{pointer.x - bounds.x, pointer.y - bounds.y, bounds.w, bounds.h});
+        return;
+    }
 }
 
 void InputHandler::cancelGestures() {

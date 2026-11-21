@@ -1,12 +1,15 @@
 #pragma once
 #include "menuManager.hpp"
 #include <renderer.hpp>
+#include <string>
+#include <unordered_map>
 
 class SE_EXPORT IngameMenu : public Menu {
   private:
     int offsetX = 0, offsetY = 0;
     float scale = 1.0f;
     size_t lastHash = 0;
+    std::unordered_map<std::string, size_t> listPages;
 
     void variableNormal(UI::Builder &b, Monitor &var, float x, float y);
     void variableBig(UI::Builder &b, Monitor &var, float x, float y);
