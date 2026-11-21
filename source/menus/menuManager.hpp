@@ -27,11 +27,13 @@ enum class MenuId : uint8_t {
     Ingame,
     PauseMenu,
     PopupMenu,
+    TextInputMenu,
 };
 
 namespace MenuManager {
 extern std::unique_ptr<UI::Pool> elements;
 extern MenuId currentMenu;
+extern MenuId lastMenu;
 extern MenuId toUnload;
 extern std::unordered_map<MenuId, std::unique_ptr<Menu>> loadedMenus;
 extern UI::Builder builder;

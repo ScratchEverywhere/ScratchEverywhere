@@ -10,7 +10,9 @@ class SE_EXPORT InputDevice_GLFW : public InputDevice {
 
     void getInput() override;
 
-    std::string openSoftwareKeyboard(const char *hintText) override;
-
     void setClipboardText(const std::string &text) override;
+
+    void startTextInput(const std::string &hintText = "", bool numberKeyboard = false) override;
+    bool isTextInputActive() override;
+    void endTextInput() override;
 };

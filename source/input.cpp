@@ -1,8 +1,11 @@
 #include "input.hpp"
+#include "menuManager.hpp"
 #include <algorithm>
 #include <cstdlib>
+#include <keyboard.hpp>
 #include <log.hpp>
 #include <renderer.hpp>
+#include <textInputMenu.hpp>
 
 InputDevice *globalInputDevice = nullptr;
 
@@ -30,8 +33,30 @@ InputDevice *Input::getGlobalInputDevice() {
     return globalInputDevice;
 }
 
-void InputDevice::startTextInput(const std::string &hintText, bool numberKeyboard) {
-    Input::inputText = openSoftwareKeyboard(hintText.c_str());
+void InputDevice::startTextInput(const std::string &hintText, bool numberKeyboard) { Keyboard::open(MenuManager::builder); }
+
+bool InputDevice::isTextInputActive() { return Keyboard::isOpen(); };
+
+void InputDevice::endTextInput() { Keyboard::close(MenuManager::builder); };
+
+std::string InputDevice::openSoftwareKeyboard(const char *hintText) {
+    MenuManager::unloadMenu(MenuId::TextInputMenu);
+    MenuManager::loadedMenus[MenuId::TextInputMenu] = std::make_unique<TextInputMenu>(std::string(hintText));
+    MenuManager::changeMenu(MenuId::TextInputMenu);
+    TextInputMenu *menu = reinterpret_cast<TextInputMenu *>(MenuManager::loadedMenus[MenuId::TextInputMenu].get());
+
+    while (Render::appShouldRun() && !menu->shouldEnd) {
+        Input::getInput();
+        Render::beginFrame(1, 0, 0, 0);
+        MenuManager::render();
+        Render::endFrame();
+    }
+
+    MenuManager::toUnload = MenuId::TextInputMenu;
+    MenuManager::changeMenu(MenuManager::lastMenu);
+    std::string ret = Input::inputText;
+    Input::inputText.clear();
+    return ret;
 }
 
 void Input::setGlobalInputDevice(InputDevice *device) {

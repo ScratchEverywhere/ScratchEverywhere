@@ -32,13 +32,13 @@ class SE_EXPORT InputDevice {
 
     virtual void getInput() = 0;
 
-    virtual std::string openSoftwareKeyboard(const char *hintText) { return ""; };
+    virtual std::string openSoftwareKeyboard(const char *hintText);
 
     virtual void setClipboardText(const std::string &text) {};
 
     virtual void startTextInput(const std::string &hintText = "", bool numberKeyboard = false);
-    virtual bool isTextInputActive() { return false; };
-    virtual void endTextInput() {};
+    virtual bool isTextInputActive();
+    virtual void endTextInput();
 };
 
 extern InputDevice *globalInputDevice;

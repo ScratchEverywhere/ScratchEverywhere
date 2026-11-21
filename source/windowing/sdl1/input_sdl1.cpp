@@ -199,89 +199,30 @@ void InputDevice_SDL1::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string InputDevice_SDL1::openSoftwareKeyboard(const char *hintText) {
-    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
-    text->setCenterAligned(true);
-    text->setColor(Math::color(0, 0, 0, 170));
-    if (text->getSize()[0] > Render::getWidth() * 0.85) {
-        float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
-        text->setScale(scale);
-    }
+static bool textInputActive = false;
 
-    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
-    enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(219, 145, 219, 255));
+void InputDevice_SDL1::startTextInput(const std::string &hintText, bool numberKeyboard) {
+#ifdef PLATFORM_HAS_KEYBOARD
+    textInputActive = true;
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+#else
+    InputDevice::startTextInput(hintText, numberKeyboard);
+#endif
+}
 
-    std::string inputText = "";
-    bool inputActive = true;
-    SDL_Event event;
+bool InputDevice_SDL1::isTextInputActive() {
+#ifdef PLATFORM_HAS_KEYBOARD
+    return textInputActive;
+#else
+    return InputDevice::isTextInputActive();
+#endif
+}
 
-    while (inputActive) {
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_KEYDOWN:
-                // Handle unicode input if available and if it's a printable character
-                if (event.key.keysym.unicode != 0 &&
-                    (event.key.keysym.unicode & 0xFF80) == 0 && // Basic ASCII check
-                    event.key.keysym.unicode >= ' ') {          // Only printable characters
-                    inputText += event.key.keysym.unicode;
-                    text->setText(inputText);
-                    text->setColor(Math::color(255, 255, 255, 255));
-                }
-
-                switch (event.key.keysym.sym) {
-                case SDLK_RETURN:
-                case SDLK_KP_ENTER:
-                    // finish input
-                    inputActive = false;
-                    break;
-
-                case SDLK_BACKSPACE:
-                    // remove character
-                    if (!inputText.empty()) {
-                        inputText.pop_back();
-                    }
-                    if (inputText.empty()) {
-                        text->setText(std::string(hintText));
-                        text->setColor(Math::color(0, 0, 0, 170));
-                    } else {
-                        text->setText(inputText);
-                    }
-
-                    break;
-
-                case SDLK_ESCAPE:
-                    // finish input
-                    inputActive = false;
-                    break;
-                }
-                break;
-
-            case SDL_QUIT:
-                OS::toExit = true;
-                inputActive = false;
-                break;
-            }
-        }
-
-        // set text size
-        text->setScale(1.0f);
-        if (text->getSize()[0] > Render::getWidth() * 0.95) {
-            float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.05);
-            text->setScale(scale);
-        } else {
-            text->setScale(1.0f);
-        }
-
-        Render::beginFrame(0, 117, 77, 117);
-
-        text->render(Render::getWidth() / 2, Render::getHeight() * 0.25);
-        enterText->render(Render::getWidth() / 2, Render::getHeight() * 0.15);
-
-        Render::endFrame(false);
-    }
-
-    return inputText;
-
-    return "";
+void InputDevice_SDL1::endTextInput() {
+#ifdef PLATFORM_HAS_KEYBOARD
+    textInputActive = false;
+    SDL_EnableKeyRepeat(0, 0);
+#else
+    InputDevice::endTextInput();
+#endif
 }

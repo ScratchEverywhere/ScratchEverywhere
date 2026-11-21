@@ -61,6 +61,15 @@ void Theme::load() {
         .pressed = {.color = {79, 42, 76, 255}, .round = 15},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    styles[StyleId::KeyboardBackground] = {
+        .normal = {.color = {139, 139, 139, 255}},
+    };
+    styles[StyleId::KeyboardKey] = {
+        .normal = {.color = {198, 198, 198, 255}},
+        .focused = {.color = {167, 156, 170, 255}},
+        .pressed = {.color = {129, 110, 128, 255}},
+        .has = StateFlag::Pressed | StateFlag::Focused,
+    };
 }
 
 } // namespace UI

@@ -11,4 +11,8 @@ class SE_EXPORT InputDevice_Win32 : public InputDevice {
     void getInput() override;
 
     void setClipboardText(const std::string &text) override;
+
+    void startTextInput(const std::string &hintText = "", bool numberKeyboard = false) override;
+    bool isTextInputActive() override;
+    void endTextInput() override;
 };

@@ -1,5 +1,6 @@
 #include "menuManager.hpp"
 #include "ingameMenu.hpp"
+#include "keyboard.hpp"
 #include "languageMenu.hpp"
 #include "loadingMenu.hpp"
 #include "mainMenu.hpp"
@@ -19,6 +20,7 @@ bool MenuManager::isProjectLoaded = false;
 bool MenuManager::projectPendingLoad = false;
 bool MenuManager::menuMusicFailed = false;
 bool MenuManager::canChangeTabs = true;
+MenuId MenuManager::lastMenu = MenuId::None;
 MenuId MenuManager::currentMenu = MenuId::None;
 MenuId MenuManager::toUnload = MenuId::None;
 std::unordered_map<MenuId, std::unique_ptr<Menu>> MenuManager::loadedMenus;
@@ -91,6 +93,7 @@ bool MenuManager::initMainMenu() {
 void MenuManager::changeMenu(MenuId id) {
     if (!elements) elements = std::make_unique<UI::Pool>();
 
+    lastMenu = currentMenu;
     if (loadedMenus.find(id) == loadedMenus.end()) {
         switch (id) {
         case MenuId::MainMenu: {
@@ -146,7 +149,6 @@ void MenuManager::render() {
         builder.begin(elements.get());
 
         if (currentMenu == MenuId::Ingame) {
-            builder.scale = 1.0f;
             builder.element({
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
@@ -155,8 +157,11 @@ void MenuManager::render() {
                             },
                             [&] {
                                 menu->build(builder);
+                                if (Keyboard::isOpen())
+                                    Keyboard::build(builder);
                             });
         } else {
+            builder.keyboardNav = true;
             builder.element({
                                 .w = UI::Size::grow(),
                                 .h = UI::Size::grow(),
@@ -175,6 +180,9 @@ void MenuManager::render() {
                                                 });
                                 if (canChangeTabs)
                                     buildMenuBar(builder);
+
+                                if (Keyboard::isOpen())
+                                    Keyboard::build(builder);
                             });
         }
 
@@ -192,7 +200,6 @@ void MenuManager::render() {
             changeMenu(static_cast<MenuId>(((static_cast<uint8_t>(currentMenu) + 1) % tabCount) + 1));
     }
 
-    builder.keyboardNav = (currentMenu != MenuId::Ingame);
     builder.input();
     UI::Painter::render(elements.get());
 

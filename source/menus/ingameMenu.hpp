@@ -13,6 +13,7 @@ class SE_EXPORT IngameMenu : public Menu {
     void variableSlider(UI::Builder &b, Monitor &var, float x, float y);
     void list(UI::Builder &b, Monitor &var, float x, float y);
     void listVariable(UI::Builder &b, const Value &item, size_t index, float gutterW);
+    void askMenu(UI::Builder &b);
 
   public:
     IngameMenu();

@@ -16,6 +16,8 @@ enum StyleId : uint8_t {
     AskBox,
     AskTextInput,
     AskConfirm,
+    KeyboardBackground,
+    KeyboardKey,
 };
 
 struct StateStyle {

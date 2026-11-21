@@ -22,7 +22,7 @@ bool InputHandler::Keys::right() {
 }
 
 bool InputHandler::Keys::select() {
-    return Input::keyHeldDuration["a"] == 1;
+    return Input::keyHeldDuration["a"] == 1 || Input::keyHeldDuration["a"] > 20;
 }
 
 bool InputHandler::Keys::selectHeld() {

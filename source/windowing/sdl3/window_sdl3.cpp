@@ -20,42 +20,21 @@
 #if defined(RENDERER_SDL3)
 #include <renderers/sdl3/renderer_sdl3.hpp>
 #endif
+#include <utf8.hpp>
+#ifdef __UBUNTUTOUCH__
+#include <platforms/ut/swkbd_ut.hpp>
+
+extern bool utKeyboardShown;
+UbuntuTouchKeyboard &getUbuntuTouchKeyboard();
+#endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Gamepad *controller = nullptr;
-#ifdef __XBOX__
-static std::vector<SDL_Gamepad *> xboxControllers;
-
-static void openXboxController(SDL_JoystickID id) {
-    for (auto *pad : xboxControllers) {
-        if (SDL_GetGamepadID(pad) == id) return;
-    }
-    if (auto *pad = SDL_OpenGamepad(id)) {
-        xboxControllers.push_back(pad);
-        if (!controller) controller = pad;
-    }
-}
-
-static void selectXboxController(SDL_JoystickID id) {
-    for (auto *pad : xboxControllers) {
-        if (SDL_GetGamepadID(pad) == id && controller != pad) {
-            controller = pad;
-            Log::log("Xbox active controller: " + std::to_string(id));
-            return;
-        }
-    }
-}
-#endif
 #endif
 
 #ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
 SDL_Point touchPosition;
-#endif
-
-#ifdef __XBOX__
-#include <hal/xbox.h>
-#include <os.hpp>
 #endif
 
 WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
@@ -248,7 +227,7 @@ void WindowSDL3::pollEvents() {
                 break;
             case SDL_SCANCODE_BACKSPACE:
                 if (!Input::inputText.empty()) {
-                    Input::inputText.pop_back();
+                    utf8::eraseLast(Input::inputText, 1);
                 }
                 break;
             case SDL_SCANCODE_V: {
@@ -277,6 +256,33 @@ void WindowSDL3::pollEvents() {
             break;
         }
     }
+#ifdef __UBUNTUTOUCH__
+    if (utKeyboardShown) {
+        UbuntuTouchKeyboard &maliitKeyboard = getUbuntuTouchKeyboard();
+        maliitKeyboard.poll();
+        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
+            switch (oskEvent.type) {
+            case UbuntuTouchKeyboard::Event::Type::CommitString:
+                utf8::eraseLast(Input::inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
+                Input::inputText += oskEvent.text;
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Backspace:
+                utf8::eraseLast(Input::inputText, 1);
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Enter:
+            case UbuntuTouchKeyboard::Event::Type::Escape:
+            case UbuntuTouchKeyboard::Event::Type::Dismissed:
+                Input::endTextInput();
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Preedit:
+                break;
+            }
+        }
+    }
+#endif
 }
 
 void WindowSDL3::swapBuffers() {

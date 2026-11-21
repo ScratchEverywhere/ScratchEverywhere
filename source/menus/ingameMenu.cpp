@@ -222,6 +222,56 @@ void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
     });
 }
 
+void IngameMenu::askMenu(UI::Builder &b) {
+    b.element({
+                  .w = UI::Size::grow(),
+                  .h = UI::Size::fit(),
+                  .padding = UI::Padding::all(10),
+              },
+              [&] {
+                  b.element({
+                                .w = UI::Size::grow(),
+                                .h = UI::Size::fit(),
+                                .childDirection = UI::ChildDir::LeftRight,
+                                .childGap = 5,
+                                .padding = UI::Padding::all(15),
+                                .align = UI::AlignMode::Center,
+                                .style = UI::StyleId::AskBox,
+                            },
+                            [&] {
+                                b.element({.flags = UI::Flag::Focusable,
+                                           .w = UI::Size::grow(),
+                                           .h = UI::Size::fit(),
+                                           .childDirection = UI::ChildDir::LeftRight,
+                                           .padding = UI::Padding::axis(5, 0),
+                                           .style = UI::StyleId::AskTextInput,
+                                           .onClick = [&] {
+                                               Input::endTextInput();
+                                               Input::startTextInput();
+                                           }},
+                                          [&] {
+                                              b.text({
+                                                  .text = Input::inputText + "|",
+                                                  .fontId = 1,
+                                                  .scale = 0.75,
+                                                  .color = {0, 0, 0, 255},
+                                                  .align = UI::AlignMode::Left,
+                                              });
+                                          });
+
+                                b.element({.flags = UI::Flag::Focusable,
+                                           .w = UI::Size::fixed(32),
+                                           .h = UI::Size::fixed(32),
+                                           .style = UI::StyleId::AskConfirm,
+                                           .onClick = [&] {
+                                               Input::endTextInput();
+                                           }
+
+                                });
+                            });
+              });
+}
+
 void IngameMenu::build(UI::Builder &b) {
     scale = Render::renderScale;
     const float screenW = Render::getWidth();
@@ -260,53 +310,11 @@ void IngameMenu::build(UI::Builder &b) {
                   }
 
                   if (Input::isTextInputActive()) {
-                      b.element({
-                                    .w = UI::Size::grow(),
-                                    .h = UI::Size::fit(),
-                                    .padding = UI::Padding::all(10),
-                                },
-                                [&] {
-                                    b.element({
-                                                  .w = UI::Size::grow(),
-                                                  .h = UI::Size::fit(),
-                                                  .childDirection = UI::ChildDir::LeftRight,
-                                                  .childGap = 5,
-                                                  .padding = UI::Padding::all(15),
-                                                  .align = UI::AlignMode::Center,
-                                                  .style = UI::StyleId::AskBox,
-                                              },
-                                              [&] {
-                                                  b.element({.flags = UI::Flag::Focusable,
-                                                             .w = UI::Size::grow(),
-                                                             .h = UI::Size::fit(),
-                                                             .childDirection = UI::ChildDir::LeftRight,
-                                                             .padding = UI::Padding::axis(5, 0),
-                                                             .style = UI::StyleId::AskTextInput,
-                                                             .onClick = [&] {
-                                                                 Input::endTextInput();
-                                                                 Input::startTextInput();
-                                                             }},
-                                                            [&] {
-                                                                b.text({
-                                                                    .text = Input::inputText + "|",
-                                                                    .fontId = 1,
-                                                                    .scale = 0.75,
-                                                                    .color = {0, 0, 0, 255},
-                                                                    .align = UI::AlignMode::Left,
-                                                                });
-                                                            });
-
-                                                  b.element({.flags = UI::Flag::Focusable,
-                                                             .w = UI::Size::fixed(32),
-                                                             .h = UI::Size::fixed(32),
-                                                             .style = UI::StyleId::AskConfirm,
-                                                             .onClick = [&] {
-                                                                 Input::endTextInput();
-                                                             }
-
-                                                  });
-                                              });
-                                });
+                      b.keyboardNav = true;
+                      askMenu(b);
+                  } else {
+                      b.scale = b.ingameScale;
+                      b.keyboardNav = false;
                   }
               });
 }
