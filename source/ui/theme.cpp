@@ -51,7 +51,7 @@ void Theme::load() {
         .normal = {.color = {255, 255, 255, 255}, .round = 4, .borderColor = {217, 217, 217, 255}, .borderThickness = 3}};
     styles[StyleId::AskTextInput] = {
         .normal = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {217, 217, 217, 255}, .borderThickness = 2},
-        .focused = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {118, 75, 114, 255}, .borderThickness = 8},
+        .focused = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {118, 75, 114, 255}, .borderThickness = 4},
         .pressed = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {225, 225, 235, 255}, .borderThickness = 8},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };

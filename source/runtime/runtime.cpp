@@ -6,6 +6,7 @@
 #include "collision.hpp"
 #include "discord.hpp"
 #include "math.hpp"
+#include "menuManager.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
@@ -37,8 +38,7 @@
 #include <vector>
 
 #ifdef ENABLE_MENU
-// #include <pauseMenu.hpp>
-// #include <popupMenu.hpp>
+#include <popupMenu.hpp>
 #endif
 
 #ifdef ENABLE_INSPECTOR
@@ -139,33 +139,46 @@ bool Scratch::initializeRuntime() {
 
 bool Scratch::startScratchProject() {
 
-    // #ifdef ENABLE_MENU
+#ifdef ENABLE_MENU
+    auto renderMenu = [&]() -> void {
+        Render::beginFrame(1, 0, 0, 0);
+        Input::getInput();
+        MenuManager::render();
+        Render::endFrame();
+    };
 
-    //     if (hasNativeExtensions) {
-    //         PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
-    //         MenuManager::changeMenu(popupMenu);
-    //         while (Render::appShouldRun() && popupMenu->accepted == -1) {
-    //             MenuManager::render();
-    //         }
-    //         popupMenu->cleanup();
-    //         if (popupMenu->accepted == 0) {
-    //             cleanupScratchProject();
-    //             return false;
-    //         }
-    //     }
+    auto popup = [&](PopupType type, const std::string &text) -> PopupMenu * {
+        MenuManager::unloadMenu(MenuId::PopupMenu);
+        MenuManager::loadedMenus[MenuId::PopupMenu] = std::make_unique<PopupMenu>(type, text);
+        MenuManager::changeMenu(MenuId::PopupMenu);
+        return reinterpret_cast<PopupMenu *>(MenuManager::loadedMenus[MenuId::PopupMenu].get());
+    };
 
-    //     if (bytecodeCacheTooNew) {
-    //         PopupMenu *popupMenu = new PopupMenu(PopupType::ACKNOWLEDGE, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
-    //         MenuManager::changeMenu(popupMenu);
-    //         while (Render::appShouldRun() && popupMenu->accepted == -1) {
-    //             MenuManager::render();
-    //         }
-    //         popupMenu->cleanup();
-    //         cleanupScratchProject();
-    //         return false;
-    //     }
+    if (hasNativeExtensions) {
+        PopupMenu *popupMenu = popup(PopupType::AcceptOrCancel, TranslationManager::getTranslation("ui.popup.extensions"));
 
-    // #endif
+        while (Render::appShouldRun() && popupMenu->state == PopupState::None) {
+            renderMenu();
+        }
+        MenuManager::toUnload = MenuId::PopupMenu;
+        if (popupMenu->state == PopupState::Cancelled) {
+            cleanupScratchProject();
+            return false;
+        }
+        MenuManager::changeMenu(MenuId::Ingame);
+    }
+
+    if (bytecodeCacheTooNew) {
+        PopupMenu *popupMenu = popup(PopupType::Acknowledgement, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
+        while (Render::appShouldRun() && popupMenu->state == PopupState::None) {
+            renderMenu();
+        }
+        MenuManager::toUnload = MenuId::PopupMenu;
+        cleanupScratchProject();
+        return false;
+    }
+
+#endif
 
     std::pair<bool, bool> code;
     initializeScratchProject();

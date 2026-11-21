@@ -26,6 +26,7 @@ enum class MenuId : uint8_t {
     LoadingMenu,
     Ingame,
     PauseMenu,
+    PopupMenu,
 };
 
 namespace MenuManager {

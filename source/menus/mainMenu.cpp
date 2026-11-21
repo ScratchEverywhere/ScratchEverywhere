@@ -1,4 +1,5 @@
 #include "mainMenu.hpp"
+#include "menuManager.hpp"
 #include "types.hpp"
 #include <translation.hpp>
 #include <version_config.h>
@@ -29,6 +30,7 @@ static std::string getVersion() {
 }
 
 MainMenu::MainMenu() : splash(TranslationManager::getSplashText()), version(getVersion()) {
+    MenuManager::canChangeTabs = true;
 }
 
 MainMenu::~MainMenu() {

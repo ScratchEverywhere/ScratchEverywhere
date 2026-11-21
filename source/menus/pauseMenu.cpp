@@ -12,7 +12,6 @@ PauseMenu::PauseMenu() {
 
 PauseMenu::~PauseMenu() {
     Input::inputControls = std::move(gameControls);
-    MenuManager::canChangeTabs = true;
 }
 
 void PauseMenu::pauseToggle(UI::Builder &b, const std::string &name, bool &value) {

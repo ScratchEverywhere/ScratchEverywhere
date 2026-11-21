@@ -36,7 +36,6 @@ LoadingMenu::~LoadingMenu() {
     MenuManager::elements->imageData.erase("gfx/menu/block1.svg");
     MenuManager::elements->imageData.erase("gfx/menu/block2.svg");
     MenuManager::elements->imageData.erase("gfx/menu/block3.svg");
-    MenuManager::canChangeTabs = true;
 }
 
 void LoadingMenu::build(UI::Builder &b) {

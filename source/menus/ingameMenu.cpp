@@ -223,7 +223,6 @@ void IngameMenu::list(UI::Builder &b, Monitor &var, float x, float y) {
 }
 
 void IngameMenu::build(UI::Builder &b) {
-    MenuManager::canChangeTabs = false;
     scale = Render::renderScale;
     const float screenW = Render::getWidth();
     const float screenH = Render::getHeight();
@@ -277,14 +276,16 @@ void IngameMenu::build(UI::Builder &b) {
                                                   .style = UI::StyleId::AskBox,
                                               },
                                               [&] {
-                                                  b.element({
-                                                                .flags = UI::Flag::Focusable,
-                                                                .w = UI::Size::grow(),
-                                                                .h = UI::Size::fit(),
-                                                                .childDirection = UI::ChildDir::LeftRight,
-                                                                .padding = UI::Padding::axis(5, 0),
-                                                                .style = UI::StyleId::AskTextInput,
-                                                            },
+                                                  b.element({.flags = UI::Flag::Focusable,
+                                                             .w = UI::Size::grow(),
+                                                             .h = UI::Size::fit(),
+                                                             .childDirection = UI::ChildDir::LeftRight,
+                                                             .padding = UI::Padding::axis(5, 0),
+                                                             .style = UI::StyleId::AskTextInput,
+                                                             .onClick = [&] {
+                                                                 Input::endTextInput();
+                                                                 Input::startTextInput();
+                                                             }},
                                                             [&] {
                                                                 b.text({
                                                                     .text = Input::inputText + "|",
