@@ -327,8 +327,21 @@ void InputDevice_SDL3::setClipboardText(const std::string &text) {
 #endif
 }
 
+static bool sdlTextInputUsable() {
+#if defined(SDL3_NO_TEXT_INPUT)
+    return false;
+#elif defined(PLATFORM_HAS_KEYBOARD) || defined(__UBUNTUTOUCH__)
+    return true;
+#else
+    return SDL_HasScreenKeyboardSupport();
+#endif
+}
+
 void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKeyboard) {
-#if !defined(SDL3_NO_TEXT_INPUT)
+    if (!sdlTextInputUsable()) {
+        InputDevice::startTextInput(hintText, numberKeyboard);
+        return;
+    }
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
     const Sint64 keyboardType = numberKeyboard ? SDL_TEXTINPUT_TYPE_NUMBER : SDL_TEXTINPUT_TYPE_TEXT;
 
@@ -350,27 +363,24 @@ void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKe
         Keyboard::open(MenuManager::builder);
     }
 #endif
-
-#else
-    Keyboard::open(MenuManager::builder);
-#endif
 }
 
 bool InputDevice_SDL3::isTextInputActive() {
-#if !defined(SDL3_NO_TEXT_INPUT)
+    if (!sdlTextInputUsable()) {
+        return InputDevice::isTextInputActive();
+    }
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
 #ifdef __UBUNTUTOUCH__
     if (utKeyboardShown) return true;
 #endif
     if (SDL_TextInputActive(window)) return true;
-    return Keyboard::isOpen();
-#else
-    return Keyboard::isOpen();
-#endif
+    return InputDevice::isTextInputActive();
 }
 
 void InputDevice_SDL3::endTextInput() {
-#if !defined(SDL3_NO_TEXT_INPUT)
+    if (!sdlTextInputUsable()) {
+        InputDevice::endTextInput();
+    }
 #ifdef __UBUNTUTOUCH__
     if (utKeyboardShown) {
         getUbuntuTouchKeyboard().hide();
@@ -384,7 +394,4 @@ void InputDevice_SDL3::endTextInput() {
     if (Keyboard::isOpen()) {
         Keyboard::close(MenuManager::builder);
     }
-#else
-    Keyboard::close(MenuManager::builder);
-#endif
 }
