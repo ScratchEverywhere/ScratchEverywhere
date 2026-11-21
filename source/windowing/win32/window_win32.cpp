@@ -27,6 +27,32 @@ typedef HRESULT(WINAPI *PFNDWMSETWINDOWATTRIBUTE)(HWND hWnd, DWORD dwAttribute, 
 static PFNDWMSETWINDOWATTRIBUTE _DwmSetWindowAttribute = nullptr;
 static HMODULE dwmapi = nullptr;
 
+static std::string ansiToUtf8(const std::string &s) {
+    if (s.empty()) return s;
+    const int wlen = MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), nullptr, 0);
+    if (wlen <= 0) return s;
+    std::wstring w(wlen, L'\0');
+    MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), w.data(), wlen);
+    const int ulen = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, nullptr, 0, nullptr, nullptr);
+    if (ulen <= 0) return s;
+    std::string out(ulen, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, out.data(), ulen, nullptr, nullptr);
+    return out;
+}
+
+static std::string clipboardText(HWND hWnd) {
+    std::string text;
+    if (!OpenClipboard(hWnd)) return text;
+    if (HANDLE h = GetClipboardData(CF_TEXT)) {
+        if (const char *p = static_cast<const char *>(GlobalLock(h))) text = p;
+        GlobalUnlock(h);
+    }
+    CloseClipboard();
+    text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+    text.erase(std::remove(text.begin(), text.end(), '\n'), text.end());
+    return ansiToUtf8(text);
+}
+
 static bool isDarkTheme() {
     DWORD dw;
     DWORD sz = sizeof(dw);
@@ -122,32 +148,6 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     }
     return 0;
-}
-
-static std::string ansiToUtf8(const std::string &s) {
-    if (s.empty()) return s;
-    const int wlen = MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), nullptr, 0);
-    if (wlen <= 0) return s;
-    std::wstring w(wlen, L'\0');
-    MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), w.data(), wlen);
-    const int ulen = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, nullptr, 0, nullptr, nullptr);
-    if (ulen <= 0) return s;
-    std::string out(ulen, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, out.data(), ulen, nullptr, nullptr);
-    return out;
-}
-
-static std::string clipboardText(HWND hWnd) {
-    std::string text;
-    if (!OpenClipboard(hWnd)) return text;
-    if (HANDLE h = GetClipboardData(CF_TEXT)) {
-        if (const char *p = static_cast<const char *>(GlobalLock(h))) text = p;
-        GlobalUnlock(h);
-    }
-    CloseClipboard();
-    text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
-    text.erase(std::remove(text.begin(), text.end(), '\n'), text.end());
-    return ansiToUtf8(text);
 }
 
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)

@@ -213,6 +213,7 @@ void WindowSDL3::pollEvents() {
             Input::mouseScrollDelta += static_cast<int>(event.wheel.y);
             break;
 #endif
+#ifndef SDL3_NO_TEXT_INPUT
         case SDL_EVENT_TEXT_INPUT:
             Input::inputText += event.text.text;
             break;
@@ -254,6 +255,7 @@ void WindowSDL3::pollEvents() {
                 break;
             }
             break;
+#endif
         }
     }
 #ifdef __UBUNTUTOUCH__

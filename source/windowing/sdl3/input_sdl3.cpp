@@ -328,7 +328,7 @@ void InputDevice_SDL3::setClipboardText(const std::string &text) {
 }
 
 void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKeyboard) {
-#if !defined(__PSP__)
+#if !defined(SDL3_NO_TEXT_INPUT)
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
     const Sint64 keyboardType = numberKeyboard ? SDL_TEXTINPUT_TYPE_NUMBER : SDL_TEXTINPUT_TYPE_TEXT;
 
@@ -357,7 +357,7 @@ void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKe
 }
 
 bool InputDevice_SDL3::isTextInputActive() {
-#if !defined(__PSP__)
+#if !defined(SDL3_NO_TEXT_INPUT)
     SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
 #ifdef __UBUNTUTOUCH__
     if (utKeyboardShown) return true;
@@ -370,7 +370,7 @@ bool InputDevice_SDL3::isTextInputActive() {
 }
 
 void InputDevice_SDL3::endTextInput() {
-#if !defined(__PSP__)
+#if !defined(SDL3_NO_TEXT_INPUT)
 #ifdef __UBUNTUTOUCH__
     if (utKeyboardShown) {
         getUbuntuTouchKeyboard().hide();

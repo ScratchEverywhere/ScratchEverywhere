@@ -1,6 +1,10 @@
 #include <renderer.hpp>
 #include <se_export.hpp>
 
+#if defined(__PSP__)
+#define SDL3_NO_TEXT_INPUT
+#endif
+
 class SE_EXPORT InputDevice_SDL3 : public InputDevice {
   public:
     InputDevice_SDL3();
