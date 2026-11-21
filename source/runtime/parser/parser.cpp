@@ -100,7 +100,6 @@ void Parser::initCloud() {
     Log::log("initCloud: Creating CloudProvider with URL " + cloudURL + " and project ID " + projectID.str());
     cloudConnection = std::make_unique<CloudProvider>(cloudURL, projectID.str(), Scratch::cloudUsername, "ScratchEverywhere/" SE_VERSION_STRING " contact@grady.link");
     cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
-        Log::log("initCloud: Variable update received: " + name + " = " + value);
         BlockExecutor::handleCloudVariableChange(name, value);
     });
 
