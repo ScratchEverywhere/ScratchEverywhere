@@ -479,8 +479,8 @@ void Renderer_SDL2::penStamp(Sprite *sprite) {
 
     // Pen mapping stuff
     const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    int penX = cords.first + Scratch::projectWidth / 2;
-    int penY = -cords.second + Scratch::projectHeight / 2;
+    float penX = cords.first + Scratch::projectWidth / 2.0f;
+    float penY = -cords.second + Scratch::projectHeight / 2.0f;
 
     float penScale;
     if (Scratch::hqpen) {

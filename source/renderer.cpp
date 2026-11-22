@@ -6,8 +6,8 @@
 #include <cmath>
 #include <log.hpp>
 #include <memory>
-#include <touch_controls.hpp>
 #include <pixel_snap.hpp>
+#include <touch_controls.hpp>
 
 #ifdef RENDERER_OPENGL_CORE
 #include "renderer_gl_core.hpp"
@@ -507,8 +507,8 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
 
         float renderX;
         float renderY;
-        float spriteX = std::round(sprite->xPosition);
-        float spriteY = std::round(sprite->yPosition);
+        float spriteX = Scratch::hqpen ? static_cast<float>(sprite->xPosition) : std::round(sprite->xPosition);
+        float spriteY = Scratch::hqpen ? static_cast<float>(sprite->yPosition) : std::round(sprite->yPosition);
 
         float rotCenterX = costume.rotationCenterX * 2;
         float rotCenterY = costume.rotationCenterY * 2;
@@ -572,7 +572,7 @@ void Render::setRenderScale() {
     renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                            static_cast<float>(screenHeight) / Scratch::projectHeight);
     if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
-    if (renderMode == BOTH_SCREENS) PixelSnap::setGrid(1.0f, 0.0f, 0.0f);
+    if (renderMode == BOTH_SCREENS || Scratch::hqpen) PixelSnap::setGrid(1.0f, 0.0f, 0.0f);
     else PixelSnap::setGrid(renderScale, screenWidth * 0.5f, screenHeight * 0.5f);
     forceUpdateSpritePosition();
 }
