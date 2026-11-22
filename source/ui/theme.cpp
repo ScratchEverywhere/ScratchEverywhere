@@ -39,6 +39,12 @@ void Theme::load() {
         .pressed = {.color = {118, 75, 114, 255}, .round = 12},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    styles[StyleId::Toggle] = {
+        .normal = {.color = {67, 57, 34, 255}, .round = 12},
+    };
+    styles[StyleId::TogglePressed] = {
+        .normal = {.color = {255, 151, 46, 255}, .round = 12},
+    };
     styles[StyleId::TabPressed] = {
         .normal = {.color = {118, 75, 114, 255}, .round = 8},
     };

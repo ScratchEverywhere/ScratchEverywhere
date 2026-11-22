@@ -3,6 +3,7 @@
 #include "menuManager.hpp"
 #include "os.hpp"
 #include "renderer.hpp"
+#include "theme.hpp"
 #include <filesystem.hpp>
 #include <log.hpp>
 #include <settings.hpp>
@@ -19,7 +20,7 @@ void SettingsMenu::toggle(UI::Builder &b, const std::string &jsonKey, const std:
         toggled = json[jsonKey].get<bool>();
     }
 
-    const UI::Color color = toggled ? UI::Color{255, 151, 46, 255} : UI::Color{67, 57, 34, 255};
+    const UI::StyleId style = toggled ? UI::StyleId::TogglePressed : UI::StyleId::Toggle;
 
     b.element({.flags = UI::Flag::Focusable,
                .w = UI::Size::fit(),
@@ -38,9 +39,9 @@ void SettingsMenu::toggle(UI::Builder &b, const std::string &jsonKey, const std:
                }},
               [&] {
                   b.element({
-                      .w = UI::Size::fixed(32),
+                      .w = UI::Size::fixed(48),
                       .h = UI::Size::fixed(32),
-                      .color = color,
+                      .style = style,
                   });
                   b.text({.text = TranslationManager::getTranslation(name),
                           .color = {255, 255, 255, 255},

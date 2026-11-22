@@ -10,6 +10,8 @@ enum StyleId : uint8_t {
     None,
     Tab,
     TabPressed,
+    Toggle,
+    TogglePressed,
     ProjectButton,
     Button,
     PageButton,
