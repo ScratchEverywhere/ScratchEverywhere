@@ -111,8 +111,8 @@ class Scaling {
     static float forViewport(int width, int height) {
         const int effectiveHeight = std::min(height, (width * 3) / 4);
         if (effectiveHeight <= 360) return std::clamp((effectiveHeight - 120) / 240.0f, 0.5f, 1.0f);
-        if (effectiveHeight <= 1080) return 1.0f;
-        return effectiveHeight / 1080.0f;
+        if (effectiveHeight <= 720) return 1.0f;
+        return effectiveHeight / 720.0f;
     }
 };
 

@@ -346,7 +346,10 @@ void IngameMenu::askMenu(UI::Builder &b) {
                                                Input::endTextInput();
                                            }
 
-                                });
+                                          },
+                                          [&] {
+                                              b.text({.text = "=", .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
+                                          });
                             });
               });
 }

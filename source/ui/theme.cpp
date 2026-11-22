@@ -69,23 +69,23 @@ void Theme::load() {
         .normal = {.color = {255, 255, 255, 255}, .round = 4, .borderColor = {217, 217, 217, 255}, .borderThickness = 3}};
     styles[StyleId::AskTextInput] = {
         .normal = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {217, 217, 217, 255}, .borderThickness = 2},
-        .focused = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {118, 75, 114, 255}, .borderThickness = 4},
-        .pressed = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {225, 225, 235, 255}, .borderThickness = 8},
+        .focused = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {0, 115, 253, 255}, .borderThickness = 4},
+        .pressed = {.color = {255, 255, 255, 255}, .round = 15, .borderColor = {100, 200, 255, 255}, .borderThickness = 8},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
     styles[StyleId::AskConfirm] = {
-        .normal = {.color = {118, 75, 114, 255}, .round = 15},
-        .focused = {.color = {225, 225, 235, 255}, .round = 15},
-        .pressed = {.color = {79, 42, 76, 255}, .round = 15},
+        .normal = {.color = {0, 115, 253, 255}, .round = 15},
+        .focused = {.color = {100, 200, 255, 255}, .round = 15},
+        .pressed = {.color = {100, 200, 255, 255}, .round = 15},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
     styles[StyleId::KeyboardBackground] = {
-        .normal = {.color = {139, 139, 139, 255}},
+        .normal = {.color = {194, 204, 217, 255}},
     };
     styles[StyleId::KeyboardKey] = {
-        .normal = {.color = {198, 198, 198, 255}},
-        .focused = {.color = {167, 156, 170, 255}},
-        .pressed = {.color = {129, 110, 128, 255}},
+        .normal = {.color = {228, 240, 255, 255}},
+        .focused = {.color = {0, 115, 253, 255}},
+        .pressed = {.color = {100, 200, 255, 255}},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
     const Color monitorBorder = {194, 204, 217, 255};

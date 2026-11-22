@@ -5,6 +5,7 @@
 #include <downloader.hpp>
 #include <input.hpp>
 #include <log.hpp>
+#include <menuManager.hpp>
 #include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
@@ -447,6 +448,8 @@ void Renderer_C2D::clearClip() {
 }
 
 void Renderer_C2D::renderSprites() {
+    Window3DS *w = reinterpret_cast<Window3DS *>(window);
+    w->width = 400;
     if (isConsoleInit) Render::renderMode = Render::TOP_SCREEN_ONLY;
     if (!hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -530,10 +533,10 @@ void Renderer_C2D::renderSprites() {
 
         screen_rendering(0, true);
 
-        // Render::renderMonitors();
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(screenWidth, screenHeight);
         }
+        MenuManager::render();
 
         if (Input::mousePointer.isMoving) {
             C2D_DrawRectSolid((Input::mousePointer.x * Render::renderScale) + (screenWidth * 0.5f),
@@ -548,14 +551,15 @@ void Renderer_C2D::renderSprites() {
 
             screen_rendering(1, true);
 
-            // Render::renderMonitors();
             if (Render::renderMode != Render::BOTH_SCREENS) {
                 drawBlackBars(screenWidth, screenHeight);
             }
+            MenuManager::render();
         }
     }
 
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
+        w->width = 320;
         C2D_SceneBegin(bottomScreen);
         C2D_TargetClear(bottomScreen, clrWhite);
 
@@ -566,9 +570,11 @@ void Renderer_C2D::renderSprites() {
 
         if (Render::renderMode == Render::BOTH_SCREENS) {
             // Render::renderMonitors(-40, -240);
+            MenuManager::render();
         } else {
             drawBlackBars(bottomScreenWidth, screenHeight);
             // Render::renderMonitors();
+            MenuManager::render();
         }
 
         Render::renderTouchControls();
