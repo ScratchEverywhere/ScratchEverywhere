@@ -1,9 +1,9 @@
 #ifdef __XBOX__
 #include <platforms/xbox/backend_names.hpp>
 #endif
-#include "window.hpp"
 #include "log.hpp"
 #include "renderer.hpp"
+#include "window.hpp"
 #ifdef WINDOWING_SDL3
 #include <window_sdl3.hpp>
 #endif
