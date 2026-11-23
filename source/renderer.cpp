@@ -507,12 +507,14 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
 
         float renderX;
         float renderY;
+
+        float spriteX, spriteY;
 #ifndef __DOS__
-        float spriteX = Scratch::hqpen ? static_cast<float>(sprite->xPosition) : std::round(sprite->xPosition);
-        float spriteY = Scratch::hqpen ? static_cast<float>(sprite->yPosition) : std::round(sprite->yPosition);
+        spriteX = Scratch::hqpen ? static_cast<float>(sprite->xPosition) : std::round(sprite->xPosition);
+        spriteY = Scratch::hqpen ? static_cast<float>(sprite->yPosition) : std::round(sprite->yPosition);
 #else
-        float spriteX = Scratch::hqpen ? static_cast<float>(sprite->xPosition) : round(sprite->xPosition);
-        float spriteY = Scratch::hqpen ? static_cast<float>(sprite->yPosition) : round(sprite->yPosition);
+        spriteX = Scratch::hqpen ? static_cast<float>(sprite->xPosition) : round(sprite->xPosition);
+        spriteY = Scratch::hqpen ? static_cast<float>(sprite->yPosition) : round(sprite->yPosition);
 #endif
         float rotCenterX = costume.rotationCenterX * 2;
         float rotCenterY = costume.rotationCenterY * 2;
