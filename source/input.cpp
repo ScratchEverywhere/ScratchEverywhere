@@ -187,7 +187,7 @@ void Input::applyControls(std::string controlsFilePath) {
     }
 
     // Default controls
-    for (size_t i = 0; i < static_cast<size_t>(SCRATCH_KEY_INDEX::COUNT); i++) {
+    for (size_t i = 0; i < NUM_OF_SCRATCH_KEYS; i++) {
         Input::inputControls[CONTROLLER_STRINGS[i]] = SCRATCH_CONTROLS[i];
     }
 }

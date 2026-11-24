@@ -8,6 +8,8 @@
 #include <text.hpp>
 #include <vector>
 
+#include <input_strings.hpp>
+
 static retro_input_state_t input_state_cb;
 
 extern "C" void retro_set_input_state(retro_input_state_t cb) {
@@ -55,21 +57,21 @@ void InputDevice_Libretro::getInput() {
         }
     };
 
-    auto checkJoy = [&](int joy, std::string scratchName) {
+    auto checkJoy = [&](int joy, SCRATCH_KEY_INDEX scratchKey) {
         if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy)) {
-            Input::buttonPress(scratchName);
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey)] );
         }
     };
 
-    auto checkJoy2 = [&](int btn, int id, std::string scratchName1, std::string scratchName2) {
+    auto checkJoy2 = [&](int btn, int id, SCRATCH_KEY_INDEX scratchKey1, SCRATCH_KEY_INDEX scratchKey2) {
         double n = input_state_cb(0, RETRO_DEVICE_ANALOG, btn, id);
 
         n /= 0x8000;
 
         if (n < -0.5) {
-            Input::buttonPress(scratchName1);
+            Input::buttonPress( CONTROLLER_STRINGS[SKEY_ID(scratchKey1)] ) ;
         } else if (n > 0.5) {
-            Input::buttonPress(scratchName2);
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey2)] );
         }
     };
 
@@ -127,32 +129,32 @@ void InputDevice_Libretro::getInput() {
     checkKey(RETROK_KP_ENTER, "enter");
     checkKey(RETROK_KP_EQUALS, "=");
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_UP, "dpadUp");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_DOWN, "dpadDown");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_LEFT, "dpadLeft");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_RIGHT, "dpadRight");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_UP, SCRATCH_KEY_INDEX::DPAD_UP );
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_DOWN, SCRATCH_KEY_INDEX::DPAD_DOWN);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_LEFT, SCRATCH_KEY_INDEX::DPAD_LEFT);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_RIGHT, SCRATCH_KEY_INDEX::DPAD_RIGHT );
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_A, "A");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_B, "B");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_X, "X");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_Y, "Y");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_A, SCRATCH_KEY_INDEX::A);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_B, SCRATCH_KEY_INDEX::B);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_X, SCRATCH_KEY_INDEX::X);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_Y, SCRATCH_KEY_INDEX::Y);
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_L, "shoulderL");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_R, "shoulderR");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_L, SCRATCH_KEY_INDEX::SHOULDER_L);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_R, SCRATCH_KEY_INDEX::SHOULDER_R);
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_START, "start");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_SELECT, "back");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_START, SCRATCH_KEY_INDEX::START);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_SELECT, SCRATCH_KEY_INDEX::BACK);
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_L3, "LeftStickPressed");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_R3, "RightStickPressed");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_L3, SCRATCH_KEY_INDEX::L_STICK_PRESSED);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_R3, SCRATCH_KEY_INDEX::R_STICK_PRESSED);
 
-    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "LeftStickLeft", "LeftStickRight");
-    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "LeftStickUp", "LeftStickDown");
-    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "RightStickRight", "RightStickRight");
-    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "RightStickUp", "RightStickDown");
+    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, SCRATCH_KEY_INDEX::L_STICK_LEFT, SCRATCH_KEY_INDEX::L_STICK_RIGHT);
+    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, SCRATCH_KEY_INDEX::L_STICK_UP, SCRATCH_KEY_INDEX::L_STICK_DOWN);
+    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, SCRATCH_KEY_INDEX::R_STICK_LEFT, SCRATCH_KEY_INDEX::R_STICK_RIGHT);
+    checkJoy2(RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, SCRATCH_KEY_INDEX::R_STICK_UP, SCRATCH_KEY_INDEX::R_STICK_DOWN);
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_L2, "LT");
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_R2, "RT");
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_L2, SCRATCH_KEY_INDEX::LEFT_TRIGGER);
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_R2, SCRATCH_KEY_INDEX::RIGHT_TRIGGER);
 
     if (!Input::inputKeys.empty()) {
         Input::inputKeys.push_back("any");

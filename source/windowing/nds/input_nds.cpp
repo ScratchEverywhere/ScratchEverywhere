@@ -26,8 +26,6 @@ static constexpr u16 NDS_KEYS[] = {
     KEY_START,
     KEY_SELECT};
 
-static const size_t KEY_AMOUNT = sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
-
 static uint16_t mouseHeldFrames = 0;
 static touchPosition touch;
 
@@ -76,7 +74,7 @@ void InputDevice_NDS::getInput() {
     Input::inputKeys.push_back("any");
 
     // Send Key Codes
-    for (size_t i = 0; i < KEY_AMOUNT; i++) {
+    for (size_t i = 0; i < NUM_OF_SCRATCH_KEYS; i++) {
         if (kHeld & NDS_KEYS[i]) {
             Input::buttonPress(CONTROLLER_STRINGS[i]);
         }

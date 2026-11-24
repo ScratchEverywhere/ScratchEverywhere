@@ -17,8 +17,6 @@ static constexpr float GAMEPAD_SCREEN_HEIGHT = 480.0f;
 static std::array<int, 2> lastTouch = {0, 0};
 static bool touching = false;
 
-#define IDX(name) static_cast<size_t>(SCRATCH_KEY_INDEX::name)
-
 namespace {
 
 struct PadState {
@@ -40,22 +38,22 @@ void readGamePad(PadState &state) {
     if (VPADRead(VPAD_CHAN_0, &status, 1, &error) < 1 || error != VPAD_READ_SUCCESS) return;
 
     const uint32_t hold = status.hold;
-    state.buttons[IDX(DPAD_UP)] |= (hold & VPAD_BUTTON_UP) != 0;
-    state.buttons[IDX(DPAD_DOWN)] |= (hold & VPAD_BUTTON_DOWN) != 0;
-    state.buttons[IDX(DPAD_LEFT)] |= (hold & VPAD_BUTTON_LEFT) != 0;
-    state.buttons[IDX(DPAD_RIGHT)] |= (hold & VPAD_BUTTON_RIGHT) != 0;
-    state.buttons[IDX(A)] |= (hold & VPAD_BUTTON_A) != 0;
-    state.buttons[IDX(B)] |= (hold & VPAD_BUTTON_B) != 0;
-    state.buttons[IDX(X)] |= (hold & VPAD_BUTTON_X) != 0;
-    state.buttons[IDX(Y)] |= (hold & VPAD_BUTTON_Y) != 0;
-    state.buttons[IDX(SHOULDER_L)] |= (hold & VPAD_BUTTON_L) != 0;
-    state.buttons[IDX(SHOULDER_R)] |= (hold & VPAD_BUTTON_R) != 0;
-    state.buttons[IDX(START)] |= (hold & VPAD_BUTTON_PLUS) != 0;
-    state.buttons[IDX(BACK)] |= (hold & VPAD_BUTTON_MINUS) != 0;
-    state.buttons[IDX(L_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_L) != 0;
-    state.buttons[IDX(R_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_R) != 0;
-    state.buttons[IDX(RIGHT_TRIGGER)] |= (hold & VPAD_BUTTON_ZL) != 0;
-    state.buttons[IDX(LEFT_TRIGGER)] |= (hold & VPAD_BUTTON_ZR) != 0;
+    state.buttons[SKEY_ID(DPAD_UP)] |= (hold & VPAD_BUTTON_UP) != 0;
+    state.buttons[SKEY_ID(DPAD_DOWN)] |= (hold & VPAD_BUTTON_DOWN) != 0;
+    state.buttons[SKEY_ID(DPAD_LEFT)] |= (hold & VPAD_BUTTON_LEFT) != 0;
+    state.buttons[SKEY_ID(DPAD_RIGHT)] |= (hold & VPAD_BUTTON_RIGHT) != 0;
+    state.buttons[SKEY_ID(A)] |= (hold & VPAD_BUTTON_A) != 0;
+    state.buttons[SKEY_ID(B)] |= (hold & VPAD_BUTTON_B) != 0;
+    state.buttons[SKEY_ID(X)] |= (hold & VPAD_BUTTON_X) != 0;
+    state.buttons[SKEY_ID(Y)] |= (hold & VPAD_BUTTON_Y) != 0;
+    state.buttons[SKEY_ID(SHOULDER_L)] |= (hold & VPAD_BUTTON_L) != 0;
+    state.buttons[SKEY_ID(SHOULDER_R)] |= (hold & VPAD_BUTTON_R) != 0;
+    state.buttons[SKEY_ID(START)] |= (hold & VPAD_BUTTON_PLUS) != 0;
+    state.buttons[SKEY_ID(BACK)] |= (hold & VPAD_BUTTON_MINUS) != 0;
+    state.buttons[SKEY_ID(L_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_L) != 0;
+    state.buttons[SKEY_ID(R_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_R) != 0;
+    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & VPAD_BUTTON_ZL) != 0;
+    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & VPAD_BUTTON_ZR) != 0;
 
     applyStick(state.leftX, state.leftY, status.leftStick.x, status.leftStick.y);
     applyStick(state.rightX, state.rightY, status.rightStick.x, status.rightStick.y);
@@ -69,20 +67,20 @@ void readGamePad(PadState &state) {
 }
 
 void applyExtensionButtons(PadState &state, uint32_t hold) {
-    state.buttons[IDX(DPAD_UP)] |= (hold & WPAD_PRO_BUTTON_UP) != 0;
-    state.buttons[IDX(DPAD_DOWN)] |= (hold & WPAD_PRO_BUTTON_DOWN) != 0;
-    state.buttons[IDX(DPAD_LEFT)] |= (hold & WPAD_PRO_BUTTON_LEFT) != 0;
-    state.buttons[IDX(DPAD_RIGHT)] |= (hold & WPAD_PRO_BUTTON_RIGHT) != 0;
-    state.buttons[IDX(A)] |= (hold & WPAD_PRO_BUTTON_A) != 0;
-    state.buttons[IDX(B)] |= (hold & WPAD_PRO_BUTTON_B) != 0;
-    state.buttons[IDX(X)] |= (hold & WPAD_PRO_BUTTON_X) != 0;
-    state.buttons[IDX(Y)] |= (hold & WPAD_PRO_BUTTON_Y) != 0;
-    state.buttons[IDX(SHOULDER_L)] |= (hold & WPAD_PRO_TRIGGER_L) != 0;
-    state.buttons[IDX(SHOULDER_R)] |= (hold & WPAD_PRO_TRIGGER_R) != 0;
-    state.buttons[IDX(START)] |= (hold & WPAD_PRO_BUTTON_PLUS) != 0;
-    state.buttons[IDX(BACK)] |= (hold & WPAD_PRO_BUTTON_MINUS) != 0;
-    state.buttons[IDX(RIGHT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZL) != 0;
-    state.buttons[IDX(LEFT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZR) != 0;
+    state.buttons[SKEY_ID(DPAD_UP)] |= (hold & WPAD_PRO_BUTTON_UP) != 0;
+    state.buttons[SKEY_ID(DPAD_DOWN)] |= (hold & WPAD_PRO_BUTTON_DOWN) != 0;
+    state.buttons[SKEY_ID(DPAD_LEFT)] |= (hold & WPAD_PRO_BUTTON_LEFT) != 0;
+    state.buttons[SKEY_ID(DPAD_RIGHT)] |= (hold & WPAD_PRO_BUTTON_RIGHT) != 0;
+    state.buttons[SKEY_ID(A)] |= (hold & WPAD_PRO_BUTTON_A) != 0;
+    state.buttons[SKEY_ID(B)] |= (hold & WPAD_PRO_BUTTON_B) != 0;
+    state.buttons[SKEY_ID(X)] |= (hold & WPAD_PRO_BUTTON_X) != 0;
+    state.buttons[SKEY_ID(Y)] |= (hold & WPAD_PRO_BUTTON_Y) != 0;
+    state.buttons[SKEY_ID(SHOULDER_L)] |= (hold & WPAD_PRO_TRIGGER_L) != 0;
+    state.buttons[SKEY_ID(SHOULDER_R)] |= (hold & WPAD_PRO_TRIGGER_R) != 0;
+    state.buttons[SKEY_ID(START)] |= (hold & WPAD_PRO_BUTTON_PLUS) != 0;
+    state.buttons[SKEY_ID(BACK)] |= (hold & WPAD_PRO_BUTTON_MINUS) != 0;
+    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZL) != 0;
+    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZR) != 0;
 }
 
 void readExtensionControllers(PadState &state) {
@@ -93,8 +91,8 @@ void readExtensionControllers(PadState &state) {
 
         if (status.extensionType == WPAD_EXT_PRO_CONTROLLER) {
             applyExtensionButtons(state, status.pro.hold);
-            state.buttons[IDX(L_STICK_PRESSED)] |= (status.pro.hold & WPAD_PRO_BUTTON_STICK_L) != 0;
-            state.buttons[IDX(R_STICK_PRESSED)] |= (status.pro.hold & WPAD_PRO_BUTTON_STICK_R) != 0;
+            state.buttons[SKEY_ID(L_STICK_PRESSED)] |= (status.pro.hold & WPAD_PRO_BUTTON_STICK_L) != 0;
+            state.buttons[SKEY_ID(R_STICK_PRESSED)] |= (status.pro.hold & WPAD_PRO_BUTTON_STICK_R) != 0;
             applyStick(state.leftX, state.leftY, status.pro.leftStick.x, status.pro.leftStick.y);
             applyStick(state.rightX, state.rightY, status.pro.rightStick.x, status.pro.rightStick.y);
         } else if (status.extensionType == WPAD_EXT_CLASSIC || status.extensionType == WPAD_EXT_MPLUS_CLASSIC) {
@@ -142,14 +140,14 @@ void InputDevice_WiiU::getInput() {
     readGamePad(state);
     readExtensionControllers(state);
 
-    if (state.leftX > STICK_DEADZONE_X) state.buttons[IDX(L_STICK_RIGHT)] = true;
-    if (state.leftX < -STICK_DEADZONE_X) state.buttons[IDX(L_STICK_LEFT)] = true;
-    if (state.leftY > STICK_DEADZONE_Y) state.buttons[IDX(L_STICK_UP)] = true;
-    if (state.leftY < -STICK_DEADZONE_Y) state.buttons[IDX(L_STICK_DOWN)] = true;
-    if (state.rightX > STICK_DEADZONE_X) state.buttons[IDX(R_STICK_RIGHT)] = true;
-    if (state.rightX < -STICK_DEADZONE_X) state.buttons[IDX(R_STICK_LEFT)] = true;
-    if (state.rightY > STICK_DEADZONE_Y) state.buttons[IDX(R_STICK_UP)] = true;
-    if (state.rightY < -STICK_DEADZONE_Y) state.buttons[IDX(R_STICK_DOWN)] = true;
+    if (state.leftX > STICK_DEADZONE_X)   state.buttons[SKEY_ID(L_STICK_RIGHT)] = true;
+    if (state.leftX < -STICK_DEADZONE_X)  state.buttons[SKEY_ID(L_STICK_LEFT)] = true;
+    if (state.leftY > STICK_DEADZONE_Y)   state.buttons[SKEY_ID(L_STICK_UP)] = true;
+    if (state.leftY < -STICK_DEADZONE_Y)  state.buttons[SKEY_ID(L_STICK_DOWN)] = true;
+    if (state.rightX > STICK_DEADZONE_X)  state.buttons[SKEY_ID(R_STICK_RIGHT)] = true;
+    if (state.rightX < -STICK_DEADZONE_X) state.buttons[SKEY_ID(R_STICK_LEFT)] = true;
+    if (state.rightY > STICK_DEADZONE_Y)  state.buttons[SKEY_ID(R_STICK_UP)] = true;
+    if (state.rightY < -STICK_DEADZONE_Y) state.buttons[SKEY_ID(R_STICK_DOWN)] = true;
 
     Input::leftJoystick.first = state.leftX;
     Input::leftJoystick.second = -state.leftY;
