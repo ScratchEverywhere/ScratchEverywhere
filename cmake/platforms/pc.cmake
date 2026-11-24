@@ -149,6 +149,31 @@ macro(package_platform)
 		endif()
 	endif()
 
+	if(APPLE AND NOT IOS AND NOT SE_LIBRARY AND TARGET scratch-everywhere)
+		set(SE_MACOS_PACKAGE_ARGS
+			--binary "$<TARGET_FILE:scratch-everywhere>"
+			--out "${CMAKE_CURRENT_BINARY_DIR}/macos"
+			--version "${SE_APP_VERSION}"
+			--name "${SE_APP_NAME}"
+		)
+		if(CMAKE_OSX_DEPLOYMENT_TARGET)
+			list(APPEND SE_MACOS_PACKAGE_ARGS --min-macos "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+		endif()
+
+		add_custom_target(macos-app
+			COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macos/package.sh" ${SE_MACOS_PACKAGE_ARGS} --app-only
+			DEPENDS scratch-everywhere
+			COMMENT "Creating the macOS .app bundle"
+			VERBATIM
+		)
+		add_custom_target(macos-installer
+			COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macos/package.sh" ${SE_MACOS_PACKAGE_ARGS}
+			DEPENDS scratch-everywhere
+			COMMENT "Creating the macOS .app and .dmg"
+			VERBATIM
+		)
+	endif()
+
 	# "multiple definition of `wp_fractional_scale_manager_v1_interface'"
 	if(SE_WINDOWING STREQUAL "all" AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$")
 		target_link_options(scratch-everywhere PRIVATE "-Wl,--allow-multiple-definition")

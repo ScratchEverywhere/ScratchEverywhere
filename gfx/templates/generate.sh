@@ -111,6 +111,7 @@ mkdir -p \
     ../vita/livearea/contents \
     ../ps4 \
     ../linux \
+    ../windows \
     ../wii \
     ../wiiu \
     ../ut \
@@ -163,6 +164,14 @@ cp -f "$GENERATION_PATH/background-logo.png" ../ps4/pic1.png
 echo "[PLATFORMS]-> Linux"
 
 cp -f "$ITCHY_PATH" ../linux/scratch-everywhere.svg
+
+
+# --- Windows ---
+echo "[PLATFORMS]-> Windows"
+
+magick "$GENERATION_PATH/icon.png" \
+    -define icon:auto-resize=256,128,64,48,32,16 \
+    ../windows/icon.ico
 
 
 # --- Ubuntu Touch ---
@@ -235,6 +244,47 @@ magick \
 magick "$GENERATION_PATH/icon.png" \
     -resize 48x48! \
     ../icon.png
+
+
+# --- macOS ---
+echo "[PLATFORMS]-> macOS"
+
+ICONSET_DIR="/tmp/ScratchEverywhere.iconset"
+rm -rf "$ICONSET_DIR"
+mkdir -p "$ICONSET_DIR"
+
+for base in 16 32 128 256 512; do
+    double=$((base * 2))
+    magick "$GENERATION_PATH/icon.png" \
+        -resize "${base}x${base}!" \
+        PNG32:"$ICONSET_DIR/icon_${base}x${base}.png"
+    magick "$GENERATION_PATH/icon.png" \
+        -resize "${double}x${double}!" \
+        PNG32:"$ICONSET_DIR/icon_${base}x${base}@2x.png"
+done
+
+if command -v iconutil >/dev/null 2>&1; then
+    iconutil -c icns "$ICONSET_DIR" -o ../macOS/Icon.icns
+else
+	# Small little python thingy to construct icns file format.
+    python3 - "$ICONSET_DIR" ../macOS/Icon.icns <<'PY'
+import struct, sys
+src, out = sys.argv[1:3]
+chunks = [
+    ("ic11", "icon_16x16@2x.png"), ("ic12", "icon_32x32@2x.png"),
+    ("ic07", "icon_128x128.png"), ("ic13", "icon_128x128@2x.png"),
+    ("ic08", "icon_256x256.png"), ("ic14", "icon_256x256@2x.png"),
+    ("ic09", "icon_512x512.png"), ("ic10", "icon_512x512@2x.png"),
+]
+body = b""
+for tag, name in chunks:
+    data = open(f"{src}/{name}", "rb").read()
+    body += tag.encode() + struct.pack(">I", len(data) + 8) + data
+open(out, "wb").write(b"icns" + struct.pack(">I", len(body) + 8) + body)
+PY
+fi
+
+rm -rf "$ICONSET_DIR"
 
 
 echo "[PLATFORMS] Done!"
