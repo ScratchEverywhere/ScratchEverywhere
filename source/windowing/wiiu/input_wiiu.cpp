@@ -140,13 +140,13 @@ void InputDevice_WiiU::getInput() {
     readGamePad(state);
     readExtensionControllers(state);
 
-    if (state.leftX > STICK_DEADZONE_X)   state.buttons[SKEY_ID(L_STICK_RIGHT)] = true;
-    if (state.leftX < -STICK_DEADZONE_X)  state.buttons[SKEY_ID(L_STICK_LEFT)] = true;
-    if (state.leftY > STICK_DEADZONE_Y)   state.buttons[SKEY_ID(L_STICK_UP)] = true;
-    if (state.leftY < -STICK_DEADZONE_Y)  state.buttons[SKEY_ID(L_STICK_DOWN)] = true;
-    if (state.rightX > STICK_DEADZONE_X)  state.buttons[SKEY_ID(R_STICK_RIGHT)] = true;
+    if (state.leftX > STICK_DEADZONE_X) state.buttons[SKEY_ID(L_STICK_RIGHT)] = true;
+    if (state.leftX < -STICK_DEADZONE_X) state.buttons[SKEY_ID(L_STICK_LEFT)] = true;
+    if (state.leftY > STICK_DEADZONE_Y) state.buttons[SKEY_ID(L_STICK_UP)] = true;
+    if (state.leftY < -STICK_DEADZONE_Y) state.buttons[SKEY_ID(L_STICK_DOWN)] = true;
+    if (state.rightX > STICK_DEADZONE_X) state.buttons[SKEY_ID(R_STICK_RIGHT)] = true;
     if (state.rightX < -STICK_DEADZONE_X) state.buttons[SKEY_ID(R_STICK_LEFT)] = true;
-    if (state.rightY > STICK_DEADZONE_Y)  state.buttons[SKEY_ID(R_STICK_UP)] = true;
+    if (state.rightY > STICK_DEADZONE_Y) state.buttons[SKEY_ID(R_STICK_UP)] = true;
     if (state.rightY < -STICK_DEADZONE_Y) state.buttons[SKEY_ID(R_STICK_DOWN)] = true;
 
     Input::leftJoystick.first = state.leftX;

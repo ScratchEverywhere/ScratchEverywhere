@@ -10,9 +10,9 @@
 #include <cstddef>
 #include <input.hpp>
 #include <map>
-#include <touch_controls.hpp>
 #include <renderer.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <types.hpp>
 #ifdef __UBUNTUTOUCH__
 #include <platforms/ut/swkbd_ut.hpp>
@@ -245,14 +245,14 @@ void InputDevice_SDL2::getInput() {
 
     // Swap face buttons for Switch
 #ifdef __SWITCH__
-    button_handler(SCRATCH_KEY_INDEX::B, SDL2_GAMEPAD_KEYS[SKEY_ID(A)] );
-    button_handler(SCRATCH_KEY_INDEX::A, SDL2_GAMEPAD_KEYS[SKEY_ID(B)] );
-    button_handler(SCRATCH_KEY_INDEX::Y, SDL2_GAMEPAD_KEYS[SKEY_ID(X)] );
-    button_handler(SCRATCH_KEY_INDEX::X, SDL2_GAMEPAD_KEYS[SKEY_ID(Y)] );
+    button_handler(SCRATCH_KEY_INDEX::B, SDL2_GAMEPAD_KEYS[SKEY_ID(A)]);
+    button_handler(SCRATCH_KEY_INDEX::A, SDL2_GAMEPAD_KEYS[SKEY_ID(B)]);
+    button_handler(SCRATCH_KEY_INDEX::Y, SDL2_GAMEPAD_KEYS[SKEY_ID(X)]);
+    button_handler(SCRATCH_KEY_INDEX::X, SDL2_GAMEPAD_KEYS[SKEY_ID(Y)]);
 #else
     button_handler(SCRATCH_KEY_INDEX::A, SDL_CONTROLLER_BUTTON_INVALID);
     button_handler(SCRATCH_KEY_INDEX::B, SDL_CONTROLLER_BUTTON_INVALID);
-    if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[SKEY_ID(X)]) ) {
+    if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[SKEY_ID(X)])) {
         Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(X)]);
 #ifdef WII // SDL 'x' is the A button on a wii remote
         Input::mousePointer.isPressed = true;
@@ -274,28 +274,28 @@ void InputDevice_SDL2::getInput() {
     }
     button_handler(SCRATCH_KEY_INDEX::START, SDL_CONTROLLER_BUTTON_INVALID);
     // if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_START)) Input::buttonPress("start");
-    if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[SKEY_ID(BACK)] )) {
+    if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[SKEY_ID(BACK)])) {
         Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(BACK)]);
 #ifdef WII
         OS::toExit = true;
 #endif
     }
-    button_handler(SCRATCH_KEY_INDEX::R_STICK_PRESSED, SDL2_GAMEPAD_KEYS[SKEY_ID(R_STICK_PRESSED)] ); // SDL_CONTROLLER_BUTTON_INVALID);
-    button_handler(SCRATCH_KEY_INDEX::L_STICK_PRESSED, SDL2_GAMEPAD_KEYS[SKEY_ID(L_STICK_PRESSED)] );
+    button_handler(SCRATCH_KEY_INDEX::R_STICK_PRESSED, SDL2_GAMEPAD_KEYS[SKEY_ID(R_STICK_PRESSED)]); // SDL_CONTROLLER_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::L_STICK_PRESSED, SDL2_GAMEPAD_KEYS[SKEY_ID(L_STICK_PRESSED)]);
 
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
     float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
     float joyRightY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY);
 
-    if (joyLeftX > CONTROLLER_DEADZONE_X)  Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_RIGHT)]);
+    if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_RIGHT)]);
     if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_LEFT)]);
-    if (joyLeftY > CONTROLLER_DEADZONE_Y)  Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_DOWN)]);
+    if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_DOWN)]);
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_UP)]);
 
-    if (joyRightX > CONTROLLER_DEADZONE_X)  Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_RIGHT)]);
+    if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_RIGHT)]);
     if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_LEFT)]);
-    if (joyRightY > CONTROLLER_DEADZONE_Y)  Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_DOWN)]);
+    if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_DOWN)]);
     if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_UP)]);
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER)
         Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(LEFT_TRIGGER)]);

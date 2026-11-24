@@ -59,7 +59,7 @@ void InputDevice_Libretro::getInput() {
 
     auto checkJoy = [&](int joy, SCRATCH_KEY_INDEX scratchKey) {
         if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy)) {
-            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey)] );
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey)]);
         }
     };
 
@@ -69,9 +69,9 @@ void InputDevice_Libretro::getInput() {
         n /= 0x8000;
 
         if (n < -0.5) {
-            Input::buttonPress( CONTROLLER_STRINGS[SKEY_ID(scratchKey1)] ) ;
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey1)]);
         } else if (n > 0.5) {
-            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey2)] );
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey2)]);
         }
     };
 
@@ -129,10 +129,10 @@ void InputDevice_Libretro::getInput() {
     checkKey(RETROK_KP_ENTER, "enter");
     checkKey(RETROK_KP_EQUALS, "=");
 
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_UP, SCRATCH_KEY_INDEX::DPAD_UP );
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_UP, SCRATCH_KEY_INDEX::DPAD_UP);
     checkJoy(RETRO_DEVICE_ID_JOYPAD_DOWN, SCRATCH_KEY_INDEX::DPAD_DOWN);
     checkJoy(RETRO_DEVICE_ID_JOYPAD_LEFT, SCRATCH_KEY_INDEX::DPAD_LEFT);
-    checkJoy(RETRO_DEVICE_ID_JOYPAD_RIGHT, SCRATCH_KEY_INDEX::DPAD_RIGHT );
+    checkJoy(RETRO_DEVICE_ID_JOYPAD_RIGHT, SCRATCH_KEY_INDEX::DPAD_RIGHT);
 
     checkJoy(RETRO_DEVICE_ID_JOYPAD_A, SCRATCH_KEY_INDEX::A);
     checkJoy(RETRO_DEVICE_ID_JOYPAD_B, SCRATCH_KEY_INDEX::B);

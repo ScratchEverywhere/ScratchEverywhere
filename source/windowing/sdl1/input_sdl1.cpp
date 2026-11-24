@@ -32,7 +32,6 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-
 static constexpr int32_t SDL1_CONTROLLER_KEYS[] = {
     -1,
     -1,
@@ -115,16 +114,16 @@ void InputDevice_SDL1::getInput() {
 
     if (controller) {
         Uint8 hat = SDL_JoystickGetHat(controller, 0);
-        
+
         auto dpad_inputs = [&](SCRATCH_KEY_INDEX key_index) {
             Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(key_index)]);
-            #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-                if (SDL_JoystickGetButton(controller, 4)) return 3;
-            #endif
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+            if (SDL_JoystickGetButton(controller, 4)) return 3;
+#endif
 
             return 0;
         };
-        
+
         if (hat & SDL_HAT_UP) {
             Input::mousePointer.y += dpad_inputs(SCRATCH_KEY_INDEX::DPAD_UP);
         }
@@ -137,11 +136,9 @@ void InputDevice_SDL1::getInput() {
         if (hat & SDL_HAT_RIGHT) {
             Input::mousePointer.x += dpad_inputs(SCRATCH_KEY_INDEX::DPAD_RIGHT);
         }
-        
 
-        
         auto button_inputs = [&](SCRATCH_KEY_INDEX key_index) {
-            if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[ SKEY_IDE(key_index) ])) Input::buttonPress(CONTROLLER_STRINGS[ SKEY_IDE(key_index) ]);
+            if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_IDE(key_index)])) Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(key_index)]);
         };
 
         button_inputs(SCRATCH_KEY_INDEX::A);
@@ -153,22 +150,20 @@ void InputDevice_SDL1::getInput() {
         button_inputs(SCRATCH_KEY_INDEX::BACK);
         button_inputs(SCRATCH_KEY_INDEX::L_STICK_PRESSED);
         button_inputs(SCRATCH_KEY_INDEX::R_STICK_PRESSED);
-        
 
-        if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(SHOULDER_L)] )) {
-            Input::buttonPress(CONTROLLER_STRINGS[ SKEY_ID(SHOULDER_L)] );
+        if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(SHOULDER_L)])) {
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_L)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             Input::mousePointer.isMoving = true;
 #endif
         } else Input::mousePointer.isMoving = false;
-        if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[ SKEY_ID(SHOULDER_R)])) {
-            Input::buttonPress(CONTROLLER_STRINGS[ SKEY_ID(SHOULDER_R)] );
+        if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(SHOULDER_R)])) {
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_R)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) Input::mousePointer.isPressed = true;
 #endif
         }
-        
-        
+
         auto thumb_stick_input = [&](float axis, float deadzone, std::array<SCRATCH_KEY_INDEX, 2> states) {
             if (abs(axis) <= deadzone) {
                 return;
@@ -177,10 +172,10 @@ void InputDevice_SDL1::getInput() {
             int8_t sign = (int8_t)(axis / abs(axis));
             switch (sign) {
             case 1:
-                Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(states[0])] );
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(states[0])]);
                 break;
             case -1:
-                Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(states[1]) ]);
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(states[1])]);
                 break;
             }
         };
@@ -190,18 +185,17 @@ void InputDevice_SDL1::getInput() {
         float joyRightX = SDL_JoystickGetAxis(controller, 2);
         float joyRightY = SDL_JoystickGetAxis(controller, 3);
 
-        thumb_stick_input(joyLeftX, CONTROLLER_DEADZONE_X,  {SCRATCH_KEY_INDEX::L_STICK_RIGHT, SCRATCH_KEY_INDEX::L_STICK_LEFT});
-        thumb_stick_input(joyLeftY, CONTROLLER_DEADZONE_Y,  {SCRATCH_KEY_INDEX::L_STICK_DOWN,  SCRATCH_KEY_INDEX::L_STICK_UP});
+        thumb_stick_input(joyLeftX, CONTROLLER_DEADZONE_X, {SCRATCH_KEY_INDEX::L_STICK_RIGHT, SCRATCH_KEY_INDEX::L_STICK_LEFT});
+        thumb_stick_input(joyLeftY, CONTROLLER_DEADZONE_Y, {SCRATCH_KEY_INDEX::L_STICK_DOWN, SCRATCH_KEY_INDEX::L_STICK_UP});
         thumb_stick_input(joyRightX, CONTROLLER_DEADZONE_X, {SCRATCH_KEY_INDEX::R_STICK_RIGHT, SCRATCH_KEY_INDEX::R_STICK_LEFT});
-        thumb_stick_input(joyRightY, CONTROLLER_DEADZONE_Y, {SCRATCH_KEY_INDEX::R_STICK_DOWN,  SCRATCH_KEY_INDEX::R_STICK_UP});
-        
+        thumb_stick_input(joyRightY, CONTROLLER_DEADZONE_Y, {SCRATCH_KEY_INDEX::R_STICK_DOWN, SCRATCH_KEY_INDEX::R_STICK_UP});
 
-        if (SDL_JoystickGetAxis(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(LEFT_TRIGGER)]) > CONTROLLER_DEADZONE_TRIGGER) 
+        if (SDL_JoystickGetAxis(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(LEFT_TRIGGER)]) > CONTROLLER_DEADZONE_TRIGGER)
             Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(LEFT_TRIGGER)]);
         if (SDL_JoystickGetAxis(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(RIGHT_TRIGGER)]) > CONTROLLER_DEADZONE_TRIGGER) {
             Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(RIGHT_TRIGGER)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-            if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(RIGHT_TRIGGER)])) 
+            if (SDL_JoystickGetButton(controller, SDL1_CONTROLLER_KEYS[SKEY_ID(RIGHT_TRIGGER)]))
                 Input::mousePointer.isPressed = true;
 #endif
         }
