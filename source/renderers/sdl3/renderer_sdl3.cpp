@@ -91,9 +91,9 @@ Renderer_SDL3::Renderer_SDL3() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
-// #elif defined(__PS2__)
-//     int windowWidth = 640;
-//     int windowHeight = 448;
+#elif defined(__PS2__)
+     int windowWidth = 640;
+     int windowHeight = 448;
 #elif defined(__XBOX__)
     int windowWidth = 640;
     int windowHeight = 480;
