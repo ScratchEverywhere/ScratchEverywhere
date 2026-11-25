@@ -9,6 +9,14 @@ extern bool toExit;
 extern bool loadedSettings;
 extern std::string *customProjectsPath;
 
+#if defined(__PC__) && !defined(__EMSCRIPTEN__)
+#define SE_FILE_DROP
+#endif
+
+#ifdef SE_FILE_DROP
+extern std::string pendingOpenFile;
+#endif
+
 /**
  * Initialize platform specific stuffs
  */

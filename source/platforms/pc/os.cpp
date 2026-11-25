@@ -27,6 +27,9 @@ namespace OS {
 bool toExit = false;
 bool loadedSettings = false;
 std::string *customProjectsPath = nullptr;
+#ifdef SE_FILE_DROP
+std::string pendingOpenFile;
+#endif
 } // namespace OS
 
 bool OS::init() {
@@ -160,6 +163,21 @@ std::string OS::getScratchFolderLocation() {
             return cpp_basepath + "/scratch-everywhere/";
         }
     }
+#elif defined(__APPLE__)
+    if (cpp_basepath.find(".app/Contents/MacOS") != std::string::npos) {
+        const char *home = std::getenv("HOME");
+        if (!home) {
+            struct passwd *pw = getpwuid(getuid());
+            if (pw) home = pw->pw_dir;
+        }
+        if (home) {
+            const std::filesystem::path folder = std::filesystem::path(home) / "Documents" / "scratch-everywhere";
+            std::error_code ec;
+            std::filesystem::create_directories(folder, ec);
+            return (folder / "").string();
+        }
+    }
+    return cpp_basepath + "scratch-everywhere/";
 #else
     return cpp_basepath + "scratch-everywhere/";
 #endif
