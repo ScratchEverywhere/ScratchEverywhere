@@ -13,6 +13,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
+#include <os.hpp>
 #include <renderer.hpp>
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/renderer_sdl2.hpp>
@@ -169,6 +170,14 @@ void WindowSDL2::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef SE_FILE_DROP
+        case SDL_DROPFILE:
+            if (event.drop.file) {
+                if (OS::pendingOpenFile.empty()) OS::pendingOpenFile = event.drop.file;
+                SDL_free(event.drop.file);
+            }
+            break;
+#endif
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;

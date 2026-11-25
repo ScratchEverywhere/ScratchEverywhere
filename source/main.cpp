@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <sys/stat.h>
+#include <utility>
 #endif
 
 #include <discord.hpp>
@@ -66,12 +67,23 @@ static bool initApp() {
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
+#ifdef SE_FILE_DROP
+    OS::pendingOpenFile.clear();
+#endif
     Discord::setInMenu();
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
     while (Render::appShouldRun()) {
         MenuManager::render();
+
+#ifdef SE_FILE_DROP
+        if (!OS::pendingOpenFile.empty() && MenuManager::isProjectLoaded == 0) {
+            Unzip::filePath = std::move(OS::pendingOpenFile);
+            OS::pendingOpenFile.clear();
+            MenuManager::loadProject();
+        }
+#endif
 
         if (MenuManager::isProjectLoaded != 0) {
             if (MenuManager::isProjectLoaded == -1) return false;
@@ -339,6 +351,16 @@ int main(int argc, char **argv) {
                 exit(0);
             }
             emscripten_sleep(0);
+        }
+    }
+#endif
+
+#ifdef SE_FILE_DROP
+    if (Unzip::filePath.empty()) {
+        Render::appShouldRun();
+        if (!OS::pendingOpenFile.empty()) {
+            Unzip::filePath = std::move(OS::pendingOpenFile);
+            OS::pendingOpenFile.clear();
         }
     }
 #endif
