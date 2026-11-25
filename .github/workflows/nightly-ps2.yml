@@ -5,10 +5,18 @@ on:
     paths:
       - CMakeLists.txt
       - source/runtime/**
+      - cmake/platforms/ps2.cmake
+      - cmake/renderers/sdl3.cmake
+      - cmake/windowing/sdl3.cmake
+      - cmake/audio/sdl3.cmake
+      - cmake/deps/*
       - source/renderers/sdl3/**
       - source/*
       - source/menus/**
+      - source/platforms/
+      - source/platforms/ps2/**
       - source/audio/sdl3/**
+      - source/windowing/sdl3/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-ps2.yml
