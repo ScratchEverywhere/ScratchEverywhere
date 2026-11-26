@@ -16,6 +16,8 @@
 #include <xboxkrnl/xboxkrnl.h>
 #include <xid_driver.h>
 
+#include <input_strings.hpp>
+
 static constexpr int CONTROLLER_DEADZONE_X = 10000;
 static constexpr int CONTROLLER_DEADZONE_Y = 18000;
 static constexpr int CONTROLLER_DEADZONE_TRIGGER = 30; // 0-255 range
@@ -141,71 +143,71 @@ void InputDevice_Xbox::getInput() {
 
             // D-Pad
             if (dButtons & (1 << 0)) {
-                Input::buttonPress("dpadUp");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(DPAD_UP)]);
                 if (btnWhite > 30) Input::mousePointer.y += 3;
             }
             if (dButtons & (1 << 1)) {
-                Input::buttonPress("dpadDown");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(DPAD_DOWN)]);
                 if (btnWhite > 30) Input::mousePointer.y -= 3;
             }
             if (dButtons & (1 << 2)) {
-                Input::buttonPress("dpadLeft");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(DPAD_LEFT)]);
                 if (btnWhite > 30) Input::mousePointer.x -= 3;
             }
             if (dButtons & (1 << 3)) {
-                Input::buttonPress("dpadRight");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(DPAD_RIGHT)]);
                 if (btnWhite > 30) Input::mousePointer.x += 3;
             }
 
             // Start & Back
-            if (dButtons & (1 << 4)) Input::buttonPress("start");
-            if (dButtons & (1 << 5)) Input::buttonPress("back");
+            if (dButtons & (1 << 4)) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(START)]);
+            if (dButtons & (1 << 5)) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(BACK)]);
 
             // Thumb clicks
-            if (dButtons & (1 << 6)) Input::buttonPress("LeftStickPressed");
-            if (dButtons & (1 << 7)) Input::buttonPress("RightStickPressed");
+            if (dButtons & (1 << 6)) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_PRESSED)]);
+            if (dButtons & (1 << 7)) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_PRESSED)]);
 
             // Face Buttons
-            if (btnA > 30) Input::buttonPress("A");
-            if (btnB > 30) Input::buttonPress("B");
-            if (btnX > 30) Input::buttonPress("X");
-            if (btnY > 30) Input::buttonPress("Y");
+            if (btnA > 30) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(A)]);
+            if (btnB > 30) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(B)]);
+            if (btnX > 30) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(X)]);
+            if (btnY > 30) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(Y)]);
 
             // Shoulders & Virtual Mouse
             if (btnWhite > 30) {
-                Input::buttonPress("shoulderL");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_L)]);
                 Input::mousePointer.isMoving = true;
             } else {
                 Input::mousePointer.isMoving = false;
             }
 
             if (btnBlack > 30) {
-                Input::buttonPress("shoulderR");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_R)]);
                 if (btnWhite > 30 && Input::mousePointer.isMoving) {
                     Input::mousePointer.isPressed = true;
                 }
             }
 
             // Analog Triggers
-            if (triggerL > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
+            if (triggerL > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(LEFT_TRIGGER)]);
             if (triggerR > CONTROLLER_DEADZONE_TRIGGER) {
-                Input::buttonPress("RT");
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(RIGHT_TRIGGER)]);
                 if (btnWhite > 30 && Input::mousePointer.isMoving) {
                     Input::mousePointer.isPressed = true;
                 }
             }
 
             // Left Thumbstick directions
-            if (stickLX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
-            if (stickLX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
-            if (stickLY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
-            if (stickLY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
+            if (stickLX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_RIGHT)]);
+            if (stickLX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_LEFT)]);
+            if (stickLY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_DOWN)]);
+            if (stickLY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_UP)]);
 
             // Right Thumbstick directions
-            if (stickRX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
-            if (stickRX < -CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickLeft");
-            if (stickRY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
-            if (stickRY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
+            if (stickRX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_RIGHT)]);
+            if (stickRX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_LEFT)]);
+            if (stickRY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_DOWN)]);
+            if (stickRY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_UP)]);
 
             // Normalized joystick values (-1.0f to 1.0f)
             Input::leftJoystick.first = static_cast<float>(stickLX) / 32767.0f;

@@ -2,7 +2,7 @@
 #include <3ds.h>
 #include <malloc.h>
 
-#define SE_3DS_JIT_SIZE (2u << 20)
+#define SE_3DS_JIT_SIZE SE_MB_MEM_SIZE(2u) /* 2 MB */
 
 static se_exec_arena arena;
 static Handle process = 0;
@@ -18,6 +18,13 @@ static int ensure(void) {
         svcCloseHandle(process);
         return 0;
     }
+
+    if (R_FAILED( svcInvalidateProcessDataCache(process, (u32)memory, SE_3DS_JIT_SIZE) ) ) {
+        free(memory);
+        svcCloseHandle(process);
+        return 0;
+    }
+
     if (R_FAILED(svcControlProcessMemory(process, (u32)memory, (u32)memory, SE_3DS_JIT_SIZE, MEMOP_PROT, MEMPERM_READ | MEMPERM_WRITE | MEMPERM_EXECUTE)) ||
         !se_exec_arena_init(&arena, memory, SE_3DS_JIT_SIZE)) {
         free(memory);

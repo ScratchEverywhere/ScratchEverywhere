@@ -5,6 +5,9 @@
 #include <string>
 #include <text.hpp>
 #include <vector>
+
+#include <log.hpp>
+
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
 extern bool cloudProject;
@@ -142,8 +145,7 @@ void InputDevice_GLFW::getInput() {
     if (glfwJoystickPresent(GLFW_JOYSTICK_1) && glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
         GLFWgamepadstate state;
         if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-            size_t array_len = sizeof(GLFW_GAMEPAD_KEYS) / sizeof(GLFW_GAMEPAD_KEYS[0]);
-            for (size_t i = 0; i < array_len; i++) {
+            for (size_t i = 0; i < NUM_OF_SCRATCH_KEYS; i++) {
                 // Ignore Specific Keys
                 if (GLFW_GAMEPAD_KEYS[i] == NULL) {
                     continue;
@@ -171,28 +173,31 @@ void InputDevice_GLFW::getInput() {
             };
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_RIGHT)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)]});
+                         {CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::L_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::L_STICK_LEFT)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]});
+                         {CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
+                          CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::L_STICK_UP)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_RIGHT)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)]});
+                         {CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::R_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::R_STICK_LEFT)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]});
+                         {CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
+                          CONTROLLER_STRINGS[SKEY_IDE(SCRATCH_KEY_INDEX::R_STICK_UP)]});
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f)
-                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(LEFT_TRIGGER)]);
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f)
-                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(RIGHT_TRIGGER)]);
 
             Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+
+            Input::rightJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+            Input::rightJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
         }
     }
 

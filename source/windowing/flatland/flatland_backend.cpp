@@ -121,7 +121,8 @@ void FlatlandBackend::broadcast(const std::function<void(flatland::PlayerSession
         std::lock_guard<std::mutex> lock(mutex);
         targets = apps;
     }
-    for (flatland::App *app : targets) app->broadcast(task);
+    for (flatland::App *app : targets)
+        app->broadcast(task);
 }
 
 void FlatlandBackend::playSound(int sound, float volume, float pitch) {

@@ -1,7 +1,7 @@
 #include "se_exec_arena.h"
 #include <stdlib.h>
 
-#define SE_XBOX_JIT_SIZE (1u << 20) /* 1 MB */
+#define SE_XBOX_JIT_SIZE SE_MB_MEM_SIZE(1u) /* 1 MB */
 
 static se_exec_arena arena;
 static int ready = 0;

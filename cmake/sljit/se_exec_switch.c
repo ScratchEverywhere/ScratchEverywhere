@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <switch.h>
 
-#define SE_SWITCH_JIT_SIZE (8u << 20)
+#define SE_SWITCH_JIT_SIZE SE_MB_MEM_SIZE(8u) /* 8 MB */
 
 static Jit jit;
 static se_exec_arena arena;

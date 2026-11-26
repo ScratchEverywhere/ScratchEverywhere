@@ -9,8 +9,6 @@
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
-static const size_t key_amount = 24;
-
 // Defining The Keys To Check
 static constexpr u32 III_DS_KEYS[] = {
     // Old 3DS Keys
@@ -116,7 +114,7 @@ void InputDevice_3DS::getInput() {
     }
 
     Input::inputKeys.push_back("any");
-    for (size_t i = 0; i < key_amount; i++) {
+    for (size_t i = 0; i < NUM_OF_SCRATCH_KEYS; i++) {
         // Ignore L Stick & R Stick Pressed Events
         if ((III_DS_KEYS[i]) == NULL) {
             continue;

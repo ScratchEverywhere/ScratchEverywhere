@@ -7,6 +7,8 @@
 
 #define SE_EXEC_ALIGN 64
 
+#define SE_MB_MEM_SIZE(n) (n << 20)
+
 static const char *se_exec_why = NULL;
 
 static void se_exec_fail(const char *why) { se_exec_why = why; }

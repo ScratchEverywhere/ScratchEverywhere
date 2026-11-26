@@ -147,17 +147,17 @@ void Input::applyControls(std::string controlsFilePath) {
 
             // Access the "controls" object specifically
             if (controlsJson.contains("controls")) {
-                const auto& controls = controlsJson["controls"];
+                const auto &controls = controlsJson["controls"];
 
                 for (auto it = controls.begin(); it != controls.end(); ++it) {
                     const std::string key = it.key();
-                    const auto& value = it.value();
+                    const auto &value = it.value();
 
                     if (key.empty() || value.empty())
                         continue;
 
                     // A key can be bound to several physical inputs.
-                    auto bind = [&key](const nlohmann::json& button) {
+                    auto bind = [&key](const nlohmann::json &button) {
                         if (!button.is_string())
                             return;
 
@@ -169,7 +169,7 @@ void Input::applyControls(std::string controlsFilePath) {
                         Log::log("Loaded control: " + key + " -> " + name);
                     };
                     if (value.is_array()) {
-                        for (const auto& button : value)
+                        for (const auto &button : value)
                             bind(button);
                     } else {
                         bind(value);
@@ -187,7 +187,7 @@ void Input::applyControls(std::string controlsFilePath) {
     }
 
     // Default controls
-    for (size_t i = 0; i < static_cast<size_t>(SCRATCH_KEY_INDEX::COUNT); i++) {
+    for (size_t i = 0; i < NUM_OF_SCRATCH_KEYS; i++) {
         Input::inputControls[CONTROLLER_STRINGS[i]] = SCRATCH_CONTROLS[i];
     }
 }

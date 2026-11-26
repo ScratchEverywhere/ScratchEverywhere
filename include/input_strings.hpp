@@ -25,8 +25,8 @@ enum class SCRATCH_KEY_INDEX {
     R_STICK_DOWN,
     R_STICK_UP,
     R_STICK_PRESSED,
-    RIGHT_TRIGGER,
     LEFT_TRIGGER,
+    RIGHT_TRIGGER,
     COUNT,
 };
 
@@ -81,3 +81,7 @@ static constexpr const char *CONTROLLER_STRINGS[] = {
     "RightStickPressed",
     "LT",
     "RT"};
+
+#define NUM_OF_SCRATCH_KEYS (static_cast<size_t>(SCRATCH_KEY_INDEX::COUNT))
+#define SKEY_ID(name) static_cast<size_t>(SCRATCH_KEY_INDEX::name)
+#define SKEY_IDE(id) static_cast<size_t>(id)

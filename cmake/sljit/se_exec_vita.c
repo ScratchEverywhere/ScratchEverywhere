@@ -1,7 +1,7 @@
 #include "se_exec_arena.h"
 #include <psp2/kernel/sysmem.h>
 
-#define SE_VITA_JIT_SIZE (4u << 20)
+#define SE_VITA_JIT_SIZE SE_MB_MEM_SIZE(4u) /* 4 MB */
 
 static se_exec_arena arena;
 static SceUID block = 0;

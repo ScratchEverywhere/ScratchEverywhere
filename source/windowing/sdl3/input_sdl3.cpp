@@ -8,9 +8,9 @@
 #include <cstddef>
 #include <input_sdl3.hpp>
 #include <map>
-#include <touch_controls.hpp>
 #include <renderer.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <types.hpp>
 #ifdef __UBUNTUTOUCH__
 #include <platforms/ut/swkbd_ut.hpp>
@@ -53,6 +53,33 @@ extern std::string customUsername;
 
 InputDevice_SDL3::InputDevice_SDL3() {}
 InputDevice_SDL3::~InputDevice_SDL3() {}
+
+static constexpr SDL_GamepadButton SDL3_GAMEPAD_KEYS[] = {
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_UP,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_STICK,
+    SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID,
+};
 
 std::array<int, 2> InputDevice_SDL3::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
@@ -158,81 +185,88 @@ void InputDevice_SDL3::getInput() {
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
+    auto dpad_handler = [&](SCRATCH_KEY_INDEX key_index) {
+        if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_IDE(key_index)])) {
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(key_index)]);
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+            if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
+                return 3;
+            }
+#endif
+        }
 
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_UP)) {
-        Input::buttonPress("dpadUp");
-#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.y += 3;
-#endif
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
-        Input::buttonPress("dpadDown");
-#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.y -= 3;
-#endif
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
-        Input::buttonPress("dpadLeft");
-#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.x -= 3;
-#endif
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
-        Input::buttonPress("dpadRight");
-#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) Input::mousePointer.x += 3;
-#endif
-    }
+        return 0;
+    };
+
+    auto button_handler = [&](SCRATCH_KEY_INDEX key_index, SDL_GamepadButton button) {
+        if (button != SDL_GAMEPAD_BUTTON_INVALID) {
+            if (SDL_GetGamepadButton(controller, button))
+                Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(key_index)]);
+        }
+
+        if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_IDE(key_index)]))
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(key_index)]);
+    };
+    Input::mousePointer.y += dpad_handler(SCRATCH_KEY_INDEX::DPAD_UP);
+    Input::mousePointer.y -= dpad_handler(SCRATCH_KEY_INDEX::DPAD_DOWN);
+    Input::mousePointer.x -= dpad_handler(SCRATCH_KEY_INDEX::DPAD_LEFT);
+    Input::mousePointer.x += dpad_handler(SCRATCH_KEY_INDEX::DPAD_RIGHT);
     // Swap face buttons for Switch
 #ifdef __SWITCH__
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("B");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("A");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("Y");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("X");
+    button_handler(SCRATCH_KEY_INDEX::B, SDL3_GAMEPAD_KEYS[SKEY_ID(A)]);
+    button_handler(SCRATCH_KEY_INDEX::A, SDL3_GAMEPAD_KEYS[SKEY_ID(B)]);
+    button_handler(SCRATCH_KEY_INDEX::Y, SDL3_GAMEPAD_KEYS[SKEY_ID(X)]);
+    button_handler(SCRATCH_KEY_INDEX::X, SDL3_GAMEPAD_KEYS[SKEY_ID(Y)]);
 #else
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("A");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("B");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("X");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("Y");
+    button_handler(SCRATCH_KEY_INDEX::A, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::B, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::X, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::Y, SDL_GAMEPAD_BUTTON_INVALID);
 #endif
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
-        Input::buttonPress("shoulderL");
+    if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_ID(SHOULDER_L)])) {
+        Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_L)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         Input::mousePointer.isMoving = true;
 #endif
     } else Input::mousePointer.isMoving = false;
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
-        Input::buttonPress("shoulderR");
+    if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_ID(SHOULDER_R)])) {
+        Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(SHOULDER_R)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+        if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_ID(SHOULDER_L)]) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
 #endif
     }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START)) Input::buttonPress("start");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK)) Input::buttonPress("back");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_STICK)) Input::buttonPress("LeftStickPressed");
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_STICK)) Input::buttonPress("RightStickPressed");
+
+    button_handler(SCRATCH_KEY_INDEX::START, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::BACK, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::L_STICK_PRESSED, SDL_GAMEPAD_BUTTON_INVALID);
+    button_handler(SCRATCH_KEY_INDEX::R_STICK_PRESSED, SDL_GAMEPAD_BUTTON_INVALID);
+
     float joyLeftX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTX);
     float joyLeftY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTY);
-    if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
-    if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
-    if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
-    if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
     float joyRightX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTX);
     float joyRightY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTY);
-    if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
-    if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickLeft");
-    if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
-    if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
-    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
+
+    if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_RIGHT)]);
+    if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_LEFT)]);
+    if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_DOWN)]);
+    if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(L_STICK_UP)]);
+
+    if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_RIGHT)]);
+    if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_LEFT)]);
+    if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_DOWN)]);
+    if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(R_STICK_UP)]);
+
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER)
+        Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(LEFT_TRIGGER)]);
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) {
-        Input::buttonPress("RT");
+        Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(RIGHT_TRIGGER)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
+        if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_ID(SHOULDER_L)]) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
 #endif
     }
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
+    if (SDL_GetGamepadButton(controller, SDL3_GAMEPAD_KEYS[SKEY_ID(SHOULDER_L)])) {
         if (joyLeftX > CONTROLLER_DEADZONE_X) Input::mousePointer.x += 3;
         if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::mousePointer.x -= 3;
         if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::mousePointer.y -= 3;
