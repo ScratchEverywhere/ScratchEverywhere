@@ -59,7 +59,7 @@ void InputDevice_Libretro::getInput() {
 
     auto checkJoy = [&](int joy, SCRATCH_KEY_INDEX scratchKey) {
         if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy)) {
-            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey)]);
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(scratchKey)]);
         }
     };
 
@@ -69,9 +69,9 @@ void InputDevice_Libretro::getInput() {
         n /= 0x8000;
 
         if (n < -0.5) {
-            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey1)]);
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(scratchKey1)]);
         } else if (n > 0.5) {
-            Input::buttonPress(CONTROLLER_STRINGS[SKEY_ID(scratchKey2)]);
+            Input::buttonPress(CONTROLLER_STRINGS[SKEY_IDE(scratchKey2)]);
         }
     };
 
