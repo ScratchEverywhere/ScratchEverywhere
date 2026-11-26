@@ -288,12 +288,14 @@ jobs:
           sudo scripts/macos/install-dmg-tools.sh
           VERSION="$(sed -n 's/^project(ScratchEverywhere VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
           scripts/macos/package.sh --binary scratch-pc --out macos-package --version "$VERSION"
+      - name: Zip App Bundle
+        run: cd macos-package && zip -ry "Scratch Everywhere.app.zip" "Scratch Everywhere.app"
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS Universal Nightly
-          path: scratch-pc
+          path: macos-package/Scratch Everywhere.app.zip
       - name: Upload Installer
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
