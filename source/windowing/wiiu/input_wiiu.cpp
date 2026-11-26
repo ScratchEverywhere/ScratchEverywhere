@@ -52,8 +52,8 @@ void readGamePad(PadState &state) {
     state.buttons[SKEY_ID(BACK)] |= (hold & VPAD_BUTTON_MINUS) != 0;
     state.buttons[SKEY_ID(L_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_L) != 0;
     state.buttons[SKEY_ID(R_STICK_PRESSED)] |= (hold & VPAD_BUTTON_STICK_R) != 0;
-    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & VPAD_BUTTON_ZL) != 0;
-    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & VPAD_BUTTON_ZR) != 0;
+    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & VPAD_BUTTON_ZR) != 0;
+    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & VPAD_BUTTON_ZL) != 0;
 
     applyStick(state.leftX, state.leftY, status.leftStick.x, status.leftStick.y);
     applyStick(state.rightX, state.rightY, status.rightStick.x, status.rightStick.y);
@@ -79,8 +79,8 @@ void applyExtensionButtons(PadState &state, uint32_t hold) {
     state.buttons[SKEY_ID(SHOULDER_R)] |= (hold & WPAD_PRO_TRIGGER_R) != 0;
     state.buttons[SKEY_ID(START)] |= (hold & WPAD_PRO_BUTTON_PLUS) != 0;
     state.buttons[SKEY_ID(BACK)] |= (hold & WPAD_PRO_BUTTON_MINUS) != 0;
-    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZL) != 0;
-    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZR) != 0;
+    state.buttons[SKEY_ID(RIGHT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZR) != 0;
+    state.buttons[SKEY_ID(LEFT_TRIGGER)] |= (hold & WPAD_PRO_TRIGGER_ZL) != 0;
 }
 
 void readExtensionControllers(PadState &state) {
