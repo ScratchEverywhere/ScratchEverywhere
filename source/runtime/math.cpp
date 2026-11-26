@@ -560,7 +560,11 @@ bool formatShortDecimal(double number, char *out, size_t &length) {
     static const double scale[5] = {1.0, 10.0, 100.0, 1000.0, 10000.0};
     static const uint64_t integerScale[5] = {1, 10, 100, 1000, 10000};
     for (int places = 1; places < 5; places++) {
-        const double scaled = std::nearbyint(magnitude * scale[places]);
+        #ifndef __DOS__
+            const double scaled = std::nearbyint(magnitude * scale[places]);
+        #else
+            const double scaled = DosMath::round(magnitude * scale[places]);
+        #endif
         if (scaled / scale[places] != magnitude) continue;
         const uint64_t digits = static_cast<uint64_t>(scaled);
         char *p = out;
@@ -585,7 +589,13 @@ std::string Math::toString(double number) {
     if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
     if (number == 0) return "0";
     char buffer[32];
-    if (number == std::trunc(number) && std::fabs(number) < 1e15) {
+    uint64_t trunc_number;
+    #ifndef __DOS__
+        trunc_number = std::trunc(number);
+    #else
+        trunc_number = (double)(static_cast<uint64_t>(number));
+    #endif
+    if (number == trunc_number && std::fabs(number) < 1e15) {
         char *end = buffer;
         if (number < 0) *end++ = '-';
         end = writeUnsigned(end, static_cast<uint64_t>(std::fabs(number)));

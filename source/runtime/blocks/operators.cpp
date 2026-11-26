@@ -11,6 +11,11 @@
 #include <random>
 #endif
 
+#ifdef __DOS__
+#include "dos_math.hpp"
+#endif
+
+
 SCRATCH_BLOCK_DOUBLE(operator, add) {
     double num1, num2;
     if (!Scratch::getInputValueAs(block, "NUM1", thread, sprite, num1) ||
@@ -313,8 +318,20 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     else if (operation == "floor") *outValue = floor(value);
     else if (operation == "ceiling") *outValue = ceil(value);
     else if (operation == "sqrt") *outValue = (sqrt(value));
-    else if (operation == "sin") *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
-    else if (operation == "cos") *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+    else if (operation == "sin") {
+        #ifndef __DOS__
+            *outValue = std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        #else
+            *outValue = DosMath::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        #endif
+    }
+    else if (operation == "cos") {
+        #ifndef __DOS__
+            *outValue = std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        #else
+            *outValue = DosMath::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        #endif
+    }
     else if (operation == "tan") {
         double modAngle = std::fmod(value, 360.0);
 
@@ -323,7 +340,13 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
 
         if (modAngle == 90.0 || modAngle == -270.0) *outValue = std::numeric_limits<double>::infinity();
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = -std::numeric_limits<double>::infinity();
-        else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+        else {
+            #ifndef __DOS__
+                *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+            #else
+                *outValue = DosMath::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
+            #endif
+        }
     } else if (operation == "asin") *outValue = Math::radiansToDegrees(asin(value));
     else if (operation == "acos") *outValue = Math::radiansToDegrees(acos(value));
     else if (operation == "atan") *outValue = Math::radiansToDegrees(atan(value));

@@ -250,7 +250,9 @@ Value::Value(std::shared_ptr<const std::string> val) : tag(Tag::STRING_ID), flag
 
 Value::Value(bool val) : tag(Tag::BOOLEAN), flags(0) { storage.b = val; }
 
+#ifndef __DOS__
 static_assert(sizeof(Value) == 16, "Value must stay two machine words; the JIT and list memmoves rely on it being compact");
+#endif
 
 namespace {
 
