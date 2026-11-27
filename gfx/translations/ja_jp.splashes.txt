@@ -49,6 +49,7 @@ Grady LinkがWebに移植したよ!
 Dogo6647がPS Vitaに移植したよ!
 Dogo6647がwebOSに移植したよ!
 PwLDevがPS4に移植したよ!
+LuarpriがPS2に移植したよ!
 LeapがSDL1に移植したよ!
 LeapがOpenGLに移植したよ!
 Nishiがlibretroに移植したよ!

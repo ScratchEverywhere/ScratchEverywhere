@@ -49,6 +49,7 @@ Port Web przez Grady Link!
 Port PS Vita przez Dogo6647!
 Port webOS przez Dogo6647!
 Port PS4 przez PwLDev!
+Port PS2 przez Luarpri!
 Port SDL1 przez Leap!
 Port OpenGL przez Leap!
 Port libretro przez Nishi!

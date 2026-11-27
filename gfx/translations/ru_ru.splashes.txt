@@ -34,6 +34,7 @@ uiText.titleScreen.splashText23
 DS порт сделан NateXS!
 Wii порт сделан NateXS!
 PSP порт сделан NateXS!
+PS2 порт сделан Luarpri!
 GameCube порт сделан NateXS!
 Сделано множеством людей!
 Wii U порт сделан Grady Link!

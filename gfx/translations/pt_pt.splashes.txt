@@ -50,6 +50,7 @@ Port para a webOS pelo Dogo6647!
 Port para a PS4 pelo PwLDev!
 Port de SDL pelo Leap!
 Port de OpenGL pelo Leap!
+Port de PS2 pelo Luarpri!
 Port para o Liberto pelo Nishi!
 Port para a Xbox pelo MikeDEV!
 Música de menu pelo Dogo6647!
