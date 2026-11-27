@@ -213,6 +213,8 @@ if(SE_JIT)
         set(SE_JIT_REASON "the PSP only has a single precision floating point unit")
     elseif(SE_PLATFORM STREQUAL "wasm")
         set(SE_JIT_REASON "WebAssembly cannot run generated machine code")
+    elseif(SE_PLATFORM STREQUAL "ps2")
+        set(SE_JIT_REASON "JIT on PS2 isnt currently supported") # thought the cpu is technically capable of doing so but im not experienced on jit at all :grin: -- Luarpri
     endif()
 endif()
 
