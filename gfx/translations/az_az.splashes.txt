@@ -49,6 +49,7 @@ Veb uyğunlaşdırmasının müəllifi: Grady Link!
 PS Vita uyğunlaşdırmasının müəllifi: Dogo6647!
 webOS uyğunlaşdırmasının müəllifi: Dogo6647!
 PS4 uyğunlaşdırmasının müəllifi: PwLDev!
+PS2 uyğunlaşdırmasının müəllifi: Luarpri!
 SDL1 uyğunlaşdırmasının müəllifi: Leap!
 OpenGL uyğunlaşdırmasının müəllifi: Leap!
 libretro uyğunlaşdırmasının müəllifi: Nishi!

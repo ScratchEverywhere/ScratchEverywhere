@@ -49,6 +49,7 @@ Portage web par Grady Link!
 Portage PS Vita par Dogo6647!
 Portage webOS par Dogo6647!
 Portage PS4 par PwLDev!
+Portage PS2 par Luarpri!
 Portage SDL1 par Leap!
 Portage OpenGL par Leap!
 Portage libretro par Nishi!

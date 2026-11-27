@@ -49,6 +49,7 @@ Port Web de la Grady Link!
 Port PS Vita de la Dogo6647!
 Post webOS de la Dogo6647!
 Port PS4 de la PwLDev!
+Port PS2 de la Luarpri!
 Port SDL1 de la Leap!
 Port OpenGL de la Leap!
 Port libretro de la Nishi!
