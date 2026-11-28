@@ -382,7 +382,7 @@ long FileSystem::getFileSize(const std::string &path) {
     return size;
 }
 
-uint64_t FileSystem::getDirectorySize(const std::string &path) {
+long FileSystem::getDirectorySize(const std::string &path) {
 #if defined(__XBOX__)
     std::string norm = path;
     for (char &c : norm) {
@@ -397,7 +397,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
         return 0;
     }
 
-    uint64_t totalSize = 0;
+    long totalSize = 0;
     std::string searchPattern = norm + "\\*";
     WIN32_FIND_DATAA findData;
     HANDLE hFind = FindFirstFileA(searchPattern.c_str(), &findData);
@@ -413,7 +413,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             totalSize += getDirectorySize(childPath);
         } else {
-            totalSize += (static_cast<uint64_t>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+            totalSize += (static_cast<long>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
         }
     } while (FindNextFileA(hFind, &findData) != 0);
 
@@ -445,7 +445,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
         return 0;
     }
 
-    uint64_t totalSize = 0;
+    long totalSize = 0;
     do {
         int size_needed = WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, NULL, 0, NULL, NULL);
         std::string fileName(size_needed - 1, 0);
@@ -457,7 +457,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             totalSize += getDirectorySize(childPath);
         } else {
-            totalSize += (static_cast<uint64_t>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+            totalSize += (static_cast<long>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
         }
     } while (FindNextFileW(hFind, &findData) != 0);
 
@@ -480,7 +480,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
         return 0;
     }
 
-    uint64_t totalSize = 0;
+    long totalSize = 0;
     struct dirent *entry;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
@@ -493,7 +493,7 @@ uint64_t FileSystem::getDirectorySize(const std::string &path) {
             if (S_ISDIR(entrySt.st_mode)) {
                 totalSize += getDirectorySize(fullPath);
             } else {
-                totalSize += static_cast<uint64_t>(entrySt.st_size);
+                totalSize += static_cast<long>(entrySt.st_size);
             }
         }
     }
