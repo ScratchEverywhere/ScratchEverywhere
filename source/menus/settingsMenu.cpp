@@ -142,12 +142,16 @@ void SettingsMenu::section(UI::Builder &b, const std::string &name) {
               });
 }
 
+void GlobalSettingsMenu::updateCacheSize() {
+    cacheSize = FileSystem::formatFilesize(FileSystem::getDirectorySize(OS::getScratchFolderLocation() + "cache/"));
+}
+
 GlobalSettingsMenu::GlobalSettingsMenu() {
     json = SettingsManager::getConfigSettings();
     rendererList = Render::getAvailableRenderers();
     windowingList = WindowSE::getAvailableWindowingBackends();
     audioEngineList = SoundPlayer::getAvailableAudioBackends();
-    cacheSize = FileSystem::formatFilesize(FileSystem::getDirectorySize(OS::getScratchFolderLocation() + "cache/"));
+    updateCacheSize();
 }
 
 GlobalSettingsMenu::~GlobalSettingsMenu() {
@@ -247,6 +251,7 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                                                   const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
                                                   const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
                                                   if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
+                                                  updateCacheSize();
                                               });
                                           });
 

@@ -26,6 +26,7 @@ class SE_EXPORT GlobalSettingsMenu : public SettingsMenu {
     std::string cacheSize;
 
     void changeProjectPath();
+    inline void updateCacheSize();
 
   public:
     GlobalSettingsMenu();
