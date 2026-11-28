@@ -246,8 +246,8 @@ void Renderer_SDL1::penStamp(Sprite *sprite) {
     bool flip = false;
     const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
-    int renderX = sprite->renderInfo.renderX;
-    int renderY = sprite->renderInfo.renderY;
+    float renderX = sprite->renderInfo.renderX;
+    float renderY = sprite->renderInfo.renderY;
     float renderScale = 1.0f;
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
@@ -256,8 +256,8 @@ void Renderer_SDL1::penStamp(Sprite *sprite) {
 
     // Pen mapping stuff
     const auto &cords = Scratch::screenToScratchCoords(renderX, renderY, getWidth(), getHeight());
-    renderX = cords.first + Scratch::projectWidth / 2;
-    renderY = -cords.second + Scratch::projectHeight / 2;
+    renderX = cords.first + Scratch::projectWidth / 2.0f;
+    renderY = -cords.second + Scratch::projectHeight / 2.0f;
 
     if (Scratch::hqpen) {
         renderScale = sprite->renderInfo.renderScaleY;

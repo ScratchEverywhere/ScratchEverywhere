@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <sys/stat.h>
+#include <utility>
 #endif
 
 #include <discord.hpp>
@@ -67,6 +68,9 @@ bool activateMainMenu() {
 #ifdef ENABLE_MENU
     Unzip::filePath = "";
     if (!MenuManager::initMainMenu()) return false;
+#ifdef SE_FILE_DROP
+    OS::pendingOpenFile.clear();
+#endif
     Discord::setInMenu();
 
     while (Render::appShouldRun()) {
@@ -78,6 +82,14 @@ bool activateMainMenu() {
         Render::beginFrame(1, 68, 44, 66);
         MenuManager::render();
         Render::endFrame(false);
+
+#ifdef SE_FILE_DROP
+        if (!OS::pendingOpenFile.empty() && MenuManager::isProjectLoaded == 0) {
+            Unzip::filePath = std::move(OS::pendingOpenFile);
+            OS::pendingOpenFile.clear();
+            MenuManager::loadProject();
+        }
+#endif
 
         if (MenuManager::isProjectLoaded) {
             MenuManager::isProjectLoaded = false;
@@ -344,6 +356,26 @@ int main(int argc, char **argv) {
                 exit(0);
             }
             emscripten_sleep(0);
+        }
+    }
+#endif
+
+#ifdef SE_FILE_DROP
+    if (Unzip::filePath.empty()) {
+        Render::appShouldRun();
+        if (!OS::pendingOpenFile.empty()) {
+            Unzip::filePath = std::move(OS::pendingOpenFile);
+            OS::pendingOpenFile.clear();
+        }
+    }
+#endif
+
+#ifdef SE_FILE_DROP
+    if (Unzip::filePath.empty()) {
+        Render::appShouldRun();
+        if (!OS::pendingOpenFile.empty()) {
+            Unzip::filePath = std::move(OS::pendingOpenFile);
+            OS::pendingOpenFile.clear();
         }
     }
 #endif

@@ -3,8 +3,12 @@
 #include <algorithm>
 #include <input_win32.hpp>
 #include <libdlgmod/libdlgmod.h>
+#include <shellapi.h>
+#include <string>
+#include <utility>
 #include <log.hpp>
 #include <math.hpp>
+#include <os.hpp>
 #include <renderer.hpp>
 #include <utf8.hpp>
 
@@ -119,6 +123,25 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         self->resize(LOWORD(lp), HIWORD(lp));
         break;
     }
+#ifdef SE_FILE_DROP
+    case WM_DROPFILES: {
+        HDROP drop = (HDROP)wp;
+        const UINT len = DragQueryFileW(drop, 0, nullptr, 0);
+        if (len > 0 && OS::pendingOpenFile.empty()) {
+            std::wstring wide(len + 1, L'\0');
+            DragQueryFileW(drop, 0, wide.data(), len + 1);
+            wide.resize(len);
+            const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+            if (utf8Len > 1) {
+                std::string path(utf8Len - 1, '\0');
+                WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, path.data(), utf8Len, nullptr, nullptr);
+                OS::pendingOpenFile = std::move(path);
+            }
+        }
+        DragFinish(drop);
+        break;
+    }
+#endif
     case WM_MOUSEWHEEL: {
         const short delta = static_cast<short>(HIWORD(wp));
         Input::mouseScrollDelta += delta / WHEEL_DELTA;
@@ -199,6 +222,10 @@ WindowWin32::WindowWin32(int width, int height, const std::string &title) {
     }
 
     widget_set_owner(std::to_string((unsigned long long)(void *)this->hWnd).c_str());
+
+#ifdef SE_FILE_DROP
+    DragAcceptFiles(this->hWnd, TRUE);
+#endif
 
     setDarkTheme(this->hWnd, isDarkTheme());
 

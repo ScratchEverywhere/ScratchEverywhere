@@ -15,6 +15,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
+#include <os.hpp>
 #include <renderer.hpp>
 #include <vector>
 #if defined(RENDERER_SDL3)
@@ -176,6 +177,11 @@ void WindowSDL3::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef SE_FILE_DROP
+        case SDL_EVENT_DROP_FILE:
+            if (event.drop.data && OS::pendingOpenFile.empty()) OS::pendingOpenFile = event.drop.data;
+            break;
+#endif
         case SDL_EVENT_WINDOW_RESIZED: {
             int w, h;
             SDL_GetWindowSizeInPixels(window, &w, &h);

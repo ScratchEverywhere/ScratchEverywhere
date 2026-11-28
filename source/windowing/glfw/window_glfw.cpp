@@ -14,6 +14,7 @@
 #include <iostream>
 #include <log.hpp>
 #include <math.hpp>
+#include <os.hpp>
 #include <renderer.hpp>
 #include <renderers/opengl/renderer_gl.hpp>
 #include <text.hpp>
@@ -23,6 +24,12 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     Render::getGlobalRenderer()->window->resize(width, height);
     glViewport(0, 0, width, height);
 }
+
+#ifdef SE_FILE_DROP
+static void drop_callback(GLFWwindow *window, int count, const char **paths) {
+    if (count > 0 && OS::pendingOpenFile.empty()) OS::pendingOpenFile = paths[0];
+}
+#endif
 
 static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     Input::mouseScrollDelta = 0;
@@ -121,6 +128,9 @@ WindowGLFW::WindowGLFW(int w, int h, const std::string &title) {
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetCharCallback(window, char_callback);
     glfwSetKeyCallback(window, key_callback);
+#ifdef SE_FILE_DROP
+    glfwSetDropCallback(window, drop_callback);
+#endif
 
     glfwGetFramebufferSize(window, &width, &height);
 
