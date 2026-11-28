@@ -1,5 +1,6 @@
 #include "menuManager.hpp"
 #include "ingameMenu.hpp"
+#include "inputHandler.hpp"
 #include "keyboard.hpp"
 #include "languageMenu.hpp"
 #include "loadingMenu.hpp"
@@ -10,6 +11,8 @@
 #include "renderer.hpp"
 #include "settings.hpp"
 #include "settingsMenu.hpp"
+#include "theme.hpp"
+#include "types.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <log.hpp>
@@ -87,7 +90,6 @@ bool MenuManager::initMainMenu() {
     } else {
         currentMenu = MenuId::MainMenu;
     }
-
     return true;
 }
 
@@ -252,6 +254,30 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
                                 });
                   };
 
+                  auto tooltip = [&](const std::string &tooltip) -> void {
+#if defined(__3DS__) || defined(__NDS__)
+                      return;
+#endif
+                      if (tooltip.empty()) return;
+                      b.element({
+                                    .w = UI::Size::fit(),
+                                    .h = UI::Size::grow(),
+                                    .padding = UI::Padding::axis(15, 0),
+                                    .align = UI::AlignMode::Center,
+                                    .style = UI::StyleId::Button,
+                                },
+                                [&] {
+                                    b.text({
+                                        .text = tooltip,
+                                        .fontId = 0,
+                                        .color = {255, 255, 255, 255},
+                                        .align = UI::AlignMode::Center,
+                                    });
+                                });
+                  };
+
+                  tooltip(UI::InputHandler::Tooltip::l());
+
                   tab("gfx/menu/home.svg", MenuId::MainMenu, []() {
                       MenuManager::changeMenu(MenuId::MainMenu);
                   });
@@ -261,6 +287,8 @@ void MenuManager::buildMenuBar(UI::Builder &b) {
                   tab("gfx/menu/settings.svg", MenuId::GlobalSettingsMenu, []() {
                       MenuManager::changeMenu(MenuId::GlobalSettingsMenu);
                   });
+
+                  tooltip(UI::InputHandler::Tooltip::r());
               });
 }
 

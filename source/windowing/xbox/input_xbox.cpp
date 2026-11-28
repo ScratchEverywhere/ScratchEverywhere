@@ -81,6 +81,7 @@ static void ensureUsbStack() {
 #endif
 
 InputDevice_Xbox::InputDevice_Xbox() {
+    Input::setControllerType(ControllerType::Xbox);
 #ifdef __XBOX__
     ensureUsbStack();
 #endif

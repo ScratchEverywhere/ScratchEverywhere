@@ -37,6 +37,38 @@ std::optional<Direction> InputHandler::Keys::direction() {
     return std::nullopt;
 }
 
+const std::string InputHandler::Tooltip::l() {
+    ControllerType type = Input::getControllerType();
+    switch (type) {
+    case ControllerType::WiiRemote:
+    case ControllerType::Unknown:
+        return "";
+    case ControllerType::Xbox:
+        return "LB";
+    case ControllerType::Playstation:
+        return "L1";
+    case ControllerType::Nintendo:
+        return "L";
+    }
+    return "";
+}
+
+const std::string InputHandler::Tooltip::r() {
+    ControllerType type = Input::getControllerType();
+    switch (type) {
+    case ControllerType::WiiRemote:
+    case ControllerType::Unknown:
+        return "";
+    case ControllerType::Xbox:
+        return "RB";
+    case ControllerType::Playstation:
+        return "R1";
+    case ControllerType::Nintendo:
+        return "R";
+    }
+    return "";
+}
+
 void InputHandler::update(Pool &pool, bool keyboardNav) {
     const double dt = std::clamp(frameTimer.getTimeMsDouble(), 1.0, 50.0);
     frameTimer.start();

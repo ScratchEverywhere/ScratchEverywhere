@@ -33,6 +33,15 @@ InputDevice *Input::getGlobalInputDevice() {
     return globalInputDevice;
 }
 
+void Input::setControllerType(ControllerType type) {
+    if (globalInputDevice) globalInputDevice->setControllerType(type);
+}
+
+ControllerType Input::getControllerType() {
+    if (globalInputDevice) return globalInputDevice->getControllerType();
+    return ControllerType::Unknown;
+}
+
 void InputDevice::startTextInput(const std::string &hintText, bool numberKeyboard) { Keyboard::open(MenuManager::builder); }
 
 bool InputDevice::isTextInputActive() { return Keyboard::isOpen(); };

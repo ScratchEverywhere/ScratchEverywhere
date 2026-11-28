@@ -64,7 +64,7 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-InputDevice_3DS::InputDevice_3DS() {}
+InputDevice_3DS::InputDevice_3DS() { Input::setControllerType(ControllerType::Nintendo); }
 InputDevice_3DS::~InputDevice_3DS() {}
 
 std::array<int, 2> InputDevice_3DS::getTouchPosition() {

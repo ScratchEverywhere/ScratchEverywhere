@@ -1,3 +1,4 @@
+#include "SDL3/SDL_error.h"
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #endif
@@ -188,14 +189,32 @@ void WindowSDL3::pollEvents() {
             resize(w, h);
         } break;
 #ifdef PLATFORM_HAS_CONTROLLER
-        case SDL_EVENT_GAMEPAD_ADDED:
+        case SDL_EVENT_GAMEPAD_ADDED: {
             if (!controller) controller = SDL_OpenGamepad(event.gdevice.which);
+
+            if (!controller) {
+                Log::logError("Failed to connect controller: " + std::string(SDL_GetError()));
+                break;
+            }
+
+            const char *name = SDL_GetGamepadName(controller);
+            if (!name) break;
+            Log::log("[SDL3] Controller connected: " + std::string(name));
+            if (SDL_strstr(name, "Nintendo")) {
+                Input::setControllerType(ControllerType::Nintendo);
+            } else if (SDL_strstr(name, "Xbox")) {
+                Input::setControllerType(ControllerType::Xbox);
+            } else if (SDL_strstr(name, "Playstation") || SDL_strstr(name, "PS")) {
+                Input::setControllerType(ControllerType::Playstation);
+            }
             break;
+        }
         case SDL_EVENT_GAMEPAD_REMOVED:
             if (controller && event.gdevice.which == SDL_GetGamepadID(controller)) {
                 SDL_CloseGamepad(controller);
                 controller = nullptr;
             }
+            Input::setControllerType(ControllerType::Unknown);
             break;
 #endif
 #ifdef PLATFORM_HAS_TOUCH

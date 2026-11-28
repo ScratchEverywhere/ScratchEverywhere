@@ -1,3 +1,4 @@
+#include "SDL_gamecontroller.h"
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #endif
@@ -202,14 +203,34 @@ void WindowSDL2::pollEvents() {
             }
             break;
 #ifdef PLATFORM_HAS_CONTROLLER
-        case SDL_CONTROLLERDEVICEADDED:
+        case SDL_CONTROLLERDEVICEADDED: {
             if (!controller) controller = SDL_GameControllerOpen(event.cdevice.which);
+
+            if (!controller) {
+                Log::logError("Failed to connect controller: " + std::string(SDL_GetError()));
+                break;
+            }
+
+            const char *name = SDL_GameControllerName(controller);
+            if (!name) break;
+            Log::log("[SDL2] Controller connected: " + std::string(name));
+            if (SDL_strstr(name, "Wii")) {
+                Input::setControllerType(ControllerType::WiiRemote);
+            } else if (SDL_strstr(name, "Nintendo")) {
+                Input::setControllerType(ControllerType::Nintendo);
+            } else if (SDL_strstr(name, "Xbox")) {
+                Input::setControllerType(ControllerType::Xbox);
+            } else if (SDL_strstr(name, "Playstation") || SDL_strstr(name, "PS")) {
+                Input::setControllerType(ControllerType::Playstation);
+            }
             break;
+        }
         case SDL_CONTROLLERDEVICEREMOVED:
             if (controller && event.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
                 SDL_GameControllerClose(controller);
                 controller = nullptr;
             }
+            Input::setControllerType(ControllerType::Unknown);
             break;
 #endif
 #ifdef PLATFORM_HAS_TOUCH

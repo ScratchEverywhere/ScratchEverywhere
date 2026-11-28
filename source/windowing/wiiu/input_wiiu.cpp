@@ -110,6 +110,7 @@ void readExtensionControllers(PadState &state) {
 } // namespace
 
 InputDevice_WiiU::InputDevice_WiiU() {
+    Input::setControllerType(ControllerType::Nintendo);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     VPADInit();

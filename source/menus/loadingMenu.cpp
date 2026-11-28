@@ -90,7 +90,7 @@ void LoadingMenu::callback(UI::Builder &b) {
         deltaTime.start();
 
         const float lerpSpeed = std::min(1.0f, 12.0f * delta);
-        const float virtualH = static_cast<float>(Render::getHeight()) / b.scale;
+        const float virtualH = (static_cast<float>(Render::getHeight()) - 150.0) / b.scale;
 
         const float targetY1 = virtualH * 0.32f;
         const float targetY2 = targetY1 + 30.0f;

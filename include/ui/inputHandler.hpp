@@ -25,6 +25,12 @@ class InputHandler {
     // true after a key/button press, false after the pointer moves.
     bool isNavMode() const { return navMode; }
 
+    // TODO: dont hardcode lol
+    struct Tooltip {
+        static const std::string l();
+        static const std::string r();
+    };
+
   private:
     struct Pointer {
         int x = 0, y = 0;

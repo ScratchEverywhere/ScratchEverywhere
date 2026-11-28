@@ -18,10 +18,24 @@ struct SE_EXPORT InputTouch {
     int y = 0;
 };
 
+enum class SE_EXPORT ControllerType : uint8_t {
+    Xbox,
+    Playstation,
+    Nintendo, // normal controller layout, ex: pro controllers, gamecube, the like
+    WiiRemote,
+    Unknown,
+};
+
 class SE_EXPORT InputDevice {
+  private:
+    ControllerType controllerType = ControllerType::Unknown;
+
   public:
     InputDevice() = default;
     virtual ~InputDevice() = default;
+
+    void setControllerType(ControllerType type) { this->controllerType = type; };
+    ControllerType getControllerType() const { return controllerType; };
 
     virtual std::array<int, 2> getTouchPosition() = 0;
 
@@ -102,6 +116,9 @@ class SE_EXPORT Input {
 
     // input device specific functions
     // TODO: remove these and rely on getInputDevice to access functions
+
+    static void setControllerType(ControllerType type);
+    static ControllerType getControllerType();
 
     static std::array<int, 2> getTouchPosition();
 

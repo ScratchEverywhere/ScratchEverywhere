@@ -35,7 +35,7 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-InputDevice_NDS::InputDevice_NDS() {}
+InputDevice_NDS::InputDevice_NDS() { Input::setControllerType(ControllerType::Nintendo); }
 InputDevice_NDS::~InputDevice_NDS() {}
 
 std::array<int, 2> InputDevice_NDS::getTouchPosition() {
