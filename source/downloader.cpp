@@ -3,21 +3,14 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#include "os.hpp"
-#include <atomic>
-#include <curl/curl.h>
 #include <filesystem.hpp>
 #include <fstream>
-#include <iostream>
 #include <log.hpp>
-#include <mutex>
+#include <net/http.hpp>
+#include <socket.hpp>
 #include <sys/stat.h>
 
-#ifdef __3DS__
 static bool workerRunning = false;
-#else
-static std::atomic<bool> workerRunning(false);
-#endif
 
 static void N3DS_ProcessQueueThreadedWrapper(void *arg) {
     DownloadManager::processQueueThreaded();
@@ -25,13 +18,8 @@ static void N3DS_ProcessQueueThreadedWrapper(void *arg) {
 
 bool DownloadManager::init() {
     if (isInitialized) return true;
-    if (!OS::initWifi()) return false;
+    if (!SE_Socket::init()) return false;
     mtx.init();
-    CURLcode res = curl_global_init(CURL_GLOBAL_DEFAULT);
-    if (res != CURLE_OK) {
-        Log::log(std::string("curl_global_init failed: ") + curl_easy_strerror(res));
-        return false;
-    }
     isInitialized = true;
     return true;
 }
@@ -39,23 +27,25 @@ bool DownloadManager::init() {
 void DownloadManager::deinit() {
     if (!isInitialized) return;
     join();
-    curl_global_cleanup();
-    OS::deInitWifi();
+    SE_Socket::deinit();
     isInitialized = false;
 }
 
 void DownloadManager::startThread() {
-    bool isRunning;
     mtx.lock();
-    isRunning = workerRunning;
-    mtx.unlock();
-    if (!isRunning) {
-        downloadThread.join();
-    } else {
-
+    if (workerRunning) {
+        mtx.unlock();
         return;
     }
-    downloadThread.create(N3DS_ProcessQueueThreadedWrapper, nullptr, 8 * 1024, 999, -2, "downloadThread");
+    workerRunning = true;
+    mtx.unlock();
+
+    downloadThread.join();
+    if (!downloadThread.create(N3DS_ProcessQueueThreadedWrapper, nullptr, 64 * 1024, 999, -2, "downloadThread")) {
+        mtx.lock();
+        workerRunning = false;
+        mtx.unlock();
+    }
 }
 
 void DownloadManager::join() {
@@ -65,12 +55,14 @@ void DownloadManager::join() {
 void DownloadManager::addDownload(const std::string &url, const std::string &filepath) {
     mtx.lock();
     if (pendingMap.find(url) != pendingMap.end()) {
+        mtx.unlock();
         return;
     }
 
     if (downloadedMap.find(url) != downloadedMap.end()) {
         struct stat st;
         if (stat(filepath.c_str(), &st) == 0) {
+            mtx.unlock();
             return;
         } else {
             downloadedMap.erase(url);
@@ -111,117 +103,73 @@ void DownloadManager::removeFromMemory(const std::string &url) {
 }
 
 void DownloadManager::processQueueThreaded() {
-    mtx.lock();
-#ifdef __3DS__
-    workerRunning = true;
-#else
-    workerRunning.store(true);
-#endif
-    mtx.unlock();
-
     while (true) {
         std::shared_ptr<DownloadItem> item = nullptr;
 
-        {
-            mtx.lock();
-
-            if (pendingDownloads.empty()) {
-                mtx.unlock();
-                break;
-            }
-            item = pendingDownloads.front();
-            pendingDownloads.erase(pendingDownloads.begin());
-
+        mtx.lock();
+        if (pendingDownloads.empty()) {
+            workerRunning = false;
             mtx.unlock();
+            break;
         }
+        item = pendingDownloads.front();
+        pendingDownloads.erase(pendingDownloads.begin());
+        mtx.unlock();
 
         performDownload(item);
     }
     Log::log("DownloadManager: worker thread finished (queue empty)");
-    mtx.lock();
-#ifdef __3DS__
-    workerRunning = false;
-#else
-    workerRunning.store(false);
-#endif
-    mtx.unlock();
 }
 
 void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
-
-    CURL *curl = curl_easy_init();
-    if (!curl) {
+    auto finish = [&](bool success, const std::string &error) {
+        item->success = success;
+        item->error = error;
         item->finished = true;
-        item->success = false;
-        item->error = "curl init failed";
-        Log::logCritical("DownloadManager: curl init failed", false);
-        return;
-    }
+
+        mtx.lock();
+        downloadedMap[item->url] = item;
+        pendingMap.erase(item->url);
+        mtx.unlock();
+    };
 
     size_t lastSlash = item->filepath.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
         const std::string dir = item->filepath.substr(0, lastSlash) + "/";
         const auto err = FileSystem::createDirectory(dir.c_str());
         if (!err.has_value()) {
-            item->finished = true;
-            item->success = false;
-            item->error = "Failed to create directory";
             Log::logWarning("Download failed: Could not create directory: " + err.error());
-            curl_easy_cleanup(curl);
+            finish(false, "Failed to create directory");
             return;
         }
     }
 
     std::ofstream outFile(item->filepath, std::ios::binary);
     if (!outFile.is_open()) {
-        item->finished = true;
-        item->success = false;
-        item->error = "Failed to open file for writing";
         Log::log("DownloadManager: ERROR - cannot open output file: " + item->filepath);
-        curl_easy_cleanup(curl);
+        finish(false, "Failed to open file for writing");
         return;
     }
 
-    FileWriteData writeData{&outFile, 0};
-    curl_easy_setopt(curl, CURLOPT_URL, item->url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writeData);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
-    curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "SE-Downloader/1.0");
-
-    CURLcode res = curl_easy_perform(curl);
+    HttpResponse response;
+    bool ok = Http::get(
+        item->url, [&outFile](const uint8_t *data, size_t len) {
+            outFile.write(reinterpret_cast<const char *>(data), (std::streamsize)len);
+            return outFile.good();
+        },
+        response);
     outFile.close();
 
-    item->success = (res == CURLE_OK);
-    if (!item->success) {
-        item->error = curl_easy_strerror(res);
-        Log::log("DownloadManager: ERROR - " + std::string(curl_easy_strerror(res)));
+    if (!ok) {
+        const std::string error = response.error.empty() ? "Download failed" : response.error;
+        Log::log("DownloadManager: ERROR - " + error);
         std::remove(item->filepath.c_str());
-    } else {
-        Log::log("DownloadManager: download complete (" + item->filepath + ")");
+        finish(false, error);
+        return;
     }
 
-    curl_easy_cleanup(curl);
-
-    item->finished = true;
-
-    mtx.lock();
-    downloadedMap[item->url] = item;
-    pendingMap.erase(item->url);
-    mtx.unlock();
-}
-
-size_t DownloadManager::WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
-    size_t totalSize = size * nmemb;
-    FileWriteData *data = static_cast<FileWriteData *>(userp);
-    data->file->write(static_cast<const char *>(contents), totalSize);
-    data->bytesWritten += totalSize;
-    return totalSize;
+    Log::log("DownloadManager: download complete (" + item->filepath + ")");
+    finish(true, "");
 }
 
 #endif

@@ -29,11 +29,6 @@ struct SE_EXPORT DownloadItem {
     std::string error;
 };
 
-struct SE_EXPORT FileWriteData {
-    std::ofstream *file;
-    size_t bytesWritten = 0;
-};
-
 static inline std::string urlEncode(const std::string &value) {
     std::ostringstream escaped;
     escaped.fill('0');
@@ -61,7 +56,6 @@ class SE_EXPORT DownloadManager {
     static void processQueueThreaded() { return; };
 };
 #else
-#include <curl/curl.h>
 class SE_EXPORT DownloadManager {
   public:
     static bool init();
@@ -76,7 +70,6 @@ class SE_EXPORT DownloadManager {
   private:
     static void startThread();
     static void performDownload(std::shared_ptr<DownloadItem> item);
-    static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp);
 
     static inline std::vector<std::shared_ptr<DownloadItem>> pendingDownloads;
     static inline std::unordered_map<std::string, std::shared_ptr<DownloadItem>> pendingMap;

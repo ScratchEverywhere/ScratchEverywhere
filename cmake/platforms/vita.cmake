@@ -9,8 +9,10 @@ set(SE_CACHING_DEFAULT ON)
 set(SE_DECTALK_DEFAULT ON)
 
 set(SE_ALLOW_BUNDLE ON)
-set(SE_ALLOW_CLOUDVARS OFF)
-set(SE_ALLOW_DOWNLOAD OFF)
+set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_DOWNLOAD ON)
+set(SE_TLS_BACKEND_VALID_OPTIONS "mbedtls")
+set(SE_TLS_BACKEND_PRIORITY "mbedtls")
 
 set(SE_PLATFORM_DEFINITIONS "VITA")
 set(SE_PLATFORM "vita")
@@ -34,7 +36,7 @@ macro(package_platform)
 
 	target_link_options(scratch-everywhere PRIVATE "-Wl,--defsym=__sce_headroom=0x10000")
 
-	target_link_libraries(se-interface INTERFACE SceAppUtil_stub)
+	target_link_libraries(se-interface INTERFACE SceAppUtil_stub SceNet_stub SceNetCtl_stub SceSysmodule_stub)
 
 	target_link_libraries(se-interface INTERFACE SceShaccCgExt SceShaccCg_stub stdc++ taihen_stub_weak)
 
