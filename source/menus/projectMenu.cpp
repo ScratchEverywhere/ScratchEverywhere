@@ -20,7 +20,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::buildProjects(UI::Builder &b) {
     b.text({.text = std::to_string(projectFiles.size()) + " " + TranslationManager::getTranslation("ui.menu.projects"), .scale = 1.15, .color = {255, 255, 255, 255}, .align = UI::AlignMode::Center});
 
-    b.element({.flags = UI::Flag::ScrollY,
+    b.element({.flags = UI::Flag::ScrollY | UI::Flag::EqualRowHeight,
                .w = UI::Size::grow(),
                .h = UI::Size::grow(),
                .childDirection = UI::ChildDir::Grid,
@@ -34,6 +34,7 @@ void ProjectMenu::buildProjects(UI::Builder &b) {
                                  .w = UI::Size::fixed(300),
                                  .h = UI::Size::fit(),
                                  .padding = UI::Padding::axis(8, 12),
+                                 .align = UI::AlignMode::Center,
                                  .color = {225, 225, 235, 255},
                                  .style = UI::StyleId::ProjectButton,
                                  .onClick = [project] {

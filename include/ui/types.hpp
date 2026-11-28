@@ -27,6 +27,7 @@ namespace Flag {
 constexpr uint8_t Focusable = 1 << 0;
 constexpr uint8_t ScrollY = 1 << 1;
 constexpr uint8_t Floating = 1 << 2;
+constexpr uint8_t EqualRowHeight = 1 << 4;
 } // namespace Flag
 
 namespace StateFlag {

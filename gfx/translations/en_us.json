@@ -24,7 +24,7 @@
   "ui.settings.fps": "Show FPS",
   "ui.settings.keepProjectInRam": "Keep Project In RAM",
   "ui.settings.warp": "Warp Timer",
-  "ui.settings.runtime": "Runtime",
+  "ui.settings.runtime": "Runtime Mode",
   "ui.settings.onScreenControls": "On-Screen Controls",
   "ui.settings.auto": "AUTO",
   "ui.settings.username": "Custom Project Username",

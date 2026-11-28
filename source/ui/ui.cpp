@@ -422,6 +422,7 @@ int Builder::flowChildren(Element &parent, bool place) {
         }
 
         if (place) {
+            const bool equalHeight = parent.flags & Flag::EqualRowHeight;
             int x = parent.padding.left;
             const int free = std::max(0, contentWidth - rowWidth);
             if (parent.align == AlignMode::Center) x += free / 2;
@@ -430,6 +431,7 @@ int Builder::flowChildren(Element &parent, bool place) {
             for (uint16_t c = rowStart; c != rowEnd; c = pool->elements[c].next) {
                 Element &e = pool->elements[c];
                 if (e.flags & Flag::Floating) continue;
+                if (equalHeight && e.h.mode == SizeMode::Fit) e.rect.h = static_cast<int16_t>(rowHeight);
                 e.rect.x = static_cast<int16_t>(parent.rect.x + x);
                 e.rect.y = static_cast<int16_t>(parent.rect.y + parent.padding.up + y);
                 x += e.rect.w + gap;
