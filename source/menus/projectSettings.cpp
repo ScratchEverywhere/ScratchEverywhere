@@ -39,6 +39,12 @@ void ProjectSettingsMenu::info(UI::Builder &b, const std::string &text) {
     });
 }
 
+void ProjectSettingsMenu::callback(UI::Builder &b) {
+    if (Input::keyHeldDuration["b"] == 1) {
+        MenuManager::changeMenu(MenuManager::lastMenu);
+    }
+}
+
 void ProjectSettingsMenu::build(UI::Builder &b) {
 
 #if defined(__NDS__) || defined(__3DS__) || defined(__PSP__)

@@ -14,4 +14,5 @@ class SE_EXPORT ProjectSettingsMenu : public SettingsMenu {
     ~ProjectSettingsMenu() override;
     void info(UI::Builder &b, const std::string &text);
     void build(UI::Builder &b) override;
+    void callback(UI::Builder &b) override;
 };
