@@ -45,6 +45,8 @@ on:
       - source/menus/**
       - gfx/menu/**
       - gfx/linux/**
+      - gfx/macOS/**
+      - scripts/macos/**
       - include/**
       - .github/workflows/nightly-pc.yml
       - docker/Dockerfile.linux
@@ -252,6 +254,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [macos-arm, macos-intel]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
       - name: Download Intel Artifact
         uses: actions/download-artifact@v8
         with:
@@ -268,9 +272,33 @@ jobs:
           chmod +x lipo
       - name: Create Universal Binary
         run: ./lipo -output scratch-pc -create arm-build/scratch-pc intel-build/scratch-pc
+      - name: Download and Prepare rcodesign
+        run: |
+          RCODESIGN_VERSION=0.29.0
+          RC_DIR="apple-codesign-${RCODESIGN_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o rcodesign.tar.gz "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${RCODESIGN_VERSION}/${RC_DIR}.tar.gz"
+          echo "dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002  rcodesign.tar.gz" | sha256sum -c -
+          tar -xzf rcodesign.tar.gz
+          echo "$PWD/${RC_DIR}" >> "$GITHUB_PATH"
+      - name: Sign Universal Binary
+        run: rcodesign sign scratch-pc
+      - name: Create Universal App Bundle and .dmg
+        run: |
+          sudo apt-get update && sudo apt-get install -y hfsprogs cmake zlib1g-dev libbz2-dev
+          sudo scripts/macos/install-dmg-tools.sh
+          VERSION="$(sed -n 's/^project(ScratchEverywhere VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          scripts/macos/package.sh --binary scratch-pc --out macos-package --version "$VERSION"
+      - name: Zip App Bundle
+        run: cd macos-package && zip -ry "Scratch Everywhere.app.zip" "Scratch Everywhere.app"
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS Universal Nightly
-          path: scratch-pc
+          path: macos-package/Scratch Everywhere.app.zip
+      - name: Upload Installer
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Scratch Everywhere! macOS Installer Nightly
+          path: macos-package/*.dmg

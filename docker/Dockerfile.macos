@@ -2,11 +2,28 @@
 
 FROM --platform=$BUILDPLATFORM crazymax/osxcross:15.5-alpine AS osxcross
 
-FROM alpine:latest AS main_builder
+FROM alpine:latest AS base
 ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
-RUN apk add --no-cache clang lld musl-dev fts cmake make git bash python3 py3-jinja2 wget patch
+RUN apk add --no-cache clang lld musl-dev fts cmake make git bash python3 py3-jinja2 wget patch hfsprogs g++ zlib-dev bzip2-dev libbz2
+
+ARG RC_VERSION=0.29.0
+RUN set -e; \
+	case "$(uname -m)" in \
+		x86_64) RC_SHA256=dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002 ;; \
+		aarch64) RC_SHA256=4af92c87ddf52f5f2d1258a3b4e56c7dcb8f1b2468df744976c5f139e031961f ;; \
+		*) echo "unsupported build architecture: $(uname -m)"; exit 1 ;; \
+	esac; \
+	RC_DIR="apple-codesign-${RC_VERSION}-$(uname -m)-unknown-linux-musl"; \
+	wget -qO /tmp/rcodesign.tar.gz "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${RC_VERSION}/${RC_DIR}.tar.gz"; \
+	echo "${RC_SHA256}  /tmp/rcodesign.tar.gz" | sha256sum -c -; \
+	tar -xzf /tmp/rcodesign.tar.gz -C /tmp; \
+	mv "/tmp/${RC_DIR}/rcodesign" /usr/local/bin/rcodesign; \
+	rm -rf /tmp/rcodesign.tar.gz "/tmp/${RC_DIR}"
+
+COPY scripts/macos/install-dmg-tools.sh /tmp/install-dmg-tools.sh
+RUN /tmp/install-dmg-tools.sh && rm /tmp/install-dmg-tools.sh
 
 COPY --from=osxcross /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
@@ -15,24 +32,34 @@ ENV MACOSX_DEPLOYMENT_TARGET="14.0"
 
 COPY . .
 
+FROM base AS main_builder
 ARG ARCH=x86_64
+RUN --mount=type=secret,id=discord_app_id ARCH=$ARCH docker/macos-build.sh
 
-RUN --mount=type=secret,id=discord_app_id \
-	DISCORD_ARGS=""; \
-	if [ -s /run/secrets/discord_app_id ]; then \
-		DISCORD_ARGS="-DSE_DISCORD_RPC=ON -DSE_DISCORD_APP_ID=$(tr -d '[:space:]' < /run/secrets/discord_app_id)"; \
-	fi; \
-	mkdir build && cd build && \
-	${ARCH}-apple-darwin24.5-cmake \
-	-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
-	-DSE_CLOUDVARS=ON \
-	-DSE_DOWNLOAD=ON \
-	-DSE_AUDIO_ENGINE=sdl2 \
-	-DSE_WINDOWING=sdl2 \
-	-DCMAKE_BUILD_TYPE=Release \
-	${DISCORD_ARGS} \
-	.. && \
-	cmake --build . -j 2
+FROM base AS build_x86_64
+RUN --mount=type=secret,id=discord_app_id ARCH=x86_64 docker/macos-build.sh
+
+FROM base AS build_arm64
+RUN --mount=type=secret,id=discord_app_id ARCH=arm64 docker/macos-build.sh
+
+FROM base AS universal
+COPY --from=build_x86_64 /app/build/scratch-pc /tmp/x86_64/scratch-pc
+COPY --from=build_arm64 /app/build/scratch-pc /tmp/arm64/scratch-pc
+RUN mkdir -p build && \
+	lipo -create -output build/scratch-pc /tmp/arm64/scratch-pc /tmp/x86_64/scratch-pc && \
+	rcodesign sign build/scratch-pc && \
+	scripts/macos/package.sh \
+		--binary build/scratch-pc \
+		--out build/macos \
+		--version "$(sed -n 's/^project(ScratchEverywhere VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" \
+		--min-macos "$MACOSX_DEPLOYMENT_TARGET"
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/scratch-pc /
+COPY --from=main_builder ["/app/build/macos/Scratch Everywhere.app", "/Scratch Everywhere.app"]
+COPY --from=main_builder /app/build/macos/scratch-pc-macOS.dmg /
+
+FROM scratch AS universal-exporter
+COPY --from=universal /app/build/scratch-pc /
+COPY --from=universal ["/app/build/macos/Scratch Everywhere.app", "/Scratch Everywhere.app"]
+COPY --from=universal /app/build/macos/scratch-pc-macOS.dmg /

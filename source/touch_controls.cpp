@@ -93,8 +93,24 @@ std::shared_ptr<Image> joystickHeadImage;
 std::unique_ptr<TextObject> labelText;
 std::unique_ptr<TextObject> pauseText;
 
-constexpr float kArrowDeadzone = 0.22f;
+constexpr float kArrowDeadzone = 0.28f;
 constexpr float kJoystickDeadzone = 0.28f;
+
+// Layout sizes are in density-independent (dp) pixels so that controls
+// have a comfortable size on both lodpi and hidpi screens.
+constexpr float kBaseSizeFraction = 0.2025f; // fraction of the shorter screen edge
+constexpr float kMinBaseSizeDp = 48.6f;
+constexpr float kMaxBaseSizeDp = 172.8f;
+constexpr float kMinMarginDp = 8.0f;
+constexpr float kMinGapDp = 6.0f;
+constexpr float kMarginFraction = 0.025f;
+constexpr float kGapFraction = 0.10f;
+
+float displayDensity() {
+    const float density = Render::getPixelDensity();
+    if (!std::isfinite(density) || density <= 0.0f) return 1.0f;
+    return std::clamp(density, 0.5f, 8.0f);
+}
 
 bool insideCircle(float px, float py, float cx, float cy, float radius) {
     const float dx = px - cx;
@@ -193,10 +209,12 @@ void buildLayout() {
 
     layout.built = true;
 
+    const float density = displayDensity();
     const float shortSide = static_cast<float>(std::min(width, height));
-    const float base = std::clamp(shortSide * 0.115f, 28.0f, 112.0f);
-    const float margin = std::max(8.0f, shortSide * 0.025f);
-    const float gap = std::max(4.0f, base * 0.10f);
+    const float logicalShortSide = shortSide / density;
+    const float base = std::clamp(logicalShortSide * kBaseSizeFraction, kMinBaseSizeDp, kMaxBaseSizeDp) * density;
+    const float margin = std::max(kMinMarginDp * density, shortSide * kMarginFraction);
+    const float gap = std::max(kMinGapDp * density, base * kGapFraction);
 
     layout.dpad.active = usesAllArrows;
     if (layout.dpad.active) {

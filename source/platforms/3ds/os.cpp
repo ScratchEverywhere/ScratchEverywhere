@@ -5,6 +5,8 @@
 #include <os.hpp>
 #include <sstream>
 
+extern "C" u32 __stacksize__ = 128 * 1024;
+
 namespace OS {
 bool toExit = false;
 bool loadedSettings = false;
