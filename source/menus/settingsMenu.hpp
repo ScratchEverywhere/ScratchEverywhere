@@ -23,6 +23,7 @@ class SE_EXPORT GlobalSettingsMenu : public SettingsMenu {
     std::vector<std::string> rendererList;
     std::vector<std::string> windowingList;
     std::vector<std::string> audioEngineList;
+    std::string cacheSize;
 
     void changeProjectPath();
 

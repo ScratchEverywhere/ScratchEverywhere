@@ -7,27 +7,10 @@
 #include "unpackMenu.hpp"
 #include <unzip.hpp>
 
-std::string ProjectSettingsMenu::getSizeText() {
-    float size = static_cast<float>(FileSystem::getFileSize(OS::getScratchFolderLocation() + projectPath));
-    std::string type;
-    if (size < 1024) type = "Bytes";
-    else if (size < 1000000) {
-        type = "KB";
-        size /= 1024.0;
-    } else if (size < 1000000000) {
-        type = "MB";
-        size /= 1000000.0;
-    } else {
-        type = "GB";
-        size /= 1000000000.0;
-    }
-    return std::to_string(size) + " " + type;
-}
-
 ProjectSettingsMenu::ProjectSettingsMenu(const std::string &projectPath) {
     json = SettingsManager::getProjectSettings(projectPath.substr(0, projectPath.size() - 4));
     this->projectPath = projectPath;
-    fileSize = getSizeText();
+    fileSize = FileSystem::formatFilesize(FileSystem::getFileSize(OS::getScratchFolderLocation() + projectPath));
 }
 
 ProjectSettingsMenu::~ProjectSettingsMenu() {

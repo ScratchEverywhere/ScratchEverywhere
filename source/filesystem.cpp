@@ -382,6 +382,127 @@ long FileSystem::getFileSize(const std::string &path) {
     return size;
 }
 
+uint64_t FileSystem::getDirectorySize(const std::string &path) {
+#if defined(__XBOX__)
+    std::string norm = path;
+    for (char &c : norm) {
+        if (c == '/') c = '\\';
+    }
+    while (norm.size() > 3 && norm.back() == '\\') {
+        norm.pop_back();
+    }
+
+    DWORD attrs = GetFileAttributesA(norm.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+        return 0;
+    }
+
+    uint64_t totalSize = 0;
+    std::string searchPattern = norm + "\\*";
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = FindFirstFileA(searchPattern.c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    do {
+        const char *name = findData.cFileName;
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+
+        std::string childPath = norm + "\\" + name;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            totalSize += getDirectorySize(childPath);
+        } else {
+            totalSize += (static_cast<uint64_t>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+        }
+    } while (FindNextFileA(hFind, &findData) != 0);
+
+    FindClose(hFind);
+    return totalSize;
+
+#elif defined(_WIN32)
+    std::string cleanPath = path;
+    while (cleanPath.size() > 3 && (cleanPath.back() == '/' || cleanPath.back() == '\\')) {
+        cleanPath.pop_back();
+    }
+
+    std::string searchPath = cleanPath;
+    if (searchPath.empty()) {
+        searchPath = ".";
+    }
+    if (searchPath.back() != '/' && searchPath.back() != '\\') {
+        searchPath += "/*";
+    } else {
+        searchPath += "*";
+    }
+
+    std::wstring wsearchPath(searchPath.size(), L' ');
+    wsearchPath.resize(std::mbstowcs(&wsearchPath[0], searchPath.c_str(), searchPath.size()));
+
+    WIN32_FIND_DATAW findData;
+    HANDLE hFind = FindFirstFileW(wsearchPath.c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    uint64_t totalSize = 0;
+    do {
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, NULL, 0, NULL, NULL);
+        std::string fileName(size_needed - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, &fileName[0], size_needed, NULL, NULL);
+
+        if (fileName == "." || fileName == "..") continue;
+
+        std::string childPath = cleanPath + "/" + fileName;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            totalSize += getDirectorySize(childPath);
+        } else {
+            totalSize += (static_cast<uint64_t>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+        }
+    } while (FindNextFileW(hFind, &findData) != 0);
+
+    FindClose(hFind);
+    return totalSize;
+
+#else
+    std::string cleanPath = path;
+    while (cleanPath.size() > 1 && cleanPath.back() == '/') {
+        cleanPath.pop_back();
+    }
+
+    struct stat st;
+    if (stat(cleanPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+        return 0;
+    }
+
+    DIR *dir = opendir(cleanPath.c_str());
+    if (dir == nullptr) {
+        return 0;
+    }
+
+    uint64_t totalSize = 0;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = cleanPath + "/" + entry->d_name;
+        struct stat entrySt;
+        if (stat(fullPath.c_str(), &entrySt) == 0) {
+            if (S_ISDIR(entrySt.st_mode)) {
+                totalSize += getDirectorySize(fullPath);
+            } else {
+                totalSize += static_cast<uint64_t>(entrySt.st_size);
+            }
+        }
+    }
+
+    closedir(dir);
+    return totalSize;
+#endif
+}
+
 long FileSystem::fileModifiedTime(const std::string &path) {
 #if defined(__XBOX__)
     std::string norm = path;
@@ -414,4 +535,18 @@ long FileSystem::fileModifiedTime(const std::string &path) {
     }
     return static_cast<long>(st.st_mtime);
 #endif
+}
+
+std::string FileSystem::formatFilesize(long bytes) {
+    char buf[32];
+    if (bytes >= 1024ULL * 1024ULL * 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    } else if (bytes >= 1024ULL * 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f MB", bytes / (1024.0 * 1024.0));
+    } else if (bytes >= 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f KB", bytes / 1024.0);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%llu B", static_cast<unsigned long long>(bytes));
+    }
+    return buf;
 }

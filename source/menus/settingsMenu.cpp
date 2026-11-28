@@ -7,6 +7,7 @@
 #include <filesystem.hpp>
 #include <log.hpp>
 #include <settings.hpp>
+#include <string>
 #include <translation.hpp>
 
 bool SettingsMenu::isToggled(const std::string &jsonKey) {
@@ -146,6 +147,7 @@ GlobalSettingsMenu::GlobalSettingsMenu() {
     rendererList = Render::getAvailableRenderers();
     windowingList = WindowSE::getAvailableWindowingBackends();
     audioEngineList = SoundPlayer::getAvailableAudioBackends();
+    cacheSize = FileSystem::formatFilesize(FileSystem::getDirectorySize(OS::getScratchFolderLocation() + "cache/"));
 }
 
 GlobalSettingsMenu::~GlobalSettingsMenu() {
@@ -229,11 +231,24 @@ void GlobalSettingsMenu::build(UI::Builder &b) {
                                     }
                                 }
 
-                                button(b, "ui.settings.cache", [&] {
-                                    const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-                                    const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
-                                    if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
-                                });
+                                b.element({
+                                              .w = UI::Size::fit(),
+                                              .h = UI::Size::fit(),
+                                          },
+                                          [&] {
+                                              b.text({
+                                                  .text = {"Cache size: " + cacheSize},
+                                                  .fontId = 1,
+                                                  .scale = 0.75,
+                                                  .color = {255, 255, 255, 255},
+                                              });
+
+                                              button(b, "ui.settings.cache", [&] {
+                                                  const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+                                                  const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+                                                  if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
+                                              });
+                                          });
 
                                 section(b, "Project");
 

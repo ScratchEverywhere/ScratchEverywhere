@@ -9,8 +9,6 @@ class SE_EXPORT ProjectSettingsMenu : public SettingsMenu {
     std::string projectPath;
     std::string fileSize;
 
-    std::string getSizeText();
-
   public:
     ProjectSettingsMenu(const std::string &projectPath);
     ~ProjectSettingsMenu() override;

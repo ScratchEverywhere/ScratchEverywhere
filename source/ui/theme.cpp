@@ -27,8 +27,6 @@ void Theme::loadIngameFonts() {
 
 // just a default theme for now, later i want this to load from a file
 void Theme::load() {
-    // #soretro font for low resolution devices
-
     styles[StyleId::None] = {
         .normal = {.color = {0, 0, 0, 0}, .round = 0},
         .has = 0,
@@ -39,14 +37,14 @@ void Theme::load() {
         .pressed = {.color = {118, 75, 114, 255}, .round = 12},
         .has = StateFlag::Pressed | StateFlag::Focused,
     };
+    styles[StyleId::TabPressed] = {
+        .normal = {.color = {118, 75, 114, 255}, .round = 12},
+    };
     styles[StyleId::Toggle] = {
         .normal = {.color = {67, 57, 34, 255}, .round = 12},
     };
     styles[StyleId::TogglePressed] = {
         .normal = {.color = {255, 151, 46, 255}, .round = 12},
-    };
-    styles[StyleId::TabPressed] = {
-        .normal = {.color = {118, 75, 114, 255}, .round = 8},
     };
     styles[StyleId::ProjectButton] = {
         .normal = {.color = {225, 225, 235, 255}, .round = 8, .borderColor = {92, 60, 90, 255}, .borderThickness = 12},
