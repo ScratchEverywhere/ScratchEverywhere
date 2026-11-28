@@ -1,3 +1,4 @@
+#include "SDL_gamecontroller.h"
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #endif
@@ -17,6 +18,13 @@
 #include <renderer.hpp>
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/renderer_sdl2.hpp>
+#endif
+#include <algorithm>
+#include <utf8.hpp>
+#ifdef __UBUNTUTOUCH__
+#include <platforms/ut/swkbd_ut.hpp>
+extern bool utKeyboardShown;
+UbuntuTouchKeyboard &getUbuntuTouchKeyboard();
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -163,6 +171,7 @@ bool WindowSDL2::shouldClose() {
 }
 
 void WindowSDL2::pollEvents() {
+    Input::mouseScrollDelta = 0;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -194,14 +203,34 @@ void WindowSDL2::pollEvents() {
             }
             break;
 #ifdef PLATFORM_HAS_CONTROLLER
-        case SDL_CONTROLLERDEVICEADDED:
+        case SDL_CONTROLLERDEVICEADDED: {
             if (!controller) controller = SDL_GameControllerOpen(event.cdevice.which);
+
+            if (!controller) {
+                Log::logError("Failed to connect controller: " + std::string(SDL_GetError()));
+                break;
+            }
+
+            const char *name = SDL_GameControllerName(controller);
+            if (!name) break;
+            Log::log("[SDL2] Controller connected: " + std::string(name));
+            if (SDL_strstr(name, "Wii")) {
+                Input::setControllerType(ControllerType::WiiRemote);
+            } else if (SDL_strstr(name, "Nintendo")) {
+                Input::setControllerType(ControllerType::Nintendo);
+            } else if (SDL_strstr(name, "Xbox")) {
+                Input::setControllerType(ControllerType::Xbox);
+            } else if (SDL_strstr(name, "Playstation") || SDL_strstr(name, "PS")) {
+                Input::setControllerType(ControllerType::Playstation);
+            }
             break;
+        }
         case SDL_CONTROLLERDEVICEREMOVED:
             if (controller && event.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
                 SDL_GameControllerClose(controller);
                 controller = nullptr;
             }
+            Input::setControllerType(ControllerType::Unknown);
             break;
 #endif
 #ifdef PLATFORM_HAS_TOUCH
@@ -225,8 +254,72 @@ void WindowSDL2::pollEvents() {
             Input::mouseScrollDelta += event.wheel.y;
             break;
 #endif
+#ifndef SDL2_NO_TEXT_INPUT
+        case SDL_TEXTINPUT:
+            Input::inputText += event.text.text;
+            break;
+        case SDL_KEYDOWN:
+            if (!Input::isTextInputActive()) break;
+            switch (event.key.keysym.scancode) {
+            case SDL_SCANCODE_RETURN:
+            case SDL_SCANCODE_KP_ENTER:
+            case SDL_SCANCODE_ESCAPE:
+                Input::endTextInput();
+                break;
+            case SDL_SCANCODE_BACKSPACE:
+                utf8::eraseLast(Input::inputText, 1);
+                break;
+            case SDL_SCANCODE_V: {
+#ifdef __APPLE__
+                const bool pasteMod = (event.key.keysym.mod & KMOD_GUI) != 0;
+#else
+                const bool pasteMod = (event.key.keysym.mod & KMOD_CTRL) != 0;
+#endif
+                if (pasteMod && SDL_HasClipboardText()) {
+                    char *clipboard = SDL_GetClipboardText();
+                    if (clipboard) {
+                        std::string pasted(clipboard);
+                        SDL_free(clipboard);
+                        pasted.erase(std::remove(pasted.begin(), pasted.end(), '\r'), pasted.end());
+                        pasted.erase(std::remove(pasted.begin(), pasted.end(), '\n'), pasted.end());
+                        Input::inputText += pasted;
+                    }
+                }
+            } break;
+            default:
+                break;
+            }
+            break;
+#endif
         }
     }
+#ifdef __UBUNTUTOUCH__
+    if (utKeyboardShown) {
+        UbuntuTouchKeyboard &maliitKeyboard = getUbuntuTouchKeyboard();
+        maliitKeyboard.poll();
+        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
+            switch (oskEvent.type) {
+            case UbuntuTouchKeyboard::Event::Type::CommitString:
+                utf8::eraseLast(Input::inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
+                Input::inputText += oskEvent.text;
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Backspace:
+                utf8::eraseLast(Input::inputText, 1);
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Enter:
+            case UbuntuTouchKeyboard::Event::Type::Escape:
+            case UbuntuTouchKeyboard::Event::Type::Dismissed:
+                Input::endTextInput();
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Preedit:
+                break;
+            }
+        }
+    }
+#endif
 }
 
 void WindowSDL2::calculatePixelDensity() {

@@ -1,29 +1,27 @@
 #pragma once
-#include "mainMenu.hpp"
-#include "menuObjects.hpp"
-#include "text.hpp"
-#include <se_export.hpp>
+#include "menuManager.hpp"
+#include "settingsMenu.hpp"
 
-enum class PopupType : uint8_t {
-    ACCEPT_OR_CANCEL,
-    ACKNOWLEDGE,
+enum class PopupType : bool {
+    AcceptOrCancel,
+    Acknowledgement,
 };
 
-class SE_EXPORT PopupMenu : public Menu {
+enum class PopupState : uint8_t {
+    None,
+    Accepted,
+    Cancelled,
+};
+
+class SE_EXPORT PopupMenu : public SettingsMenu {
   private:
-    PopupType type;
     std::string text;
 
   public:
-    MenuText *textObj;
-    ControlObject *control = nullptr;
-    std::vector<ButtonObject *> buttons;
-    int accepted = -1;
+    PopupType type;
+    PopupState state = PopupState::None;
 
     PopupMenu(PopupType type, const std::string &text);
-    ~PopupMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    ~PopupMenu() override;
+    void build(UI::Builder &b) override;
 };

@@ -1,4 +1,11 @@
+#include "SDL3/SDL_error.h"
+#include "SDL3/SDL_keyboard.h"
+#include "SDL3/SDL_properties.h"
+#include "input.hpp"
+#include "menuManager.hpp"
 #include "window_sdl3.hpp"
+#include <keyboard.hpp>
+#include <log.hpp>
 #ifdef __SWITCH__
 #include <switch.h>
 #endif
@@ -8,9 +15,9 @@
 #include <cstddef>
 #include <input_sdl3.hpp>
 #include <map>
-#include <touch_controls.hpp>
 #include <renderer.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <types.hpp>
 #ifdef __UBUNTUTOUCH__
 #include <platforms/ut/swkbd_ut.hpp>
@@ -46,6 +53,14 @@ extern SDL_Point touchPosition;
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
 extern bool cloudProject;
+#endif
+
+#ifdef __UBUNTUTOUCH__
+bool utKeyboardShown = false;
+UbuntuTouchKeyboard &getUbuntuTouchKeyboard() {
+    static UbuntuTouchKeyboard instance;
+    return instance;
+}
 #endif
 
 extern bool useCustomUsername;
@@ -258,7 +273,10 @@ void InputDevice_SDL3::getInput() {
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        int touchX = touchPosition.x, touchY = touchPosition.y;
+        int touchX = touchPosition.x;
+        int touchY = touchPosition.y;
+        Input::mousePointer.rawX = touchPosition.x;
+        Input::mousePointer.rawY = touchPosition.y;
         Input::applyInputViewportOffset(touchX, touchY);
         Input::scaleViewportToRenderSpace(touchX, touchY, Render::getWidth(), Render::getHeight());
         auto coords = Scratch::screenToScratchCoords(touchX, touchY, Render::getWidth(), Render::getHeight());
@@ -280,6 +298,8 @@ void InputDevice_SDL3::getInput() {
 
     // Get raw mouse coordinates
     std::array<int, 2> rawMouse = getTouchPosition();
+    Input::mousePointer.rawX = rawMouse[0];
+    Input::mousePointer.rawY = rawMouse[1];
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     Input::mousePointer.x = coords.first;
@@ -301,147 +321,77 @@ void InputDevice_SDL3::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string InputDevice_SDL3::openSoftwareKeyboard(const char *hintText) {
-    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
-    text->setCenterAligned(true);
-    text->setColor(Math::color(0, 0, 0, 170));
-    if (text->getSize()[0] > Render::getWidth() * 0.85) {
-        float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
-        text->setScale(scale);
-    }
-
-    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
-    enterText->setCenterAligned(true);
-    enterText->setColor(Math::color(219, 145, 219, 255));
-
-    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
-    SDL_StartTextInput(window);
-
-    // SDL cannot raise the Ubuntu Touch keyboard, so drive Maliit directly.
-    // SDL text input remains enabled as a fallback when Maliit is unavailable.
-#ifdef __UBUNTUTOUCH__
-    UbuntuTouchKeyboard maliitKeyboard;
-    maliitKeyboard.show();
-#endif
-
-    std::string inputText = "";
-    bool inputActive = true;
-    SDL_Event event;
-
-    while (inputActive) {
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_EVENT_TEXT_INPUT:
-                // Add text
-                inputText += event.text.text;
-                text->setText(inputText);
-                text->setColor(Math::color(255, 255, 255, 255));
-
-#if defined(__SWITCH__) || defined(VITA)
-                inputActive = false;
-#endif
-
-                break;
-
-            case SDL_EVENT_KEY_DOWN:
-                switch (event.key.scancode) {
-                case SDL_SCANCODE_RETURN:
-                case SDL_SCANCODE_KP_ENTER:
-                    // finish input
-                    inputActive = false;
-                    break;
-
-                case SDL_SCANCODE_BACKSPACE:
-                    // remove character
-                    if (!inputText.empty()) {
-                        inputText.pop_back();
-                    }
-                    if (inputText.empty()) {
-                        text->setText(std::string(hintText));
-                        text->setColor(Math::color(0, 0, 0, 170));
-                    } else {
-                        text->setText(inputText);
-                    }
-
-                    break;
-
-                case SDL_SCANCODE_ESCAPE:
-                    // finish input
-                    inputActive = false;
-                    break;
-                default:
-                    break;
-                }
-                break;
-
-            case SDL_EVENT_QUIT:
-                OS::toExit = true;
-                inputActive = false;
-                break;
-            }
-        }
-
-#ifdef __UBUNTUTOUCH__
-        maliitKeyboard.poll();
-        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
-            switch (oskEvent.type) {
-            case UbuntuTouchKeyboard::Event::Type::CommitString:
-                utf8::eraseLast(inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
-                inputText += oskEvent.text;
-                text->setText(inputText);
-                text->setColor(Math::color(255, 255, 255, 255));
-                break;
-
-            case UbuntuTouchKeyboard::Event::Type::Backspace:
-                utf8::eraseLast(inputText, 1);
-                if (inputText.empty()) {
-                    text->setText(std::string(hintText));
-                    text->setColor(Math::color(0, 0, 0, 170));
-                } else {
-                    text->setText(inputText);
-                }
-                break;
-
-            case UbuntuTouchKeyboard::Event::Type::Enter:
-            case UbuntuTouchKeyboard::Event::Type::Escape:
-            case UbuntuTouchKeyboard::Event::Type::Dismissed:
-                inputActive = false;
-                break;
-
-            case UbuntuTouchKeyboard::Event::Type::Preedit:
-                break;
-            }
-        }
-#endif
-
-        // set text size
-        text->setScale(1.0f);
-        if (text->getSize()[0] > Render::getWidth() * 0.95) {
-            float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.05);
-            text->setScale(scale);
-        } else {
-            text->setScale(1.0f);
-        }
-
-        Render::beginFrame(0, 117, 77, 117);
-
-        text->render(Render::getWidth() / 2, Render::getHeight() * 0.25);
-        enterText->render(Render::getWidth() / 2, Render::getHeight() * 0.15);
-
-        Render::endFrame(false);
-    }
-
-    SDL_StopTextInput(window);
-#ifdef __UBUNTUTOUCH__
-    maliitKeyboard.hide();
-#endif
-    return inputText;
-
-    return "";
-}
-
 void InputDevice_SDL3::setClipboardText(const std::string &text) {
 #if defined(__PC__)
     SDL_SetClipboardText(text.c_str());
 #endif
+}
+
+static bool sdlTextInputUsable() {
+#if defined(SDL3_NO_TEXT_INPUT)
+    return false;
+#elif defined(PLATFORM_HAS_KEYBOARD) || defined(__UBUNTUTOUCH__)
+    return true;
+#else
+    return SDL_HasScreenKeyboardSupport();
+#endif
+}
+
+void InputDevice_SDL3::startTextInput(const std::string &hintText, bool numberKeyboard) {
+    if (!sdlTextInputUsable()) {
+        InputDevice::startTextInput(hintText, numberKeyboard);
+        return;
+    }
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    const Sint64 keyboardType = numberKeyboard ? SDL_TEXTINPUT_TYPE_NUMBER : SDL_TEXTINPUT_TYPE_TEXT;
+
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetBooleanProperty(props, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+    SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_TYPE_NUMBER, keyboardType);
+
+    bool sdlStarted = SDL_StartTextInputWithProperties(window, props);
+    SDL_DestroyProperties(props);
+    if (!sdlStarted) {
+        Log::logError("Failed to open keyboard: " + std::string(SDL_GetError()));
+    }
+
+#ifdef __UBUNTUTOUCH__
+    getUbuntuTouchKeyboard().show();
+    utKeyboardShown = true;
+#else
+    if (!sdlStarted) {
+        Keyboard::open(MenuManager::builder);
+    }
+#endif
+}
+
+bool InputDevice_SDL3::isTextInputActive() {
+    if (!sdlTextInputUsable()) {
+        return InputDevice::isTextInputActive();
+    }
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+#ifdef __UBUNTUTOUCH__
+    if (utKeyboardShown) return true;
+#endif
+    if (SDL_TextInputActive(window)) return true;
+    return InputDevice::isTextInputActive();
+}
+
+void InputDevice_SDL3::endTextInput() {
+    if (!sdlTextInputUsable()) {
+        InputDevice::endTextInput();
+    }
+#ifdef __UBUNTUTOUCH__
+    if (utKeyboardShown) {
+        getUbuntuTouchKeyboard().hide();
+        utKeyboardShown = false;
+    }
+#endif
+    SDL_Window *window = (SDL_Window *)Render::getGlobalRenderer()->window->getHandle();
+    if (SDL_TextInputActive(window) && !SDL_StopTextInput(window)) {
+        Log::logError("Failed to end text input: " + std::string(SDL_GetError()));
+    }
+    if (Keyboard::isOpen()) {
+        Keyboard::close(MenuManager::builder);
+    }
 }

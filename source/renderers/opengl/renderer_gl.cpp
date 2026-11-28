@@ -2,6 +2,7 @@
 #include "speech_manager_gl.hpp"
 #include <image_gl.hpp>
 #include <log.hpp>
+#include <menuManager.hpp>
 #include <window.hpp>
 
 #include <algorithm>
@@ -477,6 +478,15 @@ void Renderer_GL::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t
     glEnable(GL_TEXTURE_2D);
 }
 
+void Renderer_GL::setClip(int x, int y, int w, int h) {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x, getHeight() - (y + h), w, h);
+}
+
+void Renderer_GL::clearClip() {
+    glDisable(GL_SCISSOR_TEST);
+}
+
 void Renderer_GL::renderPenLayer() {
     if (penTexture == 0) return;
 
@@ -561,7 +571,7 @@ void Renderer_GL::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    Render::renderMonitors();
+    MenuManager::render();
     Render::renderTouchControls();
 
     endFrame(true);

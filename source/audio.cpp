@@ -45,12 +45,12 @@ SoundDevice *globalSoundDevice = nullptr;
 
 AudioBackends SoundPlayer::currentSoundBackend = AudioBackends::_default;
 
-const std::vector<AudioBackendInfo> SoundPlayer::getAvailableAudioBackends() {
-    std::vector<AudioBackendInfo> backends;
+const std::vector<std::string> SoundPlayer::getAvailableAudioBackends() {
+    std::vector<std::string> backends;
 
     auto add = [&](AudioBackends a) {
         uint8_t id = static_cast<uint8_t>(a);
-        backends.push_back({id, std::string(AudioBackendNames[id])});
+        backends.push_back(std::string(AudioBackendNames[id]));
     };
 
 #ifdef AUDIO_LIBPULSE
@@ -247,7 +247,13 @@ bool SoundPlayer::init() {
     }
 
     if (!globalSoundDevice) {
-        Log::logCritical("Failed to init audio: no available audio devices worked.", true);
+        Log::logCritical("Failed to init audio: no available audio devices worked.", false);
+
+#ifndef ENABLE_AUDIO
+        currentSoundBackend = AudioBackends::Disabled;
+        return true;
+#endif
+
         return false;
     }
 

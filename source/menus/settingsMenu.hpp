@@ -1,69 +1,35 @@
 #pragma once
 #include "audio.hpp"
-#include "mainMenu.hpp"
-#include "menuObjects.hpp"
-#include "window.hpp"
-#include <se_export.hpp>
+#include "menuManager.hpp"
+#include "renderer.hpp"
+#include <nlohmann/json.hpp>
 
 class SE_EXPORT SettingsMenu : public Menu {
+  public:
+    nlohmann::json json;
+
+    SettingsMenu() = default;
+    virtual ~SettingsMenu() override {};
+    void section(UI::Builder &b, const std::string &name);
+    void toggle(UI::Builder &b, const std::string &jsonKey, const std::string &name, bool defaultValue = false, std::function<void(bool)> onChange = nullptr);
+    bool isToggled(const std::string &jsonKey);
+    void button(UI::Builder &b, const std::string &name, std::function<void()> onClick = nullptr);
+    void dropdown(UI::Builder &b, const std::string &jsonKey, const std::string &name, const std::vector<std::string> &options, const std::string &fallback);
+    virtual void build(UI::Builder &b) override {};
+};
+
+class SE_EXPORT GlobalSettingsMenu : public SettingsMenu {
   private:
-    void updateButtonStates();
-    std::string getDectalkString();
-#ifdef ENABLE_DISCORD_RPC
-    std::string getDiscordString();
-#endif
+    std::vector<std::string> rendererList;
+    std::vector<std::string> windowingList;
+    std::vector<std::string> audioEngineList;
+    std::string cacheSize;
+
+    void changeProjectPath();
+    inline void updateCacheSize();
 
   public:
-    ControlObject *settingsControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *Credits = nullptr;
-    ButtonObject *EnableUsername = nullptr;
-    ButtonObject *ChangeUsername = nullptr;
-    ButtonObject *EnableCustomFolderPath = nullptr;
-    ButtonObject *ChangeFolderPath = nullptr;
-    ButtonObject *EnableMenuMusic = nullptr;
-    ButtonObject *RendererButton = nullptr;
-    ButtonObject *WindowingButton = nullptr;
-    ButtonObject *AudioEngineButton = nullptr;
-    ButtonObject *ClearCache = nullptr;
-    ButtonObject *Language = nullptr;
-    ButtonObject *dectalkButton = nullptr;
-    ButtonObject *discordButton = nullptr;
-
-    bool UseCostumeUsername = false;
-    std::string username;
-
-    bool UseProjectsPath = false;
-    std::string projectsPath;
-
-    bool menuMusic = true;
-
-    std::vector<RendererInfo> validRenderers;
-    unsigned int rendererIdx = 0;
-    std::string rendererOption = "";
-
-    std::vector<WindowingBackendInfo> validWindowingBackends;
-    unsigned int windowingIdx = 0;
-    std::string windowingOption = "";
-
-    std::vector<AudioBackendInfo> validAudioBackends;
-    unsigned int audioIdx = 0;
-    std::string audioOption = "";
-
-#ifdef DECTALK_DEFAULT
-    bool UseDectalk = true;
-#else
-    bool UseDectalk = false;
-#endif
-
-#ifdef ENABLE_DISCORD_RPC
-    bool UseDiscord = true;
-#endif
-
-    SettingsMenu();
-    ~SettingsMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    GlobalSettingsMenu();
+    ~GlobalSettingsMenu() override;
+    void build(UI::Builder &b) override;
 };

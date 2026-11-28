@@ -13,6 +13,10 @@ class SE_EXPORT InputDevice_Flatland : public InputDevice {
 
     std::string openSoftwareKeyboard(const char *hintText) override;
 
+    void startTextInput(const std::string &hintText = "", bool numberKeyboard = false) override { Input::inputText = openSoftwareKeyboard(hintText.c_str()); }
+    bool isTextInputActive() override { return false; }
+    void endTextInput() override {}
+
   private:
     static constexpr int pulseFrames = 3;
     std::vector<std::pair<std::string, int>> heldPulses;

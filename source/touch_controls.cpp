@@ -3,11 +3,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <input.hpp>
-#include <nlohmann/json.hpp>
 #include <image.hpp>
+#include <input.hpp>
 #include <log.hpp>
 #include <memory>
+#include <menuManager.hpp>
+#include <nlohmann/json.hpp>
 #include <renderer.hpp>
 #include <runtime.hpp>
 #include <set>
@@ -16,7 +17,7 @@
 #include <unzip.hpp>
 #include <vector>
 
-#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE)
+#if defined(PLATFORM_HAS_TOUCH) && !defined(PLATFORM_HAS_MOUSE) && !defined(__3DS__) && !defined(__NDS__)
 
 namespace {
 
@@ -284,7 +285,8 @@ void buildLayout() {
 }
 
 void clearHeldState() {
-    for (KeyButton &button : layout.buttons) button.pressed = false;
+    for (KeyButton &button : layout.buttons)
+        button.pressed = false;
     layout.dpad.up = layout.dpad.down = layout.dpad.left = layout.dpad.right = false;
     layout.joystick.engaged = false;
     layout.joystick.headX = layout.joystick.x;
@@ -452,7 +454,7 @@ void update() {
     if (!active) return;
 
 #ifdef ENABLE_MENU
-    if (Scratch::pauseMenu != nullptr) {
+    if (MenuManager::currentMenu == MenuId::PauseMenu) {
         clearHeldState();
         return;
     }
@@ -469,7 +471,8 @@ void update() {
         return;
     }
 
-    for (KeyButton &button : layout.buttons) button.pressed = false;
+    for (KeyButton &button : layout.buttons)
+        button.pressed = false;
     layout.dpad.up = layout.dpad.down = layout.dpad.left = layout.dpad.right = false;
     layout.joystick.engaged = false;
     layout.joystick.headX = layout.joystick.x;

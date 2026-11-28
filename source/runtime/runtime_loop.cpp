@@ -1,6 +1,7 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
+#include "menuManager.hpp"
 #include "parser/parser.hpp"
 #include "runtime.hpp"
 #include "translation.hpp"
@@ -10,10 +11,11 @@
 #include <cstdio>
 #include <input.hpp>
 #include <iostream>
-#include <touch_controls.hpp>
+#include <log.hpp>
 #include <os.hpp>
 #include <renderer.hpp>
 #include <speech_manager.hpp>
+#include <touch_controls.hpp>
 #include <utility>
 
 #ifdef ENABLE_MENU
@@ -36,9 +38,6 @@ void Scratch::initializeScratchProject() {
 #endif
     Scratch::nextProject = false;
 
-#ifdef ENABLE_MENU
-    Scratch::pauseMenu = nullptr;
-#endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);
@@ -63,25 +62,20 @@ void Scratch::initializeScratchProject() {
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
-        // appShouldRun() only ever returns false when the platform wants the app
-        // to quit (OS::toExit, or the window/ProcUI saying so) -- never because
-        // the project merely ended. Mark it explicitly so mainLoop() goes straight
-        // to exitApp() instead of reconstructing the main menu just to discard it.
         OS::toExit = true;
-#ifdef ENABLE_MENU
-        if (pauseMenu != nullptr) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
-        }
-#endif
         return std::make_pair(false, false);
     }
 #ifdef ENABLE_MENU
-    if (pauseMenu != nullptr) {
+    if (MenuManager::currentMenu == MenuId::PauseMenu) {
+        PauseMenu *pauseMenu = reinterpret_cast<PauseMenu *>(MenuManager::loadedMenus[MenuId::PauseMenu].get());
+        Input::getInput();
+        Render::beginFrame(1, 0, 0, 0);
         MenuManager::render();
+        Render::endFrame();
         if (pauseMenu->shouldUnpause) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
+            MenuManager::changeMenu(MenuId::Ingame);
+            MenuManager::toUnload = MenuId::PauseMenu;
+            UI::Theme::loadIngameFonts();
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
@@ -209,6 +203,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #endif
 
             Render::renderSprites();
+            MenuManager::builder.dirty = true; // TODO: way of not having to do this every frame
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
@@ -220,12 +215,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         const bool browserProject = projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD);
-#ifdef __XBOX__
-        // Count wall time, not game frames: slow projects must remain escapable.
         static Timer pauseHoldTimer(false);
         static bool holdingPauseStart = false;
         bool pauseRequested = false;
-        const bool startHeld = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "start") != Input::inputButtons.end();
+        const bool startHeld = browserProject && Input::keyHeldDuration["1"] > 0;
         if (browserProject && startHeld) {
             if (!holdingPauseStart) {
                 pauseHoldTimer.start();
@@ -236,13 +229,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             holdingPauseStart = false;
         }
         if (pauseRequested) holdingPauseStart = false;
-#else
-        bool pauseRequested = browserProject && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
-#endif
         pauseRequested = pauseRequested || TouchControls::consumePauseRequest();
         if (pauseRequested) {
-            pauseMenu = new PauseMenu();
-            MenuManager::changeMenu(pauseMenu);
+            MenuManager::changeMenu(MenuId::PauseMenu);
+            UI::Theme::loadMenuFonts();
             return std::make_pair(true, false);
         }
 

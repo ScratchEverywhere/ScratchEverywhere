@@ -15,6 +15,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
+#include <menuManager.hpp>
 #include <os.hpp>
 #include <runtime.hpp>
 #include <string>
@@ -1816,6 +1817,15 @@ void Renderer_Xbox::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     drawColorTriangles(verts.data(), verts.size());
 }
 
+// TODO: should probably delete duplicate scissor() funcs
+void Renderer_Xbox::setClip(int x, int y, int w, int h) {
+    setScissor(x, y, w, h);
+}
+
+void Renderer_Xbox::clearClip() {
+    clearScissor();
+}
+
 void Renderer_Xbox::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (!s_hasPenTexture) return;
     s_lastCapValid = false;
@@ -2185,7 +2195,7 @@ void Renderer_Xbox::renderSprites() {
     clearScissor();
 
     drawBlackBarsNV2A(this, getWidth(), getHeight());
-    Render::renderMonitors();
+    MenuManager::render();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {

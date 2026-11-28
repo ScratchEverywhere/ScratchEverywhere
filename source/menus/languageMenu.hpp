@@ -1,20 +1,15 @@
 #pragma once
-#include "mainMenu.hpp"
-#include <se_export.hpp>
-#include <vector>
+#include "menuManager.hpp"
+#include "settingsMenu.hpp"
+#include <nlohmann/json.hpp>
+#include <translation.hpp>
 
-class SE_EXPORT LanguageMenu : public Menu {
+class SE_EXPORT LanguageMenu : public SettingsMenu {
   private:
+    std::vector<TranslationManager::LanguageInfo> languages;
+
   public:
-    ControlObject *control = nullptr;
-    ButtonObject *backButton = nullptr;
-
-    bool shouldUnpause = false;
-
     LanguageMenu();
-    ~LanguageMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    ~LanguageMenu() override;
+    void build(UI::Builder &b) override;
 };

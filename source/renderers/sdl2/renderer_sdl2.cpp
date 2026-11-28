@@ -8,6 +8,7 @@
 #include <image.hpp>
 #include <input.hpp>
 #include <log.hpp>
+#include <menuManager.hpp>
 #include <runtime.hpp>
 #include <string>
 #include <text.hpp>
@@ -639,6 +640,19 @@ void Renderer_SDL2::drawRoundedBox(int w, int h, int x, int y, int radius, uint8
     SDL_RenderGeometry(Sdlrenderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
 }
 
+void Renderer_SDL2::setClip(int x, int y, int w, int h) {
+    SDL_Rect clipRect = {
+        x,
+        y,
+        std::max(0, w),
+        std::max(0, h)};
+    SDL_RenderSetClipRect(Sdlrenderer, &clipRect);
+}
+
+void Renderer_SDL2::clearClip() {
+    SDL_RenderSetClipRect(Sdlrenderer, nullptr);
+}
+
 void Renderer_SDL2::renderSprites() {
     SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
     SDL_RenderClear(Sdlrenderer);
@@ -690,7 +704,7 @@ void Renderer_SDL2::renderSprites() {
     }
 
     drawBlackBars(Sdlrenderer, getWidth(), getHeight());
-    Render::renderMonitors();
+    MenuManager::render();
     Render::renderTouchControls();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)

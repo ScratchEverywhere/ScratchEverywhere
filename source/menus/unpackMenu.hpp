@@ -1,28 +1,28 @@
 #pragma once
-#include "mainMenu.hpp"
-#include <parser.hpp>
-#include <se_export.hpp>
+#include "menuManager.hpp"
+#include <string>
+#include <thread.hpp>
+
+struct UnpackTask {
+    std::string sb3Path;
+    std::string unpackedPath;
+    SE_Mutex mtx;
+    bool done = false;
+    bool success = false;
+    bool alreadyUnpacked = false;
+};
 
 class SE_EXPORT UnpackMenu : public Menu {
+  private:
+    std::string projectPath;
+    std::string unpackedPath;
+    UnpackTask task;
+    SE_Thread thread;
+    bool threadStarted = false;
+
   public:
-    ControlObject *settingsControl = nullptr;
-
-    std::unique_ptr<TextObject> infoText = nullptr;
-    std::unique_ptr<TextObject> descText = nullptr;
-
-    bool shouldGoBack = false;
-
-    std::string filename;
-
-    UnpackMenu();
-    ~UnpackMenu();
-
-    static void addToJsonArray(const std::string &filePath, const std::string &value, ProjectFormat format = ProjectFormat::SB3);
-    static std::vector<std::string> getJsonArray(const std::string &filePath);
-    static void removeFromJsonArray(const std::string &filePath, const std::string &value);
-    static ProjectFormat getUnpackedFormat(const std::string &filePath, const std::string &value);
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    UnpackMenu(const std::string &projectPath);
+    ~UnpackMenu() override;
+    void build(UI::Builder &b) override;
+    void callback(UI::Builder &b) override;
 };

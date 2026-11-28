@@ -67,8 +67,8 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
     size_t pos = 0;
     while ((pos = p.find('/', pos)) != std::string::npos) {
         std::string dir = p.substr(0, pos++);
-        if (dir.empty()) continue;
-        if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
+        if (dir.empty() || dir.back() == ':') continue;
+        if (dir == OS::getFilesystemRootPrefix()) continue;
 
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
@@ -78,6 +78,19 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
             if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
 #endif
                 return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
+            }
+        }
+    }
+
+    if (!p.empty() && p.back() != ':' && p.back() != '/' && p != OS::getFilesystemRootPrefix()) {
+        struct stat st;
+        if (stat(p.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(p.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(p.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                return nonstd::make_unexpected("Failed to create directory, " + p + ", " + std::to_string(errno));
             }
         }
     }
@@ -355,4 +368,185 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
 #endif
 
     return files;
+}
+
+long FileSystem::getFileSize(const std::string &path) {
+    long size;
+    FILE *fp = fopen(path.c_str(), "r");
+    if (!fp) return 0;
+    long current_pos = ftell(fp);
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, current_pos, SEEK_SET);
+    fclose(fp);
+    return size;
+}
+
+long FileSystem::getDirectorySize(const std::string &path) {
+#if defined(__XBOX__)
+    std::string norm = path;
+    for (char &c : norm) {
+        if (c == '/') c = '\\';
+    }
+    while (norm.size() > 3 && norm.back() == '\\') {
+        norm.pop_back();
+    }
+
+    DWORD attrs = GetFileAttributesA(norm.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+        return 0;
+    }
+
+    long totalSize = 0;
+    std::string searchPattern = norm + "\\*";
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = FindFirstFileA(searchPattern.c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    do {
+        const char *name = findData.cFileName;
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+
+        std::string childPath = norm + "\\" + name;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            totalSize += getDirectorySize(childPath);
+        } else {
+            totalSize += (static_cast<long>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+        }
+    } while (FindNextFileA(hFind, &findData) != 0);
+
+    FindClose(hFind);
+    return totalSize;
+
+#elif defined(_WIN32)
+    std::string cleanPath = path;
+    while (cleanPath.size() > 3 && (cleanPath.back() == '/' || cleanPath.back() == '\\')) {
+        cleanPath.pop_back();
+    }
+
+    std::string searchPath = cleanPath;
+    if (searchPath.empty()) {
+        searchPath = ".";
+    }
+    if (searchPath.back() != '/' && searchPath.back() != '\\') {
+        searchPath += "/*";
+    } else {
+        searchPath += "*";
+    }
+
+    std::wstring wsearchPath(searchPath.size(), L' ');
+    wsearchPath.resize(std::mbstowcs(&wsearchPath[0], searchPath.c_str(), searchPath.size()));
+
+    WIN32_FIND_DATAW findData;
+    HANDLE hFind = FindFirstFileW(wsearchPath.c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    long totalSize = 0;
+    do {
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, NULL, 0, NULL, NULL);
+        std::string fileName(size_needed - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, &fileName[0], size_needed, NULL, NULL);
+
+        if (fileName == "." || fileName == "..") continue;
+
+        std::string childPath = cleanPath + "/" + fileName;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            totalSize += getDirectorySize(childPath);
+        } else {
+            totalSize += (static_cast<long>(findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
+        }
+    } while (FindNextFileW(hFind, &findData) != 0);
+
+    FindClose(hFind);
+    return totalSize;
+
+#else
+    std::string cleanPath = path;
+    while (cleanPath.size() > 1 && cleanPath.back() == '/') {
+        cleanPath.pop_back();
+    }
+
+    struct stat st;
+    if (stat(cleanPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+        return 0;
+    }
+
+    DIR *dir = opendir(cleanPath.c_str());
+    if (dir == nullptr) {
+        return 0;
+    }
+
+    long totalSize = 0;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = cleanPath + "/" + entry->d_name;
+        struct stat entrySt;
+        if (stat(fullPath.c_str(), &entrySt) == 0) {
+            if (S_ISDIR(entrySt.st_mode)) {
+                totalSize += getDirectorySize(fullPath);
+            } else {
+                totalSize += static_cast<long>(entrySt.st_size);
+            }
+        }
+    }
+
+    closedir(dir);
+    return totalSize;
+#endif
+}
+
+long FileSystem::fileModifiedTime(const std::string &path) {
+#if defined(__XBOX__)
+    std::string norm = path;
+    for (char &c : norm) {
+        if (c == '/') c = '\\';
+    }
+    while (norm.size() > 3 && norm.back() == '\\') {
+        norm.pop_back();
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA attrData;
+    if (!GetFileAttributesExA(norm.c_str(), GetFileExInfoStandard, &attrData)) {
+        return 0;
+    }
+
+    ULARGE_INTEGER ull;
+    ull.LowPart = attrData.ftLastWriteTime.dwLowDateTime;
+    ull.HighPart = attrData.ftLastWriteTime.dwHighDateTime;
+    return static_cast<long>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+#elif defined(_WIN32)
+    struct _stat64 st;
+    if (_stat64(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#else
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        return 0;
+    }
+    return static_cast<long>(st.st_mtime);
+#endif
+}
+
+std::string FileSystem::formatFilesize(long bytes) {
+    char buf[32];
+    if (bytes >= 1024ULL * 1024ULL * 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    } else if (bytes >= 1024ULL * 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f MB", bytes / (1024.0 * 1024.0));
+    } else if (bytes >= 1024ULL) {
+        std::snprintf(buf, sizeof(buf), "%.1f KB", bytes / 1024.0);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%llu B", static_cast<unsigned long long>(bytes));
+    }
+    return buf;
 }

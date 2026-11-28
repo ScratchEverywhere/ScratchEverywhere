@@ -81,6 +81,7 @@ static void ensureUsbStack() {
 #endif
 
 InputDevice_Xbox::InputDevice_Xbox() {
+    Input::setControllerType(ControllerType::Xbox);
 #ifdef __XBOX__
     ensureUsbStack();
 #endif
@@ -235,11 +236,6 @@ void InputDevice_Xbox::getInput() {
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
-}
-
-std::string InputDevice_Xbox::openSoftwareKeyboard(const char *hintText) {
-    (void)hintText;
-    return "";
 }
 
 void InputDevice_Xbox::setClipboardText(const std::string &text) {

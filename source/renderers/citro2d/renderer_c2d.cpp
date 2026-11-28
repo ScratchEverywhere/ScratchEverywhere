@@ -5,6 +5,7 @@
 #include <downloader.hpp>
 #include <input.hpp>
 #include <log.hpp>
+#include <menuManager.hpp>
 #include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
@@ -392,19 +393,24 @@ void Renderer_C2D::cleanupPen() {
 }
 
 void Renderer_C2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    Window3DS *w = reinterpret_cast<Window3DS *>(window);
+
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         hasFrameBegan = true;
     }
     if (screen == 0) {
+        w->width = 400;
         currentScreen = 0;
         C2D_TargetClear(topScreen, C2D_Color32(colorR, colorG, colorB, 255));
         C2D_SceneBegin(topScreen);
     } else if (!isConsoleInit) {
         currentScreen = 1;
+        w->width = 320;
         C2D_TargetClear(bottomScreen, C2D_Color32(colorR, colorG, colorB, 255));
         C2D_SceneBegin(bottomScreen);
     } else {
+        w->width = 400;
         currentScreen = 0;
         C2D_SceneBegin(topScreen);
     }
@@ -430,7 +436,20 @@ void Renderer_C2D::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_
     drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
+void Renderer_C2D::setClip(int x, int y, int w, int h) {
+    C2D_Flush();
+    Window3DS *win = reinterpret_cast<Window3DS *>(window);
+    C3D_SetScissor(GPU_SCISSOR_NORMAL, std::max(0, win->height - h - y), std::max(0, win->width - w - x), std::max(0, win->height - y), std::max(0, win->width - x));
+}
+
+void Renderer_C2D::clearClip() {
+    C2D_Flush();
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+}
+
 void Renderer_C2D::renderSprites() {
+    Window3DS *w = reinterpret_cast<Window3DS *>(window);
+    w->width = 400;
     if (isConsoleInit) Render::renderMode = Render::TOP_SCREEN_ONLY;
     if (!hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -514,10 +533,10 @@ void Renderer_C2D::renderSprites() {
 
         screen_rendering(0, true);
 
-        Render::renderMonitors();
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(screenWidth, screenHeight);
         }
+        MenuManager::render();
 
         if (Input::mousePointer.isMoving) {
             C2D_DrawRectSolid((Input::mousePointer.x * Render::renderScale) + (screenWidth * 0.5f),
@@ -532,14 +551,15 @@ void Renderer_C2D::renderSprites() {
 
             screen_rendering(1, true);
 
-            Render::renderMonitors();
             if (Render::renderMode != Render::BOTH_SCREENS) {
                 drawBlackBars(screenWidth, screenHeight);
             }
+            MenuManager::render();
         }
     }
 
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
+        w->width = 320;
         C2D_SceneBegin(bottomScreen);
         C2D_TargetClear(bottomScreen, clrWhite);
 
@@ -549,10 +569,12 @@ void Renderer_C2D::renderSprites() {
         screen_rendering(0, false);
 
         if (Render::renderMode == Render::BOTH_SCREENS) {
-            Render::renderMonitors(-40, -240);
+            // Render::renderMonitors(-40, -240);
+            MenuManager::render();
         } else {
             drawBlackBars(bottomScreenWidth, screenHeight);
-            Render::renderMonitors();
+            // Render::renderMonitors();
+            MenuManager::render();
         }
 
         Render::renderTouchControls();

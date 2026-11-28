@@ -1,11 +1,12 @@
-#include "bytecode_jit.hpp"
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "bytecode_executor.hpp"
+#include "bytecode_jit.hpp"
 #include "collision.hpp"
 #include "discord.hpp"
 #include "math.hpp"
+#include "menuManager.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
@@ -23,13 +24,13 @@
 #include <log.hpp>
 #include <math.h>
 #include <memory>
-#include <touch_controls.hpp>
 #include <os.hpp>
 #include <parser.hpp>
 #include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
+#include <touch_controls.hpp>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -37,7 +38,6 @@
 #include <vector>
 
 #ifdef ENABLE_MENU
-#include <pauseMenu.hpp>
 #include <popupMenu.hpp>
 #endif
 
@@ -101,10 +101,6 @@ bool Scratch::bytecodeCacheTooNew = false;
 
 Timer Scratch::fpsTimer(false);
 
-#ifdef ENABLE_MENU
-PauseMenu *Scratch::pauseMenu = nullptr;
-#endif
-
 double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
@@ -131,7 +127,6 @@ bool Scratch::initializeRuntime() {
         return false;
     }
 #endif
-#ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
@@ -139,34 +134,47 @@ bool Scratch::initializeRuntime() {
         Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
-#endif
     return true;
 }
 
 bool Scratch::startScratchProject() {
 
 #ifdef ENABLE_MENU
+    auto renderMenu = [&]() -> void {
+        Render::beginFrame(1, 0, 0, 0);
+        Input::getInput();
+        MenuManager::render();
+        Render::endFrame();
+    };
+
+    auto popup = [&](PopupType type, const std::string &text) -> PopupMenu * {
+        MenuManager::unloadMenu(MenuId::PopupMenu);
+        MenuManager::loadedMenus[MenuId::PopupMenu] = std::make_unique<PopupMenu>(type, text);
+        MenuManager::changeMenu(MenuId::PopupMenu);
+        return reinterpret_cast<PopupMenu *>(MenuManager::loadedMenus[MenuId::PopupMenu].get());
+    };
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
+        PopupMenu *popupMenu = popup(PopupType::AcceptOrCancel, TranslationManager::getTranslation("ui.popup.extensions"));
+
+        while (Render::appShouldRun() && popupMenu->state == PopupState::None) {
+            renderMenu();
         }
-        popupMenu->cleanup();
-        if (popupMenu->accepted == 0) {
+        MenuManager::toUnload = MenuId::PopupMenu;
+        if (popupMenu->state == PopupState::Cancelled) {
             cleanupScratchProject();
             return false;
         }
+        MenuManager::changeMenu(MenuId::Ingame);
+        UI::Theme::loadIngameFonts();
     }
 
     if (bytecodeCacheTooNew) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACKNOWLEDGE, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
+        PopupMenu *popupMenu = popup(PopupType::Acknowledgement, TranslationManager::getTranslation("ui.popup.bytecodeCacheTooNew"));
+        while (Render::appShouldRun() && popupMenu->state == PopupState::None) {
+            renderMenu();
         }
-        popupMenu->cleanup();
+        MenuManager::toUnload = MenuId::PopupMenu;
         cleanupScratchProject();
         return false;
     }
@@ -207,8 +215,6 @@ void Scratch::cleanupScratchProject() {
     costumeImages.clear();
     failedCostumeImages.clear();
     Mixer::cleanupAudio();
-    Render::monitorTexts.clear();
-    Render::listMonitors.clear();
     Render::monitors.clear();
 
     TextObject::cleanupText();

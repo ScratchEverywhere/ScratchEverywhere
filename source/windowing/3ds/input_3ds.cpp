@@ -64,7 +64,7 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-InputDevice_3DS::InputDevice_3DS() {}
+InputDevice_3DS::InputDevice_3DS() { Input::setControllerType(ControllerType::Nintendo); }
 InputDevice_3DS::~InputDevice_3DS() {}
 
 std::array<int, 2> InputDevice_3DS::getTouchPosition() {
@@ -135,6 +135,9 @@ void InputDevice_3DS::getInput() {
             Input::mousePointer.y = coords.second;
             Input::clampMouseToStage();
         };
+
+        Input::mousePointer.rawX = touchPos[0];
+        Input::mousePointer.rawY = touchPos[1];
 
         if (Render::renderMode == Render::RenderModes::TOP_SCREEN_ONLY) {
             touchPos[0] *= BOTTOM_SCR_CONVERSION;

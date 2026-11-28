@@ -1,3 +1,4 @@
+#include "SDL3/SDL_error.h"
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #endif
@@ -21,42 +22,21 @@
 #if defined(RENDERER_SDL3)
 #include <renderers/sdl3/renderer_sdl3.hpp>
 #endif
+#include <utf8.hpp>
+#ifdef __UBUNTUTOUCH__
+#include <platforms/ut/swkbd_ut.hpp>
+
+extern bool utKeyboardShown;
+UbuntuTouchKeyboard &getUbuntuTouchKeyboard();
+#endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Gamepad *controller = nullptr;
-#ifdef __XBOX__
-static std::vector<SDL_Gamepad *> xboxControllers;
-
-static void openXboxController(SDL_JoystickID id) {
-    for (auto *pad : xboxControllers) {
-        if (SDL_GetGamepadID(pad) == id) return;
-    }
-    if (auto *pad = SDL_OpenGamepad(id)) {
-        xboxControllers.push_back(pad);
-        if (!controller) controller = pad;
-    }
-}
-
-static void selectXboxController(SDL_JoystickID id) {
-    for (auto *pad : xboxControllers) {
-        if (SDL_GetGamepadID(pad) == id && controller != pad) {
-            controller = pad;
-            Log::log("Xbox active controller: " + std::to_string(id));
-            return;
-        }
-    }
-}
-#endif
 #endif
 
 #ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
 SDL_Point touchPosition;
-#endif
-
-#ifdef __XBOX__
-#include <hal/xbox.h>
-#include <os.hpp>
 #endif
 
 WindowSDL3::WindowSDL3(int width, int height, const std::string &title) {
@@ -190,6 +170,7 @@ bool WindowSDL3::shouldClose() {
 }
 
 void WindowSDL3::pollEvents() {
+    Input::mouseScrollDelta = 0;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -208,45 +189,33 @@ void WindowSDL3::pollEvents() {
             resize(w, h);
         } break;
 #ifdef PLATFORM_HAS_CONTROLLER
-        case SDL_EVENT_GAMEPAD_ADDED:
-#ifdef __XBOX__
-            openXboxController(event.gdevice.which);
-#else
+        case SDL_EVENT_GAMEPAD_ADDED: {
             if (!controller) controller = SDL_OpenGamepad(event.gdevice.which);
-#endif
-            break;
-        case SDL_EVENT_GAMEPAD_REMOVED:
-#ifdef __XBOX__
-            for (auto it = xboxControllers.begin(); it != xboxControllers.end(); ++it) {
-                if (SDL_GetGamepadID(*it) != event.gdevice.which) continue;
-                if (controller == *it) controller = nullptr;
-                SDL_CloseGamepad(*it);
-                xboxControllers.erase(it);
+
+            if (!controller) {
+                Log::logError("Failed to connect controller: " + std::string(SDL_GetError()));
                 break;
             }
-            if (!controller && !xboxControllers.empty()) controller = xboxControllers.front();
-#else
+
+            const char *name = SDL_GetGamepadName(controller);
+            if (!name) break;
+            Log::log("[SDL3] Controller connected: " + std::string(name));
+            if (SDL_strstr(name, "Nintendo")) {
+                Input::setControllerType(ControllerType::Nintendo);
+            } else if (SDL_strstr(name, "Xbox")) {
+                Input::setControllerType(ControllerType::Xbox);
+            } else if (SDL_strstr(name, "Playstation") || SDL_strstr(name, "PS")) {
+                Input::setControllerType(ControllerType::Playstation);
+            }
+            break;
+        }
+        case SDL_EVENT_GAMEPAD_REMOVED:
             if (controller && event.gdevice.which == SDL_GetGamepadID(controller)) {
                 SDL_CloseGamepad(controller);
                 controller = nullptr;
             }
-#endif
+            Input::setControllerType(ControllerType::Unknown);
             break;
-#ifdef __XBOX__
-        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-            selectXboxController(event.gbutton.which);
-            break;
-        case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
-            // Ignore neutral reports and stick drift from other connected pads.
-            const bool trigger = event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-            const int threshold = trigger ? 24575 : ((event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY) ? 18000 : 10000);
-            if ((trigger && event.gaxis.value > threshold) ||
-                (!trigger && (event.gaxis.value > threshold || event.gaxis.value < -threshold))) {
-                selectXboxController(event.gaxis.which);
-            }
-            break;
-        }
-#endif
 #endif
 #ifdef PLATFORM_HAS_TOUCH
         case SDL_EVENT_FINGER_DOWN:
@@ -269,26 +238,76 @@ void WindowSDL3::pollEvents() {
             Input::mouseScrollDelta += static_cast<int>(event.wheel.y);
             break;
 #endif
+#ifndef SDL3_NO_TEXT_INPUT
+        case SDL_EVENT_TEXT_INPUT:
+            Input::inputText += event.text.text;
+            break;
+
+        case SDL_EVENT_KEY_DOWN:
+            if (!Input::isTextInputActive()) break;
+            switch (event.key.scancode) {
+            case SDL_SCANCODE_RETURN:
+            case SDL_SCANCODE_KP_ENTER:
+            case SDL_SCANCODE_ESCAPE:
+                Input::endTextInput();
+                break;
+            case SDL_SCANCODE_BACKSPACE:
+                if (!Input::inputText.empty()) {
+                    utf8::eraseLast(Input::inputText, 1);
+                }
+                break;
+            case SDL_SCANCODE_V: {
+#ifdef __APPLE__
+                bool pasteMod = (event.key.mod & SDL_KMOD_GUI) != 0;
+#else
+                bool pasteMod = (event.key.mod & SDL_KMOD_CTRL) != 0;
+#endif
+                if (pasteMod && SDL_HasClipboardText()) {
+                    char *clipboard = SDL_GetClipboardText();
+                    if (clipboard) {
+                        std::string pasted(clipboard);
+                        SDL_free(clipboard);
+
+                        pasted.erase(std::remove(pasted.begin(), pasted.end(), '\r'), pasted.end());
+                        pasted.erase(std::remove(pasted.begin(), pasted.end(), '\n'), pasted.end());
+
+                        Input::inputText += pasted;
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+            }
+            break;
+#endif
         }
     }
-#if defined(__XBOX__) && defined(PLATFORM_HAS_CONTROLLER)
-    // Handle the reset chord outside project key mappings, in menus and games.
-    // A hold prevents the Start/Back buttons from triggering an accidental reset.
-    static bool resetHeld = false;
-    static Uint64 resetHeldSince = 0;
-    const bool resetChord = controller &&
-                            SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_START) &&
-                            SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_BACK) &&
-                            SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 24575 &&
-                            SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 24575;
-    if (!resetChord) {
-        resetHeld = false;
-    } else if (!resetHeld) {
-        resetHeld = true;
-        resetHeldSince = SDL_GetTicks();
-    } else if (SDL_GetTicks() - resetHeldSince >= 750) {
-        Log::log("Xbox reset combo: rebooting to the configured dashboard.");
-        XReboot();
+#ifdef __UBUNTUTOUCH__
+    if (utKeyboardShown) {
+        UbuntuTouchKeyboard &maliitKeyboard = getUbuntuTouchKeyboard();
+        maliitKeyboard.poll();
+        for (const UbuntuTouchKeyboard::Event &oskEvent : maliitKeyboard.takeEvents()) {
+            switch (oskEvent.type) {
+            case UbuntuTouchKeyboard::Event::Type::CommitString:
+                utf8::eraseLast(Input::inputText, static_cast<size_t>(std::max(oskEvent.replaceLength, 0)));
+                Input::inputText += oskEvent.text;
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Backspace:
+                utf8::eraseLast(Input::inputText, 1);
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Enter:
+            case UbuntuTouchKeyboard::Event::Type::Escape:
+            case UbuntuTouchKeyboard::Event::Type::Dismissed:
+                Input::endTextInput();
+                break;
+
+            case UbuntuTouchKeyboard::Event::Type::Preedit:
+                break;
+            }
+        }
     }
 #endif
 }

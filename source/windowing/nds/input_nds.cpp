@@ -35,7 +35,7 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-InputDevice_NDS::InputDevice_NDS() {}
+InputDevice_NDS::InputDevice_NDS() { Input::setControllerType(ControllerType::Nintendo); }
 InputDevice_NDS::~InputDevice_NDS() {}
 
 std::array<int, 2> InputDevice_NDS::getTouchPosition() {
@@ -87,6 +87,9 @@ void InputDevice_NDS::getInput() {
 
         if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
             Input::mousePointer.isMoving = true;
+
+        Input::mousePointer.rawX = touchPos[0];
+        Input::mousePointer.rawY = touchPos[1];
 
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
         Input::mousePointer.x = coords.first;

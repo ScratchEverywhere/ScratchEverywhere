@@ -1,5 +1,6 @@
 #include "window_win32.hpp"
 #include "renderers/d3d9/renderer_d3d9.hpp"
+#include <algorithm>
 #include <input_win32.hpp>
 #include <libdlgmod/libdlgmod.h>
 #include <shellapi.h>
@@ -9,6 +10,7 @@
 #include <math.hpp>
 #include <os.hpp>
 #include <renderer.hpp>
+#include <utf8.hpp>
 
 #if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
@@ -28,6 +30,32 @@ typedef HRESULT(WINAPI *PFNDWMSETWINDOWATTRIBUTE)(HWND hWnd, DWORD dwAttribute, 
 
 static PFNDWMSETWINDOWATTRIBUTE _DwmSetWindowAttribute = nullptr;
 static HMODULE dwmapi = nullptr;
+
+static std::string ansiToUtf8(const std::string &s) {
+    if (s.empty()) return s;
+    const int wlen = MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), nullptr, 0);
+    if (wlen <= 0) return s;
+    std::wstring w(wlen, L'\0');
+    MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), w.data(), wlen);
+    const int ulen = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, nullptr, 0, nullptr, nullptr);
+    if (ulen <= 0) return s;
+    std::string out(ulen, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), wlen, out.data(), ulen, nullptr, nullptr);
+    return out;
+}
+
+static std::string clipboardText(HWND hWnd) {
+    std::string text;
+    if (!OpenClipboard(hWnd)) return text;
+    if (HANDLE h = GetClipboardData(CF_TEXT)) {
+        if (const char *p = static_cast<const char *>(GlobalLock(h))) text = p;
+        GlobalUnlock(h);
+    }
+    CloseClipboard();
+    text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+    text.erase(std::remove(text.begin(), text.end(), '\n'), text.end());
+    return ansiToUtf8(text);
+}
 
 static bool isDarkTheme() {
     DWORD dw;
@@ -57,6 +85,7 @@ static void setDarkTheme(HWND hWnd, bool dark) {
 }
 
 static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
+    Input::mouseScrollDelta = 0;
     WindowWin32 *self = (WindowWin32 *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
     if (self == nullptr) return DefWindowProc(hWnd, msg, wp, lp);
 
@@ -116,6 +145,25 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_MOUSEWHEEL: {
         const short delta = static_cast<short>(HIWORD(wp));
         Input::mouseScrollDelta += delta / WHEEL_DELTA;
+        break;
+    }
+    case WM_CHAR: {
+        if (!Input::isTextInputActive()) break;
+        switch (wp) {
+        case '\b':
+            utf8::eraseLast(Input::inputText, 1);
+            break;
+        case '\r':
+        case 27: // escape
+            Input::endTextInput();
+            break;
+        case 0x16: // Ctrl+V
+            Input::inputText += clipboardText(hWnd);
+            break;
+        default:
+            if (wp >= 32 && wp != 127) Input::inputText += ansiToUtf8(std::string(1, static_cast<char>(wp)));
+            break;
+        }
         break;
     }
     default: {

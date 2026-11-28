@@ -60,7 +60,7 @@ class SE_EXPORT SoundPlayer {
   public:
     static AudioBackends currentSoundBackend;
 
-    static const std::vector<AudioBackendInfo> getAvailableAudioBackends();
+    static const std::vector<std::string> getAvailableAudioBackends();
 
     // TODO: remove and use SoundDevice exclusively
     static bool init();

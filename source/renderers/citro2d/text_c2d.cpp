@@ -73,8 +73,9 @@ void TextObjectC2D::render(int xPos, int yPos) {
 
     const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
 
+    C2D_Fade((u32)color | 0xFF000000u);
     C2D_ImageTint tint;
-    C2D_PlainImageTint(&tint, (u32)color, 1.0f);
+    C2D_PlainImageTint(&tint, C2D_Color32(0, 0, 0, 255), 0.0f);
 
     for (size_t li = 0; li < layoutLines.size(); ++li) {
         const auto &glyphs = layoutLines[li];
@@ -104,4 +105,5 @@ void TextObjectC2D::render(int xPos, int yPos) {
                             destW / subtex.width, destH / subtex.height);
         }
     }
+    C2D_Fade(0);
 }

@@ -1,38 +1,15 @@
 #pragma once
-#include "mainMenu.hpp"
-#include <se_export.hpp>
-#ifdef __XBOX__
-#include <map>
-#include <string>
-#endif
+#include "menuManager.hpp"
+#include "settingsMenu.hpp"
 
-class SE_EXPORT PauseMenu : public Menu {
+class SE_EXPORT PauseMenu : public SettingsMenu {
   private:
-    enum class Action { None,
-                        Resume,
-                        Exit,
-                        GreenFlag,
-                        Stop };
-    Action pendingAction = Action::None;
-    void requestAction(Action action);
-    void finishAction(Action action);
-#ifdef __XBOX__
     std::map<std::string, std::string> gameControls;
-#endif
+    void pauseToggle(UI::Builder &b, const std::string &name, bool &value);
+
   public:
-    ControlObject *pauseControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *exitProjectButton = nullptr;
-    ButtonObject *flagButton = nullptr;
-    ButtonObject *stopButton = nullptr;
-    ButtonObject *turboButton = nullptr;
-
     bool shouldUnpause = false;
-
     PauseMenu();
-    ~PauseMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    ~PauseMenu() override;
+    void build(UI::Builder &b) override;
 };

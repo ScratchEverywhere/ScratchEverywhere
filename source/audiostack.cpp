@@ -17,7 +17,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <limits>
 #include <thread>
 #include <vector>
@@ -417,8 +416,13 @@ bool Mixer::musicInitialized = false;
 std::atomic<bool> Mixer::musicPaused{false};
 
 namespace {
+#ifdef __NDS__
+constexpr size_t MAX_MIXER_STREAMS = 32;
+constexpr int MIX_CHUNK_FRAMES = 512;
+#else
 constexpr size_t MAX_MIXER_STREAMS = 2048;
 constexpr int MIX_CHUNK_FRAMES = 2048;
+#endif
 struct MixerStreamSnapshot {
     SoundStream *stream = nullptr;
     int channels = 0;

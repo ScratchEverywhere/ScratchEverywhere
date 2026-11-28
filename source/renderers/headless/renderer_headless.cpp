@@ -60,6 +60,12 @@ void Renderer_Headless::drawBox(int w, int h, int x, int y, uint8_t colorR, uint
 void Renderer_Headless::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
 }
 
+void Renderer_Headless::setClip(int x, int y, int w, int h) {
+}
+
+void Renderer_Headless::clearClip() {
+}
+
 bool Renderer_Headless::appShouldRun() {
     return true;
 }

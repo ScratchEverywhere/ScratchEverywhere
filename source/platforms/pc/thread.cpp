@@ -139,7 +139,7 @@ struct SE_Mutex::Impl {
 #endif
 };
 
-SE_Mutex::SE_Mutex() {
+SE_Mutex::SE_Mutex() : impl(nullptr) {
     init();
 }
 

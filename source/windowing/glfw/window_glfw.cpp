@@ -18,6 +18,7 @@
 #include <renderer.hpp>
 #include <renderers/opengl/renderer_gl.hpp>
 #include <text.hpp>
+#include <utf8.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     Render::getGlobalRenderer()->window->resize(width, height);
@@ -31,12 +32,64 @@ static void drop_callback(GLFWwindow *window, int count, const char **paths) {
 #endif
 
 static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    Input::mouseScrollDelta = 0;
     static double accumulated = 0.0;
     accumulated += yoffset;
     const int ticks = static_cast<int>(accumulated);
     if (ticks != 0) {
         Input::mouseScrollDelta += ticks;
         accumulated -= ticks;
+    }
+}
+
+static void appendUtf8(std::string &out, unsigned int cp) {
+    if (cp < 0x80) {
+        out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        out += static_cast<char>(0xC0 | (cp >> 6));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        out += static_cast<char>(0xE0 | (cp >> 12));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+        out += static_cast<char>(0xF0 | (cp >> 18));
+        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+}
+
+static void char_callback(GLFWwindow *, unsigned int codepoint) {
+    if (!Input::isTextInputActive() || codepoint < 32 || codepoint == 127) return;
+    appendUtf8(Input::inputText, codepoint);
+}
+
+static void key_callback(GLFWwindow *window, int key, int, int action, int mods) {
+    if (action == GLFW_RELEASE || !Input::isTextInputActive()) return;
+    switch (key) {
+    case GLFW_KEY_ENTER:
+    case GLFW_KEY_KP_ENTER:
+    case GLFW_KEY_ESCAPE:
+        if (action == GLFW_PRESS) Input::endTextInput();
+        break;
+    case GLFW_KEY_BACKSPACE:
+        utf8::eraseLast(Input::inputText, 1);
+        break;
+    case GLFW_KEY_V:
+#ifdef __APPLE__
+        if (mods & GLFW_MOD_SUPER) {
+#else
+        if (mods & GLFW_MOD_CONTROL) {
+#endif
+            if (const char *clip = glfwGetClipboardString(window)) {
+                std::string pasted(clip);
+                pasted.erase(std::remove(pasted.begin(), pasted.end(), '\r'), pasted.end());
+                pasted.erase(std::remove(pasted.begin(), pasted.end(), '\n'), pasted.end());
+                Input::inputText += pasted;
+            }
+        }
+        break;
     }
 }
 
@@ -73,6 +126,8 @@ WindowGLFW::WindowGLFW(int w, int h, const std::string &title) {
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetCharCallback(window, char_callback);
+    glfwSetKeyCallback(window, key_callback);
 #ifdef SE_FILE_DROP
     glfwSetDropCallback(window, drop_callback);
 #endif

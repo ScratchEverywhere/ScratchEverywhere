@@ -73,7 +73,7 @@ struct SE_Mutex::Impl {
     SDL_mutex *mtx;
 };
 
-SE_Mutex::SE_Mutex() {
+SE_Mutex::SE_Mutex() : impl(nullptr) {
     init();
 }
 
